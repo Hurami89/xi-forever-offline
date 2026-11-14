@@ -27,7 +27,9 @@ Each comes from its official release page and keeps its own license.
 | [AutoBot](https://github.com/Buckfutt/AutoBot-Ashita) | K0D3R | MIT |
 | [mobdb](https://github.com/ThornyFFXI/mobdb) | Thorny | MIT |
 | Journal ([Nexus Mods, FFXI mod 44](https://www.nexusmods.com/finalfantasy11/mods/44)) | Kxteel | MIT |
-| chains | Sippius, Ivaar and NerfOnline | see its source |
+| [Chains](https://github.com/NerfOnline/Chains) | Sippius, Ivaar and NerfOnline | see its release page |
+| [Nameplate](https://github.com/Shirk/Nameplate) | Shirk | GPL v3 |
+| [xiloader (Phoenix)](https://github.com/phoenixffxi/xiloader) | Phoenix / LandSandBoat | GPL v3 |
 | Gambatte (libretro core, used by Crystal Boy) | the Gambatte and libretro authors | GPL v2 |
 | dgVoodoo | Dege | see its site |
 | ReShade | crosire and contributors | see its site |

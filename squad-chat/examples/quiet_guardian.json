@@ -1,0 +1,20 @@
+{
+  "title": "The quiet guardian",
+  "personality": "Calm, patient and protective; speaks rarely, notices everything, and puts the party first without being asked.",
+  "voice": "Few words, plain and kind; a rare joke lands harder for being rare.",
+  "quirk": "Always the last to sit down and the first to stand up when someone approaches.",
+  "goal": "To keep this party together long enough that nobody has to travel alone again.",
+  "fear": "Arriving a moment too late.",
+  "hooks": [
+    "Once guarded a caravan that did not make it, and visits the road where it happened.",
+    "Carries a token from someone they promised to protect.",
+    "Hums an old lullaby when they think no one is listening."
+  ],
+  "backstory": "{name} learned early that someone has to stand in front, and decided it might as well be them. Work as a guard for hire took {name} along most of the roads between the nations.\n\nAfter one job went badly wrong, {name} stopped working for coin alone and started looking for people worth protecting. This party, for all its noise, seems worth it.",
+  "chat_examples": [
+    "Behind me.",
+    "Rest. I will keep watch.",
+    "...That was well done."
+  ],
+  "talkativeness": 0.6
+}

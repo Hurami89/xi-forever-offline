@@ -49,6 +49,7 @@ LORE_FILE = BASE / "lore" / "ffxi_era.md"
 IN_FILE = BASE / "in.txt"
 OUT_FILE = BASE / "out.txt"
 STATE_FILE = BASE / "state.json"
+PLAYER_FILE = BASE / "player.json"   # the last player character seen (name, race), so prompts are right before the first CTX line
 LOG_DIR = BASE / "logs"
 ARCHIVE = BASE / "archive"
 
@@ -75,7 +76,7 @@ RACE_BASE = {
 }
 
 DEFAULT_CONFIG = {
-    "model": "mistral-nemo:latest",
+    "model": "gemma4:12b",          # the Downloads tab / first-run setup pulls this one; mistral-nemo is the fallback
     "ollama_url": "http://127.0.0.1:11434",
     "stub": False,
     "reply": {
@@ -173,6 +174,59 @@ def mood_for(name: str, day: str | None = None) -> tuple[str, str]:
     return MOODS[int(digest[:8], 16) % len(MOODS)]
 
 
+# ----- the player (the squad's leader) -----
+# The server sends the character's name and race on every CTX line; until one arrives, the last one seen is used.
+FEMALE_RACES = {2, 4, 6, 7}     # Hume F, Elvaan F, Tarutaru F, Mithra
+MALE_RACES = {1, 3, 5, 8}       # Hume M, Elvaan M, Tarutaru M, Galka
+
+
+def load_player() -> None:
+    try:
+        data = json.loads(PLAYER_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and clean_line(data.get("name", "")):
+            CONTEXT["player"] = clean_line(data["name"])
+            CONTEXT["player_race"] = int(data.get("race", 0) or 0)
+    except (OSError, ValueError, TypeError):
+        pass
+
+
+def set_player(name: str, race) -> None:
+    name = clean_line(name)
+    if not name:
+        return
+    try:
+        race = int(race)
+    except (TypeError, ValueError):
+        race = 0
+    if name == CONTEXT.get("player") and race == CONTEXT.get("player_race"):
+        return
+    CONTEXT["player"], CONTEXT["player_race"] = name, race
+    try:
+        PLAYER_FILE.write_text(json.dumps({"name": name, "race": race}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def leader() -> str:
+    """The player character's name (the one the mates follow)."""
+    return CONTEXT.get("player") or clean_line(CONFIG.get("player_name", "")) or "the leader"
+
+
+def leader_pronoun(kind: str = "subject") -> str:
+    race = CONTEXT.get("player_race", 0)
+    forms = {"subject": ("she", "he", "they"), "object": ("her", "him", "them"), "possessive": ("her", "his", "their")}[kind]
+    return forms[0] if race in FEMALE_RACES else forms[1] if race in MALE_RACES else forms[2]
+
+
+def talkativeness(name: str) -> float:
+    """How readily a mate speaks up, from their sheet ("talkativeness", 0.2-3, default 1)."""
+    try:
+        value = float((PROFILES.get(name) or {}).get("talkativeness", 1.0))
+    except (TypeError, ValueError):
+        value = 1.0
+    return max(0.2, min(3.0, value))
+
+
 def fight_block(name: str) -> str:
     """What is happening right now, if the party is fighting (FIGHT lines come every 5 s)."""
     fight = CONTEXT.get("fight")
@@ -181,7 +235,7 @@ def fight_block(name: str) -> str:
     lines = [f"The party is fighting {fight['target']} right now"
              + (f" (it is at about {fight['target_hp']}% health)." if fight.get("target_hp", -1) >= 0 else ".")]
     if fight.get("hp", -1) >= 0:
-        lines.append(f"Hurami is at {fight['hp']}% HP" + (f" and {fight['mp']}% MP." if fight.get("mp", -1) >= 0 else "."))
+        lines.append(f"{leader()} is at {fight['hp']}% HP" + (f" and {fight['mp']}% MP." if fight.get("mp", -1) >= 0 else "."))
     for mate in fight.get("mates", []):
         who = "You are" if mate["name"] == name else f"{mate['name']} is"
         bits = []
@@ -195,7 +249,7 @@ def fight_block(name: str) -> str:
 
 
 def world_block() -> str:
-    """Other adventurers (bot players) around Hurami, his friends and linkshell (WORLD lines come every 30 s)."""
+    """Other adventurers (bot players) around the player, their friends and linkshell (WORLD lines come every 30 s)."""
     world = CONTEXT.get("world")
     if not world or time.time() - float(CONTEXT.get("world_at", 0) or 0) > 120:
         return ""
@@ -205,9 +259,9 @@ def world_block() -> str:
     if world.get("near"):
         lines.append("Other adventurers nearby: " + ", ".join(world["near"]))
     if world.get("friends"):
-        lines.append("Hurami's friends who are online: " + ", ".join(world["friends"]))
+        lines.append(f"{leader()}'s friends who are online: " + ", ".join(world["friends"]))
     if world.get("ls"):
-        lines.append(f"Hurami's linkshell: {world['ls']}")
+        lines.append(f"{leader()}'s linkshell: {world['ls']}")
     return "\n".join(lines)
 LAST_SAY = 0.0
 SAY_TIMES: deque[float] = deque()
@@ -287,6 +341,29 @@ def memory_path(name: str) -> Path:
     return MEMORY / f"{slug(name)}.json"
 
 
+def reload_if_changed(name: str) -> None:
+    """The launcher's Squad tab > Personality page can edit a sheet while this runs. Read the file again when it
+    changed on disk, so that edit is used and is not overwritten by an older copy held here."""
+    profile = PROFILES.get(name)
+    if not profile:
+        return
+    path = profile_path(name)
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return
+    if mtime <= float(profile.get("_mtime", 0) or 0):
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if str(data.get("name", "")).strip() == name:
+        data["_mtime"] = mtime
+        PROFILES[name] = data
+        log(f"reloaded the edited sheet for {name}")
+
+
 def load_profiles() -> dict[str, dict]:
     found: dict[str, dict] = {}
     MATES.mkdir(parents=True, exist_ok=True)
@@ -295,6 +372,7 @@ def load_profiles() -> dict[str, dict]:
             data = json.loads(path.read_text(encoding="utf-8"))
             name = str(data.get("name", "")).strip()
             if name:
+                data["_mtime"] = path.stat().st_mtime
                 found[name] = data
         except (OSError, ValueError) as exc:
             log(f"profile {path.name} could not be read: {exc}")
@@ -309,7 +387,11 @@ def save_profile(profile: dict) -> None:
             path.with_suffix(".json.bak").write_bytes(path.read_bytes())
         except OSError as exc:
             log(f"could not back up {path.name}: {exc}")
-    path.write_text(json.dumps(profile, indent=2, ensure_ascii=False), encoding="utf-8")
+    path.write_text(json.dumps({k: v for k, v in profile.items() if k != "_mtime"}, indent=2, ensure_ascii=False), encoding="utf-8")
+    try:
+        profile["_mtime"] = path.stat().st_mtime
+    except OSError:
+        pass
 
 
 def load_memory(name: str) -> dict:
@@ -511,7 +593,7 @@ _MODEL = {"name": None, "at": 0.0}
 def current_model() -> str:
     """config.json "model" once Ollama has it pulled, else "fallback_model" (checked every 5 minutes), so switching to a
     model you have not downloaded yet never breaks the chat."""
-    wanted = CONFIG.get("model", "mistral-nemo:latest")
+    wanted = CONFIG.get("model", "gemma4:12b")
     fallback = CONFIG.get("fallback_model", "mistral-nemo:latest")
     if _MODEL["name"] and time.time() - _MODEL["at"] < 300:
         return _MODEL["name"]
@@ -635,7 +717,7 @@ def system_prompt(
             f"{profile.get('name', 'yourself')}. It must sound like a real FFXI player, not a narrator. "
             "You are answering the line you were just given, not opening a new subject."
         )
-    return f"""You are {profile.get('name', 'a squad mate')}, a {profile.get('race', '')} {profile.get('job', '')} in Vana'diel, and one of Hurami's squad mates.
+    return f"""You are {profile.get('name', 'a squad mate')}, a {profile.get('race', '')} {profile.get('job', '')} in Vana'diel, and one of {leader()}'s squad mates.
 
 The canon primer below is the truth for this setting. Stay inside it. Do not use later expansions, do not invent nations or gods, and do not mention game mechanics, levels as numbers, servers, addons, patches, or the real world. Never mention being an AI or a language model.
 
@@ -660,7 +742,7 @@ Recent conversation:
 
 --- CURRENT CONTEXT ---
 Zone: {CONTEXT.get('zone', "Vana'diel")}
-Hurami's level: {CONTEXT.get('level', 1)}
+{leader()}'s level: {CONTEXT.get('level', 1)}
 Party: {party}
 {extra}{mood}--- END CURRENT CONTEXT ---
 
@@ -671,7 +753,7 @@ Party: {party}
 - casual, specific, in character;
 - no narration, no asterisks, no stage directions, no quotes around the whole line;
 - do not put your name or a colon at the start;
-- do not speak for Hurami or the other mates;
+- do not speak for {leader()} or the other mates;
 - if you do not know something, react in character instead of inventing canon.
 """
 
@@ -721,7 +803,7 @@ def maybe_summarize(name: str, memory: dict) -> None:
 
     previous = clean_line(memory.get("summary", "")) or "(none yet)"
     events = "\n".join(f"- {clean_line(item)}" for item in pending)
-    prompt = f"""You are keeping the private adventure chronicle of Hurami and her squad in FINAL FANTASY XI's 75-era.
+    prompt = f"""You are keeping the private adventure chronicle of {leader()} and {leader_pronoun('possessive')} squad in FINAL FANTASY XI's 75-era.
 
 Current long-term memory:
 {previous}
@@ -729,7 +811,7 @@ Current long-term memory:
 New events to fold in:
 {events}
 
-Write an updated chronicle in third person, two to three sentences, under 500 characters. The events are the only source of truth. Do not add any fact, outcome, injury, motive, or explanation that is not written in them: if the events say only that Hurami fell, do not say she was hurt or rescued. Never change a name, race, job, or place, and never guess a different job from an abbreviation (MNK is Monk, WAR is Warrior; do not turn one into another). Keep promises, disagreements, deaths, and unresolved hooks. Drop routine travel and repeated fighting. Stay inside the canon primer and do not invent nations, gods, or later expansions. Do not state level numbers. No game mechanics, no modern references, and no commentary about keeping a chronicle. Return only the paragraph.
+Write an updated chronicle in third person, two to three sentences, under 500 characters. The events are the only source of truth. Do not add any fact, outcome, injury, motive, or explanation that is not written in them: if the events say only that {leader()} fell, do not say {leader_pronoun()} was hurt or rescued. Never change a name, race, job, or place, and never guess a different job from an abbreviation (MNK is Monk, WAR is Warrior; do not turn one into another). Keep promises, disagreements, deaths, and unresolved hooks. Drop routine travel and repeated fighting. Stay inside the canon primer and do not invent nations, gods, or later expansions. Do not state level numbers. No game mechanics, no modern references, and no commentary about keeping a chronicle. Return only the paragraph.
 """
     raw = call_ollama(
         [
@@ -781,8 +863,7 @@ def schedule_crosstalk(speaker: str, text: str, chain: int) -> None:
     if random.random() >= float(cfg.get("chance", 0.0)):
         return
 
-    weights = {"Momo": 1.5, "Gio": 1.3, "Kyo": 1.0, "Kasumi": 0.9}
-    name = random.choices(pool, weights=[weights.get(item, 1.0) for item in pool], k=1)[0]
+    name = random.choices(pool, weights=[talkativeness(item) for item in pool], k=1)[0]
     delay = random.uniform(float(cfg.get("delay_min_seconds", 2.0)), float(cfg.get("delay_max_seconds", 6.0)))
     CROSSTALK_QUEUE.append(
         {
@@ -862,7 +943,7 @@ def fresh_example(profile: dict, name: str, memory: dict) -> str:
 
 
 def prompt_line(mate_name: str, speaker: str, text: str) -> str:
-    """The last thing the model reads. A bare "Hurami: hello" is taken as a chat log to continue, which is
+    """The last thing the model reads. A bare "Name: hello" is taken as a chat log to continue, which is
     how the mates ended up talking past the player; this asks for the answer instead."""
     return (
         f'{speaker} says this in party chat: "{text}"\n\n'
@@ -888,6 +969,7 @@ def respond(
     if PAUSED:
         return None
 
+    reload_if_changed(mate_name)
     profile = PROFILES.get(mate_name)
     if not profile:
         log(f"no profile for {mate_name}")
@@ -982,15 +1064,9 @@ def choose_responders(text: str) -> list[str]:
 
     # Persona weights keep the talkative ones talking, but the mate who just answered is unlikely to take the
     # next line too: one voice answering everything made the squad feel like a single NPC.
-    base = {
-        "Momo": 1.5,
-        "Gio": 1.3,
-        "Kyo": 1.0,
-        "Kasumi": 0.9,
-    }
     weights = []
     for name in pool:
-        weight = base.get(name, 1.0)
+        weight = talkativeness(name)
         if RECENT_SPEAKERS and name == RECENT_SPEAKERS[-1]:
             weight *= 0.2
         elif len(RECENT_SPEAKERS) > 1 and name == RECENT_SPEAKERS[-2]:
@@ -1109,13 +1185,13 @@ New mate:
 
 Write four paragraphs of past-tense third-person backstory (280-380 words) that:
 - fits the 75-era and the canon primer, with no chosen-one prophecy and no later expansions;
-- explains where they came from, why they left, why they are in San d'Oria, and why they stay with Hurami;
+- explains where they came from, why they left, why they are in {nation or "San d'Oria"}, and why they stay with {leader()};
 - gives them a distinct voice, a quirk, a personal goal, a fear, and two or three story hooks;
 - respects race canon: Galka have no females and reincarnation is a belief; Mithra are female and their males are rare and stay home; Tarutaru are adults; Elvaan and Hume can be any gender;
 - avoids modern references and game-mechanic talk.
 
 Return ONLY a JSON object with these keys:
-backstory (string with \\n\\n between paragraphs), personality, voice, quirk, goal, fear, hooks (array of 3 strings), relationships (object keyed by Hurami and each existing mate by name), chat_examples (array of 3 short lines), appearance, origin.
+backstory (string with \\n\\n between paragraphs), personality, voice, quirk, goal, fear, hooks (array of 3 strings), relationships (object keyed by {leader()} and each existing mate by name), chat_examples (array of 3 short lines), appearance, origin.
 """
     messages = [
         {"role": "system", "content": "You are a careful lore writer for a private FINAL FANTASY XI 75-era server. Return valid JSON only."},
@@ -1173,13 +1249,13 @@ backstory (string with \\n\\n between paragraphs), personality, voice, quirk, go
     PROFILES[name] = profile
     write_out("NOTE", "", f"Backstory ready for {name}. Open squad-chat/mates/{slug(name)}.json to read or edit it.")
     log(f"generated profile for {name} ({base} {job} {level_int})")
-    remember_event(f"{name} joined Hurami's squad as a {base} {profile['job']}.")
+    remember_event(f"{name} joined {leader()}'s squad as a {base} {profile['job']}.")
     if not CONFIG.get("stub") and name in active_profiles():
         respond(
             name,
             "narrator",
             "",
-            event=f"You have just joined Hurami's squad in San d'Oria. Greet the party in one short line.",
+            event=f"You have just joined {leader()}'s squad in {profile['nation']}. Greet the party in one short line.",
             record_event=False,
             allow_crosstalk=False,
         )
@@ -1190,6 +1266,7 @@ def handle_roster(name: str, race_value, job: str, level, nation: str) -> None:
     name = clean_line(name)
     if not name:
         return
+    reload_if_changed(name)
     profile = PROFILES.get(name)
     if profile is None:
         generate_profile(name, race_value, job, level, nation)
@@ -1315,7 +1392,7 @@ RECALL_WRITER_NOTE = re.compile(r"^(?:keep|do not|don't|never|make sure|make it|
 
 def recall_text(value) -> str:
     """Turns a journal line into something a person can remember out loud. Notes are stored as
-    "Hurami noted: ..."; the prefix is bookkeeping, not part of the promise."""
+    "<player> noted: ..."; the prefix is bookkeeping, not part of the promise."""
     text = RECALL_NOTE_PREFIX.sub("", clean_line(value))
     return text.strip(" .")
 
@@ -1508,7 +1585,7 @@ def handle_line(line: str) -> None:
     elif kind == "TALK" and len(parts) >= 3:
         name = parts[1].strip()
         if name in PROFILES:
-            respond(name, "Hurami", "\t".join(parts[2:]))
+            respond(name, leader(), "\t".join(parts[2:]))
     elif kind == "CTX" and len(parts) >= 3:
         CONTEXT["zone"] = clean_line(parts[1]) or CONTEXT["zone"]
         try:
@@ -1522,6 +1599,8 @@ def handle_line(line: str) -> None:
                 pass
         if len(parts) >= 5:
             CONTEXT["party"] = [clean_line(item) for item in parts[4].split(",") if clean_line(item)]
+        if len(parts) >= 7:
+            set_player(parts[5], parts[6])     # the player's name and race (servers before 2026-11-14 send 5 fields)
         CONTEXT["updated_at"] = time.time()
     elif kind == "FIGHT" and len(parts) >= 6:
         def number(value: str) -> int:
@@ -1592,17 +1671,17 @@ def handle_line(line: str) -> None:
         except ValueError:
             pass
         CONTEXT["updated_at"] = time.time()
-        handle_event("level", f"Hurami reached level {level}.", "level_chance")
+        handle_event("level", f"{leader()} reached level {level}.", "level_chance")
     elif kind == "BATTLE" and len(parts) >= 2:
         target = clean_line(parts[1])
         notorious = len(parts) >= 3 and parts[2].strip() == "1"
         zone = CONTEXT.get("zone", "Vana'diel")
         if target:
             suffix = " (a notorious monster)" if notorious else ""
-            handle_event("battle", f"Hurami's squad defeated {target}{suffix} in {zone}.", "battle_chance")
+            handle_event("battle", f"{leader()}'s squad defeated {target}{suffix} in {zone}.", "battle_chance")
     elif kind == "DEATH" and len(parts) >= 1:
         zone = clean_line(parts[1]) if len(parts) >= 2 else CONTEXT.get("zone", "Vana'diel")
-        remember_event(f"Hurami fell in {zone}.")
+        remember_event(f"{leader()} fell in {zone}.")
     elif kind == "NEWMATE" and len(parts) >= 6:
         generate_profile(parts[1].strip(), parts[2].strip(), parts[3].strip(), parts[4].strip(), parts[5].strip())
     elif kind == "LORE" and len(parts) >= 2:
@@ -1644,6 +1723,7 @@ def main() -> int:
         CONFIG["stub"] = True
     LORE = load_lore()
     PROFILES = load_profiles()
+    load_player()
     for directory in (MATES, MEMORY, LOG_DIR, ARCHIVE):
         directory.mkdir(parents=True, exist_ok=True)
     IN_FILE.touch(exist_ok=True)

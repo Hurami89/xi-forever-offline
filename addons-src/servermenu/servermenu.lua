@@ -1,6 +1,6 @@
 --[[
 servermenu 1.6
-One menu for FFXI Offline, opened from a small Squads button on the screen. It replaces the Squad panel (/sq still works).
+One menu for XI: Forever Offline, opened from a small Squads button on the screen. It replaces the Squad panel (/sq still works).
 
   Squad        your squad mates: call, dismiss, role, mode, main and support job, and a Profile button per mate with
                their current stats, HP/MP/TP, haste, jobs and equipped items (the Titan-style profile screen);
@@ -33,9 +33,9 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 ]]
 
 addon.name    = 'servermenu';
-addon.author  = 'FFXI Solo';
+addon.author  = 'XI: Forever Offline';
 addon.version = '1.8';
-addon.desc    = 'The FFXI Offline menu: squad mates, and the dualbox character with his gambits.';
+addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
 require('common');
@@ -59,7 +59,7 @@ end
 -- ---------------------------------------------------------------- constants
 local ROLES = { 'auto', 'tank', 'damage', 'healer', 'support' };
 local MODES = { 'balanced', 'aggressive', 'conserve' };
-local JOBS  = { 'WAR', 'MNK', 'WHM', 'BLM', 'RDM', 'THF', 'PLD', 'DRK', 'BST', 'BRD', 'RNG', 'SAM', 'NIN', 'DRG', 'SMN' };
+local JOBS  = { 'WAR', 'MNK', 'WHM', 'BLM', 'RDM', 'THF', 'PLD', 'DRK', 'BST', 'BRD', 'RNG', 'SAM', 'NIN', 'DRG', 'SMN', 'BLU', 'COR', 'PUP' };
 
 -- the stat sheet: the server sends the switches as a mask (1 melee, 2 ranged, 4 ja, 8 magic), 15 = all on
 local SWITCHES = { 'melee', 'ranged', 'ja', 'magic' };
@@ -90,7 +90,7 @@ local VITAL_COLORS =
 local function hasBit(mask, bit)
     return math.floor((tonumber(mask) or 0) / bit) % 2 == 1;
 end
-local TABS  = { 'Squad', 'Dualbox' };
+local TABS  = { 'Squad', 'Dualbox', 'Auto' };
 
 local ROLE_HELP = {
     auto    = 'the job\'s normal behaviour',
@@ -299,7 +299,16 @@ local function onLine(payload)
     if camp then S.incomingCamp = camp; return; end
     -- (squad.lua with pull choices) campwant|<Monster_Name or -> and campmob|<Monster_Name>|<lowest lv>|<highest lv>|<how many>|<1 pullable>
     local want = payload:match('^campwant|(.+)$');
-    if want and S.incomingCamp then S.incomingCamp.want = want ~= '-' and want or nil; S.incomingCamp.kinds = S.incomingCamp.kinds or {}; return; end
+    if want and S.incomingCamp then
+        S.incomingCamp.want = want ~= '-' and want or nil;
+        S.incomingCamp.wants = {};
+        for name in tostring(want):gmatch('[^,]+') do
+            name = name:match('^%s*(.-)%s*$');
+            if name ~= '' and name ~= '-' then S.incomingCamp.wants[name:lower():gsub('_', ' ')] = true; end
+        end
+        S.incomingCamp.kinds = S.incomingCamp.kinds or {};
+        return;
+    end
     local mname, mlo, mhi, mcount, mfits = payload:match('^campmob|([^|]+)|(%d+)|(%d+)|(%d+)|([01])$');
     if mname and S.incomingCamp then
         S.incomingCamp.kinds = S.incomingCamp.kinds or {};
@@ -496,11 +505,21 @@ local function loadTable(text)
     return nil;
 end
 
+-- The Gambits sheets folder: config/addons/Gambits, or the addon's earlier
+-- config/addons/TitanGambits until Gambits has moved it on its next load.
+local function gambitsFolder(base)
+    for _, name in ipairs({ 'Gambits', 'TitanGambits' }) do
+        local f = io.open(base .. 'config/addons/' .. name .. '/settings.lua', 'rb');
+        if f then f:close(); return base .. 'config/addons/' .. name .. '/'; end
+    end
+    return base .. 'config/addons/Gambits/';
+end
+
 local function sheetPathFor(duo)
     if not duo then return nil; end
     if duo.sheetpath and duo.sheetpath ~= '' then return duo.sheetpath; end
     local base = installPath();
-    if base and duo.job and duo.job:match('^%u%u%u$') then return base .. 'config/addons/TitanGambits/jobs/' .. duo.job .. '.lua'; end
+    if base and duo.job and duo.job:match('^%u%u%u$') then return gambitsFolder(base) .. 'jobs/' .. duo.job .. '.lua'; end
     return nil;
 end
 
@@ -726,29 +745,31 @@ local function campRow()
         imgui.SameLine(0, 12);
         dimText(camp.pulls == 1 and '1 pull' or (tostring(camp.pulls or 0) .. ' pulls'));
     end
-    -- what the mate pulls: anything of a good level, or one kind of monster from around the camp
+    -- what the mate pulls: any number of kinds of monster around the camp, each one toggles
     if camp.on and camp.puller ~= 0 and camp.kinds then
         dimText('Pull'); imgui.SameLine(0, 8);
-        local labels, byLabel, current = { 'Anything' }, { Anything = 'any' }, 'Anything';
-        local help = { Anything = 'Whatever is a good level for you, nearest first' };
+        local wants = camp.wants or {};
+        local any = true;
+        for _ in pairs(wants) do any = false; end
+        if button('Anything', 'campany', 82, 0, any and 'selected' or nil) then
+            campCommand('camp want any');
+            camp.wants, camp.want = {}, nil;
+        end
+        tooltip('Whatever is a good level for you, nearest first');
         for _, k in ipairs(camp.kinds) do
             if k.fits then
-                local label = string.format('%s  lv%d%s  x%d', (k.name:gsub('_', ' ')), k.lo, k.hi ~= k.lo and ('-' .. k.hi) or '', k.count);
-                labels[#labels + 1] = label;
-                byLabel[label] = k.name;
-                if camp.want == k.name then current = label; end
+                local key = k.name:lower():gsub('_', ' ');
+                local label = string.format('%s lv%d%s x%d', (k.name:gsub('_', ' ')), k.lo, k.hi ~= k.lo and ('-' .. k.hi) or '', k.count);
+                imgui.SameLine(0, 6);
+                if button(label, 'campkind' .. k.name, 0, 0, wants[key] and 'selected' or nil) then
+                    campCommand('camp want ' .. k.name);
+                    wants[key] = (not wants[key]) and true or nil;
+                    camp.wants = wants;
+                    camp.want = next(wants) and 'picked' or nil;
+                end
+                tooltip(k.fits and 'Pick any number of kinds: click again to drop one' or 'Too strong for you');
             end
         end
-        if camp.want and current == 'Anything' then                -- (picked earlier, none around right now)
-            local label = (camp.want:gsub('_', ' ')) .. '  (none around)';
-            labels[#labels + 1] = label; byLabel[label] = camp.want; current = label;
-        end
-        local pick = combo('camppull', current, labels, 230, help);
-        if pick and byLabel[pick] then
-            campCommand('camp want ' .. byLabel[pick]);
-            camp.want = byLabel[pick] ~= 'any' and byLabel[pick] or nil;
-        end
-        tooltip('Monsters around the camp (within the pull range) that are not too strong for you');
     end
 end
 
@@ -1044,8 +1065,201 @@ local function diagnosticsTab()
     endChild(began);
 end
 
+-- ---------------------------------------------------------------- my own auto (AutoBot, the addon the second window uses)
+local function myAutoOn()
+    return tostring(S.cfg.auto_me) == 'true';
+end
+
+-- AutoBot reads this file before it rests anyone. Written on every toggle and
+-- forced to "off" at addon load, so resting is never on by accident.
+local function auto_flag_character()
+    local ok, name =
+        pcall(function()
+            return AshitaCore:GetMemoryManager():GetParty():GetMemberName(0)
+        end)
+
+    name = ok and tostring(name or '') or ''
+    name = name:match('^%s*(.-)%s*$') or ''
+
+    if name == '' then
+        return 'default'
+    end
+
+    return (name:gsub('[^%w_]', '_'))
+end
+
+local function writeAutoFlag(on)
+    pcall(function()
+        local base = tostring(AshitaCore:GetInstallPath());
+
+        if base:sub(-1) == '/' then
+            base = base:sub(1, -2);
+        end
+
+        local value = on and 'on' or 'off';
+
+        -- Write the character file and the fallback, so a moment where the
+        -- character name cannot be read can never disagree with the button.
+        for _, name in ipairs({ auto_flag_character(), 'default' }) do
+            local file = io.open(base .. '/config/addons/AutoBot/auto_mode_' .. name .. '.flag', 'w');
+
+            if file then
+                file:write(value);
+                file:close();
+            end
+        end
+    end);
+end
+
+
+-- The menu is loaded at the character-select screen, where the party name cannot
+-- be read: the load-time "off" then lands only in the default file and this
+-- character's own file keeps an old "on" that AutoBot would believe. Once the
+-- character exists, mirror the button into their own file too.
+local auto_flag_synced = nil
+local auto_flag_next_check = 0
+
+local function syncAutoFlag()
+    local now = os.clock()
+
+    if now < auto_flag_next_check then
+        return
+    end
+
+    auto_flag_next_check = now + 1.0
+
+    local name = auto_flag_character()
+
+    if name == 'default' then
+        auto_flag_synced = nil
+        return
+    end
+
+    if name == auto_flag_synced then
+        return
+    end
+
+    auto_flag_synced = name
+
+    local okBase, base = pcall(function()
+        return tostring(AshitaCore:GetInstallPath())
+    end)
+
+    if not okBase or not base then
+        return
+    end
+
+    if base:sub(-1) == '/' then
+        base = base:sub(1, -2)
+    end
+
+    local probe = io.open(base .. '/config/addons/AutoBot/auto_mode_' .. name .. '.flag', 'r')
+
+    -- A character that never pressed the button has no file and is not ours to
+    -- switch off: the second window's job sheet keeps running.
+    if not probe then
+        return
+    end
+
+    probe:close()
+
+    if not myAutoOn() then
+        -- Gambits keeps its per-character master switch across sessions, and the
+        -- startup script's /gambits off runs before a character exists, where it
+        -- is refused. Send it again now that there is one.
+        enqueue('/gambits off', 0.5)
+        enqueue('/gambits off', 3.0)
+    end
+
+    writeAutoFlag(myAutoOn())
+end
+
+-- The job he is on right now. (Auto mode was written for MNK only: "/ab job MNK on" and the Weaponskill "Combo"
+-- were sent whatever job you had changed to, so on any other job the job module and the Weaponskill were wrong.)
+local AUTO_JOBS = { 'WAR', 'MNK', 'WHM', 'BLM', 'RDM', 'THF', 'PLD', 'DRK', 'BST', 'BRD', 'RNG', 'SAM', 'NIN', 'DRG', 'SMN', 'BLU', 'COR', 'PUP', 'DNC', 'SCH', 'GEO', 'RUN' };
+local function myAutoJob()
+    local ok, id = pcall(function ()
+        return AshitaCore:GetMemoryManager():GetPlayer():GetMainJob();
+    end);
+    return (ok and AUTO_JOBS[tonumber(id) or 0]) or 'MNK';
+end
+
+local function setMyAuto(on)
+    setCfg('auto_me', on and 'true' or 'false');
+    writeAutoFlag(on);
+    -- on: the job you are on now. off: the job auto was started on (you may have changed job since)
+    local job = on and myAutoJob() or (S.autoJob or myAutoJob());
+    S.autoJob = on and job or nil;
+    if on then
+        enqueue('/addon load autobot', 0.1);
+        enqueue('/ab resume', 0.9);
+        enqueue('/ab combat autoengage on', 1.1);
+        enqueue('/ab combat approach on', 1.3);
+        enqueue('/ab combat autoface on', 1.5);
+        enqueue('/ab combat autotarget on', 1.7);
+        -- Configured by command, not in the profile: AutoBot saves its own
+        -- in-memory config on exit, so a hand-edited settings file is written
+        -- back to its old values. These commands change memory and save it.
+        -- Weaponskills belong to Gambits alone: its "Best Weapon Skill" row uses the strongest one you have learned
+        -- for the weapon in your hand, on any job, and moves up as you learn more. AutoBot's own autows is one
+        -- fixed skill (it was set to Combo here), so it is switched off instead of on.
+        enqueue('/ab autows off', 2.0);
+        enqueue('/ab hprest on', 2.4);
+        enqueue('/ab job ' .. job .. ' on', 2.6);
+        enqueue('/gambits on', 2.8);
+        -- AutoBot's own addon load can still be finishing when the first pass
+        -- runs, and a /ab sent to an addon that is not listening yet is simply
+        -- lost. Send the two that matter again, later, then print what the
+        -- modules actually believe so a silent miss is visible.
+        enqueue('/ab autows off', 4.5);
+        enqueue('/ab job ' .. job .. ' on', 4.8);
+        enqueue('/ab hprest on', 5.0);
+        enqueue('/ab autows status', 6.2);
+        enqueue('/ab job ' .. job .. ' report', 6.6);
+        ask(7.0);
+    else
+        enqueue('/gambits off');
+        enqueue('/ab combat autotarget off', 0.2);
+        enqueue('/ab combat autoengage off', 0.4);
+        enqueue('/ab combat approach off', 0.6);
+        enqueue('/ab combat autoface off', 0.8);
+        enqueue('/ab autows off', 1.0);
+        enqueue('/ab hprest off', 1.2);
+        enqueue('/ab stopfollow', 1.4);
+        enqueue('/ab job ' .. job .. ' off', 1.5);
+        enqueue('/heal off', 1.6);
+        enqueue('/addon unload autobot', 2.2);
+        ask(2.8);
+    end
+end
+
+local function autoTab()
+    local on = myAutoOn();
+    if button(on and 'MY AUTO  ON' or 'MY AUTO  OFF', 'myauto', 170, 34, on and 'on' or nil) then
+        setMyAuto(not on);
+    end
+    tooltip('Gambits runs your job sheet: Weaponskills and abilities, the same sheet the second window uses');
+    imgui.SameLine(0, 12);
+    if button('Stop', 'myautostop', 80, 34) then
+        setMyAuto(false);
+    end
+    tooltip('Gambits off, auto-attack off, stands you up if you were resting');
+    gap(6);
+    colorText(C.text, 'Same job sheet and rest rules as the second window.');
+    dimText('On: attacks the target you picked, walks to it and faces it; Gambits then runs your job sheet.');
+    dimText('While auto is on he rests below 35% HP or when party MP falls to 50%, and stands at 90%.');
+    dimText('Your squad and the second window rest when you rest, so the healer only heals when you sit.');
+    dimText('It does not follow anyone, so it never walks away from your camp.');
+    gap(6);
+    dimText('On loads AutoBot; off turns Gambits off, stands you up and unloads AutoBot entirely.');
+    dimText('Nothing AutoBot owns - resting included - can run until you press the button.');
+    gap(4);
+    dimText('Your sheet: config/addons/Gambits/jobs/' .. myAutoJob() .. '.lua - the same file the second window reads.');
+    dimText('Weaponskill: the best one you have learned for your weapon (the Best Weapon Skill row of your sheet).');
+end
+
 -- ---------------------------------------------------------------- the menu window
-local TAB_DRAW = { Squad = squadTab, Dualbox = dualboxTab, Diagnostics = diagnosticsTab };
+local TAB_DRAW = { Squad = squadTab, Dualbox = dualboxTab, Auto = autoTab, Diagnostics = diagnosticsTab };
 
 local function setTab(name)
     if TAB_DRAW[name] then S.tab = name; setCfg('tab', name); end
@@ -1070,10 +1284,10 @@ local function menuWindow()
                                 { 'ImGuiCol_HeaderHovered', { 0.26, 0.29, 0.38, 1 } }, { 'ImGuiCol_Separator', { 0.32, 0.34, 0.42, 0.55 } },
                                 { 'ImGuiCol_Text', C.text } });
     local flags = (G('ImGuiWindowFlags_NoTitleBar') or 0) + (G('ImGuiWindowFlags_NoCollapse') or 0);
-    if imgui.Begin('FFXI Offline##servermenu', S.open, flags) then
+    if imgui.Begin('XI: Forever Offline##servermenu', S.open, flags) then
         colorText(C.gold, 'SQUADS');
         imgui.SameLine(0, 8);
-        dimText('FFXI Offline');
+        dimText('XI: Forever Offline');
         if has('GetWindowWidth') then
             local w = imgui.GetWindowWidth();
             if type(w) == 'number' then imgui.SameLine(w - 44, 0); else imgui.SameLine(0, 20); end
@@ -1611,19 +1825,23 @@ end
 -- ---------------------------------------------------------------- events
 ashita.events.register('load', 'servermenu_load', function ()
     local hadWide, hadCfg = loadCfg();
+    -- auto mode always starts off at login (phoenixsolo sends the off switches), so the tab must say OFF
+    if S.cfg.auto_me ~= 'false' then S.cfg.auto_me = 'false'; S.cfgDirty = true; end
+    writeAutoFlag(false);
     -- 1.2: the button grew from 58 to 76 px. A spot saved by 1.1 moves left once, so its right edge stays where it was.
     if not hadWide then
         if hadCfg then S.cfg.button_x = tostring(math.max(0, (tonumber(S.cfg.button_x) or 18) - 18)); end
         S.cfg.button_wide = 'true';
         saveCfg();
     end
-    S.tab = (S.cfg.tab == 'Squad' or S.cfg.tab == 'Dualbox') and S.cfg.tab or 'Squad';
+    S.tab = (S.cfg.tab == 'Squad' or S.cfg.tab == 'Dualbox' or S.cfg.tab == 'Auto') and S.cfg.tab or 'Squad';
     S.spell[1] = S.cfg.spell ~= '' and S.cfg.spell or 'Dia';
     if not imgui then say('ImGui is not available, so there is no menu. The squad commands still work.'); return; end
     say('servermenu ' .. tostring(addon.version) .. ' loaded. Click the Squads button, or type /menu.');
 end);
 
 ashita.events.register('d3d_present', 'servermenu_present', function ()
+    syncAutoFlag()
     local t = now();
     pump(t);
     if S.open[1] and #S.queue == 0 and t - S.lastAsk > 15 and S.tab == 'Squad' then ask(); end   -- keeps the squad current while it is shown

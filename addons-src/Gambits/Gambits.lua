@@ -1,13 +1,13 @@
 --[[
-Gambits (based on TitanGambits 2.2.192)
-A standalone Ashita v4 player-gambit engine (originally made for TitanXI), with 18 editable job presets.
+Gambits 2.2.207
+A standalone Ashita v4 player-gambit engine (originally made for TitanXI under another name), with 18 editable job presets.
 Scope: level 1-75 defaults, main/subjob checks, learned spells/abilities and merits.
 
-INSTALL: addons/Gambits/Gambits.lua; /addon load Gambits (the sheets stay in config/addons/TitanGambits)
-UI: /gambits, /titangambits, /titan       STOP: /gambits off
+INSTALL: addons/Gambits/Gambits.lua; /addon load Gambits (the sheets live in config/addons/Gambits)
+UI: /gambits       STOP: /gambits off
 
-Actor switches: config/addons/TitanGambits/characters/<name_id>/switches.lua
-Player job rules: config/addons/TitanGambits/jobs/<JOB>.lua
+Actor switches: config/addons/Gambits/characters/<name_id>/switches.lua
+Player job rules: config/addons/Gambits/jobs/<JOB>.lua
 Generated Recruit actions: server AI only; old local Recruit sheets are removed on addon load.
 Party names: display only; only player job rules execute.
 Rules execute in array order. Gates are mandatory. First EXECUTABLE rule wins.
@@ -32,7 +32,7 @@ addon.desc = 'Player Gambits: ordered rules, 18 jobs, persistent editor.';
 addon.link = '';
 
 local G = {};
-_G.TitanGambits = G;
+_G.Gambits = G;
 local E = {};
 local S = {
     settings = nil, profile = nil, guestProfiles = {}, guestProfileText = {}, identity = nil, signature = nil,
@@ -183,16 +183,37 @@ function E.root()
     if type(base) ~= 'string' or base == '' then return nil; end
     if not base:match('[/\\]$') then base = base .. '/'; end
     -- Personal Gambit data intentionally lives outside the launcher-synced addon
-    -- code folder so TitanGambits.lua updates cannot overwrite player sheets.
-    return base .. 'config/addons/TitanGambits/';
+    -- code folder so Gambits.lua updates cannot overwrite player sheets.
+    if S.rootCache and S.rootCache.base == base then return S.rootCache.path; end
+    local new = base .. 'config/addons/Gambits';
+    local path = E.migrate_root(base, new) or (new .. '/');
+    S.rootCache = { base = base, path = path };
+    return path;
+end
+-- One-time move of the sheets from the addon's earlier settings folder
+-- (config/addons/TitanGambits) to config/addons/Gambits. The whole folder is
+-- renamed in one step, so every sheet, switch file and backup comes along.
+-- If the rename cannot happen, keep using the old folder so nothing is lost.
+function E.migrate_root(base, new)
+    local old = base .. 'config/addons/TitanGambits';
+    local function has(dir) local f = io.open(dir .. '/settings.lua', 'rb'); if f then f:close(); return true; end return false; end
+    if has(new) or not has(old) then return nil; end
+    local ok, err = os.rename(old, new);
+    if ok then
+        S.rootMigrated = 'Moved your Gambit sheets from config/addons/TitanGambits to config/addons/Gambits.';
+        return nil;
+    end
+    S.rootMigrated = 'Could not move config/addons/TitanGambits to config/addons/Gambits (' .. tostring(err) .. '); still using the old folder. Close anything using it and reload Gambits.';
+    return old .. '/';
 end
 function E.personal_path_guard(path)
     local p=tostring(path or ''):gsub('\\','/'):lower();
-    if p:find('/ashita/addons/titangambits/',1,true) or p:find('/addons/titangambits/titangambits.lua',1,true) then
-        return false,'Refusing to save TitanGambits player data inside the launcher-synced addon folder.';
+    local inConfig = p:find('/config/addons/gambits/',1,true) or p:find('/config/addons/titangambits/',1,true);
+    if not inConfig and (p:find('/addons/gambits/',1,true) or p:find('/addons/titangambits/',1,true)) then
+        return false,'Refusing to save Gambits player data inside the launcher-synced addon folder.';
     end
-    if not p:find('/config/addons/titangambits/',1,true) then
-        return false,'Refusing to save TitanGambits player data outside config/addons/TitanGambits.';
+    if not inConfig then
+        return false,'Refusing to save Gambits player data outside config/addons/Gambits.';
     end
     return true;
 end
@@ -5133,7 +5154,7 @@ function G.HandleCommand(args,job)
     if not args or #args==0 then return false; end
     local words={}; for i=1,#args do words[i]=tostring(args[i]); end
     if E.open_utility_shortcut(words[1]) then return true; end
-    if E.contains({'/gambits','gambits','/titangambits','titangambits','/titan','titan'},E.lower(words[1])) then
+    if E.contains({'/gambits','gambits'},E.lower(words[1])) then
         table.remove(words,1);
     end
     return E.command(words);
@@ -5178,7 +5199,7 @@ function E.command_event(e)
         S.userChatUntil=E.now()+1.25;
     end
     if E.open_utility_shortcut(first) then e.blocked=true; return; end
-    if E.contains({'/gambits','/titangambits','/titan'},first) then
+    if E.contains({'/gambits'},first) then
         e.blocked=true;
         local words={}; for word in line:gmatch('%S+') do words[#words+1]=word; end
         table.remove(words,1); E.command(words); return;
@@ -8523,7 +8544,7 @@ function E.handle_drag(index,rule)
         if imgui.BeginDragDropSource(0) then
             S.ui.drag=index;
             imgui.Text('Move '..E.rule_action_text(rule));
-            imgui.SetDragDropPayload('TITAN_GAMBIT_ROW',tostring(index));
+            imgui.SetDragDropPayload('GAMBIT_ROW',tostring(index));
             imgui.EndDragDropSource();
         end
     elseif imgui.IsItemActive and imgui.GetMouseDragDelta and imgui.ResetMouseDragDelta and imgui.IsItemActive() then
@@ -8542,7 +8563,7 @@ end
 function E.handle_drop_target(index)
     if imgui.BeginDragDropTarget and imgui.AcceptDragDropPayload and imgui.EndDragDropTarget then
         if imgui.BeginDragDropTarget() then
-            local payload=imgui.AcceptDragDropPayload('TITAN_GAMBIT_ROW');
+            local payload=imgui.AcceptDragDropPayload('GAMBIT_ROW');
             if payload then
                 local from=tonumber(type(payload)=='table' and (payload.Data or payload.data) or payload);
                 if from and from~=index then E.notify_save(E.move(from,index)); end
@@ -9112,19 +9133,20 @@ function E.render_isolated()
     end
 end
 
-ashita.events.register('load','titan_gambits_load',E.guarded('load',function()
+ashita.events.register('load','gambits_load',E.guarded('load',function()
     E.settings_load(true);
     E.remove_recruit_sheets();
     E.reset_runtime('Startup');
-    E.log('Loaded '..tostring(addon.version)..'. Player Gambit sheets remain under config/addons/TitanGambits; Recruit actions use server AI.',true);
+    if S.rootMigrated then E.log(S.rootMigrated,true); end
+    E.log('Loaded '..tostring(addon.version)..'. Player Gambit sheets live under config/addons/Gambits; Recruit actions use server AI.',true);
 end));
-ashita.events.register('unload','titan_gambits_unload',function()
+ashita.events.register('unload','gambits_unload',function()
     -- Do not rewrite the launcher switch. Release only leases this instance recorded.
     pcall(function() E.release_guest_control(E.context('unload')); end);
     S.pending=nil; S.pendingByActor={}; S.actorLocks={}; S.outgoingIntent=nil;
 end);
-ashita.events.register('command','titan_gambits_command',E.guarded('command',E.command_event));
-ashita.events.register('text_in','titan_gambits_text_in',E.guarded('text_in',function(e)
+ashita.events.register('command','gambits_command',E.guarded('command',E.command_event));
+ashita.events.register('text_in','gambits_text_in',E.guarded('text_in',function(e)
     if e.blocked then return; end
     local incoming=tostring(e.message_modified or e.message or '');
     if E.watch_enemy_response(incoming) then e.blocked=true; return; end
@@ -9148,13 +9170,13 @@ ashita.events.register('text_in','titan_gambits_text_in',E.guarded('text_in',fun
     if E.is_hidden_bridge_chat_message(e.message_modified or e.message) then e.blocked=true; end
 end));
 -- text_out blocks transmission, not just display. Hide echoes only in text_in.
-ashita.events.register('packet_in','titan_gambits_packet_in',E.guarded('packet_in',E.packet_in));
-ashita.events.register('packet_out','titan_gambits_packet_out',E.guarded('packet_out',E.packet_out));
-ashita.events.register('d3d_present','titan_gambits_present',function()
+ashita.events.register('packet_in','gambits_packet_in',E.guarded('packet_in',E.packet_in));
+ashita.events.register('packet_out','gambits_packet_out',E.guarded('packet_out',E.packet_out));
+ashita.events.register('d3d_present','gambits_present',function()
     E.guarded('engine',function() E.pump('d3d_present'); end)();
     E.render_isolated();
 end);
 
 -- Test access is opt-in before loading the module; it is absent in normal operation.
-if rawget(_G,'TITAN_GAMBITS_TEST') then G._test={E=E,S=S,DEFAULT=DEFAULT,JOBS=JOBS,WS=WS}; end
+if rawget(_G,'GAMBITS_TEST') then G._test={E=E,S=S,DEFAULT=DEFAULT,JOBS=JOBS,WS=WS}; end
 return G;

@@ -1,7 +1,15 @@
 """Home/loading banners, 920x368, from the FFXI gallery art. Usage: python3 banners.py OUTDIR"""
 import sys
 from lib import *
-from build import logo_layer
+from wordmark import wordmark_layer
+
+
+def logo_layer(w, h, dark):
+    """The XI: Forever Offline wordmark centred in a w x h box (replaces the official logo)."""
+    lay = wordmark_layer(w, int(h * 0.78), dark)
+    box = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    box.alpha_composite(lay, ((w - lay.width) // 2, (h - lay.height) // 2))
+    return box
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'out/press'
 W, H = 920, 368

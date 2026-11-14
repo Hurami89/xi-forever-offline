@@ -1,9 +1,45 @@
-"""Logic for the FFXI Solo launcher (no GUI code here, so it can be tested on its own)."""
-import json, os, re, shutil, subprocess
+"""Logic for the XI: Forever Offline launcher (no GUI code here, so it can be tested on its own)."""
+import json, os, re, shutil, subprocess, sys
 
 NO_WINDOW = 0x08000000          # Windows: start a process without a console window
 SERVERS = ["xi_connect", "xi_world", "xi_search", "xi_profile", "xi_map"]
-MANAGED_SCRIPT = "phoenixsolo.txt"
+MANAGED_SCRIPT = "xiforever.txt"          # the Ashita script the launcher owns on a new install
+OLD_MANAGED_SCRIPT = "phoenixsolo.txt"    # the same script on installs made before the rename (kept as it is)
+DEFAULT_BOOT = "xiforever.ini"            # boot file name for a new install; config.json's ashita_boot wins
+# Packaged as "XI Forever Offline.exe" (PyInstaller) the kit folder is where the exe is, not where Python unpacked itself.
+FROZEN = bool(getattr(sys, "frozen", False))
+KIT_DIR = os.path.dirname(sys.executable) if FROZEN else os.path.dirname(os.path.abspath(__file__))
+
+
+def py_cmd(script, *args, unbuffered=False):
+    """The command that runs one of the kit's Python scripts (a sidecar or a tool): python script.py ... from source,
+    or the launcher exe itself (XI Forever Offline.exe --run script.py ...) when packaged, so players need no Python."""
+    if FROZEN:
+        return [sys.executable, "--run", script] + list(args)
+    return [sys.executable] + (["-u"] if unbuffered else []) + [script] + list(args)
+
+
+def run_script_main(argv):
+    """The exe's --run mode: runs a kit script as if it were started with python. argv = [script, args...]."""
+    import runpy
+    script = os.path.abspath(argv[0])
+    for name, fd in (("stdout", 1), ("stderr", 2)):          # a windowed exe starts without them; use the handles the launcher gave
+        if getattr(sys, name) is None:
+            try:
+                setattr(sys, name, open(fd, "w", buffering=1, encoding="utf-8", errors="replace", closefd=False))
+            except OSError:
+                setattr(sys, name, open(os.devnull, "w"))
+    sys.argv = [script] + list(argv[1:])
+    sys.path.insert(0, os.path.dirname(script))             # its neighbours import each other (crowd_chat_ai, bots_chat_ai)
+    sys.path.insert(1, KIT_DIR)                              # and the launcher's own modules (setup_gm imports launcher_core)
+    runpy.run_path(script, run_name="__main__")
+
+
+def managed_script_name(ashita_dir):
+    """phoenixsolo.txt if this Ashita already has it (an install from before the rename), else xiforever.txt."""
+    if ashita_dir and os.path.exists(os.path.join(ashita_dir, "scripts", OLD_MANAGED_SCRIPT)):
+        return OLD_MANAGED_SCRIPT
+    return MANAGED_SCRIPT
 
 ADDON_RE  = re.compile(r"^\s*/addon\s+load\s+(\S+)\s*$", re.I)
 PLUGIN_RE = re.compile(r"^\s*/load\s+(\S+)\s*$", re.I)
@@ -32,7 +68,7 @@ def kill(image_name):
 
 def kill_squad_chat():
     """Stop a squad-chat sidecar left over from an earlier run (two of them would both answer every line)."""
-    script = ("Get-CimInstance Win32_Process -Filter \"name='pythonw.exe' OR name='python.exe'\" | "
+    script = ("Get-CimInstance Win32_Process -Filter \"name='pythonw.exe' OR name='python.exe' OR name='XI Forever Offline.exe'\" | "
               "Where-Object { $_.CommandLine -like '*squad_chat.py*' } | "
               "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
     _run(["powershell", "-NoProfile", "-Command", script])
@@ -131,12 +167,13 @@ def list_plugins(ashita_dir):
 
 
 class ScriptManager:
-    """Owns scripts\\phoenixsolo.txt. The first time, it copies your boot script into it and points the
+    """Owns scripts\\xiforever.txt (phoenixsolo.txt on older installs). The first time, it copies your boot script into it and points the
     boot .ini at it; after that, toggling an addon adds/removes its '/addon load' line."""
 
-    def __init__(self, ashita_dir, boot_name, script_name=MANAGED_SCRIPT):
-        """script_name: the script this manager owns. The main window uses phoenixsolo.txt; the second window (dualbox) uses dualbox.txt."""
+    def __init__(self, ashita_dir, boot_name, script_name=None):
+        """script_name: the script this manager owns. The main window uses xiforever.txt (or phoenixsolo.txt); the second window (dualbox) uses dualbox.txt."""
         self.ashita = ashita_dir
+        script_name = script_name or managed_script_name(ashita_dir)
         self.script_name = script_name
         self.boot_path = os.path.join(ashita_dir, "config", "boot", boot_name)
         self.scripts = os.path.join(ashita_dir, "scripts")
@@ -156,7 +193,7 @@ class ScriptManager:
                 shutil.copy2(src, self.path)
             else:
                 with open(self.path, "w", encoding="utf-8", newline="\r\n") as f:
-                    f.write("# Managed by the FFXI Solo launcher\n")
+                    f.write("# Managed by the XI: Forever Offline launcher\n")
         if current != self.script_name:
             bak = self.boot_path + ".bak"
             if not os.path.exists(bak):
@@ -249,6 +286,74 @@ RATE_DEFAULTS.update({"crowds_chat": True, "crowds_chat_amount": "normal", "crow
 RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # field parties (crowds_field.lua)
 RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
 RATE_DEFAULTS.update({"bots_growth": "realistic"})   # bots grow while you are away (bots_growth.lua)
+RATE_DEFAULTS.update({"squad_chat": True})   # squad mates answer in party chat with the local AI (squad-chat/squad_chat.py)
+
+# ---------- the world: install-time choice, also on the Rates tab ----------
+# Each world is a set of the switches above. Picking one only fills them in; any switch can still be changed by hand
+# (the Rates tab then shows "Custom").
+WORLDS = {
+    "quiet": ("Quiet world", "No town crowds or bot players. Squad mates use their scripted lines. Nothing uses the AI."),
+    "living": ("Living world", "Town crowds, parties in the field and bot players who level, craft and chat with "
+                               "ready-made lines. No AI download."),
+    "living_ai": ("Living world + AI chat", "The living world, plus AI-written crowd chatter, bot players who answer "
+                                            "you, and squad mates who talk. Needs Ollama and a model (about 8 GB)."),
+}
+WORLD_SWITCHES = {
+    "quiet": {"crowds": False, "crowds_chat": False, "crowds_chat_ai": False, "crowds_field": False, "bots": False, "squad_chat": False},
+    "living": {"crowds": True, "crowds_chat": True, "crowds_chat_ai": False, "crowds_field": True, "bots": True, "squad_chat": False},
+    "living_ai": {"crowds": True, "crowds_chat": True, "crowds_chat_ai": True, "crowds_field": True, "bots": True, "squad_chat": True},
+}
+# crowd size per town, bot players in the roster, bot players online at once
+POPULATIONS = {"small": ("Small", 10, 100, 40), "medium": ("Medium", 20, 200, 150), "large": ("Large", 30, 300, 500)}
+
+
+def apply_world(rates, world=None, population=None):
+    """The rates with a world's switches and a population's sizes filled in (either can be None to leave it)."""
+    out = dict(rates)
+    if world in WORLD_SWITCHES:
+        out.update(WORLD_SWITCHES[world])
+    if population in POPULATIONS:
+        _label, crowd, roster, online = POPULATIONS[population]
+        out.update({"crowds_per_zone": crowd, "bots_roster": roster, "bots_online": online})
+    return out
+
+
+def world_of(rates):
+    """Which world the switches match, or "custom"."""
+    for key, switches in WORLD_SWITCHES.items():
+        if all(bool(rates.get(k, RATE_DEFAULTS.get(k))) == v for k, v in switches.items()):
+            return key
+    return "custom"
+
+
+def population_of(rates):
+    for key, (_label, crowd, roster, online) in POPULATIONS.items():
+        if (rates.get("crowds_per_zone"), rates.get("bots_roster"), rates.get("bots_online")) == (crowd, roster, online):
+            return key
+    return "custom"
+
+
+def needs_ai(rates):
+    """True when something in this world talks through the local AI (Ollama)."""
+    chat_ai = rates.get("crowds_chat_ai", True) and (rates.get("crowds", True) or rates.get("bots", True))
+    return bool(rates.get("squad_chat", True) or chat_ai)
+
+
+# ---------- the interface: XIUI (an addon, stable) or XIUIplus (a plugin, alpha) ----------
+INTERFACES = {"xiui": ("XIUI", "addon", "xiui"), "xiuiplus": ("XIUIplus", "plugin", "XIUIplus")}
+
+
+def interface_of(manager):
+    """"xiui", "xiuiplus", "both" or "none", from what the managed script loads."""
+    addons, plugins = manager.enabled("addon"), manager.enabled("plugin")
+    have = [key for key, (_label, kind, name) in INTERFACES.items() if name.lower() in (addons if kind == "addon" else plugins)]
+    return have[0] if len(have) == 1 else ("both" if have else "none")
+
+
+def set_interface(manager, choice):
+    """Loads one interface and unloads the other (they draw the same windows)."""
+    for key, (_label, kind, name) in INTERFACES.items():
+        manager.set(kind, name, key == choice)
 
 EXPANSION_IDS = ["main.ENABLE_COP", "main.ENABLE_TOAU", "main.ENABLE_WOTG", "main.ENABLE_ACP", "main.ENABLE_AMK", "main.ENABLE_ASA",
                  "main.ENABLE_ABYSSEA", "main.ENABLE_SOA", "main.ENABLE_ROV", "main.ENABLE_VOIDWATCH", "main.ENABLE_TVR"]
@@ -284,6 +389,23 @@ def clean_rate(field, value):
     return int(round(number)) if kind in ("int", "bool") else round(number, 3)
 
 
+def write_kit_paths(server_dir, kit_dir=None, ashita_dir=None):
+    """Where the kit and Ashita are, for the server's Lua (squad chat bridge, Crystal Boy claims).
+    modules/custom/lua/kit_paths.lua, rewritten every launch; the Lua falls back to C:/FFXISOLO and
+    C:/Ashita-v4beta-main when it is missing."""
+    def lua_path(p):
+        p = str(p).replace("\\", "/")
+        return (p if p.endswith("/") else p + "/").replace("'", "\\'")
+    module_dir = os.path.join(server_dir, "modules", "custom", "lua")
+    os.makedirs(module_dir, exist_ok=True)
+    parts = ["kit = '%s'" % lua_path(kit_dir or KIT_DIR)]
+    if ashita_dir:
+        parts.append("ashita = '%s'" % lua_path(ashita_dir))
+    with open(os.path.join(module_dir, "kit_paths.lua"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("-- Written by the XI: Forever Offline launcher. Do not edit: it is rewritten every launch.\n")
+        f.write("return { " + ", ".join(parts) + " }\n")
+
+
 def write_crowds_config(server_dir, rates):
     """Ambient crowds + chat settings for modules/custom/lua/crowds.lua (rewritten every launch)."""
     amount = rates.get("crowds_chat_amount", "normal")
@@ -291,14 +413,14 @@ def write_crowds_config(server_dir, rates):
     module_dir = os.path.join(server_dir, "modules", "custom", "lua")
     os.makedirs(module_dir, exist_ok=True)
     with open(os.path.join(module_dir, "crowds_config.lua"), "w", encoding="utf-8", newline="\n") as f:
-        f.write("-- Written by the FFXI Solo launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+        f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         f.write("return { enabled = %s, per_zone = %d, chat = %s, chat_amount = '%s', chat_ai = %s, field = %s, field_parties = %d }\n" % (
             "true" if rates.get("crowds", True) else "false", clean_crowd_size(rates.get("crowds_per_zone", 30)),
             "true" if rates.get("crowds_chat", True) else "false", amount,
             "true" if rates.get("crowds_chat_ai", True) else "false",
             "true" if rates.get("crowds_field", True) else "false", max(0, min(3, int(rates.get("crowds_field_parties", 1) or 0)))))
     with open(os.path.join(module_dir, "bots_config.lua"), "w", encoding="utf-8", newline="\n") as f:
-        f.write("-- Written by the FFXI Solo launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+        f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         growth = rates.get("bots_growth", "realistic")
         growth = growth if growth in ("off", "realistic", "fast") else "realistic"
         f.write("return { enabled = %s, roster = %d, online = %d, growth = '%s' }\n" % (
@@ -347,6 +469,8 @@ def load_rates(here):
                 pass
         if "bots" in saved:
             rates["bots"] = bool(saved["bots"])
+        if "squad_chat" in saved:
+            rates["squad_chat"] = bool(saved["squad_chat"])
         if saved.get("bots_growth") in ("off", "realistic", "fast"):
             rates["bots_growth"] = saved["bots_growth"]
         for key, lo, hi in (("bots_roster", 0, 600), ("bots_online", 0, 550)):
@@ -372,7 +496,8 @@ def apply_preset(rates, name):
     out["crowds"] = rates.get("crowds", True)
     for key, default in (("crowds_chat", True), ("crowds_chat_amount", "normal"), ("crowds_chat_ai", True),
                          ("crowds_field", True), ("crowds_field_parties", 1),
-                         ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic")):
+                         ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"),
+                         ("squad_chat", True)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
     out["main.MAX_LEVEL"] = rates.get("main.MAX_LEVEL", 75)
@@ -393,8 +518,9 @@ LOGIN_EXPANSION_KEYS = {
 
 LOGIN_OPTIONAL_KEYS = {"TREASURES_OF_AHT_URGHAN", "TREASURES_OF_AHT_URHGAN"}   # two spellings: whichever the file has is used, no complaint about the other
 
-RATES_MARKER = "-- Generated by the FFXI Solo launcher (Rates tab) from settings/default/"
-OLD_RATES_MARKER = "-- Generated by the Phoenix Solo launcher (Rates tab) from settings/default/"   # files written by earlier versions
+RATES_MARKER = "-- Generated by the XI: Forever Offline launcher (Rates tab) from settings/default/"
+OLD_RATES_MARKER = ("-- Generated by the FFXI Solo launcher (Rates tab) from settings/default/",
+                    "-- Generated by the Phoenix Solo launcher (Rates tab) from settings/default/")   # files written by earlier versions
 
 
 def _format_number(value, kind):
@@ -438,7 +564,7 @@ def ensure_fast_travel(server_dir, kit_dir=None):
     menu would otherwise replace it), so it lives in modules/custom/late, listed as the last folder entry of modules/init.txt.
     Run before every start: puts the file and the line back if an update or anything else moved them. Returns a list of messages."""
     messages = []
-    kit_dir = kit_dir or os.path.dirname(os.path.abspath(__file__))
+    kit_dir = kit_dir or KIT_DIR
     modules = os.path.join(server_dir, "modules")
     late = os.path.join(modules, "custom", "late", "fast_travel.lua")
     old = os.path.join(modules, "custom", "lua", "fast_travel.lua")
@@ -522,7 +648,7 @@ def apply_rates(server_dir, rates):
         if os.path.exists(target):
             with open(target, "r", encoding="utf-8-sig", errors="replace") as f:
                 first = f.readline()
-            if not first.startswith((RATES_MARKER, OLD_RATES_MARKER)):
+            if not first.startswith((RATES_MARKER,) + OLD_RATES_MARKER):
                 shutil.copy2(target, target + ".before-launcher")  # keep a hand-made override safe, once
         with open(target, "w", encoding="utf-8", newline="\n") as f:
             f.write(f"{RATES_MARKER}{filename}\n" + text)
@@ -532,7 +658,7 @@ def apply_rates(server_dir, rates):
         module_dir = os.path.join(server_dir, "modules", "custom", "lua")
         os.makedirs(module_dir, exist_ok=True)
         with open(os.path.join(module_dir, "era_exp_config.lua"), "w", encoding="utf-8", newline="\n") as f:
-            f.write("-- Written by the FFXI Solo launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+            f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
             f.write("return { enabled = " + ("true" if rates.get("era_exp", False) else "false") + " }\n")
     except OSError as problem:
         messages.append(f"era_exp_config.lua: could not be written ({problem})")
@@ -541,7 +667,7 @@ def apply_rates(server_dir, rates):
         module_dir = os.path.join(server_dir, "modules", "custom", "lua")
         os.makedirs(module_dir, exist_ok=True)
         with open(os.path.join(module_dir, "crowds_config.lua"), "w", encoding="utf-8", newline="\n") as f:
-            f.write("-- Written by the FFXI Solo launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+            f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
             f.write("return { enabled = %s, per_zone = %d }\n" % ("true" if rates.get("crowds", True) else "false",
                                                              clean_crowd_size(rates.get("crowds_per_zone", 15))))
     except OSError as problem:

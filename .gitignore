@@ -16,12 +16,18 @@
 !/launcher_squad.py
 !/launcher_rules.py
 !/launcher_icons.py
-!/launcher_classic.pyw
+!/launcher_personality.py
+!/launcher_thirdparty.py
+!/launcher_setup.py
+!/thirdparty.json
+# launcher_classic.pyw and "Classic launcher.bat" (the old look) stay on the dev PC only
 !/launcher.bat
 !/launcher.ps1
-!/Classic launcher.bat
 !/Create Desktop Shortcut.bat
 !/make-shortcut.ps1
+!/build_release.ps1
+!/package_server.py
+!/RELEASING.md
 
 # ---- server setup and updates ----
 !/setup.ps1
@@ -37,8 +43,7 @@
 # ---- simulators, tools and data builders ----
 !/ah_sim.py
 !/conquest_sim.py
-# main_auto.py is a one-off patcher with a local database password in it: not shared
-!/chat_cleanup.py
+# main_auto.py (database password in it) and chat_cleanup.py (one-off patcher) are not shared
 !/house_rules.py
 !/setup_gm.py
 !/setup_dualbox.py
@@ -66,10 +71,13 @@
 !/addons-src/followme/
 !/addons-src/servermenu/
 !/addons-src/squadpanel/
+!/addons-src/journal-era/
 
 # ---- server modules (copies kept with the kit) ----
 !/squad-behavior/
 !/squad-data/
+# each player's own greeting lines for their mates
+/squad-data/squad_greetings_user.json
 !/era_exp/
 !/rse/
 !/travel/
@@ -84,6 +92,7 @@
 !/squad-chat/squad_chat.py
 !/squad-chat/README.md
 !/squad-chat/lore/
+!/squad-chat/examples/
 
 # ---- art: Square Enix material is credited in CREDITS.md ----
 !/art-src/

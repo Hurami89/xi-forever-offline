@@ -36,7 +36,10 @@ def out_lines():
 def journal(name):
     return sc.load_memory(name).get("journal", [])
 
-sc.handle_line("CTX\tValkurm Dunes\t20\t1\tMomo,Kasumi,Gio")
+check("no player seen yet: prompts say 'the leader'", sc.leader() == "the leader")
+sc.handle_line("CTX\tValkurm Dunes\t20\t1\tMomo,Kasumi,Gio\tHurami\t2")   # name and race (2 = Hume F) since 2026-11-14
+check("CTX gives the player's name and pronoun", sc.leader() == "Hurami" and sc.leader_pronoun() == "she" and sc.leader_pronoun("possessive") == "her")
+check("... and it is kept for the next start", (sc.BASE / "player.json").exists())
 
 # 1. moods
 m1 = sc.mood_for("Momo", "2026-11-07"); m2 = sc.mood_for("Momo", "2026-11-07")

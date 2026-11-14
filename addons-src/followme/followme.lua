@@ -56,7 +56,7 @@ The leader must be in the same party and the same zone.
 ]]
 
 addon.name    = 'followme';
-addon.author  = 'FFXI Solo';
+addon.author  = 'XI: Forever Offline';
 addon.version = '1.2';
 addon.desc    = 'Keeps this character following and fighting alongside a chosen player, with the game\'s own commands.';
 addon.link    = '';
@@ -225,11 +225,21 @@ end
 -- ---------------------------------------------------------------- acting on a monster nobody has visibly claimed
 -- The engine only acts on a monster claimed by someone in the party. It has a setting for the other case (AllowUnclaimedTargets);
 -- it lives in the engine's settings.lua, which the engine re-reads by itself when it changes.
+-- The Gambits sheets folder: config/addons/Gambits, or the addon's earlier
+-- config/addons/TitanGambits until Gambits has moved it on its next load.
+local function gambitsFolder(base)
+    for _, name in ipairs({ 'Gambits', 'TitanGambits' }) do
+        local f = io.open(base .. 'config/addons/' .. name .. '/settings.lua', 'rb');
+        if f then f:close(); return base .. 'config/addons/' .. name .. '/'; end
+    end
+    return base .. 'config/addons/Gambits/';
+end
+
 local function titanRoot()
     local fromProfile = S.profilePath ~= '' and S.profilePath:match('^(.*[/\\])jobs[/\\]');
     if fromProfile then return fromProfile; end
     local base = call(AshitaCore, 'GetInstallPath');
-    if type(base) == 'string' then return base .. 'config/addons/TitanGambits/'; end
+    if type(base) == 'string' then return gambitsFolder(base); end
     return nil;
 end
 
@@ -760,6 +770,22 @@ local function fight(t, mem, ent, myIndex, myStatus, leaderIndex)
     return nil;
 end
 
+-- Pausing the gambit engine is the only thing that keeps a cure or a buff from
+-- standing him up mid-rest. A pause nobody lifts is also how he stops healing:
+-- /gambits pause 3600 outlives a reload, a zone, or a leader who never gets up.
+-- So the pause is held in short slices instead of one long one: if the resume is
+-- ever lost, the engine turns itself back on within half a minute.
+local GAMBIT_PAUSE_SECONDS = 30;
+local GAMBIT_PAUSE_REFRESH = 15;
+
+local function holdGambitsPaused(t)
+    if S.restPauseAt and (t - S.restPauseAt) < GAMBIT_PAUSE_REFRESH then return; end
+    S.restPauseAt = t;
+    S.restPaused = true;
+    enqueue('/gambits pause ' .. GAMBIT_PAUSE_SECONDS);
+    S.hideUntil = now() + 3;
+end
+
 local function decide(t)
     if not flag('enabled') then return 'off'; end
     if cfg.leader == nil or cfg.leader == '' then return 'no leader set (use /fm leader <Name>)'; end
@@ -801,15 +827,14 @@ local function decide(t)
         local leaderStatus = call(ent, 'GetStatus', leaderIndex);
         if leaderStatus == 33 then
             S.sawLeaderRest = true;
-            if status == 33 then return 'resting with the leader'; end
+            if status == 33 then
+                holdGambitsPaused(t);
+                return 'resting with the leader';
+            end
             if status == 0 then
                 if S.restTries < 3 and t - S.lastRest >= 6 then
                     S.lastRest, S.restTries, S.restedByUs = t, S.restTries + 1, true;
-                    if not S.restPaused then
-                        S.restPaused = true;
-                        enqueue('/gambits pause 3600');             -- a cure or buff would stand him up again
-                        S.hideUntil = now() + 3;
-                    end
+                    holdGambitsPaused(t);
                     send('/heal on');
                     return 'the leader is resting: sent /heal on';
                 end
@@ -826,7 +851,7 @@ local function decide(t)
             end
             if status ~= 33 then S.restedByUs = false; end
             if S.restPaused and status ~= 33 then
-                S.restPaused = false;
+                S.restPaused, S.restPauseAt = false, nil;
                 enqueue('/gambits resume');
                 S.hideUntil = now() + 3;
             end
@@ -870,7 +895,7 @@ local function tick(t)
         local mem = AshitaCore:GetMemoryManager();
         local me = mem and call(mem:GetParty(), 'GetMemberTargetIndex', 0);
         if not me or call(mem:GetEntity(), 'GetStatus', me) ~= 33 then
-            S.restPaused, S.restedByUs = false, false;
+            S.restPaused, S.restedByUs, S.restPauseAt = false, false, nil;
             enqueue('/gambits resume');
             S.hideUntil = now() + 3;
         end

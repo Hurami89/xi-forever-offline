@@ -9,7 +9,7 @@
   python setup_dualbox.py language            show the Ashita language of each boot file (1 = Japanese, 2 = English)
   python setup_dualbox.py language english    set it to English for the second window and the GM window (add --all for the main window too)
 
-It only creates NEW things: a copy of your boot file (phoenixsolo2.ini), a script (dualbox.txt), a second account, and the AutoBot files.
+It only creates NEW things: a copy of your boot file (for example xiforever2.ini), a script (dualbox.txt), a second account, and the AutoBot files.
 It never edits your main boot file, your main script or your main account. (config.json gets three new lines; the old one is kept.)
 """
 import json
@@ -47,7 +47,7 @@ def load_config():
 def second_boot_name(cfg):
     if cfg.get("ashita_boot2"):
         return cfg["ashita_boot2"]
-    first = cfg.get("ashita_boot", "phoenixsolo.ini")
+    first = cfg.get("ashita_boot", "xiforever.ini")
     root, ext = os.path.splitext(first)
     return f"{root}2{ext or '.ini'}"
 
@@ -250,7 +250,7 @@ def update_config(cfg, boot2):
 # ---------- modes ----------
 def setup(cfg, install_plugin=False, connect_fn=connect, fetch=git_clone_or_pull, graphics_module=None, hasher=hash_password):
     problems = 0
-    first_boot_name = cfg.get("ashita_boot", "phoenixsolo.ini")
+    first_boot_name = cfg.get("ashita_boot", "xiforever.ini")
     boot2 = second_boot_name(cfg)
     user2, pass2 = cfg.get("game_user2", SECOND_USER), cfg.get("game_pass2", SECOND_PASS)
     first, second = boot_file(cfg, first_boot_name), boot_file(cfg, boot2)
@@ -334,7 +334,7 @@ LANGUAGES = {"english": 2, "japanese": 1}
 def boot_files(cfg):
     """(label, path) of the boot files that exist: main window, second window, GM window."""
     out = []
-    for label, name in (("main", cfg.get("ashita_boot", "phoenixsolo.ini")), ("second", second_boot_name(cfg)), ("gm", cfg.get("ashita_boot_gm", ""))):
+    for label, name in (("main", cfg.get("ashita_boot", "xiforever.ini")), ("second", second_boot_name(cfg)), ("gm", cfg.get("ashita_boot_gm", ""))):
         path = boot_file(cfg, name) if name else ""
         if path and os.path.isfile(path):
             out.append((label, path))

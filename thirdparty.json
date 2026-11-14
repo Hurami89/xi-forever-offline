@@ -1,0 +1,342 @@
+{
+  "_about": "Other people's work that XI: Forever Offline downloads from its official release at install time and never rehosts. Read by launcher_thirdparty.py. 'tag' pins the tested version; 'into' is the folder the files go to (ashita or kit); 'files' maps folders in the download to folders there; 'keep' lists folders whose existing files are never replaced (your settings).",
+  "items": [
+    {
+      "id": "ashita",
+      "name": "Ashita v4",
+      "author": "atom0s and the Ashita team",
+      "license": "GPL-3.0 / LGPL-3.0",
+      "homepage": "https://github.com/AshitaXI/Ashita-v4beta",
+      "required": true,
+      "into": "ashita",
+      "source": {
+        "type": "github_archive",
+        "repo": "AshitaXI/Ashita-v4beta",
+        "ref": "v4.3.1.1"
+      },
+      "files": [
+        [
+          "*/",
+          ""
+        ]
+      ],
+      "keep": [
+        "config/",
+        "scripts/"
+      ],
+      "check": "Ashita-cli.exe"
+    },
+    {
+      "id": "server",
+      "name": "XI: Forever Offline server",
+      "author": "XI: Forever Offline (based on Phoenix / LandSandBoat)",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/Hurami89/xi-forever-offline-server",
+      "required": true,
+      "into": "server",
+      "note": "The prebuilt game server (a few hundred MB). Made with package_server.py and published as a release.",
+      "source": {
+        "type": "github_release",
+        "repo": "Hurami89/xi-forever-offline-server",
+        "tag": "latest",
+        "asset": "^xi-forever-offline-server-.+-win64\\.zip$",
+        "sha256sums": "SHA256SUMS.txt"
+      },
+      "files": [
+        [
+          "*/",
+          ""
+        ]
+      ],
+      "keep": [
+        "settings/network.lua"
+      ],
+      "check": "xi_map.exe"
+    },
+    {
+      "id": "vcredist",
+      "name": "Microsoft Visual C++ runtime (x64)",
+      "author": "Microsoft",
+      "license": "Microsoft software license",
+      "homepage": "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist",
+      "required": true,
+      "into": "kit",
+      "note": "The server programs need it. Installs quietly; already there on most PCs.",
+      "source": {
+        "type": "installer",
+        "url": "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+        "args": [
+          "/install",
+          "/passive",
+          "/norestart"
+        ],
+        "wait": true
+      },
+      "check_system": "%SystemRoot%\\System32\\msvcp140_atomic_wait.dll"
+    },
+    {
+      "id": "xiui",
+      "name": "XIUI",
+      "author": "Team XIUI",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/tirem/XIUI",
+      "interface": "xiui",
+      "into": "ashita",
+      "source": {
+        "type": "github_release",
+        "repo": "tirem/XIUI",
+        "tag": "v1.8.4",
+        "asset": "^XIUI-[0-9.]+\\.zip$"
+      },
+      "files": [
+        [
+          "XIUI/",
+          "addons/xiui/"
+        ]
+      ],
+      "check": "addons/xiui/XIUI.lua"
+    },
+    {
+      "id": "xiuiplus",
+      "name": "XIUIplus (alpha)",
+      "author": "Team-XIUI",
+      "license": "not stated (download only)",
+      "homepage": "https://github.com/Team-XIUI/xiuiplus-releases",
+      "interface": "xiuiplus",
+      "into": "ashita",
+      "source": {
+        "type": "github_release",
+        "repo": "Team-XIUI/xiuiplus-releases",
+        "tag": "latest",
+        "asset": "^XIUIplus\\.dll$",
+        "sha256sums": "SHA256SUMS.txt"
+      },
+      "files": [
+        [
+          "XIUIplus.dll",
+          "plugins/XIUIplus.dll"
+        ]
+      ],
+      "check": "plugins/XIUIplus.dll"
+    },
+    {
+      "id": "autobot",
+      "name": "AutoBot",
+      "author": "K0D3R",
+      "license": "MIT",
+      "homepage": "https://github.com/Buckfutt/AutoBot-Ashita",
+      "into": "ashita",
+      "note": "Used by the second window (dualbox).",
+      "source": {
+        "type": "github_archive",
+        "repo": "Buckfutt/AutoBot-Ashita",
+        "ref": "main"
+      },
+      "files": [
+        [
+          "*/addons/",
+          "addons/"
+        ],
+        [
+          "*/plugins/",
+          "plugins/"
+        ]
+      ],
+      "check": "addons/autobot/autobot.lua"
+    },
+    {
+      "id": "mobdb",
+      "name": "mobdb",
+      "author": "ThornyFFXI",
+      "license": "MIT",
+      "homepage": "https://github.com/ThornyFFXI/mobdb",
+      "into": "ashita",
+      "note": "The kit's build_mobdb_data.py fills in this server's monster data.",
+      "source": {
+        "type": "github_release",
+        "repo": "ThornyFFXI/mobdb",
+        "tag": "v1.25",
+        "asset": "^mobdb-v[0-9.]+\\.zip$"
+      },
+      "files": [
+        [
+          "addons/",
+          "addons/"
+        ]
+      ],
+      "check": "addons/mobdb/mobdb.lua"
+    },
+    {
+      "id": "chains",
+      "name": "Chains",
+      "author": "Sippius, Ivaar and NerfOnline",
+      "license": "not stated (download only)",
+      "homepage": "https://github.com/NerfOnline/Chains",
+      "into": "ashita",
+      "source": {
+        "type": "github_release",
+        "repo": "NerfOnline/Chains",
+        "tag": "v0.86",
+        "asset": "^Chains-v[0-9.]+-Phoenix\\.zip$"
+      },
+      "files": [
+        [
+          "chains/",
+          "addons/chains/"
+        ]
+      ],
+      "check": "addons/chains/chains.lua"
+    },
+    {
+      "id": "nameplate",
+      "name": "Nameplate",
+      "author": "Shirk",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/Shirk/Nameplate",
+      "into": "ashita",
+      "source": {
+        "type": "github_release",
+        "repo": "Shirk/Nameplate",
+        "tag": "v0.5.1.0d",
+        "asset": "^Nameplate-v[0-9.a-z]+\\.zip$"
+      },
+      "files": [
+        [
+          "plugins/",
+          "plugins/"
+        ],
+        [
+          "docs/",
+          "docs/"
+        ]
+      ],
+      "check": "plugins/Nameplate.dll"
+    },
+    {
+      "id": "gambatte",
+      "name": "Gambatte core (Crystal Boy)",
+      "author": "libretro / Gambatte",
+      "license": "GPL-2.0",
+      "homepage": "https://docs.libretro.com/library/gambatte/",
+      "into": "ashita",
+      "note": "The 32-bit (x86) build: Ashita runs inside the 32-bit game.",
+      "source": {
+        "type": "url",
+        "url": "https://buildbot.libretro.com/nightly/windows/x86/latest/gambatte_libretro.dll.zip"
+      },
+      "files": [
+        [
+          "gambatte_libretro.dll",
+          "addons/crystalboy/cores/gambatte_libretro.dll"
+        ]
+      ],
+      "check": "addons/crystalboy/cores/gambatte_libretro.dll"
+    },
+    {
+      "id": "journal",
+      "name": "Journal",
+      "author": "Kxteel",
+      "license": "MIT",
+      "homepage": "https://www.nexusmods.com/finalfantasy11/mods/44",
+      "into": "ashita",
+      "note": "Nexus Mods needs a sign-in, so this one opens the download page: unpack it into Ashita's addons folder, then press Apply era edits.",
+      "source": {
+        "type": "page",
+        "url": "https://www.nexusmods.com/finalfantasy11/mods/44"
+      },
+      "check": "addons/journal/journal.lua",
+      "patch": "journal-era"
+    },
+    {
+      "id": "xiloader",
+      "name": "xiloader (Phoenix)",
+      "author": "Phoenix / LandSandBoat",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/phoenixffxi/xiloader",
+      "into": "ashita",
+      "required": true,
+      "note": "Logs the game in to your own server; Ashita starts it from its bootloader folder.",
+      "source": {
+        "type": "github_release",
+        "repo": "phoenixffxi/xiloader",
+        "tag": "v2.2.0-phoenix.2",
+        "asset": "^xiloader\\.exe$"
+      },
+      "files": [
+        [
+          "xiloader.exe",
+          "bootloader/xiloader.exe"
+        ]
+      ],
+      "check": "bootloader/xiloader.exe"
+    },
+    {
+      "id": "eradats",
+      "name": "Era-DATs (Phoenix)",
+      "author": "Phoenix",
+      "license": "not stated (download only)",
+      "homepage": "https://github.com/phoenixffxi/Era-DATs",
+      "into": "kit",
+      "note": "Game files that make the client match this era. Download, then 'Apply to the game': the files they replace are saved in dat-backup first (restore-original-dats.ps1 puts them back).",
+      "source": {
+        "type": "github_archive",
+        "repo": "phoenixffxi/Era-DATs",
+        "ref": "main"
+      },
+      "files": [
+        [
+          "*/ROM/",
+          "Era-DATs/ROM/"
+        ],
+        [
+          "*/ROM2/",
+          "Era-DATs/ROM2/"
+        ],
+        [
+          "*/ROM3/",
+          "Era-DATs/ROM3/"
+        ],
+        [
+          "*/ROM4/",
+          "Era-DATs/ROM4/"
+        ]
+      ],
+      "check": "Era-DATs/ROM",
+      "apply": "era_dats"
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama (local AI)",
+      "author": "Ollama",
+      "license": "MIT",
+      "homepage": "https://ollama.com",
+      "world": "living_ai",
+      "into": "kit",
+      "note": "Only for Living world + AI chat. Installs quietly; then get the AI model below.",
+      "source": {
+        "type": "installer",
+        "url": "https://ollama.com/download/OllamaSetup.exe",
+        "args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART"
+        ],
+        "wait": true
+      }
+    },
+    {
+      "id": "aimodel",
+      "name": "AI model (gemma4:12b)",
+      "author": "Google (Gemma), served by Ollama",
+      "license": "Gemma terms of use",
+      "homepage": "https://ollama.com/library/gemma4",
+      "world": "living_ai",
+      "into": "kit",
+      "note": "What squad mates, crowds and bot players talk with. About 8 GB; needs Ollama first.",
+      "source": {
+        "type": "ollama_model",
+        "model": "gemma4:12b"
+      }
+    }
+  ]
+}

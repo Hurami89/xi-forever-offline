@@ -1,0 +1,30 @@
+# Builds "XI Forever Offline.exe" in this folder: the launcher with Python inside, so players need no Python.
+# The kit's scripts (the AH and conquest simulators, squad chat, the bot chat helper, the tools) stay as .py files next
+# to it and run through the exe ("XI Forever Offline.exe --run script.py"). Your own launcher_gui.pyw keeps working.
+# Run in PowerShell:  cd C:\FFXISOLO ; Set-ExecutionPolicy -Scope Process Bypass ; .\build_release.ps1
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
+
+python -m pip install --upgrade pyinstaller mariadb bcrypt pillow
+if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
+
+# The kit's scripts run inside the exe but are not part of it, so PyInstaller cannot see what they import:
+# bundle the whole standard library (minus its tests and tools), the database drivers and the launcher's modules.
+$skip = "idlelib test lib2to3 ensurepip turtledemo turtle pydoc_data venv distutils msilib"
+$std = python -c "import sys; skip=set('$skip'.split()); print('\n'.join(sorted(n for n in sys.stdlib_module_names if not n.startswith('_') and n not in skip)))"
+$hidden = @($std -split "`r?`n" | Where-Object { $_ }) + @("bcrypt", "mariadb", "PIL.Image", "PIL.ImageTk",
+            "launcher_core", "launcher_squad", "launcher_rules", "launcher_icons", "launcher_personality",
+            "launcher_thirdparty", "launcher_setup")
+$opts = @("--noconfirm", "--onefile", "--windowed", "--name", "XI Forever Offline",
+          "--icon", (Join-Path $PSScriptRoot "assets\ui\icon.ico"),
+          "--distpath", $PSScriptRoot, "--workpath", (Join-Path $PSScriptRoot "build\pyinstaller"),
+          "--specpath", (Join-Path $PSScriptRoot "build\pyinstaller"), "--collect-all", "mariadb")
+foreach ($m in $hidden) { $opts += @("--hidden-import", $m) }
+
+python -m PyInstaller @opts (Join-Path $PSScriptRoot "launcher_gui.pyw")
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
+
+$exe = Join-Path $PSScriptRoot "XI Forever Offline.exe"
+Write-Host "`nBuilt: $exe" -ForegroundColor Green
+Write-Host "Quick check (runs the personality tests through the exe):" -ForegroundColor DarkGray
+& $exe --run (Join-Path $PSScriptRoot "dev\personality-tests\test_personality.py") | Out-Host

@@ -1,0 +1,37 @@
+{
+  "_about": "XI: Forever Offline's era edits for Journal (Kxteel, MIT, Nexus Mods FFXI mod 44): hide missions and quests after Treasures of Aht Urhgan. Applied by the launcher (Downloads tab > Journal) after you install Journal: each 'find' must appear exactly once, else nothing is changed. era.lua (ours) goes to addons/journal/data/era.lua.",
+  "made_for": "0.3.4",
+  "copy": [
+    [
+      "era.lua",
+      "addons/journal/data/era.lua"
+    ]
+  ],
+  "edits": [
+    [
+      "addons/journal/logic.lua",
+      "local mission_areas = {\n",
+      "local mission_areas = require('data.era').FilterMissionAreas({\n"
+    ],
+    [
+      "addons/journal/logic.lua",
+      "    'assault',\n    'campaign',\n}\n",
+      "    'assault',\n    'campaign',\n})\n"
+    ],
+    [
+      "addons/journal/logic.lua",
+      "{ 'windurst', 'bastok', 'sandoria', 'zilart', 'cop', 'adoulin', 'rov' }",
+      "{ 'windurst', 'bastok', 'sandoria', 'zilart', 'cop' }"
+    ],
+    [
+      "addons/journal/tracker.lua",
+      "local missions = mission_data.MISSIONS or {}\nlocal quests = quest_data.QUESTS or {}\n",
+      "local missions = require('data.era').FilterMissions(mission_data.MISSIONS)\nlocal quests = require('data.era').FilterQuests(quest_data.QUESTS)\n"
+    ],
+    [
+      "addons/journal/tracker.lua",
+      "    'whitegate',\n    'crystal_war',\n}\n",
+      "    'whitegate',\n}\n"
+    ]
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "title": "The cheerful veteran",
+  "personality": "Warm, steady and hard to rattle; treats every outing like a good day's work and jokes most when things look worst.",
+  "voice": "Easy, friendly party talk with old soldier's slang; calls people by nicknames.",
+  "quirk": "Counts out loud before every pull and claims it is for luck.",
+  "goal": "To see every outpost in the three nations at least once before hanging up the weapon for good.",
+  "fear": "Being the one who walks away when a friend does not.",
+  "hooks": [
+    "Served a short stint with a nation's garrison and still writes to an old sergeant.",
+    "Keeps a battered map with a mark at every place a friend was lost.",
+    "Owes a Goblin merchant a favour and refuses to say what for."
+  ],
+  "backstory": "{name} spent years taking any contract a guild board offered, from escort work on the roads to clearing crawlers out of farm cellars. Most of the people who started out alongside {name} have settled down or moved on.\n\n{name} stayed on the road because it is the only life that ever made sense, and because new adventurers keep making the same mistakes and somebody ought to be there to laugh about it with them afterwards.",
+  "chat_examples": [
+    "Alright, alright, nobody panic. Panicking is my job.",
+    "That one hit like a Galka with a grudge. Nice work.",
+    "Count of three, then we go. One... two..."
+  ],
+  "talkativeness": 1.4
+}

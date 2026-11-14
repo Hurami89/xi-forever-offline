@@ -1,10 +1,10 @@
 # Squad chat (local Ollama sidecar)
 
-This folder lets Hurami's squad mates answer in party chat, with their own backstories and a memory of the adventure. It runs on this PC only; nothing is sent to the internet.
+This folder lets your squad mates answer in party chat, with their own backstories and a memory of the adventure. It runs on this PC only; nothing is sent to the internet.
 
 ## Normal use
 
-The FFXI Solo launcher (`C:\FFXISOLO\launcher.ps1`) starts this sidecar hidden with the servers and stops it when the game closes. You do not need to open a window.
+The XI: Forever Offline launcher starts this sidecar hidden with the servers when AI chat is on (Living world + AI chat) and stops it when the game closes. You do not need to open a window.
 
 In game:
 
@@ -15,7 +15,7 @@ In game:
 - While grouped and not fighting, one of them may also say something unprompted every few minutes (see `idle` in `config.json`). Often that line is a memory: the mate brings up something from their own adventure journal, in one sentence, instead of announcing it as a recollection. See `recall` in `config.json`: `chance` is how often an unprompted line is a memory rather than idle filler, `min_seconds` is the gap between memories, and `repeat_after` is how long before the same memory can come up again. No two mates open with the same memory back to back.
 - A mate only remembers what is in their journal. It fills on zone changes, level-ups, job changes, notorious-monster kills, deaths, and `/p !note`, so early on it can be empty; until there are at least `recall.min_events` entries, memories come from a true detail in the mate's own sheet (a hook) instead. `/p !note ...` is the direct way to plant something you want them to bring up later.
 - `!squad chat on` / `!squad chat off` turns replies, crosstalk, and idle chatter on or off.
-- `!squad chat test` makes Kasumi say one direct line in party chat and reports how many lines the sidecar has written. If that line does not appear, the problem is the game's chat display/filter, not the AI.
+- `!squad chat test` makes the first mate who is out say one direct line in party chat and reports how many lines the sidecar has written. If that line does not appear, the problem is the game's chat display/filter, not the AI.
 - `/p !note <text>` adds a line to every mate's adventure journal while a mate is out and chat is on. Use it for quest promises, plans, or anything you want them to remember: `/p !note We promised the gate guard we would check the tomb.`
 - Their journal fills in on its own with zones, level-ups, job changes, notorious-monster kills, and deaths. Every 8 new journal entries, the sidecar folds the oldest ones into a short long-term memory, so a long session does not push early events out. See `summary_every` in `config.json`.
 - `!squad lore <slot>` writes or rewrites that mate's backstory (the old file is kept as `.json.bak`). If you change a mate's race or job after a backstory was written, use this to rewrite it to match.
@@ -25,7 +25,7 @@ In game:
 ## Running it by hand
 
 ```
-cd C:\FFXISOLO\squad-chat
+cd <your kit folder>\squad-chat
 python squad_chat.py
 ```
 
@@ -33,13 +33,21 @@ Use `python squad_chat.py --stub` to test the bridge without Ollama; replies com
 
 ## Model
 
-`config.json` uses `mistral-nemo:latest` at `http://127.0.0.1:11434`. Ollama must be running, and the model must be pulled once:
+`config.json` names the model (`model`, with `fallback_model` if it is missing) at `http://127.0.0.1:11434`. Ollama must be running, and the model must be pulled once, for example:
 
 ```
-ollama pull mistral-nemo
+ollama pull gemma4:12b
 ```
 
 If Ollama is down, mates fall back to a canned line from their sheet. The sidecar loads the model as soon as it starts (`model warm` in the log) so the first line you say is not the one that pays for the cold start. A summary every 8 journal entries also takes one short model call.
+
+## Personalities (who each mate is)
+
+Every mate has a sheet in `mates/<name>.json`: personality, voice, quirk, goal, fear, backstory, story hooks, a few example lines and `talkativeness` (0.2 = rarely speaks up, 3 = chatty). Your mates are your own: this folder is not part of the kit's repo.
+
+- **In the launcher:** Squad tab > pick a mate > **Personality**. Write it yourself, start from one of the examples in `examples/`, or press **Let the AI write it**. Saving keeps the old sheet as `.json.bak`, and a sheet saved while the game runs is used from the mate's next line.
+- **On its own:** the first time a mate without a sheet is called, squad chat writes one with the AI. `!squad lore <slot>` rewrites it.
+- The player's name and race come from the game (the server sends them with every `CTX` line), and the last one seen is kept in `player.json`.
 
 ## Editing
 
@@ -52,7 +60,7 @@ Do not edit `in.txt` / `out.txt` while the sidecar is running; they are the brid
 
 ## Logs
 
-`logs/sidecar.log` has every incoming event, each chat line with who took it (`chat Hurami: hello -> Momo`, or `-> nobody`), model timing, crosstalk queueing, summaries, and outgoing line. Failed backstory generations leave the raw model reply in `logs/raw-*.txt` for debugging.
+`logs/sidecar.log` has every incoming event, each chat line with who took it (`chat Aria: hello -> Bram`, or `-> nobody`), model timing, crosstalk queueing, summaries, and outgoing line. Failed backstory generations leave the raw model reply in `logs/raw-*.txt` for debugging.
 
 ## Fight awareness, moods and the bot players (2026-11-07)
 

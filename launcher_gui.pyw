@@ -3,7 +3,7 @@ import ctypes, os, queue, random, subprocess, sys, threading, time, traceback
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))  # the kit folder
 sys.path.insert(0, HERE)
 import launcher_core as core
 
@@ -17,6 +17,14 @@ try:
 except Exception:  # the rules editor just won't be offered
     lr = None
 
+try:
+    import launcher_thirdparty as tp
+except Exception:  # the launcher still works without the Downloads page
+    tp = None
+try:
+    import launcher_personality as lp
+except Exception:  # the Squad tab still works, without the Personality page
+    lp = None
 try:
     import launcher_icons as itemicons
 except Exception:  # the gear list still works, without pictures
@@ -191,7 +199,8 @@ def is_admin():
 
 
 def elevate_and_exit():
-    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{os.path.abspath(__file__)}"', HERE, 1)
+    params = "" if getattr(sys, "frozen", False) else f'"{os.path.abspath(__file__)}"'     # the exe needs no script
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, HERE, 1)
     sys.exit(0)
 
 
@@ -675,6 +684,8 @@ class SquadTab(tk.Frame):
         self.build_gear_page(pages)
         self.build_behavior_page(pages)
         self.build_greetings_page(pages)
+        if lp is not None:
+            self.build_personality_page(pages)
 
     def row(self, parent, label):
         f = tk.Frame(parent, bg=BG)
@@ -851,6 +862,132 @@ class SquadTab(tk.Frame):
             self.say(f"{m['name']} uses the built-in greetings again. Restart the servers (PLAY) to hear them.")
         self.guard(go)
 
+    # ----- personality (the sheet squad chat uses: squad-chat\mates\<name>.json) -----
+    def build_personality_page(self, pages):
+        page = tk.Frame(pages, bg=BG)
+        pages.add(page, text=" Personality ")
+        self.pers_title = tk.Label(page, text="Personality", bg=BG, fg=FG, font=("Segoe UI", 10, "bold"))
+        self.pers_title.pack(anchor="w", padx=10, pady=(8, 0))
+        tk.Label(page, text="Who this mate is when they talk in party chat (squad chat, part of Living world + AI chat). "
+                 "Write it yourself, start from an example, or let the AI write one. Name, race and job come from the "
+                 "Look & jobs page.", bg=BG, fg=DIM, wraplength=470, justify="left").pack(anchor="w", padx=10)
+
+        f = tk.Frame(page, bg=BG)
+        f.pack(fill="x", padx=10, pady=(6, 2))
+        tk.Label(f, text="Start from", bg=BG, fg=FG, width=11, anchor="w").pack(side="left")
+        self.pers_example = ttk.Combobox(f, state="readonly", width=26)
+        self.pers_example.pack(side="left")
+        tk.Button(f, text="Use example", command=self.use_personality_example, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left", padx=6)
+
+        grid = tk.Frame(page, bg=BG)
+        grid.pack(fill="both", expand=True, padx=10, pady=2)
+        grid.columnconfigure(1, weight=1)
+        self.pers_fields = {}
+        rows = (("personality", "Personality", 2), ("voice", "Voice", 1), ("quirk", "Quirk", 1), ("goal", "Goal", 1),
+                ("fear", "Fear", 1), ("backstory", "Backstory", 5), ("hooks", "Story hooks", 2),
+                ("chat_examples", "How they sound", 3))
+        for index, (key, label, height) in enumerate(rows):
+            tk.Label(grid, text=label, bg=BG, fg=FG, anchor="nw", width=13).grid(row=index, column=0, sticky="nw", pady=2)
+            box = tk.Text(grid, height=height, width=48, bg=PANEL, fg=FG, insertbackground=FG, relief="flat",
+                          wrap="word", font=("Segoe UI", 9))
+            box.grid(row=index, column=1, sticky="ew", pady=2)
+            self.pers_fields[key] = box
+        tk.Label(grid, text="(one per line)", bg=BG, fg=DIM, font=("Segoe UI", 8)).grid(row=len(rows), column=1, sticky="w")
+
+        f = tk.Frame(page, bg=BG)
+        f.pack(fill="x", padx=10, pady=2)
+        tk.Label(f, text="Talkativeness", bg=BG, fg=FG, width=13, anchor="w").pack(side="left")
+        self.pers_talk = tk.Scale(f, from_=0.2, to=3.0, resolution=0.1, orient="horizontal", length=200, bg=BG, fg=FG,
+                                  highlightthickness=0, troughcolor=PANEL, showvalue=True)
+        self.pers_talk.pack(side="left")
+        tk.Label(f, text="quiet ... chatty", bg=BG, fg=DIM).pack(side="left", padx=6)
+
+        bar = tk.Frame(page, bg=BG)
+        bar.pack(anchor="w", padx=10, pady=8)
+        tk.Button(bar, text="Save personality", command=self.save_personality, bg=ACCENT, fg="white", relief="flat", padx=14, pady=4).pack(side="left")
+        tk.Button(bar, text="Let the AI write it", command=self.ai_personality, bg=PANEL, fg=FG, relief="flat", padx=12, pady=4).pack(side="left", padx=8)
+        self.pers_note = tk.Label(page, text="", bg=BG, fg=DIM, wraplength=470, justify="left")
+        self.pers_note.pack(anchor="w", padx=10)
+
+    def _pers_facts(self):
+        m = self.mate
+        return m["name"], m["race"] or 1, sq.JOBS[m["mjob"] - 1], sq.effective_levels(m)[0]
+
+    def _pers_sheet(self):
+        """The mate's sheet as it is on disk, with today's name, race, job and level."""
+        name, race, job, level = self._pers_facts()
+        sheet = lp.load_sheet(HERE, name)
+        return lp.update_facts(sheet, name, race, job, level) if sheet else lp.new_sheet(name, race, job, level)
+
+    def _pers_fill(self, sheet):
+        for key, box in self.pers_fields.items():
+            value = sheet.get(key, "")
+            if isinstance(value, list):
+                value = "\n".join(str(item) for item in value)
+            box.delete("1.0", "end")
+            box.insert("1.0", str(value or ""))
+        self.pers_talk.set(lp.clamp_talk(sheet.get("talkativeness", 1.0)))
+
+    def _pers_read(self):
+        sheet = self._pers_sheet()
+        for key, box in self.pers_fields.items():
+            text = box.get("1.0", "end").strip()
+            sheet[key] = [line for line in text.splitlines() if line.strip()] if key in lp.LIST_FIELDS else text
+        sheet["talkativeness"] = self.pers_talk.get()
+        return sheet
+
+    def show_personality(self):
+        if lp is None or self.mate is None or not getattr(self, "pers_fields", None):
+            return
+        self.pers_examples = lp.examples(HERE)
+        self.pers_example.configure(values=[title for title, _ in self.pers_examples])
+        if self.pers_examples and not self.pers_example.get():
+            self.pers_example.current(0)
+        on_disk = lp.load_sheet(HERE, self.mate["name"]) is not None
+        self._pers_fill(self._pers_sheet())
+        self.pers_title.configure(text=f"{self.mate['name']}: personality" + ("" if on_disk else " (none yet)"))
+        self.pers_note.configure(text="" if on_disk else "No personality yet. Squad chat writes one with the AI the first "
+                                 "time this mate is called, unless you save one here first.")
+
+    def use_personality_example(self):
+        if self.mate is None:
+            return
+        chosen = dict(getattr(self, "pers_examples", [])).get(self.pers_example.get())
+        if not chosen:
+            return
+        self._pers_fill(lp.apply_example(self._pers_read(), chosen))
+        self.pers_note.configure(text="Example filled in. Change anything you like, then Save personality.")
+
+    def save_personality(self):
+        if self.mate is None:
+            return
+        sheet = self._pers_read()
+        trouble = lp.problems(sheet)
+        if trouble:
+            messagebox.showinfo("Personality", "\n".join(trouble), parent=self)
+            return
+
+        def go():
+            lp.save_sheet(HERE, sheet)
+            self.show_personality()
+            self.pers_note.configure(text=f"Saved. Squad chat uses it the next time {sheet['name']} speaks (the old one is kept as .json.bak).")
+        self.guard(go)
+
+    def ai_personality(self):
+        if self.mate is None:
+            return
+        name, race, job, level = self._pers_facts()
+        rewrite = lp.load_sheet(HERE, name) is not None
+        if rewrite and not messagebox.askyesno("Personality", f"Let the AI write a new personality for {name}? "
+                                               "The current one is kept as a .json.bak file.", parent=self):
+            return
+
+        def go():
+            lp.request_ai_sheet(HERE, name, race, job, level)
+            self.pers_note.configure(text="Asked squad chat to write it. It needs Living world + AI chat; it is written while "
+                                     "the game runs (a minute or so), and you get a [Squad] note in game when it is ready.")
+        self.guard(go)
+
     def show_behavior(self):
         m = self.mate
         if m is None or lr is None:
@@ -966,6 +1103,7 @@ class SquadTab(tk.Frame):
         self.refresh_gear()
         self.show_behavior()
         self.show_greetings()
+        self.show_personality()
         self.say(f"Editing {m['name']}. Changes apply the next time you call them in game.")
 
     def refresh_gear(self):
@@ -1044,6 +1182,8 @@ class SquadTab(tk.Frame):
             if old != name:
                 sq.rename_greetings(self.greeting_user, old, name)
                 sq.write_greetings_lua(self.greeting_lua, sq.greeting_data(self.greeting_defaults, self.greeting_user))
+                if lp is not None:
+                    lp.request_rename(HERE, old, name)     # squad chat moves the personality and memory along
             self.reload()
         if self.mate:
             self.guard(go)
@@ -1150,6 +1290,20 @@ class RatesTab(tk.Frame):
         self.preset = ttk.Combobox(top, values=list(core.RATE_PRESETS), state="readonly", width=22)
         self.preset.pack(side="left", padx=6)
         tk.Button(top, text="Fill in preset", command=self.fill_preset, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left")
+        world = tk.Frame(self, bg=BG)
+        world.pack(fill="x", padx=10, pady=(2, 2))
+        tk.Label(world, text="World:", bg=BG, fg=FG).pack(side="left")
+        self.world_names = {key: label for key, (label, _text) in core.WORLDS.items()}
+        self.world_box = ttk.Combobox(world, values=list(self.world_names.values()) + ["Custom"], state="readonly", width=22)
+        self.world_box.pack(side="left", padx=6)
+        tk.Label(world, text="Population:", bg=BG, fg=FG).pack(side="left", padx=(8, 0))
+        self.pop_names = {key: f"{label} ({crowd} per town, {online} bots online)" for key, (label, crowd, _roster, online) in core.POPULATIONS.items()}
+        self.pop_box = ttk.Combobox(world, values=list(self.pop_names.values()) + ["Custom"], state="readonly", width=30)
+        self.pop_box.pack(side="left", padx=6)
+        tk.Button(world, text="Fill in", command=self.fill_world, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left")
+        self.world_text = tk.Label(self, text="", bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=720, justify="left")
+        self.world_text.pack(anchor="w", padx=10)
+        self.world_box.bind("<<ComboboxSelected>>", lambda e: self.show_world_text())
         tk.Label(self, text="Changes apply the next time you press PLAY. 1 = normal game speed.", bg=BG, fg=DIM,
                  font=("Segoe UI", 9)).pack(anchor="w", padx=10)
 
@@ -1229,6 +1383,34 @@ class RatesTab(tk.Frame):
         self.bots_growth = tk.StringVar(value=rates.get("bots_growth", "realistic"))
         ttk.Combobox(inner, values=["off", "realistic", "fast"], state="readonly", textvariable=self.bots_growth,
                      width=8).grid(row=n + 14, column=1, padx=6, pady=2)
+        self.squad_chat = tk.BooleanVar(value=rates.get("squad_chat", True))
+        tk.Checkbutton(inner, text="Squad mates talk: they answer you in party chat with the local AI (Ollama), each with their own personality",
+                       variable=self.squad_chat, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                       wraplength=520, justify="left").grid(row=n + 15, column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        self.show_world(rates)
+
+    def show_world(self, rates):
+        """Show which world and population the switches below match (or Custom)."""
+        world, population = core.world_of(rates), core.population_of(rates)
+        self.world_box.set(self.world_names.get(world, "Custom"))
+        self.pop_box.set(self.pop_names.get(population, "Custom"))
+        self.show_world_text()
+
+    def show_world_text(self):
+        key = next((k for k, v in self.world_names.items() if v == self.world_box.get()), None)
+        self.world_text.configure(text=core.WORLDS[key][1] if key else "Your own mix of the switches below.")
+
+    def fill_world(self):
+        """Fill in the crowd, bot and chat switches below from the chosen world and population."""
+        world = next((k for k, v in self.world_names.items() if v == self.world_box.get()), None)
+        population = next((k for k, v in self.pop_names.items() if v == self.pop_box.get()), None)
+        values = core.apply_world(self.collect(), world, population)
+        for key in ("crowds", "crowds_chat", "crowds_chat_ai", "crowds_field", "bots", "squad_chat"):
+            getattr(self, key).set(bool(values[key]))
+        self.crowds_size.set(str(values["crowds_per_zone"]))
+        self.bots_roster.set(str(values["bots_roster"]))
+        self.bots_online.set(str(values["bots_online"]))
+        self.show_world(values)
 
     def fill_preset(self):
         name = self.preset.get()
@@ -1266,6 +1448,7 @@ class RatesTab(tk.Frame):
                 rates[key] = max(lo, min(hi, int(float(var.get()))))
             except (TypeError, ValueError):
                 rates[key] = default
+        rates["squad_chat"] = bool(self.squad_chat.get())
         rates["claim_shield"] = False
         return rates
 
@@ -1650,7 +1833,7 @@ class UpdatesTab(tk.Frame):
 
     def work(self, script, args):
         try:
-            proc = subprocess.Popen([sys.executable, "-u", script] + args, cwd=HERE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            proc = subprocess.Popen(core.py_cmd(script, *args, unbuffered=True), cwd=HERE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                     text=True, encoding="utf-8", errors="replace", creationflags=core.NO_WINDOW)
             for line in proc.stdout:
                 self.lines.put(("line", line.rstrip()))
@@ -1682,7 +1865,7 @@ class App(tk.Tk):
         self.minsize(900, 420)          # the Play page is compact; the other pages set the taller window themselves
         self.configure(bg=BG)
         self._images = []   # keep pictures alive (Tk forgets a picture nobody holds on to)
-        icon = load_image("logo_icon.png") or load_image("logo.png")
+        icon = load_image(os.path.join("ui", "icon.png")) or load_image("logo_icon.png") or load_image("logo.png")
         if icon:
             self._images.append(icon)
             try:
@@ -1696,7 +1879,7 @@ class App(tk.Tk):
         self.scripts = None
         self.ashita = self.cfg.get("ashita_dir")
         self.rates = core.load_rates(HERE)
-        self.boot_ini = os.path.join(self.ashita, "config", "boot", self.cfg.get("ashita_boot", "phoenixsolo.ini")) if self.ashita else None
+        self.boot_ini = os.path.join(self.ashita, "config", "boot", self.cfg.get("ashita_boot", core.DEFAULT_BOOT)) if self.ashita else None
         has_ini = bool(self.boot_ini) and os.path.exists(self.boot_ini)
         self.graphics = core.load_graphics(HERE, self.boot_ini if has_ini else None)
         self.build_ui()
@@ -1871,7 +2054,7 @@ class App(tk.Tk):
         self.lists = []
         if self.ashita and os.path.isdir(self.ashita):
             try:
-                self.scripts = core.ScriptManager(self.ashita, self.cfg.get("ashita_boot", "phoenixsolo.ini"))
+                self.scripts = core.ScriptManager(self.ashita, self.cfg.get("ashita_boot", core.DEFAULT_BOOT))
                 self.scripts.prepare()
             except Exception as e:
                 self.scripts = None
@@ -1895,6 +2078,8 @@ class App(tk.Tk):
                     tk.Radiobutton(picker, text=text, value=value, variable=self.list_target, command=self.switch_list_target,
                                    bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                                    font=("Segoe UI", 10)).pack(side="left", padx=(10, 0))
+                if kind == "addon":
+                    self.build_interface_row(page)
                 lst = CheckList(page, kind, self.scripts)
                 lst.pack(fill="both", expand=True, padx=6)
                 self.lists.append(lst)
@@ -1903,6 +2088,8 @@ class App(tk.Tk):
                 tk.Button(bar, text="Refresh", command=lst.reload, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left", padx=4)
                 tk.Button(bar, text=f"Open {folder} folder", relief="flat", bg=PANEL, fg=FG, padx=10,
                           command=lambda f=folder: self.open_dir(os.path.join(self.ashita, f))).pack(side="left", padx=4)
+        if tp is not None and os.path.exists(os.path.join(HERE, "thirdparty.json")):
+            self.build_downloads_page(tabs)
         self.build_nav()
 
     def ui_button(self, parent, name, command, text):
@@ -1930,7 +2117,7 @@ class App(tk.Tk):
         boot2 = self.cfg.get("ashita_boot2")
         path = os.path.join(self.ashita, "config", "boot", boot2) if (self.ashita and boot2) else ""
         if not path or not os.path.exists(path):
-            return None, "The second window is not set up yet. In PowerShell, in C:\\FFXISOLO, run:   python setup_dualbox.py setup"
+            return None, "The second window is not set up yet. In PowerShell, in " + HERE + ", run:   python setup_dualbox.py setup"
         try:
             manager = core.ScriptManager(self.ashita, boot2, script_name="dualbox.txt")
             manager.prepare()
@@ -1938,6 +2125,33 @@ class App(tk.Tk):
             return None, f"Could not read the second window's script: {e}"
         self.second_scripts = manager
         return manager, ""
+
+    def build_interface_row(self, page):
+        """XIUI (an addon, stable) or XIUIplus (a plugin, alpha): the party list, target bar and other windows."""
+        row = tk.Frame(page, bg=BG)
+        row.pack(anchor="w", padx=10, pady=(0, 4))
+        tk.Label(row, text="Interface:", bg=BG, fg=DIM, font=("Segoe UI", 9)).pack(side="left")
+        try:
+            now = core.interface_of(self.scripts)
+        except Exception:
+            now = "none"
+        self.interface_var = tk.StringVar(value=now)
+        for key, text in (("xiui", "XIUI (stable addon)"), ("xiuiplus", "XIUIplus (alpha plugin)"), ("none", "Neither")):
+            tk.Radiobutton(row, text=text, value=key, variable=self.interface_var, command=self.set_interface,
+                           bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                           font=("Segoe UI", 10)).pack(side="left", padx=(10, 0))
+
+    def set_interface(self):
+        choice = self.interface_var.get()
+        try:
+            core.set_interface(self.scripts, choice)
+        except Exception as e:
+            messagebox.showerror("Interface", f"Could not change the interface: {e}")
+            return
+        for lst in self.lists:
+            lst.reload()
+        names = {"xiui": "XIUI", "xiuiplus": "XIUIplus", "none": "no interface addon"}
+        self.say(f"Main window: {names.get(choice, choice)} from the next PLAY.")
 
     def switch_list_target(self):
         second = self.list_target.get() == "second"
@@ -2004,6 +2218,138 @@ class App(tk.Tk):
             label.pack(side="left", padx=(0, 6))
             label.bind("<Button-1>", lambda e, i=page: self.select_tab(i))
         self.subnav.pack(fill="x", padx=18, pady=(10, 2), before=self.tabs)
+
+    # ----- Downloads: other people's add-ons and tools, from their official releases (thirdparty.json) -----
+    def build_downloads_page(self, tabs):
+        page = tk.Frame(tabs, bg=BG)
+        tabs.add(page, text="  Downloads  ")
+        tk.Label(page, text="Add-ons and tools made by other people. Each one comes straight from its author's own release page; "
+                 "files it replaces are saved in backups\\thirdparty first, and your settings are never overwritten.",
+                 bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=880, justify="left").pack(anchor="w", padx=10, pady=(10, 6))
+        bar = tk.Frame(page, bg=BG)
+        bar.pack(anchor="w", padx=10, pady=(0, 6))
+        tk.Button(bar, text="Refresh", command=self.show_downloads, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left")
+        tk.Button(bar, text="Check for newer versions", command=self.check_download_updates, bg=PANEL, fg=FG, relief="flat",
+                  padx=10).pack(side="left", padx=6)
+        box = tk.Frame(page, bg=BG)
+        box.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+        canvas = tk.Canvas(box, bg=BG, highlightthickness=0)
+        scroll = ttk.Scrollbar(box, orient="vertical", command=canvas.yview)
+        self.dl_rows = tk.Frame(canvas, bg=BG)
+        canvas.create_window((0, 0), window=self.dl_rows, anchor="nw")
+        self.dl_rows.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.configure(yscrollcommand=scroll.set)
+        canvas.pack(side="left", fill="both", expand=True, padx=(4, 0))
+        scroll.pack(side="right", fill="y")
+        self.dl_busy = False
+        self.show_downloads()
+
+    def show_downloads(self, newer=None):
+        for widget in self.dl_rows.winfo_children():
+            widget.destroy()
+        try:
+            items = tp.load_manifest(HERE)
+        except Exception as e:
+            tk.Label(self.dl_rows, text=f"thirdparty.json could not be read: {e}", bg=BG, fg=RED).pack(anchor="w")
+            return
+        state = tp.load_state(HERE)
+        if not self.cfg.get("mariadb_dir"):       # a self-built (dev) server is never replaced by the release package
+            items = [item for item in items if item.get("into") != "server"]
+        for row, item in enumerate(items):
+            installed, version = tp.status(item, HERE, self.ashita, state, server=self.cfg.get("server_dir"))
+            tk.Label(self.dl_rows, text=item["name"], bg=BG, fg=FG, font=("Segoe UI", 10, "bold"), anchor="w").grid(
+                row=row * 2, column=0, sticky="w", pady=(6, 0))
+            text = ("installed " + version) if installed else "not installed"
+            if newer and newer.get(item["id"]) and newer[item["id"]] != version:
+                text += f"  (newer: {newer[item['id']]})"
+            tk.Label(self.dl_rows, text=text, bg=BG, fg=GREEN if installed else DIM, anchor="w").grid(
+                row=row * 2, column=1, sticky="w", padx=10, pady=(6, 0))
+            page_only = item["source"]["type"] == "page"
+            label = "Open download page" if page_only else ("Reinstall / update" if installed else "Install")
+            tk.Button(self.dl_rows, text=label, relief="flat", bg=PANEL if installed else ACCENT, fg=FG if installed else "white",
+                      padx=10, command=lambda i=item: self.install_download(i)).grid(row=row * 2, column=2, sticky="w", pady=(6, 0))
+            if item.get("apply") == "era_dats" and installed:
+                tk.Button(self.dl_rows, text="Apply to the game", relief="flat", bg=PANEL, fg=FG, padx=10,
+                          command=self.apply_era_dats).grid(row=row * 2 + 1, column=2, sticky="w")
+            if item.get("patch") and installed:
+                tk.Button(self.dl_rows, text="Apply era edits", relief="flat", bg=PANEL, fg=FG, padx=10,
+                          command=lambda i=item: self.apply_download_patch(i)).grid(row=row * 2 + 1, column=2, sticky="w")
+            link = tk.Label(self.dl_rows, text="home page", bg=BG, fg=ACCENT, cursor="hand2")
+            link.grid(row=row * 2, column=3, sticky="w", padx=10, pady=(6, 0))
+            link.bind("<Button-1>", lambda e, url=item["homepage"]: self.open_url(url))
+            info = f"by {item['author']} - license: {item['license']}" + (f" - {item['note']}" if item.get("note") else "")
+            tk.Label(self.dl_rows, text=info, bg=BG, fg=DIM, font=("Segoe UI", 9), anchor="w", wraplength=760,
+                     justify="left").grid(row=row * 2 + 1, column=0, columnspan=4, sticky="w")
+
+    def open_url(self, url):
+        import webbrowser
+        webbrowser.open(url)
+
+    def install_download(self, item):
+        if item["source"]["type"] == "page":
+            self.open_url(item["source"]["url"])
+            self.say(f"{item['name']}: opened its download page. Unpack it into {os.path.join(self.ashita or '', 'addons')}.")
+            return
+        if self.dl_busy:
+            self.say("A download is already running.")
+            return
+        if item.get("into") == "server" and self.running:
+            messagebox.showinfo("Downloads", "Stop the servers first (close the game), then update the server.")
+            return
+        if item.get("into", "ashita") == "ashita" and not self.ashita:
+            messagebox.showinfo("Downloads", "Set the Ashita folder first (ashita_dir in config.json).")
+            return
+        if self.running and item.get("into", "ashita") == "ashita":
+            if not messagebox.askyesno("Downloads", "The game is running. Install anyway? It takes effect the next time the game starts."):
+                return
+        self.dl_busy = True
+
+        def work():
+            try:
+                version = tp.install(item, HERE, self.ashita, log=self.say, server=self.cfg.get("server_dir"))
+                self.say(f"{item['name']} {version} is ready.")
+            except Exception as e:
+                self.say(f"{item['name']}: not installed ({e}).")
+            finally:
+                self.dl_busy = False
+                self.after(0, self.show_downloads)
+        threading.Thread(target=work, daemon=True).start()
+
+    def apply_download_patch(self, item):
+        try:
+            for line in tp.apply_patch(HERE, self.ashita, item["patch"]):
+                self.say(f"{item['name']}: {line}")
+            self.say(f"{item['name']}: reload it in game (/addon reload {item['id']}).")
+        except Exception as e:
+            messagebox.showinfo("Downloads", f"{item['name']}: {e}")
+
+    def apply_era_dats(self):
+        if self.running:
+            messagebox.showinfo("Era-DATs", "Close the game first.")
+            return
+        if not messagebox.askyesno("Era-DATs", "Copy the Era-DATs into your FFXI folder? The files they replace are saved in "
+                                   "dat-backup first; restore-original-dats.ps1 puts them back."):
+            return
+
+        def work():
+            try:
+                import launcher_setup
+                for line in launcher_setup.install_era_dats(HERE, self.cfg.get("ffxi_client_dir", ""), log=self.say):
+                    self.say(line)
+            except Exception as e:
+                self.say(f"Era-DATs: not installed ({e}).")
+        threading.Thread(target=work, daemon=True).start()
+
+    def check_download_updates(self):
+        def work():
+            newer = {}
+            for item in tp.load_manifest(HERE):
+                tag = tp.latest_version(item)
+                if tag:
+                    newer[item["id"]] = tag
+            self.say("Checked the release pages for newer versions.")
+            self.after(0, lambda: self.show_downloads(newer))
+        threading.Thread(target=work, daemon=True).start()
 
     def add_note(self, tabs, title, text):
         page = tk.Frame(tabs, bg=BG)
@@ -2133,6 +2479,12 @@ class App(tk.Tk):
             return
         self.stop_requested = True
         self.cleanup()
+        if getattr(self, "db_proc", None) is not None:      # the kit's MariaDB, if this launcher started it
+            try:
+                import launcher_setup
+                launcher_setup.stop_portable(self.cfg)
+            except Exception:
+                pass
         self.destroy()
 
     # ----- the actual launch sequence (runs in a background thread) -----
@@ -2162,9 +2514,16 @@ class App(tk.Tk):
         time.sleep(2)
         self.check()
 
-        svc = cfg.get("mariadb_service", "MariaDB")
-        if not core.ensure_service(svc):
-            raise RuntimeError(f"The database service '{svc}' was not found or would not start.")
+        if cfg.get("mariadb_dir"):            # a player install: the kit's own MariaDB, started here (no Windows service)
+            import launcher_setup
+            started = launcher_setup.start_portable(cfg)
+            if started is not None:
+                self.db_proc = started
+                self.say("Database started.")
+        else:
+            svc = cfg.get("mariadb_service", "MariaDB")
+            if not core.ensure_service(svc):
+                raise RuntimeError(f"The database service '{svc}' was not found or would not start.")
 
         self.say("Applying your rates...")
         try:
@@ -2172,6 +2531,10 @@ class App(tk.Tk):
                 self.say(note)
         except Exception as e:
             self.say(f"Could not apply the rates ({e}) - starting with the server's normal settings.")
+        try:
+            core.write_kit_paths(cfg["server_dir"], HERE, cfg.get("ashita_dir"))
+        except Exception as e:
+            self.say(f"Could not write kit_paths.lua ({e}) - squad chat and Crystal Boy rewards use the default folders.")
 
         self.conquest_ticked = self.run_conquest("tick")      # catch the world up on the time you were away (servers are not running yet)
 
@@ -2206,8 +2569,10 @@ class App(tk.Tk):
         self.check()
 
         self.start_ah_sim()
-        self.start_ollama()
-        self.start_squad_chat()
+        if core.needs_ai(self.rates):        # Quiet world / Living world: nothing talks through the AI, so leave Ollama alone
+            self.start_ollama()
+        if self.rates.get("squad_chat", True):
+            self.start_squad_chat()
         self.start_crowd_chat_ai()
         if self.ashita:
             self.launch_ashita()
@@ -2260,7 +2625,7 @@ class App(tk.Tk):
         self.say("Starting the game through Ashita...")
         alog = open(os.path.join(LOGS, "ashita.log"), "wb")
         self.logfiles.append(alog)
-        boot = getattr(self, "launch_boot", None) or cfg.get("ashita_boot", "phoenixsolo.ini")      # the GM game starts with its own boot file
+        boot = getattr(self, "launch_boot", None) or cfg.get("ashita_boot", core.DEFAULT_BOOT)      # the GM game starts with its own boot file
         self.launch_boot = None
         subprocess.Popen([cli, boot], cwd=self.ashita, stdout=alog,
                          stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
@@ -2303,7 +2668,7 @@ class App(tk.Tk):
         boot2 = self.cfg.get("ashita_boot2")
         path = os.path.join(self.ashita, "config", "boot", boot2) if (self.ashita and boot2) else ""
         if not path or not os.path.exists(path):
-            messagebox.showinfo("Second character", "The second character is not set up yet.\n\nOpen PowerShell, go to C:\\FFXISOLO and run:\n\n    python setup_dualbox.py setup\n\nThen try again.")
+            messagebox.showinfo("Second character", "The second character is not set up yet.\n\nOpen PowerShell, go to " + HERE + " and run:\n\n    python setup_dualbox.py setup\n\nThen try again.")
             return
         if core.count_running("xiloader") >= 2:
             messagebox.showinfo("Second character", "A second game window is already open.")
@@ -2341,7 +2706,7 @@ class App(tk.Tk):
         if not self.rates.get("conquest_sim", True) or not os.path.exists(script):
             return False
         try:
-            done = subprocess.run([sys.executable, script, mode], cwd=HERE, capture_output=True, text=True, timeout=90,
+            done = subprocess.run(core.py_cmd(script, mode), cwd=HERE, capture_output=True, text=True, timeout=90,
                                   creationflags=core.NO_WINDOW)
             if done.returncode != 0:
                 lines = (done.stderr or done.stdout or "").strip().splitlines()
@@ -2405,7 +2770,7 @@ class App(tk.Tk):
         try:
             log = open(os.path.join(LOGS, "squad-chat.log"), "wb")
             self.logfiles.append(log)
-            self.chat_proc = subprocess.Popen([sys.executable, script], cwd=folder, stdout=log, stderr=subprocess.STDOUT,
+            self.chat_proc = subprocess.Popen(core.py_cmd(script), cwd=folder, stdout=log, stderr=subprocess.STDOUT,
                                               creationflags=core.NO_WINDOW)
             self.say("Squad chat started.")
         except Exception as e:
@@ -2424,7 +2789,7 @@ class App(tk.Tk):
         try:
             log = open(os.path.join(LOGS, "crowd-chat-ai.log"), "wb")
             self.logfiles.append(log)
-            args = [sys.executable, "-u", script] + ([] if crowds_ai else ["--bots-only"])
+            args = core.py_cmd(script, *([] if crowds_ai else ["--bots-only"]), unbuffered=True)
             self.crowd_ai_proc = subprocess.Popen(args, cwd=os.path.dirname(script), stdout=log,
                                                   stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
             self.say("Chat AI helper started" + ("." if crowds_ai else " (bot players only)."))
@@ -2439,7 +2804,7 @@ class App(tk.Tk):
         try:
             log = open(os.path.join(LOGS, "ah_sim.log"), "wb")
             self.logfiles.append(log)
-            self.ah_proc = subprocess.Popen([sys.executable, script, "run"], cwd=HERE, stdout=log, stderr=subprocess.STDOUT,
+            self.ah_proc = subprocess.Popen(core.py_cmd(script, "run"), cwd=HERE, stdout=log, stderr=subprocess.STDOUT,
                                             creationflags=core.NO_WINDOW)
             self.say("Auction house simulator started.")
         except Exception as e:
@@ -2502,10 +2867,209 @@ class App(tk.Tk):
         self.say("Servers stopped.")
 
 
+class SetupWizard(tk.Tk):
+    """First run (no config.json yet): find FFXI, install Ashita and the add-ons, set up the database and the account.
+    The work itself is launcher_setup.run_setup; this window only asks the questions and shows the progress."""
+
+    EXTRAS = (("mobdb", "mobdb: monster info on your target", True), ("nameplate", "Nameplate: clearer name plates", True),
+              ("gambatte", "Gambatte core: lets the Crystal Boy play its games", True),
+              ("chains", "Chains: skillchain helper", False), ("autobot", "AutoBot: for a second (dualbox) character", False))
+
+    def __init__(self):
+        super().__init__()
+        import launcher_setup
+        self.setup = launcher_setup
+        self.title("XI: Forever Offline - first-time setup")
+        self.geometry("760x600")
+        self.configure(bg=BG)
+        icon = load_image(os.path.join("ui", "icon.png"))
+        if icon:
+            self._icon = icon
+            try:
+                self.iconphoto(True, icon)
+            except Exception:
+                pass
+        self.done = False
+        self.q = queue.Queue()
+        layout = launcher_setup.default_layout(HERE)
+        self.ffxi = tk.StringVar(value=launcher_setup.find_ffxi() or "")
+        self.ashita = tk.StringVar(value=layout["ashita_dir"])
+        self.server = tk.StringVar(value=layout["server_dir"])
+        self.world = tk.StringVar(value="living")
+        self.population = tk.StringVar(value="medium")
+        self.interface = tk.StringVar(value="xiui")
+        self.extras = {key: tk.BooleanVar(value=on) for key, _text, on in self.EXTRAS}
+        self.era_dats = tk.BooleanVar(value=True)
+        self.login = tk.StringVar(value="player1")
+        self.password = tk.StringVar(value=launcher_setup.new_password(12))
+        self.mariadb_dir = layout["mariadb_dir"]
+
+        tk.Label(self, text="XI: Forever Offline", bg=BG, fg=GOLD, font=("Georgia", 20, "bold")).pack(anchor="w", padx=16, pady=(14, 0))
+        self.step_title = tk.Label(self, text="", bg=BG, fg=FG, font=("Segoe UI", 12, "bold"))
+        self.step_title.pack(anchor="w", padx=16, pady=(2, 8))
+        self.body = tk.Frame(self, bg=BG)
+        self.body.pack(fill="both", expand=True, padx=16)
+        nav = tk.Frame(self, bg=BG)
+        nav.pack(fill="x", padx=16, pady=12)
+        self.back_btn = tk.Button(nav, text="Back", command=lambda: self.show(self.page - 1), bg=PANEL, fg=FG, relief="flat", padx=14)
+        self.back_btn.pack(side="left")
+        self.next_btn = tk.Button(nav, text="Next", command=self.next, bg=ACCENT, fg="white", relief="flat", padx=18)
+        self.next_btn.pack(side="right")
+        self.pages = [self.page_folders, self.page_world, self.page_account, self.page_install]
+        self.show(0)
+
+    # ----- pages -----
+    def clear(self, title):
+        for widget in self.body.winfo_children():
+            widget.destroy()
+        self.step_title.configure(text=title)
+
+    def text(self, words, fg=None):
+        tk.Label(self.body, text=words, bg=BG, fg=fg or DIM, wraplength=720, justify="left").pack(anchor="w", pady=(0, 6))
+
+    def folder_row(self, label, var, hint):
+        row = tk.Frame(self.body, bg=BG)
+        row.pack(fill="x", pady=4)
+        tk.Label(row, text=label, bg=BG, fg=FG, width=16, anchor="w").pack(side="left")
+        tk.Entry(row, textvariable=var, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", width=56).pack(side="left")
+        tk.Button(row, text="Browse...", relief="flat", bg=PANEL, fg=FG, padx=8,
+                  command=lambda: var.set(filedialog.askdirectory(initialdir=var.get() or HERE) or var.get())).pack(side="left", padx=6)
+        tk.Label(self.body, text=hint, bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=720, justify="left").pack(anchor="w", padx=(4, 0))
+
+    def page_folders(self):
+        self.clear("1. Where things are")
+        self.text("This sets up everything on this PC: the game add-on loader (Ashita), the game server and a small database. "
+                  "It takes a few minutes and needs an internet connection for the downloads. You need Final Fantasy XI "
+                  "installed (the PlayOnline version).")
+        self.folder_row("Final Fantasy XI", self.ffxi, "Found from PlayOnline's settings when it can be. The folder with FFXiMain.dll in it.")
+        self.folder_row("Ashita", self.ashita, "A new folder is fine: Ashita is downloaded from its official release.")
+        self.folder_row("Server", self.server, "A new folder is fine: the ready-made server is downloaded (a few hundred MB). "
+                        "If you built the server yourself, choose its folder.")
+        self.text(f"The database is kept in {self.mariadb_dir}.")
+
+    def page_world(self):
+        self.clear("2. Your world")
+        import launcher_core as lc
+        for key, (label, about) in lc.WORLDS.items():
+            tk.Radiobutton(self.body, text=label, value=key, variable=self.world, bg=BG, fg=FG, selectcolor=PANEL,
+                           activebackground=BG, activeforeground=FG, font=("Segoe UI", 10, "bold")).pack(anchor="w")
+            tk.Label(self.body, text=about, bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
+        row = tk.Frame(self.body, bg=BG)
+        row.pack(anchor="w", pady=(10, 2))
+        tk.Label(row, text="Population:", bg=BG, fg=FG).pack(side="left")
+        for key, (label, crowd, _roster, online) in lc.POPULATIONS.items():
+            tk.Radiobutton(row, text=f"{label} ({crowd}/town, {online} bots)", value=key, variable=self.population,
+                           bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG).pack(side="left", padx=4)
+        row = tk.Frame(self.body, bg=BG)
+        row.pack(anchor="w", pady=(6, 2))
+        tk.Label(row, text="Interface:", bg=BG, fg=FG).pack(side="left")
+        for key, label in (("xiui", "XIUI (stable)"), ("xiuiplus", "XIUIplus (alpha, newer)"), ("none", "The game's own")):
+            tk.Radiobutton(row, text=label, value=key, variable=self.interface, bg=BG, fg=FG, selectcolor=PANEL,
+                           activebackground=BG, activeforeground=FG).pack(side="left", padx=6)
+        tk.Checkbutton(self.body, text="Era-accurate game files (Phoenix Era-DATs; your originals are backed up)", variable=self.era_dats,
+                       bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG).pack(anchor="w", pady=(8, 0))
+        tk.Label(self.body, text="Add-ons (downloaded from their authors; more on the launcher's Downloads tab later):",
+                 bg=BG, fg=FG).pack(anchor="w", pady=(10, 2))
+        for key, label, _on in self.EXTRAS:
+            tk.Checkbutton(self.body, text=label, variable=self.extras[key], bg=BG, fg=FG, selectcolor=PANEL,
+                           activebackground=BG, activeforeground=FG).pack(anchor="w", padx=(10, 0))
+
+    def page_account(self):
+        self.clear("3. Your game account")
+        self.text("The login the game uses on your own server. It stays on this PC (in config.json and Ashita's boot file); "
+                  "the launcher logs you in with it, so you don't need to remember the password.")
+        for label, var in (("Login", self.login), ("Password", self.password)):
+            row = tk.Frame(self.body, bg=BG)
+            row.pack(anchor="w", pady=4)
+            tk.Label(row, text=label, bg=BG, fg=FG, width=16, anchor="w").pack(side="left")
+            tk.Entry(row, textvariable=var, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", width=24).pack(side="left")
+        self.text("Login: 3-16 letters and numbers. You make your character in the game after the first login.")
+
+    def page_install(self):
+        self.clear("4. Install")
+        self.log_box = tk.Text(self.body, height=20, bg=PANEL, fg=FG, relief="flat", font=("Consolas", 9), wrap="word")
+        self.log_box.pack(fill="both", expand=True)
+        self.log_box.insert("end", "Press Install to start.\n")
+        self.next_btn.configure(text="Install", command=self.start_install)
+
+    # ----- moving between pages -----
+    def show(self, index):
+        self.page = max(0, min(index, len(self.pages) - 1))
+        self.next_btn.configure(text="Next", command=self.next, state="normal")
+        self.back_btn.configure(state="normal" if self.page > 0 else "disabled")
+        self.pages[self.page]()
+
+    def next(self):
+        problem = self.check_page()
+        if problem:
+            messagebox.showinfo("Setup", problem, parent=self)
+            return
+        self.show(self.page + 1)
+
+    def check_page(self):
+        if self.page == 0:
+            if not self.setup.valid_ffxi(self.ffxi.get()):
+                return "Choose the FINAL FANTASY XI folder (the one with FFXiMain.dll in it)."
+        if self.page == 2 and not self.setup.valid_login(self.login.get()):
+            return "The login must be 3-16 letters and numbers."
+        if self.page == 2 and len(self.password.get()) < 6:
+            return "Use a password of at least 6 characters."
+        return None
+
+    # ----- the install -----
+    def start_install(self):
+        self.next_btn.configure(state="disabled")
+        self.back_btn.configure(state="disabled")
+        choices = {"ffxi_dir": self.ffxi.get(), "ashita_dir": self.ashita.get(), "server_dir": self.server.get(),
+                   "mariadb_dir": self.mariadb_dir, "world": self.world.get(), "population": self.population.get(),
+                   "interface": self.interface.get(), "extras": [k for k, v in self.extras.items() if v.get()],
+                   "era_dats": self.era_dats.get(),
+                   "login": self.login.get(), "password": self.password.get()}
+
+        def work():
+            try:
+                import launcher_thirdparty
+                self.setup.run_setup(HERE, choices, launcher_thirdparty, log=lambda m: self.q.put(("log", m)))
+                self.q.put(("done", None))
+            except Exception as e:
+                self.q.put(("fail", str(e)))
+        threading.Thread(target=work, daemon=True).start()
+        self.after(200, self.pump)
+
+    def pump(self):
+        try:
+            while True:
+                kind, value = self.q.get_nowait()
+                if kind == "log":
+                    self.log_box.insert("end", value + "\n")
+                    self.log_box.see("end")
+                elif kind == "done":
+                    self.log_box.insert("end", "\nAll set. Press Open the launcher, then PLAY.\n")
+                    self.done = True
+                    self.next_btn.configure(text="Open the launcher", state="normal", command=self.destroy)
+                    return
+                elif kind == "fail":
+                    self.log_box.insert("end", f"\nSetup stopped: {value}\nFix that and press Install again; finished steps are kept.\n")
+                    self.next_btn.configure(text="Install", state="normal", command=self.start_install)
+                    self.back_btn.configure(state="normal")
+                    return
+        except queue.Empty:
+            pass
+        self.after(200, self.pump)
+
+
 def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--run":     # the packaged exe running one of the kit's scripts (see core.py_cmd)
+        core.run_script_main(sys.argv[2:])
+        return
     if os.name == "nt" and not is_admin():
         elevate_and_exit()
     try:
+        if not os.path.exists(os.path.join(HERE, "config.json")):     # first run on a new PC: set everything up first
+            wizard = SetupWizard()
+            wizard.mainloop()
+            if not wizard.done or not os.path.exists(os.path.join(HERE, "config.json")):
+                return
         App().mainloop()
     except Exception:
         os.makedirs(LOGS, exist_ok=True)

@@ -1,0 +1,20 @@
+{
+  "title": "The charming rogue",
+  "personality": "Smooth, playful and a little dishonest about small things; honest when it counts and always has an angle.",
+  "voice": "Teasing banter, flattery with a wink, and a story for every occasion.",
+  "quirk": "Flips a coin to settle any decision, then ignores the result if they do not like it.",
+  "goal": "To pay off an old debt and come out of it with enough gil to never owe anyone again.",
+  "fear": "That the party will find out about the debt.",
+  "hooks": [
+    "Knows someone in every port and is on bad terms with at least half of them.",
+    "Has a second name that is used in certain taverns.",
+    "Keeps a winning card from a game that ended in a brawl."
+  ],
+  "backstory": "{name} has talked their way into and out of more trouble than most people see in a lifetime. Card games, delivery jobs and the occasional borrowed item paid the way from one port to the next.\n\nJoining an adventuring party started as a way to lie low. It has turned into something {name} would never admit to caring about, which is, of course, exactly why they care.",
+  "chat_examples": [
+    "Trust me. Well, mostly trust me.",
+    "Ooh, shiny. Mine? No? Fine.",
+    "Heads we win, tails we... also win. Let's go."
+  ],
+  "talkativeness": 1.3
+}

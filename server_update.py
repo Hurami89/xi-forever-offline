@@ -9,7 +9,7 @@ How the update stays safe:
   * Your edits to the server's own files (our squad patches, the Goblin Tailor quest, init.txt ...) are saved as ONE local commit
     first, then Phoenix's new version is merged in. If anything clashes, the merge is cancelled and your files are put back exactly
     as they were, so a failed update changes nothing.
-  * Before anything changes, the database is saved (backups\\solodb-before-update-*.sql) and the current version is written to
+  * Before anything changes, the database is saved (backups\\db-before-update-*.sql) and the current version is written to
     update-state.json, which "undo" uses.
   * Files that are not tracked by git (everything in modules\\custom, backups, settings you made) are never touched by a merge.
   * The database tool (tools\\dbtool.py update) and the rebuild only run when the new version needs them.
@@ -26,7 +26,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_PATH = os.path.join(HERE, "update-state.json")
 BACKUPS = os.path.join(HERE, "backups")
-IDENT = ["-c", "user.name=FFXI Solo", "-c", "user.email=solo@localhost"]
+IDENT = ["-c", "user.name=XI: Forever Offline", "-c", "user.email=xiforever@localhost"]
 NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 
 
@@ -98,13 +98,19 @@ def default_servers_running():
     return any(name in out for name in ("xi_map.exe", "xi_world.exe", "xi_connect.exe", "xi_search.exe"))
 
 
+
+def db_tool(cfg, name):
+    """mysqldump / mysql: from the portable MariaDB in the kit when there is one, else from PATH. Port only when set."""
+    exe = os.path.join(cfg["mariadb_dir"], "bin", name + ".exe") if cfg.get("mariadb_dir") else name
+    return [exe] + ([f"-P{cfg['db_port']}"] if cfg.get("db_port") else [])
+
 def default_backup_db(cfg, path):
-    cmd = ["mysqldump", f"-h{cfg.get('db_host', '127.0.0.1')}", f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"], f"--result-file={path}"]
+    cmd = db_tool(cfg, "mysqldump") + [f"-h{cfg.get('db_host', '127.0.0.1')}", f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"], f"--result-file={path}"]
     return subprocess.run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW).returncode == 0
 
 
 def default_restore_db(cfg, path):
-    cmd = ["mysql", f"-h{cfg.get('db_host', '127.0.0.1')}", f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"]]
+    cmd = db_tool(cfg, "mysql") + [f"-h{cfg.get('db_host', '127.0.0.1')}", f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"]]
     with open(path, "rb") as f:
         return subprocess.run(cmd, stdin=f, capture_output=True, creationflags=NO_WINDOW).returncode == 0
 
@@ -276,7 +282,7 @@ def update(cfg, hooks=None, force_running=False):
     if g.run("diff", "--quiet", "HEAD")[0] != 0:
         say("Saving your server edits as a local commit...")
         g.run("add", "-u")
-        rc, _, err = g.run("commit", "-m", f"FFXI Solo: local server edits before update {tag}", ident=True)
+        rc, _, err = g.run("commit", "-m", f"XI: Forever Offline: local server edits before update {tag}", ident=True)
         if rc != 0:
             say("Could not save your edits (" + err[:200] + "). Nothing was changed.")
             g.run("reset", "--mixed", before)

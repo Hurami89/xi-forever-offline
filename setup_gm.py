@@ -7,7 +7,7 @@ characters are GMs automatically, and your real character stays untouched.
   python setup_gm.py promote Name [level]   make an existing character a GM (default level 5); log that character out first
   python setup_gm.py demote Name            take GM away again
   python setup_gm.py commands               the GM commands your server has, with the level each needs
-  python setup_gm.py backup                 save the database to C:\\FFXISOLO\\backups (do this before testing things)
+  python setup_gm.py backup                 save the database to the kit's backups folder (do this before testing things)
   python setup_gm.py window 1600 900 [windowed|borderless|fullscreen]   the size of the GM game window
 
 It never edits your main boot file, script or account.
@@ -36,7 +36,7 @@ def say(text=""):
 def gm_boot_name(cfg):
     if cfg.get("ashita_boot_gm"):
         return cfg["ashita_boot_gm"]
-    root, ext = os.path.splitext(cfg.get("ashita_boot", "phoenixsolo.ini"))
+    root, ext = os.path.splitext(cfg.get("ashita_boot", "xiforever.ini"))
     return f"{root}_gm{ext or '.ini'}"
 
 
@@ -44,7 +44,7 @@ def main_script_name(first_boot_path):
     """The script the main boot file runs, so the GM game loads the same addons as your main game."""
     with open(first_boot_path, "r", encoding="utf-8-sig", errors="replace") as f:
         m = re.search(r"(?im)^\s*script\s*=\s*(\S+)", f.read())
-    return m.group(1) if m else "phoenixsolo.txt"
+    return m.group(1) if m else "xiforever.txt"
 
 
 def install_trigger(conn, user, level):
@@ -111,7 +111,7 @@ def update_config(cfg, boot_gm):
 def setup(cfg, connect_fn=sd.connect, graphics_module=None, hasher=sd.hash_password, trigger_fn=install_trigger, column_check=has_gmlevel_column):
     problems = 0
     user, password = cfg.get("game_user_gm", GM_USER), cfg.get("game_pass_gm", GM_PASS)
-    first_name = cfg.get("ashita_boot", "phoenixsolo.ini")
+    first_name = cfg.get("ashita_boot", "xiforever.ini")
     boot = gm_boot_name(cfg)
     first, gm_path = sd.boot_file(cfg, first_name), sd.boot_file(cfg, boot)
     if not os.path.exists(first):
@@ -195,11 +195,17 @@ def list_commands(cfg):
     return 0
 
 
+
+def db_tool(cfg, name):
+    """mysqldump / mysql: from the portable MariaDB in the kit when there is one, else from PATH. Port only when set."""
+    exe = os.path.join(cfg["mariadb_dir"], "bin", name + ".exe") if cfg.get("mariadb_dir") else name
+    return [exe] + ([f"-P{cfg['db_port']}"] if cfg.get("db_port") else [])
+
 def backup(cfg):
     folder = os.path.join(HERE, "backups")
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, "db-manual-" + time.strftime("%Y%m%d-%H%M%S") + ".sql")
-    cmd = ["mysqldump", f"-h{cfg.get('db_host', '127.0.0.1')}", f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"], f"--result-file={path}"]
+    cmd = db_tool(cfg, "mysqldump") + [f"-h{cfg.get('db_host', '127.0.0.1')}", f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"], f"--result-file={path}"]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         say("The backup FAILED: " + (result.stderr or "").strip()[:200])

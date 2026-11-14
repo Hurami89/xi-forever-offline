@@ -3,7 +3,7 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageEnhance, ImageChops
 
-SRC = '/mnt/user-data/uploads/FFXISOLO/art-src'
+SRC = os.environ.get('ART_SRC', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # art-src beside scripts
 FONT_BOLD = '/usr/share/fonts/truetype/crosextra/Caladea-Bold.ttf'
 for p in ['/usr/share/fonts/truetype/crosextra/Caladea-Bold.ttf']:
     if not os.path.exists(p):

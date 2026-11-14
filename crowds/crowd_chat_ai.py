@@ -136,7 +136,7 @@ def model_options(model, base):
 def squad_config():
     """Model and address from squad chat's own settings, so both use the model you already have.
     "model" is the one to use; "fallback_model" (mistral-nemo) is used until the new one is pulled."""
-    cfg = {"model": "mistral-nemo:latest", "ollama_url": "http://127.0.0.1:11434", "fallback_model": "mistral-nemo:latest"}
+    cfg = {"model": "gemma4:12b", "ollama_url": "http://127.0.0.1:11434", "fallback_model": "mistral-nemo:latest"}
     try:
         with open(os.path.join(KIT, "squad-chat", "config.json"), encoding="utf-8-sig") as f:
             sc = json.load(f)
