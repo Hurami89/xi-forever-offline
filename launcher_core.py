@@ -1,0 +1,1132 @@
+"""Logic for the FFXI Solo launcher (no GUI code here, so it can be tested on its own)."""
+import json, os, re, shutil, subprocess
+
+NO_WINDOW = 0x08000000          # Windows: start a process without a console window
+SERVERS = ["xi_connect", "xi_world", "xi_search", "xi_profile", "xi_map"]
+MANAGED_SCRIPT = "phoenixsolo.txt"
+
+ADDON_RE  = re.compile(r"^\s*/addon\s+load\s+(\S+)\s*$", re.I)
+PLUGIN_RE = re.compile(r"^\s*/load\s+(\S+)\s*$", re.I)
+
+
+def load_config(path):
+    with open(path, "r", encoding="utf-8-sig") as f:
+        return json.load(f)
+
+
+# ---------- processes (Windows) ----------
+def _run(cmd):
+    return subprocess.run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW)
+
+def is_running(image_name):
+    out = _run(["tasklist", "/FI", f"IMAGENAME eq {image_name}.exe", "/NH"]).stdout.lower()
+    return f"{image_name.lower()}.exe" in out
+
+def count_running(image_name):
+    """How many copies of a program are running (two game windows = two xiloader)."""
+    out = _run(["tasklist", "/FI", f"IMAGENAME eq {image_name}.exe", "/NH"]).stdout.lower()
+    return out.count(f"{image_name.lower()}.exe")
+
+def kill(image_name):
+    _run(["taskkill", "/F", "/IM", f"{image_name}.exe"])
+
+def kill_squad_chat():
+    """Stop a squad-chat sidecar left over from an earlier run (two of them would both answer every line)."""
+    script = ("Get-CimInstance Win32_Process -Filter \"name='pythonw.exe' OR name='python.exe'\" | "
+              "Where-Object { $_.CommandLine -like '*squad_chat.py*' } | "
+              "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
+    _run(["powershell", "-NoProfile", "-Command", script])
+
+def ensure_service(name):
+    out = _run(["sc", "query", name]).stdout
+    if "RUNNING" in out:
+        return True
+    if "does not exist" in out or "1060" in out:
+        return False
+    _run(["net", "start", name])
+    return "RUNNING" in _run(["sc", "query", name]).stdout
+
+
+# ---------- servers ----------
+def start_server(cfg, name, logs_dir):
+    exe = os.path.join(cfg["server_dir"], name + ".exe")
+    if not os.path.exists(exe):
+        raise FileNotFoundError(f"Missing {exe} - did the build finish?")
+    os.makedirs(logs_dir, exist_ok=True)
+    log = open(os.path.join(logs_dir, name + ".log"), "wb")
+    # stdin stays open (PIPE) so the server's console reader does not see end-of-file and quit
+    p = subprocess.Popen([exe], cwd=cfg["server_dir"], stdin=subprocess.PIPE,
+                         stdout=log, stderr=subprocess.STDOUT, creationflags=NO_WINDOW)
+    return p, log
+
+def map_ready(logs_dir):
+    try:
+        with open(os.path.join(logs_dir, "xi_map.log"), "rb") as f:
+            return "ready to work" in f.read().decode("utf-8", "ignore")
+    except OSError:
+        return False
+
+def map_ready_from(logs_dir, offset):
+    """(ready, new offset). Looks only at what the map log gained since 'offset', so a big log is not read again every second."""
+    path = os.path.join(logs_dir, "xi_map.log")
+    try:
+        size = os.path.getsize(path)
+        if size < offset:                       # the log was started afresh
+            offset = 0
+        with open(path, "rb") as f:
+            f.seek(max(0, offset - 20))         # a little overlap, in case the phrase was split between two reads
+            data = f.read()
+            return b"ready to work" in data, f.tell()
+    except OSError:
+        return False, offset
+
+def log_size(logs_dir, name):
+    try:
+        return os.path.getsize(os.path.join(logs_dir, name + ".log"))
+    except OSError:
+        return 0
+
+def tail(path, lines=12):
+    try:
+        with open(path, "rb") as f:
+            data = f.read().decode("utf-8", "ignore")
+        data = re.sub(r"\x1b\[[0-9;]*m", "", data)
+        return "\n".join(data.strip().splitlines()[-lines:])
+    except OSError:
+        return ""
+
+
+# ---------- Ashita ----------
+def sync_loader(cfg):
+    """Keep a copy of the built xiloader inside Ashita's bootloader folder (where Ashita expects it)."""
+    built = None
+    for root, _dirs, files in os.walk(cfg["xiloader_dir"]):
+        if "xiloader.exe" in files:
+            built = os.path.join(root, "xiloader.exe")
+            break
+    dest = os.path.join(cfg["ashita_dir"], "bootloader", "xiloader.exe")
+    if built and (not os.path.exists(dest) or os.path.getmtime(built) > os.path.getmtime(dest)):
+        shutil.copy2(built, dest)
+        return True
+    return False
+
+def list_addons(ashita_dir):
+    d = os.path.join(ashita_dir, "addons")
+    out = []
+    if os.path.isdir(d):
+        for name in sorted(os.listdir(d), key=str.lower):
+            sub = os.path.join(d, name)
+            if os.path.isdir(sub) and any(f.lower() == name.lower() + ".lua" for f in os.listdir(sub)):
+                out.append(name)
+    return out
+
+def list_plugins(ashita_dir):
+    d = os.path.join(ashita_dir, "plugins")
+    out = []
+    if os.path.isdir(d):
+        for f in sorted(os.listdir(d), key=str.lower):
+            if f.lower().endswith(".dll"):
+                out.append(f[:-4])
+    return out
+
+
+class ScriptManager:
+    """Owns scripts\\phoenixsolo.txt. The first time, it copies your boot script into it and points the
+    boot .ini at it; after that, toggling an addon adds/removes its '/addon load' line."""
+
+    def __init__(self, ashita_dir, boot_name, script_name=MANAGED_SCRIPT):
+        """script_name: the script this manager owns. The main window uses phoenixsolo.txt; the second window (dualbox) uses dualbox.txt."""
+        self.ashita = ashita_dir
+        self.script_name = script_name
+        self.boot_path = os.path.join(ashita_dir, "config", "boot", boot_name)
+        self.scripts = os.path.join(ashita_dir, "scripts")
+        self.path = os.path.join(self.scripts, script_name)
+
+    def prepare(self):
+        if not os.path.exists(self.boot_path):
+            raise FileNotFoundError(f"Boot file not found: {self.boot_path}")
+        with open(self.boot_path, "r", encoding="utf-8-sig") as f:
+            ini = f.read()
+        m = re.search(r"(?mi)^script\s*=\s*(.*?)\s*$", ini)
+        current = m.group(1) if m else "default.txt"
+        os.makedirs(self.scripts, exist_ok=True)
+        if not os.path.exists(self.path):
+            src = os.path.join(self.scripts, current)
+            if current != self.script_name and os.path.exists(src):
+                shutil.copy2(src, self.path)
+            else:
+                with open(self.path, "w", encoding="utf-8", newline="\r\n") as f:
+                    f.write("# Managed by the FFXI Solo launcher\n")
+        if current != self.script_name:
+            bak = self.boot_path + ".bak"
+            if not os.path.exists(bak):
+                shutil.copy2(self.boot_path, bak)
+            if m:
+                ini = re.sub(r"(?mi)^script\s*=.*$", f"script      = {self.script_name}", ini, count=1)
+            else:
+                ini = ini.replace("[ashita.boot]", f"[ashita.boot]\nscript      = {self.script_name}", 1)
+            with open(self.boot_path, "w", encoding="utf-8", newline="") as f:
+                f.write(ini)
+
+    def _lines(self):
+        with open(self.path, "r", encoding="utf-8-sig") as f:
+            return f.read().splitlines()
+
+    def _write(self, lines):
+        with open(self.path, "w", encoding="utf-8", newline="\r\n") as f:
+            f.write("\n".join(lines).rstrip("\n") + "\n")
+
+    @staticmethod
+    def _regex(kind):
+        return ADDON_RE if kind == "addon" else PLUGIN_RE
+
+    def enabled(self, kind):
+        rx = self._regex(kind)
+        names = set()
+        for line in self._lines():
+            if line.lstrip().startswith("#"):
+                continue
+            m = rx.match(line)
+            if m:
+                names.add(m.group(1).lower())
+        return names
+
+    def set(self, kind, name, on):
+        rx = self._regex(kind)
+        lines = self._lines()
+        kept = []
+        for line in lines:
+            m = rx.match(line)
+            if m and not line.lstrip().startswith("#") and m.group(1).lower() == name.lower():
+                continue
+            kept.append(line)
+        if on:
+            kept.append(f"/addon load {name}" if kind == "addon" else f"/load {name}")
+        self._write(kept)
+
+
+# ---------- rates (written into the server's settings before every launch) ----------
+# Each field: id, settings file, key, label, default, min, max, kind ("float" or "int")
+RATE_FIELDS = [
+    ("map.EXP_RATE",                    "map.lua",  "EXP_RATE",                    "Experience from monsters",              1.0, 0.0, 100.0, "float"),
+    ("main.EXP_RATE",                   "main.lua", "EXP_RATE",                    "Experience from quests and scripts",    1.0, 0.0, 100.0, "float"),
+    ("main.BOOK_EXP_RATE",              "main.lua", "BOOK_EXP_RATE",               "Experience from Fields/Grounds pages",  0.125, 0.0, 100.0, "float"),
+    ("main.ROE_EXP_RATE",               "main.lua", "ROE_EXP_RATE",                "Experience from Records of Eminence",   1.0, 0.0, 100.0, "float"),
+    ("map.CAPACITY_RATE",               "map.lua",  "CAPACITY_RATE",               "Capacity points",                       1.0, 0.0, 100.0, "float"),
+    ("map.EXP_LOSS_RATE",               "map.lua",  "EXP_LOSS_RATE",               "Experience lost on death (0 = none)",   1.0, 0.0, 10.0,  "float"),
+    ("map.DROP_RATE_MULTIPLIER",        "map.lua",  "DROP_RATE_MULTIPLIER",        "Monster item drop rate",                1.0, 0.0, 100.0, "float"),
+    ("map.MOB_GIL_MULTIPLIER",          "map.lua",  "MOB_GIL_MULTIPLIER",          "Gil dropped by monsters",               1.0, 0.0, 100.0, "float"),
+    ("main.GIL_RATE",                   "main.lua", "GIL_RATE",                    "Gil from quests",                       1.0, 0.0, 100.0, "float"),
+    ("main.TABS_RATE",                  "main.lua", "TABS_RATE",                   "Tabs from Fields of Valor",             1.0, 0.0, 100.0, "float"),
+    ("main.SPARKS_RATE",                "main.lua", "SPARKS_RATE",                 "Sparks from Records of Eminence",       1.0, 0.0, 100.0, "float"),
+    ("main.CASKET_DROP_RATE",           "main.lua", "CASKET_DROP_RATE",            "Treasure casket chance (0.1 = 10%)",    0.1, 0.0, 1.0,   "float"),
+    ("map.SKILLUP_CHANCE_MULTIPLIER",   "map.lua",  "SKILLUP_CHANCE_MULTIPLIER",   "Combat and magic skill-up chance",      1.0, 0.0, 20.0,  "float"),
+    ("map.CRAFT_CHANCE_MULTIPLIER",     "map.lua",  "CRAFT_CHANCE_MULTIPLIER",     "Crafting skill-up chance",              1.0, 0.0, 20.0,  "float"),
+    ("map.CRAFT_HQ_CHANCE_MULTIPLIER",  "map.lua",  "CRAFT_HQ_CHANCE_MULTIPLIER",  "Crafting high-quality chance",          1.0, 0.0, 20.0,  "float"),
+    ("map.FISHING_SKILL_MULTIPLIER",    "map.lua",  "FISHING_SKILL_MULTIPLIER",    "Fishing skill-up chance",               1.0, 0.0, 20.0,  "float"),
+    ("main.MAX_LEVEL",                  "main.lua", "MAX_LEVEL",                   "Level cap",                             75,  50,  99,    "int"),
+    ("main.ENABLE_COP",                 "main.lua", "ENABLE_COP",                  "Chains of Promathia (1 = on)",          1,   0,   1,     "int"),
+    ("main.ENABLE_TOAU",                "main.lua", "ENABLE_TOAU",                 "Treasures of Aht Urhgan (1 = on)",      1,   0,   1,     "int"),
+    ("main.ENABLE_WOTG",                "main.lua", "ENABLE_WOTG",                 "Wings of the Goddess (1 = on)",         0,   0,   1,     "int"),
+    ("main.ENABLE_ACP",                 "main.lua", "ENABLE_ACP",                  "A Crystalline Prophecy (1 = on)",       0,   0,   1,     "int"),
+    ("main.ENABLE_AMK",                 "main.lua", "ENABLE_AMK",                  "A Moogle Kupo d'Etat (1 = on)",         0,   0,   1,     "int"),
+    ("main.ENABLE_ASA",                 "main.lua", "ENABLE_ASA",                  "A Shantotto Ascension (1 = on)",        0,   0,   1,     "int"),
+    ("main.ENABLE_ABYSSEA",             "main.lua", "ENABLE_ABYSSEA",              "Abyssea (1 = on)",                      0,   0,   1,     "int"),
+    ("main.ENABLE_SOA",                 "main.lua", "ENABLE_SOA",                  "Seekers of Adoulin (1 = on)",           0,   0,   1,     "int"),
+    ("main.ENABLE_ROV",                 "main.lua", "ENABLE_ROV",                  "Rhapsodies of Vana'diel (1 = on)",      0,   0,   1,     "int"),
+    ("main.ENABLE_VOIDWATCH",           "main.lua", "ENABLE_VOIDWATCH",            "Voidwatch NPCs (1 = on)",               0,   0,   1,     "int"),
+    ("main.ENABLE_TVR",                 "main.lua", "ENABLE_TVR",                  "Voracious Resurgence (1 = on)",         0,   0,   1,     "int"),
+    ("main.RESTRICT_CONTENT",           "main.lua", "RESTRICT_CONTENT",            "Hide switched-off content (1 = on)", 1, 0, 1, "int"),
+    ("main.ENABLE_TRUST_QUESTS",        "main.lua", "ENABLE_TRUST_QUESTS",         "Trust quest NPCs (1 = on)", 0, 0, 1, "int"),
+    ("main.ENABLE_DAILY_TALLY",         "main.lua", "ENABLE_DAILY_TALLY",          "Gobbie Mystery Box (1 = on)", 0, 0, 1, "int"),
+    ("main.HALLOWEEN_2005",             "main.lua", "HALLOWEEN_2005",              "Harvest Festival (Oct 20-Nov 1, 1=on)", 1,   0,   1,     "int"),
+]
+RATE_DEFAULTS = {f[0]: f[4] for f in RATE_FIELDS}
+RATE_DEFAULTS.update({"all_crafts": True, "ah_sim": False, "era_exp": True, "conquest_sim": True, "claim_shield": False,
+                      "defaults_version": 2})
+RATE_DEFAULTS.update({"crowds": True, "crowds_per_zone": 15})   # ambient crowds (modules/custom/lua/crowds.lua)
+RATE_DEFAULTS.update({"crowds_chat": True, "crowds_chat_amount": "normal", "crowds_chat_ai": True})   # crowd chat (crowds_chat.lua)
+RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # field parties (crowds_field.lua)
+RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
+RATE_DEFAULTS.update({"bots_growth": "realistic"})   # bots grow while you are away (bots_growth.lua)
+
+EXPANSION_IDS = ["main.ENABLE_COP", "main.ENABLE_TOAU", "main.ENABLE_WOTG", "main.ENABLE_ACP", "main.ENABLE_AMK", "main.ENABLE_ASA",
+                 "main.ENABLE_ABYSSEA", "main.ENABLE_SOA", "main.ENABLE_ROV", "main.ENABLE_VOIDWATCH", "main.ENABLE_TVR"]
+
+RATE_PRESETS = {
+    "Classic (retail rates)": {"era_exp": False},
+    "All expansions on": {fid: 1 for fid in EXPANSION_IDS},
+    # The real pre-2011 tables: the base exp table and the per-monster caps (200 / 250 / 300) from the Classic FFXI wiki.
+    # The exp rate goes back to 1.0, because the tables themselves carry the era pace.
+    "Aht Urhgan era (real exp tables)": {"era_exp": True},
+    "Relaxed solo": {"era_exp": False, "map.EXP_RATE": 2.0, "main.EXP_RATE": 2.0, "main.BOOK_EXP_RATE": 2.0, "main.ROE_EXP_RATE": 2.0, "map.CAPACITY_RATE": 2.0,
+                     "map.DROP_RATE_MULTIPLIER": 1.5, "map.MOB_GIL_MULTIPLIER": 1.5, "main.GIL_RATE": 1.5, "main.CASKET_DROP_RATE": 0.15,
+                     "map.SKILLUP_CHANCE_MULTIPLIER": 2.0, "map.CRAFT_CHANCE_MULTIPLIER": 2.0, "map.FISHING_SKILL_MULTIPLIER": 2.0},
+    "Fast": {"era_exp": False, "map.EXP_RATE": 5.0, "main.EXP_RATE": 5.0, "main.BOOK_EXP_RATE": 5.0, "main.ROE_EXP_RATE": 5.0, "map.CAPACITY_RATE": 5.0,
+             "map.EXP_LOSS_RATE": 0.5, "map.DROP_RATE_MULTIPLIER": 2.0, "map.MOB_GIL_MULTIPLIER": 3.0, "main.GIL_RATE": 3.0,
+             "main.TABS_RATE": 3.0, "main.CASKET_DROP_RATE": 0.25, "map.SKILLUP_CHANCE_MULTIPLIER": 4.0, "map.CRAFT_CHANCE_MULTIPLIER": 4.0,
+             "map.CRAFT_HQ_CHANCE_MULTIPLIER": 1.5, "map.FISHING_SKILL_MULTIPLIER": 4.0},
+}
+
+
+def rates_path(here):
+    return os.path.join(here, "rates.json")
+
+
+def clean_rate(field, value):
+    """Turn whatever was typed into a valid number for that field (falls back to the default)."""
+    _id, _file, _key, _label, default, lo, hi, kind = field
+    try:
+        number = float(str(value).strip().replace(",", "."))
+    except ValueError:
+        return default
+    number = max(lo, min(hi, number))
+    return int(round(number)) if kind in ("int", "bool") else round(number, 3)
+
+
+def write_crowds_config(server_dir, rates):
+    """Ambient crowds + chat settings for modules/custom/lua/crowds.lua (rewritten every launch)."""
+    amount = rates.get("crowds_chat_amount", "normal")
+    amount = amount if amount in ("quiet", "normal", "busy") else "normal"
+    module_dir = os.path.join(server_dir, "modules", "custom", "lua")
+    os.makedirs(module_dir, exist_ok=True)
+    with open(os.path.join(module_dir, "crowds_config.lua"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("-- Written by the FFXI Solo launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+        f.write("return { enabled = %s, per_zone = %d, chat = %s, chat_amount = '%s', chat_ai = %s, field = %s, field_parties = %d }\n" % (
+            "true" if rates.get("crowds", True) else "false", clean_crowd_size(rates.get("crowds_per_zone", 30)),
+            "true" if rates.get("crowds_chat", True) else "false", amount,
+            "true" if rates.get("crowds_chat_ai", True) else "false",
+            "true" if rates.get("crowds_field", True) else "false", max(0, min(3, int(rates.get("crowds_field_parties", 1) or 0)))))
+    with open(os.path.join(module_dir, "bots_config.lua"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("-- Written by the FFXI Solo launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+        growth = rates.get("bots_growth", "realistic")
+        growth = growth if growth in ("off", "realistic", "fast") else "realistic"
+        f.write("return { enabled = %s, roster = %d, online = %d, growth = '%s' }\n" % (
+            "true" if rates.get("bots", True) else "false", max(0, min(600, int(rates.get("bots_roster", 100) or 0))),
+            max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth))
+
+
+def clean_crowd_size(value):
+    """Ambient crowds: adventurers per area, 0-40 (anything else falls back to 15)."""
+    try:
+        return max(0, min(40, int(round(float(str(value).strip().replace(",", "."))))))
+    except ValueError:
+        return 15
+
+
+def load_rates(here):
+    rates = dict(RATE_DEFAULTS)
+    try:
+        with open(rates_path(here), "r", encoding="utf-8-sig") as f:
+            saved = json.load(f)
+        for field in RATE_FIELDS:
+            if field[0] in saved:
+                rates[field[0]] = clean_rate(field, saved[field[0]])
+        for flag in ("all_crafts", "ah_sim", "era_exp", "conquest_sim"):
+            if flag in saved:
+                rates[flag] = bool(saved[flag])
+        if int(saved.get("defaults_version", 1) or 1) < 2:
+            # launcher 1.3.1: era exp tables and the conquest simulator are on by default; switch them on once for older settings
+            rates["era_exp"], rates["conquest_sim"] = True, True
+        rates["claim_shield"] = False  # the claim shield stays off on this solo server (its switch was removed)
+        if "crowds" in saved:
+            rates["crowds"] = bool(saved["crowds"])
+        if "crowds_per_zone" in saved:
+            rates["crowds_per_zone"] = clean_crowd_size(saved["crowds_per_zone"])
+        for key in ("crowds_chat", "crowds_chat_ai"):
+            if key in saved:
+                rates[key] = bool(saved[key])
+        if saved.get("crowds_chat_amount") in ("quiet", "normal", "busy"):
+            rates["crowds_chat_amount"] = saved["crowds_chat_amount"]
+        if "crowds_field" in saved:
+            rates["crowds_field"] = bool(saved["crowds_field"])
+        if "crowds_field_parties" in saved:
+            try:
+                rates["crowds_field_parties"] = max(0, min(3, int(saved["crowds_field_parties"])))
+            except (TypeError, ValueError):
+                pass
+        if "bots" in saved:
+            rates["bots"] = bool(saved["bots"])
+        if saved.get("bots_growth") in ("off", "realistic", "fast"):
+            rates["bots_growth"] = saved["bots_growth"]
+        for key, lo, hi in (("bots_roster", 0, 600), ("bots_online", 0, 550)):
+            if key in saved:
+                try:
+                    rates[key] = max(lo, min(hi, int(saved[key])))
+                except (TypeError, ValueError):
+                    pass
+    except (OSError, ValueError):
+        pass
+    return rates
+
+
+def save_rates(here, rates):
+    with open(rates_path(here), "w", encoding="utf-8") as f:
+        json.dump(rates, f, indent=2)
+
+
+def apply_preset(rates, name):
+    out = dict(RATE_DEFAULTS)
+    out["ah_sim"], out["all_crafts"] = rates.get("ah_sim", False), True
+    out["conquest_sim"] = rates.get("conquest_sim", True)
+    out["crowds"] = rates.get("crowds", True)
+    for key, default in (("crowds_chat", True), ("crowds_chat_amount", "normal"), ("crowds_chat_ai", True),
+                         ("crowds_field", True), ("crowds_field_parties", 1),
+                         ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic")):
+        out[key] = rates.get(key, default)
+    out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
+    out["main.MAX_LEVEL"] = rates.get("main.MAX_LEVEL", 75)
+    out.update(RATE_PRESETS.get(name, {}))
+    return out
+
+
+LOGIN_EXPANSION_KEYS = {
+    "main.ENABLE_COP":     ["CHAINS_OF_PROMATHIA"],
+    "main.ENABLE_TOAU":    ["TREASURES_OF_AHT_URGHAN", "TREASURES_OF_AHT_URHGAN"],   # the server's own file spells it "URGHAN"
+    "main.ENABLE_WOTG":    ["WINGS_OF_THE_GODDESS"],
+    "main.ENABLE_ACP":     ["A_CRYSTALLINE_PROPHECY"],
+    "main.ENABLE_AMK":     ["A_MOOGLE_KUPOD_ETAT"],
+    "main.ENABLE_ASA":     ["A_SHANTOTTO_ASCENSION"],
+    "main.ENABLE_ABYSSEA": ["VISIONS_OF_ABYSSEA", "SCARS_OF_ABYSSEA", "HEROES_OF_ABYSSEA"],
+    "main.ENABLE_SOA":     ["SEEKERS_OF_ADOULIN"],
+}
+
+LOGIN_OPTIONAL_KEYS = {"TREASURES_OF_AHT_URGHAN", "TREASURES_OF_AHT_URHGAN"}   # two spellings: whichever the file has is used, no complaint about the other
+
+RATES_MARKER = "-- Generated by the FFXI Solo launcher (Rates tab) from settings/default/"
+OLD_RATES_MARKER = "-- Generated by the Phoenix Solo launcher (Rates tab) from settings/default/"   # files written by earlier versions
+
+
+def _format_number(value, kind):
+    if kind == "bool":
+        return "true" if value else "false"
+    return str(int(value)) if kind == "int" else ("%.3f" % value).rstrip("0").rstrip(".") if value != int(value) else "%d.0" % int(value)
+
+
+CLAIM_SHIELD_ENTRY = "custom/lua/claim_shield.lua"
+
+
+def set_module(server_dir, entry, enabled):
+    """Switches one module on or off in modules/init.txt by commenting out its own line (or restoring it). Only a line that is exactly the
+    module's entry is touched, never the comments that merely mention it. Returns a message when something changed or looks wrong, else None."""
+    path = os.path.join(server_dir, "modules", "init.txt")
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline="") as f:
+            text = f.read()
+    except OSError:
+        return f"modules/init.txt could not be read - {entry} left as it is"
+    pattern = re.compile(r"(?m)^([ \t]*)(#[ \t]*)?(" + re.escape(entry) + r")[ \t]*(\r?)$")
+    found = pattern.search(text)
+    if not found:
+        return f"{entry} was not found in modules/init.txt - nothing changed"
+    is_off = found.group(2) is not None
+    if is_off == (not enabled):
+        return None                                                         # already the way it should be
+    replacement = (lambda m: m.group(1) + m.group(3) + m.group(4)) if enabled else (lambda m: m.group(1) + "# " + m.group(3) + m.group(4))
+    new_text = pattern.sub(replacement, text, count=1)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(new_text)
+    return f"{entry}: switched {'on' if enabled else 'off'}"
+
+
+FAST_TRAVEL_DIR_ENTRY = "custom/late"
+FAST_TRAVEL_OLD_ENTRY = "custom/lua/fast_travel.lua"
+
+
+def ensure_fast_travel(server_dir, kit_dir=None):
+    """Fast travel on the Home Point crystals is always on. It must load AFTER Phoenix's era folder (whose "set your home point only"
+    menu would otherwise replace it), so it lives in modules/custom/late, listed as the last folder entry of modules/init.txt.
+    Run before every start: puts the file and the line back if an update or anything else moved them. Returns a list of messages."""
+    messages = []
+    kit_dir = kit_dir or os.path.dirname(os.path.abspath(__file__))
+    modules = os.path.join(server_dir, "modules")
+    late = os.path.join(modules, "custom", "late", "fast_travel.lua")
+    old = os.path.join(modules, "custom", "lua", "fast_travel.lua")
+    kit = os.path.join(kit_dir, "travel", "fast_travel.lua")
+    if not os.path.isfile(late):
+        os.makedirs(os.path.dirname(late), exist_ok=True)
+        if os.path.isfile(old):
+            shutil.move(old, late)
+            messages.append("fast travel: moved to modules/custom/late")
+        elif os.path.isfile(kit):
+            shutil.copy2(kit, late)
+            messages.append("fast travel: restored from the kit")
+        else:
+            messages.append("fast travel: fast_travel.lua not found anywhere - teleporting from crystals is off")
+            return messages
+    path = os.path.join(modules, "init.txt")
+    with open(path, "r", encoding="utf-8-sig", newline="") as f:
+        text = f.read()
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines()
+    changed = False
+    out = []
+    for line in lines:
+        bare = line.strip()
+        if bare == FAST_TRAVEL_OLD_ENTRY:                       # the old place: would load it a second time, before the era folder
+            out.append("# " + bare + "   (fast travel now loads from custom/late, at the end)")
+            changed = True
+        elif bare == FAST_TRAVEL_DIR_ENTRY or bare.startswith("# Loaded LAST: overrides here win"):
+            changed = True                                       # taken out here, put back at the very end below
+        else:
+            out.append(line)
+    active = [l.strip() for l in lines if l.strip() and not l.strip().startswith("#")]
+    if active and active[-1] == FAST_TRAVEL_DIR_ENTRY and FAST_TRAVEL_OLD_ENTRY not in active:
+        return messages                                          # already right: leave the file alone
+    while out and out[-1].strip() == "":
+        out.pop()
+    out += ["", "# Loaded LAST: overrides here win over the era/phoenix folders above (fast travel, always on)", FAST_TRAVEL_DIR_ENTRY]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(newline.join(out) + newline)
+    messages.append("fast travel: modules/init.txt put right (custom/late is the last entry)")
+    return messages
+
+
+def apply_rates(server_dir, rates):
+    """Writes settings/main.lua and settings/map.lua: a copy of the defaults with the chosen values filled in.
+    A fresh copy is made every launch, so server updates to the defaults are never missed. Returns a list of messages."""
+    messages = []
+    settings_dir = os.path.join(server_dir, "settings")
+    wanted = {"main.lua": [], "map.lua": [], "login.lua": []}
+    for field in RATE_FIELDS:
+        wanted[field[1]].append((field[2], rates.get(field[0], field[4]), field[7]))
+    # The character screen's expansion icons come from the login server's own settings. They follow the same switches.
+    for switch, login_keys in LOGIN_EXPANSION_KEYS.items():
+        for login_key in login_keys:
+            wanted["login.lua"].append((login_key, bool(rates.get(switch, 1)), "bool"))
+    wanted["login.lua"].append(("RISE_OF_ZILART", True, "bool"))          # always part of the base setup
+    wanted["login.lua"].append(("MOG_WARDROBE_3", True, "bool"))          # the character screen offers Mog Wardrobe 3 and 4
+    wanted["login.lua"].append(("MOG_WARDROBE_4", True, "bool"))
+    # crafting: 600 = the 75-era point where the shared pool starts; 3200 lets all eight crafts reach the top
+    wanted["map.lua"].append(("CRAFT_COMMON_CAP", 600, "int"))
+    wanted["map.lua"].append(("CRAFT_SPECIALIZATION_POINTS", 3200 if rates.get("all_crafts", True) else 400, "int"))
+    # auction house: no limit on your own listings (the ah_pagination module shows them 6 per page)
+    wanted["map.lua"].append(("AH_LIST_LIMIT", 0, "int"))
+    # Keep crash dumps on: settings/main.lua is rebuilt from the defaults every launch, so a hand edit
+    # there is lost. With dumps on, a crash writes a minidump and a tombstone that names the function.
+    wanted["main.lua"].append(("GENERATE_CORE_DUMP", True, "bool"))
+
+    for filename, entries in wanted.items():
+        default_path = os.path.join(settings_dir, "default", filename)
+        if not os.path.exists(default_path):
+            messages.append(f"{filename}: default settings file not found - skipped")
+            continue
+        with open(default_path, "r", encoding="utf-8-sig") as f:
+            text = f.read()
+        for key, value, kind in entries:
+            pattern = re.compile(r"(?m)^(\s*" + re.escape(key) + r"\s*=\s*)(-?\d[\d.]*|true|false)")
+            text, count = pattern.subn(lambda m: m.group(1) + _format_number(value, kind), text, count=1)
+            if count == 0 and not (filename == "login.lua" and key in LOGIN_OPTIONAL_KEYS):
+                messages.append(f"{filename}: setting {key} not found - left at the default")
+        target = os.path.join(settings_dir, filename)
+        if os.path.exists(target):
+            with open(target, "r", encoding="utf-8-sig", errors="replace") as f:
+                first = f.readline()
+            if not first.startswith((RATES_MARKER, OLD_RATES_MARKER)):
+                shutil.copy2(target, target + ".before-launcher")  # keep a hand-made override safe, once
+        with open(target, "w", encoding="utf-8", newline="\n") as f:
+            f.write(f"{RATES_MARKER}{filename}\n" + text)
+
+    # The era experience module (modules/custom/lua/era_exp.lua) reads its on/off switch from this small file
+    try:
+        module_dir = os.path.join(server_dir, "modules", "custom", "lua")
+        os.makedirs(module_dir, exist_ok=True)
+        with open(os.path.join(module_dir, "era_exp_config.lua"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("-- Written by the FFXI Solo launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+            f.write("return { enabled = " + ("true" if rates.get("era_exp", False) else "false") + " }\n")
+    except OSError as problem:
+        messages.append(f"era_exp_config.lua: could not be written ({problem})")
+    # Ambient crowds (modules/custom/lua/crowds.lua) read their switch and size from this small file
+    try:
+        module_dir = os.path.join(server_dir, "modules", "custom", "lua")
+        os.makedirs(module_dir, exist_ok=True)
+        with open(os.path.join(module_dir, "crowds_config.lua"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("-- Written by the FFXI Solo launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+            f.write("return { enabled = %s, per_zone = %d }\n" % ("true" if rates.get("crowds", True) else "false",
+                                                             clean_crowd_size(rates.get("crowds_per_zone", 15))))
+    except OSError as problem:
+        messages.append(f"crowds_config.lua: could not be written ({problem})")
+    try:
+        write_crowds_config(server_dir, rates)   # the full file, with the chat settings
+    except OSError as problem:
+        messages.append(f"crowds_config.lua (chat): could not be written ({problem})")
+    # Fast travel from the Home Point crystals: always on, whatever an update did to init.txt
+    try:
+        messages.extend(ensure_fast_travel(server_dir))
+    except OSError as problem:
+        messages.append(f"fast travel: could not be checked ({problem})")
+    # NM claim shield: only useful with other players competing for NMs. Off by default for solo play (modules/init.txt, applied at server start).
+    try:
+        note = set_module(server_dir, CLAIM_SHIELD_ENTRY, bool(rates.get("claim_shield", False)))
+        if note:
+            messages.append(note)
+    except OSError as problem:
+        messages.append(f"claim shield: modules/init.txt could not be changed ({problem})")
+    return messages
+
+
+# ---------- graphics (the [ffxi.registry] section of the Ashita boot file) ----------
+# id: (registry key, default, min, max)   keys and meanings from the community registry guides
+GRAPHICS_KEYS = {
+    "screen_w":    ("0001", 1920, 640, 7680),
+    "screen_h":    ("0002", 1080, 480, 4320),
+    "bg_w":        ("0003", 4096, 512, 8192),
+    "bg_h":        ("0004", 4096, 512, 8192),
+    "mip":         ("0000", 6,    0,   6),
+    "bump":        ("0017", 0,    0,   1),
+    "textures":    ("0018", 2,    0,   2),     # 0 = most compressed, 1 = low compression, 2 = uncompressed
+    "window_mode": ("0034", 1,    0,   3),     # 0 = fullscreen, 1 = window, 3 = borderless window
+    "bg_sound":    ("0035", 1,    0,   1),     # keep playing sound when the window is not in front
+    "fonts":       ("0036", 2,    0,   2),     # 0 = compressed, 1 = uncompressed, 2 = high quality
+    "menu_w":      ("0037", 1920, 320, 7680),
+    "menu_h":      ("0038", 1080, 240, 4320),
+    "stab":        ("0040", 0,    0,   1),     # graphics stabilization
+}
+GRAPHICS_DEFAULTS = {k: v[1] for k, v in GRAPHICS_KEYS.items()}
+WINDOW_MODES = {0: "Fullscreen", 1: "Windowed", 3: "Borderless window"}
+TEXTURE_LEVELS = {0: "Compressed (smallest)", 1: "Low compression", 2: "Uncompressed (best)"}
+FONT_LEVELS = {0: "Compressed", 1: "Uncompressed", 2: "High quality"}
+GRAPHICS_PRESETS = {
+    "Low (weak PC)":          {"bg_w": 1024, "bg_h": 1024, "textures": 0, "fonts": 0, "mip": 0, "bump": 0},
+    "Balanced":               {"bg_w": 2048, "bg_h": 2048, "textures": 2, "fonts": 2, "mip": 6, "bump": 0},
+    "Sharp (Ashita default)": {"bg_w": 4096, "bg_h": 4096, "textures": 2, "fonts": 2, "mip": 6, "bump": 0},
+}
+REGISTRY_SECTION = "ffxi.registry"
+
+
+def clean_graphics(values):
+    out = {}
+    for gid, (_key, default, lo, hi) in GRAPHICS_KEYS.items():
+        try:
+            number = int(round(float(str(values.get(gid, default)).strip())))
+        except ValueError:
+            number = default
+        out[gid] = max(lo, min(hi, number))
+    if out["window_mode"] not in WINDOW_MODES:
+        out["window_mode"] = GRAPHICS_DEFAULTS["window_mode"]
+    return out
+
+
+def _section_bounds(lines):
+    start = end = None
+    for i, line in enumerate(lines):
+        m = re.match(r"^\s*\[(.+?)\]", line)
+        if m:
+            if start is not None:
+                end = i
+                break
+            if m.group(1).strip().lower() == REGISTRY_SECTION:
+                start = i
+    if start is not None and end is None:
+        end = len(lines)
+    return start, end
+
+
+def read_boot_graphics(ini_path):
+    """What the boot file currently says (values it does not mention, or marks -1, fall back to the defaults)."""
+    values = dict(GRAPHICS_DEFAULTS)
+    try:
+        with open(ini_path, "r", encoding="utf-8-sig") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return values
+    start, end = _section_bounds(lines)
+    if start is None:
+        return values
+    found = {}
+    for line in lines[start + 1:end]:
+        m = re.match(r"^\s*(\d{4})\s*=\s*(-?\d+)", line)
+        if m:
+            found[m.group(1)] = int(m.group(2))
+    for gid, (key, _d, _lo, _hi) in GRAPHICS_KEYS.items():
+        if key in found and found[key] >= 0:
+            values[gid] = found[key]
+    return clean_graphics(values)
+
+
+def apply_graphics(ini_path, values):
+    """Writes the chosen display values into [ffxi.registry]; every other line in the file stays exactly as it was.
+    The original file is saved once as <file>.before-graphics."""
+    values = clean_graphics(values)
+    with open(ini_path, "r", encoding="utf-8-sig", newline="") as f:   # newline="" keeps the file's own line endings
+        text = f.read()
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines()
+    start, end = _section_bounds(lines)
+    if start is None:
+        raise RuntimeError("The boot file has no [ffxi.registry] section.")
+    backup = ini_path + ".before-graphics"
+    if not os.path.exists(backup):
+        shutil.copy2(ini_path, backup)
+    pending = {key: values[gid] for gid, (key, _d, _lo, _hi) in GRAPHICS_KEYS.items()}
+    for i in range(start + 1, end):
+        m = re.match(r"^(\s*)(\d{4})(\s*=\s*)(-?\d+)(.*)$", lines[i])
+        if m and m.group(2) in pending:
+            lines[i] = f"{m.group(1)}{m.group(2)}{m.group(3)}{pending.pop(m.group(2))}{m.group(5)}"
+    insert_at = end
+    while insert_at > start + 1 and not lines[insert_at - 1].strip():
+        insert_at -= 1   # keep blank lines before the next section where they were
+    for key in sorted(pending):
+        lines.insert(insert_at, f"{key} = {pending[key]}")
+        insert_at += 1
+    with open(ini_path, "w", encoding="utf-8", newline="") as f:
+        f.write(newline.join(lines) + newline)
+
+
+def restore_graphics(ini_path):
+    backup = ini_path + ".before-graphics"
+    if not os.path.exists(backup):
+        return False
+    shutil.copy2(backup, ini_path)
+    return True
+
+
+def aspect_warning(values):
+    """The menu and the screen should have the same shape, or the game can crash or look stretched."""
+    try:
+        screen = values["screen_w"] / values["screen_h"]
+        menu = values["menu_w"] / values["menu_h"]
+    except (KeyError, ZeroDivisionError):
+        return ""
+    if abs(screen - menu) > 0.02:
+        return "The menu resolution is a different shape from the screen resolution. That can make the game crash or look stretched."
+    return ""
+
+
+def graphics_path(here):
+    return os.path.join(here, "graphics.json")
+
+
+def load_graphics(here, ini_path=None):
+    """Saved choices if there are any, otherwise whatever the boot file says now."""
+    try:
+        with open(graphics_path(here), "r", encoding="utf-8-sig") as f:
+            return clean_graphics(json.load(f))
+    except (OSError, ValueError):
+        return read_boot_graphics(ini_path) if ini_path else dict(GRAPHICS_DEFAULTS)
+
+
+def save_graphics(here, values):
+    with open(graphics_path(here), "w", encoding="utf-8") as f:
+        json.dump(clean_graphics(values), f, indent=2)
+
+
+# ---------- graphics mod: dgVoodoo + ReShade, installed next to pol.exe ----------
+GFX_DGVOODOO_FILES = ("D3D8.dll", "D3DImm.dll", "DDraw.dll", "dgVoodoo.conf", "dgVoodooCpl.exe")   # the last one is dgVoodoo's own settings window
+GFX_RESHADE_FILES = ("dxgi.dll", "ReShade.ini", "ReShadePreset.ini", "DefaultPreset.ini")
+GFX_RESHADE_DIRS = ("reshade-shaders", "reshade-presets")
+GFX_HOOK_DLLS = ("D3D8.dll", "D3DImm.dll", "DDraw.dll", "dxgi.dll")     # the ones switched off/on by renaming
+GFX_SETTINGS_EXT = (".ini", ".conf")                                     # never overwritten on a plain update
+POL_FOLDER_DEFAULT = r"C:\Program Files (x86)\PlayOnline\SquareEnix\PlayOnlineViewer"
+
+
+def gfx_state_path(here):
+    return os.path.join(here, "gfxmod.json")
+
+
+def gfx_default_state():
+    return {"dgvoodoo": "", "reshade": "", "target": "", "installed": {"files": [], "dirs": []}, "backups": {}}
+
+
+def gfx_load(here):
+    state = gfx_default_state()
+    try:
+        with open(gfx_state_path(here), "r", encoding="utf-8-sig") as f:
+            saved = json.load(f)
+        for key in ("dgvoodoo", "reshade", "target"):
+            state[key] = str(saved.get(key, ""))
+        installed = saved.get("installed", {})
+        state["installed"] = {"files": list(installed.get("files", [])), "dirs": list(installed.get("dirs", []))}
+        state["backups"] = dict(saved.get("backups", {}))
+    except (OSError, ValueError):
+        pass
+    return state
+
+
+def gfx_save(here, state):
+    with open(gfx_state_path(here), "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2)
+
+
+def gfx_find_target(cfg_target="", ashita_dir=""):
+    """The folder of the loader that starts the game (xiloader.exe / pol.exe): the game loads dgVoodoo and ReShade from there.
+    With Ashita that is Ashita's own bootloader folder, the same layout HorizonXI uses."""
+    candidates = [cfg_target]
+    if ashita_dir:
+        candidates.append(os.path.join(ashita_dir, "bootloader"))
+    candidates.append(POL_FOLDER_DEFAULT)
+    for candidate in candidates:
+        if candidate and (os.path.exists(os.path.join(candidate, "xiloader.exe")) or os.path.exists(os.path.join(candidate, "pol.exe"))):
+            return candidate
+    return cfg_target or ""
+
+
+def gfx_dgvoodoo_sources(folder):
+    """Where each dgVoodoo file is: the folder itself, or the official package's MS\\x86 folder for the DLLs."""
+    found = {}
+    for name in GFX_DGVOODOO_FILES:
+        for sub in ("", os.path.join("MS", "x86")):
+            path = os.path.join(folder, sub, name)
+            if folder and os.path.isfile(path):
+                found[name] = path
+                break
+    return found
+
+
+GFX_OUTPUT_APIS = {
+    "bestavailable": "best available (usually Direct3D 11)",
+    "direct3d11_fl10_0": "Direct3D 11 (feature level 10.0)",
+    "direct3d11_fl11_0": "Direct3D 11 (feature level 11.0)",
+    "direct3d12_fl11_0": "Direct3D 12 (feature level 11.0)",
+    "direct3d12_fl12_0": "Direct3D 12 (feature level 12.0)",
+}
+
+
+def gfx_read_output_api(folder):
+    """What dgVoodoo.conf in that folder says dgVoodoo draws with. Returns readable text, or '' if the file or the setting is not there."""
+    try:
+        with open(os.path.join(folder, "dgVoodoo.conf"), "r", encoding="utf-8-sig", errors="replace") as f:
+            for line in f:
+                m = re.match(r"^\s*OutputAPI\s*=\s*([A-Za-z0-9_]+)", line)
+                if m:
+                    return GFX_OUTPUT_APIS.get(m.group(1).lower(), m.group(1))
+    except OSError:
+        pass
+    return ""
+
+
+def gfx_guess_sources():
+    """Looks for the usual places a dgVoodoo or ReShade folder gets left (Desktop). Returns (dgvoodoo, reshade) or empty strings."""
+    home = os.path.expanduser("~")
+    desktops = [os.path.join(home, "Desktop"), os.path.join(home, "OneDrive", "Desktop")]
+    dg, rs = "", ""
+    # a HorizonXI install keeps the finished set in its bootloader folder: the best place to copy from
+    for horizon in (os.path.join("C:\\", "Games", "Horizonxi", "HorizonXI", "Game", "bootloader"),
+                    os.path.join(home, "Games", "Horizonxi", "HorizonXI", "Game", "bootloader")):
+        if os.path.isfile(os.path.join(horizon, "D3D8.dll")) and os.path.isfile(os.path.join(horizon, "dxgi.dll")):
+            return horizon, horizon
+    for desktop in desktops:
+        for name in ("dgvoodoo", "dgvoodoo2"):
+            folder = os.path.join(desktop, name)
+            if not dg and "D3D8.dll" in gfx_dgvoodoo_sources(folder):
+                dg = folder
+        for name in ("reshadesetup", "reshade"):
+            folder = os.path.join(desktop, name)
+            if not rs and os.path.isfile(os.path.join(folder, "dxgi.dll")):
+                rs = folder
+    return dg, rs
+
+
+def _off(path):
+    return path + ".off"
+
+
+def gfx_install(here, state, reset_settings=False):
+    """Copies the chosen dgVoodoo and ReShade files next to pol.exe. Anything of yours that would be overwritten is saved
+    first. Your current settings files (.ini, .conf) are kept unless reset_settings is True. Returns a list of messages."""
+    target = state["target"]
+    if not target or not os.path.isdir(target):
+        raise RuntimeError("The game folder (the one with pol.exe) was not found.")
+    notes = []
+    backup_dir = os.path.join(here, "gfxmod-backup")
+    os.makedirs(backup_dir, exist_ok=True)
+    installed_files, installed_dirs = state["installed"]["files"], state["installed"]["dirs"]
+
+    plan = []   # (destination name, source path)
+    if state["dgvoodoo"]:
+        sources = gfx_dgvoodoo_sources(state["dgvoodoo"])
+        if "D3D8.dll" not in sources:
+            raise RuntimeError("No D3D8.dll in the dgVoodoo folder (looked in the folder and its MS\\x86 subfolder).")
+        plan += list(sources.items())
+    if state["reshade"]:
+        if not os.path.isfile(os.path.join(state["reshade"], "dxgi.dll")):
+            raise RuntimeError("No dxgi.dll (ReShade) in the ReShade folder.")
+        for name in GFX_RESHADE_FILES:
+            path = os.path.join(state["reshade"], name)
+            if os.path.isfile(path):
+                plan.append((name, path))
+    if not plan:
+        raise RuntimeError("Choose a dgVoodoo folder, a ReShade folder, or both.")
+
+    for name, source in plan:
+        if os.path.normcase(os.path.dirname(source)) == os.path.normcase(target):
+            continue
+        dest = os.path.join(target, name)
+        is_settings = name.lower().endswith(GFX_SETTINGS_EXT)
+        if os.path.exists(_off(dest)) and name in GFX_HOOK_DLLS:
+            os.remove(_off(dest))                      # installing turns it on
+        if os.path.exists(dest):
+            if name not in installed_files and name not in state["backups"]:
+                shutil.copy2(dest, os.path.join(backup_dir, name))
+                state["backups"][name] = name
+                notes.append(f"Saved your existing {name} to the backup folder.")
+            elif is_settings and not reset_settings:
+                notes.append(f"Kept your current {name}.")
+                if name not in installed_files:
+                    installed_files.append(name)
+                continue
+        shutil.copy2(source, dest)
+        if name not in installed_files:
+            installed_files.append(name)
+        notes.append(f"Copied {name}.")
+
+    if state["reshade"]:
+        for dirname in GFX_RESHADE_DIRS:
+            source = os.path.join(state["reshade"], dirname)
+            if not os.path.isdir(source):
+                continue
+            dest = os.path.join(target, dirname)
+            if os.path.exists(dest) and dirname not in installed_dirs and not os.path.exists(dest + ".before-launcher"):
+                os.rename(dest, dest + ".before-launcher")
+                notes.append(f"Moved your existing {dirname} folder to {dirname}.before-launcher.")
+            shutil.copytree(source, dest, dirs_exist_ok=True)
+            if dirname not in installed_dirs:
+                installed_dirs.append(dirname)
+            notes.append(f"Copied the {dirname} folder.")
+        if not os.path.isdir(os.path.join(state["reshade"], "reshade-shaders")) and not os.path.isdir(os.path.join(target, "reshade-shaders")):
+            notes.append("There is no reshade-shaders folder, so the effects in your preset may not load. "
+                         "Put the shader files in a folder named reshade-shaders next to your ReShade files and install again.")
+    return notes
+
+
+def gfx_set_enabled(state, enabled):
+    """Turns the mod on or off by renaming the DLLs (nothing is deleted)."""
+    target = state["target"]
+    changed = 0
+    for name in state["installed"]["files"]:
+        if name not in GFX_HOOK_DLLS:
+            continue
+        on, off = os.path.join(target, name), _off(os.path.join(target, name))
+        if enabled and os.path.exists(off):
+            if os.path.exists(on):
+                os.remove(on)
+            os.rename(off, on)
+            changed += 1
+        elif not enabled and os.path.exists(on):
+            if os.path.exists(off):
+                os.remove(off)
+            os.rename(on, off)
+            changed += 1
+    return changed
+
+
+def gfx_status(state):
+    files = state["installed"]["files"]
+    if not files:
+        return "Not installed"
+    hooks = [n for n in files if n in GFX_HOOK_DLLS]
+    on = sum(os.path.exists(os.path.join(state["target"], n)) for n in hooks)
+    off = sum(os.path.exists(_off(os.path.join(state["target"], n))) for n in hooks)
+    if on and not off:
+        return "Installed - ON"
+    if off and not on:
+        return "Installed - OFF"
+    if on and off:
+        return "Installed - partly on (use Turn ON or Turn OFF)"
+    return "Installed, but the files are missing - install again"
+
+
+def gfx_uninstall(here, state):
+    """Removes only what the launcher added and puts your own files back."""
+    target = state["target"]
+    notes = []
+    backup_dir = os.path.join(here, "gfxmod-backup")
+    for name in state["installed"]["files"]:
+        for path in (os.path.join(target, name), _off(os.path.join(target, name))):
+            if os.path.exists(path):
+                os.remove(path)
+        if name in state["backups"]:
+            saved = os.path.join(backup_dir, state["backups"][name])
+            if os.path.exists(saved):
+                shutil.copy2(saved, os.path.join(target, name))
+                notes.append(f"Put your original {name} back.")
+        notes.append(f"Removed {name}.")
+    for dirname in state["installed"]["dirs"]:
+        path = os.path.join(target, dirname)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        if os.path.isdir(path + ".before-launcher"):
+            os.rename(path + ".before-launcher", path)
+            notes.append(f"Put your original {dirname} folder back.")
+        notes.append(f"Removed the {dirname} folder.")
+    state["installed"] = {"files": [], "dirs": []}
+    state["backups"] = {}
+    return notes
+
+
+def gfx_check_shaders(target):
+    """Compares the shader folders ReShade.ini looks in with what is really there.
+    Returns None if there is no ReShade.ini, else (folders_found, folders_total, missing_names, fx_file_count)."""
+    ini = os.path.join(target, "ReShade.ini")
+    try:
+        with open(ini, "r", encoding="utf-8-sig", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return None
+    m = re.search(r"(?mi)^EffectSearchPaths\s*=\s*(.*)$", text)
+    if not m:
+        return (0, 0, [], 0)
+    found, missing, fx = 0, [], 0
+    entries = [e.strip() for e in m.group(1).split(",") if e.strip()]
+    for entry in entries:
+        path = entry.replace("\\", "/").rstrip("*").rstrip("/")
+        if path.startswith("./"):
+            path = path[2:]
+        full = path if os.path.isabs(path) else os.path.join(target, *path.split("/"))
+        if os.path.isdir(full):
+            found += 1
+            fx += sum(1 for name in os.listdir(full) if name.lower().endswith(".fx"))
+        else:
+            missing.append(path.split("/")[-1] or path)
+    return (found, len(entries), missing, fx)
+
+
+def gfx_ini_add_paths(target, effect_paths=(), texture_paths=()):
+    """Makes sure ReShade.ini searches the given folders (a backup is saved once as ReShade.ini.before-launcher)."""
+    ini = os.path.join(target, "ReShade.ini")
+    if not os.path.isfile(ini):
+        return False
+    with open(ini, "r", encoding="utf-8-sig", newline="") as f:
+        text = f.read()
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines()
+    if not os.path.exists(ini + ".before-launcher"):
+        shutil.copy2(ini, ini + ".before-launcher")
+
+    def merge(key, wanted):
+        for i, line in enumerate(lines):
+            m = re.match(r"^" + key + r"=(.*)$", line)
+            if m:
+                have = [e for e in m.group(1).split(",") if e.strip()]
+                norm = {e.strip().rstrip("\\*").lower() for e in have}
+                for path in wanted:
+                    if path.rstrip("\\*").lower() not in norm and path.lower() not in {e.strip().lower() for e in have}:
+                        have.append(path)
+                lines[i] = key + "=" + ",".join(have)
+                return
+        for i, line in enumerate(lines):          # key missing: add it under [GENERAL]
+            if line.strip().upper() == "[GENERAL]":
+                lines.insert(i + 1, key + "=" + ",".join(wanted))
+                return
+        lines.append(key + "=" + ",".join(wanted))
+
+    if effect_paths:
+        merge("EffectSearchPaths", list(effect_paths))
+    if texture_paths:
+        merge("TextureSearchPaths", list(texture_paths))
+    with open(ini, "w", encoding="utf-8", newline="") as f:
+        f.write(newline.join(lines) + newline)
+    return True
+
+
+def _count_files(folder, extensions=None):
+    total = 0
+    for _root, _dirs, files in os.walk(folder):
+        total += sum(1 for n in files if not extensions or n.lower().endswith(extensions))
+    return total
+
+
+def gfx_add_shaders(state, folder):
+    """Adds shaders from a folder. Two kinds of folder work:
+    - a reshade-shaders folder (it has Shaders and Textures inside): merged into the game's reshade-shaders folder;
+    - a loose folder of .fx files: copied to reshade-shaders\\Shaders\\<folder name>, and ReShade.ini is told to search it.
+    Nothing already there is deleted. Returns a list of messages."""
+    target = state["target"]
+    if not target or not os.path.isdir(target):
+        raise RuntimeError("The loader folder was not found.")
+    if not folder or not os.path.isdir(folder):
+        raise RuntimeError("Choose a folder that holds shaders.")
+    dest = os.path.join(target, "reshade-shaders")
+    existed = os.path.isdir(dest)
+    before = _count_files(dest) if existed else 0
+
+    source = folder
+    if not os.path.isdir(os.path.join(source, "Shaders")):
+        inner = os.path.join(folder, "reshade-shaders")
+        if os.path.isdir(os.path.join(inner, "Shaders")):
+            source = inner
+    if os.path.isdir(os.path.join(source, "Shaders")):
+        if os.path.normcase(os.path.abspath(source)) == os.path.normcase(os.path.abspath(dest)):
+            raise RuntimeError("That is already the game's own reshade-shaders folder.")
+        shutil.copytree(source, dest, dirs_exist_ok=True)
+        notes = [f"Added the shaders from {source}."]
+    else:
+        fx = _count_files(folder, (".fx", ".fxh"))
+        if fx == 0:
+            raise RuntimeError("No shader files (.fx) were found in that folder.")
+        name = os.path.basename(os.path.normpath(folder)) or "Added"
+        loose_shaders = os.path.join(dest, "Shaders", name)
+        if os.path.normcase(os.path.abspath(folder)) == os.path.normcase(os.path.abspath(loose_shaders)):
+            raise RuntimeError("That folder is already inside the game's reshade-shaders folder.")
+        os.makedirs(os.path.dirname(loose_shaders), exist_ok=True)
+        shutil.copytree(folder, loose_shaders, dirs_exist_ok=True)
+        effect_paths = [".\\reshade-shaders\\Shaders\\" + name + "\\**"]
+        texture_paths = []
+        textures = os.path.join(os.path.dirname(os.path.normpath(folder)), "Textures")
+        if os.path.isdir(textures) and os.path.normcase(os.path.basename(os.path.normpath(folder))) == os.path.normcase("Shaders"):
+            shutil.copytree(textures, os.path.join(dest, "Textures", name), dirs_exist_ok=True)
+            texture_paths.append(".\\reshade-shaders\\Textures\\" + name + "\\**")
+        updated = gfx_ini_add_paths(target, effect_paths, texture_paths)
+        notes = [f"Copied {fx} shader file(s) from {folder} into reshade-shaders\\Shaders\\{name}."]
+        notes.append("ReShade.ini now searches that folder." if updated else "There is no ReShade.ini yet, so ReShade is not told about the new folder.")
+    after = _count_files(dest)
+    if not existed and "reshade-shaders" not in state["installed"]["dirs"]:
+        state["installed"]["dirs"].append("reshade-shaders")
+    notes.append(f"The game's reshade-shaders folder now holds {after} files ({after - before} new).")
+    return notes
+
+
+def gfx_unsearched_shader_folders(target):
+    """Shader folders that exist under reshade-shaders but that ReShade.ini does not search, so their effects never show up.
+    Returns a list of (folder name, shader file count)."""
+    shaders = os.path.join(target, "reshade-shaders", "Shaders")
+    if not os.path.isdir(shaders):
+        return []
+    searched, recursive = set(), set()
+    try:
+        with open(os.path.join(target, "ReShade.ini"), "r", encoding="utf-8-sig", errors="replace") as f:
+            m = re.search(r"(?mi)^EffectSearchPaths\s*=\s*(.*)$", f.read())
+        if m:
+            for entry in m.group(1).split(","):
+                raw = entry.strip().replace("\\", "/")
+                path = raw.rstrip("*").rstrip("/").lower()
+                if path.startswith("./"):
+                    path = path[2:]
+                searched.add(path)
+                if raw.endswith("**"):
+                    recursive.add(path)       # a "folder\**" entry also covers everything inside that folder
+    except OSError:
+        return []
+    result = []
+    for name in sorted(os.listdir(shaders)):
+        folder = os.path.join(shaders, name)
+        if not os.path.isdir(folder):
+            continue
+        key = "reshade-shaders/shaders/" + name.lower()
+        covered = key in searched or any(key.startswith(root + "/") for root in recursive)
+        count = _count_files(folder, (".fx",))
+        if not covered and count:
+            result.append((name, count))
+    return result
+
+
+def gfx_fix_search_paths(target):
+    """Adds every shader and texture folder that exists to the search lists in ReShade.ini. Returns the list of folders added."""
+    unsearched = gfx_unsearched_shader_folders(target)
+    effect_paths = [".\\reshade-shaders\\Shaders\\" + name + "\\**" for name, _count in unsearched]
+    texture_paths = []
+    textures = os.path.join(target, "reshade-shaders", "Textures")
+    if os.path.isdir(textures):
+        try:
+            with open(os.path.join(target, "ReShade.ini"), "r", encoding="utf-8-sig", errors="replace") as f:
+                m = re.search(r"(?mi)^TextureSearchPaths\s*=\s*(.*)$", f.read())
+            have = {e.strip().replace("\\", "/").rstrip("*").rstrip("/").lower().lstrip("./") for e in (m.group(1).split(",") if m else [])}
+        except OSError:
+            have = set()
+        for name in sorted(os.listdir(textures)):
+            if os.path.isdir(os.path.join(textures, name)) and ("reshade-shaders/textures/" + name.lower()) not in have:
+                texture_paths.append(".\\reshade-shaders\\Textures\\" + name + "\\**")
+    if effect_paths or texture_paths:
+        if not gfx_ini_add_paths(target, effect_paths, texture_paths):
+            raise RuntimeError("There is no ReShade.ini in the loader folder.")
+    return [p.rstrip("\\*") for p in effect_paths + texture_paths]

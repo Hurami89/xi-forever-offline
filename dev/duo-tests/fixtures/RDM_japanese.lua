@@ -1,0 +1,60 @@
+return {
+    BlueSet = {
+    },
+    Enabled = true,
+    Job = "RDM",
+    Rules = {
+        [1] = {
+            Actions = {
+                [1] = "ÉfÉBÉA",
+            },
+            Combat = "combat",
+            Cooldown = 5,
+            Enabled = true,
+            Id = "dia",
+            Label = "dia",
+            Layer = "debuffs",
+            PerTargetCooldown = 45,
+            SelfMPAbove = 30,
+            Target = "enemy",
+            Type = "spell",
+        },
+        [2] = {
+            Actions = {
+                [1] = "Poison II",
+                [2] = "Poison",
+                [3] = "Blind II",
+                [4] = "Blind",
+            },
+            Combat = "combat",
+            Cooldown = 5,
+            Enabled = true,
+            Id = "poison-blind",
+            Label = "Maintain missing Poison and Blind effects",
+            Layer = "debuffs",
+            PerTargetCooldown = 60,
+            SelfMPAbove = 30,
+            Target = "enemy",
+            Type = "spell",
+        },
+        [3] = {
+            Actions = {
+                [1] = "Slow II",
+                [2] = "Slow",
+            },
+            Combat = "combat",
+            Cooldown = 5,
+            Enabled = true,
+            Id = "slow",
+            Label = "slow",
+            Layer = "debuffs",
+            PerTargetCooldown = 90,
+            SelfMPAbove = 30,
+            Target = "enemy",
+            Type = "spell",
+        },
+    },
+    Version = 4,
+    WeaponSkills = {
+    },
+}

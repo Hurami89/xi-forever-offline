@@ -1,0 +1,128 @@
+  17261035:
+    script:       Jade_Etui
+    display_name: Jade Etui
+    at:           [1.000, 0.000, 0.000]
+    render:
+      look:
+        type:  standard
+        model: 960
+      entity_flags: 131
+    status:          cutscene_only
+    speed:           40
+    animation_speed: 40
+    widescan:        true
+
+
+  17261036:
+    script:       Jade_Etui
+    display_name: Jade Etui
+    at:           [1.000, 0.000, 0.000]
+    render:
+      look:
+        type:  standard
+        model: 960
+      entity_flags: 131
+    status:          cutscene_only
+    speed:           40
+    animation_speed: 40
+    widescan:        true
+
+
+  17261219:
+    script:       Planar_Rift
+    display_name: Planar Rift
+    at:           [80.000, 0.049, -195.000]
+    render:
+      look:
+        type:  standard
+        model: 2415
+      animation_sub:   5
+      name_vis:      100
+      name_prefix:     2
+      moving:          1
+    status:   normal
+    widescan: true
+    content:  voidwatch
+
+
+  17261220:
+    script:       Planar_Rift
+    display_name: Planar Rift
+    at:           [360.000, 0.000, -240.000]
+    render:
+      look:
+        type:  standard
+        model: 2415
+      animation_sub:   5
+      name_vis:      100
+      name_prefix:     2
+      moving:          1
+    status:   normal
+    widescan: true
+    content:  voidwatch
+
+
+  17261221:
+    script:       Planar_Rift
+    display_name: Planar Rift
+    at:           [-360.000, -8.000, -200.000]
+    render:
+      look:
+        type:  standard
+        model: 2415
+      animation_sub:   5
+      name_vis:      100
+      name_prefix:     2
+      moving:          1
+    status:   normal
+    widescan: true
+    content:  voidwatch
+
+
+  17261222:
+    script:       Riftworn_Pyxis
+    display_name: Riftworn Pyxis
+    at:           [80.100, 0.049, -195.000]
+    render:
+      look:
+        type:  standard
+        model: 969
+      animation_sub:   4
+      name_vis:      100
+      name_prefix:     2
+      moving:          1
+    widescan: true
+    content:  voidwatch
+
+
+  17261223:
+    script:       Riftworn_Pyxis
+    display_name: Riftworn Pyxis
+    at:           [360.100, 0.000, -240.000]
+    render:
+      look:
+        type:  standard
+        model: 969
+      animation_sub:   4
+      name_vis:      100
+      name_prefix:     2
+      moving:          1
+    widescan: true
+    content:  voidwatch
+
+
+  17261224:
+    script:       Riftworn_Pyxis
+    display_name: Riftworn Pyxis
+    at:           [-359.900, -8.000, -200.000]
+    render:
+      look:
+        type:  standard
+        model: 969
+      animation_sub:   4
+      name_vis:      100
+      name_prefix:     2
+      moving:          1
+    widescan: true
+    content:  voidwatch
+

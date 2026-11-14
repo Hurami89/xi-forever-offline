@@ -1,0 +1,124 @@
+# XI: Forever Offline: allow-list.
+# Everything in this folder is ignored unless it is listed below, so passwords,
+# ROMs, game files, backups and logs can't be added by accident.
+/*
+
+# ---- project files ----
+!/.gitignore
+!/README.md
+!/CREDITS.md
+!/LICENSE
+!/config.example.json
+
+# ---- launcher ----
+!/launcher_core.py
+!/launcher_gui.pyw
+!/launcher_squad.py
+!/launcher_rules.py
+!/launcher_icons.py
+!/launcher_classic.pyw
+!/launcher.bat
+!/launcher.ps1
+!/Classic launcher.bat
+!/Create Desktop Shortcut.bat
+!/make-shortcut.ps1
+
+# ---- server setup and updates ----
+!/setup.ps1
+!/rebuild.ps1
+!/Rebuild server.bat
+!/check-rebuild.ps1
+!/check-updates.ps1
+!/server_update.py
+!/install-era-dats.ps1
+!/restore-original-dats.ps1
+!/get-reshade-packs.ps1
+
+# ---- simulators, tools and data builders ----
+!/ah_sim.py
+!/conquest_sim.py
+# main_auto.py is a one-off patcher with a local database password in it: not shared
+!/chat_cleanup.py
+!/house_rules.py
+!/setup_gm.py
+!/setup_dualbox.py
+!/cleanup_characters.py
+!/free_names.py
+!/fix_equip.py
+!/restore_retail_homepoints.py
+!/make_no_voidwatch.py
+!/build_casket_loot.py
+!/build_mobdb_data.py
+!/build_starter_gear.py
+!/era-exp-table.txt
+
+# ---- Crystal Boy ----
+!/README-CRYSTALBOY.md
+!/install_crystalboy.py
+!/install_crystalboy_items.py
+!/crystalboy/
+!/crystalboy-server/
+
+# ---- addons (our own only; third-party ones are downloaded at install) ----
+!/addons-src/
+/addons-src/*
+!/addons-src/Gambits/
+!/addons-src/followme/
+!/addons-src/servermenu/
+!/addons-src/squadpanel/
+
+# ---- server modules (copies kept with the kit) ----
+!/squad-behavior/
+!/squad-data/
+!/era_exp/
+!/rse/
+!/travel/
+!/af_party/
+!/caskets/
+!/crowds/
+/crowds/bots/chat_memory/
+
+# ---- squad chat (AI) ----
+!/squad-chat/
+/squad-chat/*
+!/squad-chat/squad_chat.py
+!/squad-chat/README.md
+!/squad-chat/lore/
+
+# ---- art: Square Enix material is credited in CREDITS.md ----
+!/art-src/
+/art-src/ff11-logo*
+!/assets/
+/assets/*
+!/assets/ui/
+!/assets/press/
+!/assets/crystalboy/
+!/assets/item-icons/
+
+# ---- tests ----
+!/dev/
+/dev/_to_delete/
+
+# ---- never, anywhere (these lines come last so they win) ----
+*.before-*
+*.bak
+*.retired
+*.tgz
+*.zip
+*.rar
+*.7z
+*.pyc
+__pycache__/
+*.log
+*_v[0-9]*.*
+*.gb
+*.gbc
+*.sav
+*.sn1
+*.DAT
+*.dat
+*.exe
+*.dll
+config.json
+desktop.ini
+Thumbs.db

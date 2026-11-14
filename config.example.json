@@ -1,0 +1,19 @@
+{
+  "repo": "https://github.com/phoenixffxi/Phoenix",
+  "xiloader_repo": "https://github.com/phoenixffxi/xiloader",
+  "era_dats_repo": "https://github.com/phoenixffxi/Era-DATs",
+  "server_dir": "C:\\ffxi-local\\server",
+  "xiloader_dir": "C:\\ffxi-local\\xiloader",
+  "era_dats_dir": "C:\\ffxi-local\\Era-DATs",
+  "ffxi_client_dir": "C:\\Program Files (x86)\\PlayOnline\\SquareEnix\\FINAL FANTASY XI",
+  "mariadb_service": "MariaDB",
+  "db_name": "xiforever",
+  "db_user": "xi",
+  "db_pass": "CHANGE-ME",
+  "game_user": "player1",
+  "game_pass": "CHANGE-ME",
+  "ashita_dir": "C:\\Ashita-v4beta-main",
+  "ashita_boot": "xiforever.ini",
+  "map_wait_seconds": 25,
+  "ah_sim": true
+}

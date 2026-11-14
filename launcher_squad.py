@@ -1,0 +1,355 @@
+"""Database layer for the launcher's Squad tab (no GUI code here, so it can be tested on its own).
+
+Works with any DB-API connection that uses '?' placeholders (the `mariadb` package, or sqlite3 in tests).
+"""
+
+import json
+import os
+
+RACES = ["Hume M", "Hume F", "Elvaan M", "Elvaan F", "Tarutaru M", "Tarutaru F", "Mithra", "Galka"]  # ids 1-8
+JOBS = ["WAR", "MNK", "WHM", "BLM", "RDM", "THF", "PLD", "DRK", "BST", "BRD", "RNG", "SAM", "NIN", "DRG", "SMN",
+        "BLU", "COR", "PUP"]  # ids 1-18 (16-18: the Aht Urhgan jobs, squad.lua v1.17)
+MAX_SLOTS = 6
+MAX_LEVEL = 75
+
+# Bot players are real characters too, on accounts reserved from this id up
+# (see crowds/bots/bots.cpp, BotAccBase). The Squad tab only lists humans.
+BOT_ACCOUNT_BASE = 21000000
+
+# A mate's role and mode (see squad.lua, "Roles and modes"). They are kept on the player as the variable SQUAD_AI_<mate id> = role * 10 + mode,
+# the same number the server's !squad role / !squad mode commands write. Change them here with the game closed (the server keeps player
+# variables in memory while someone is logged in), or in the game with the commands or the Squad panel.
+ROLES = ["auto", "tank", "damage", "healer", "support"]
+MODES = ["balanced", "aggressive", "conserve"]
+
+# WAR MNK WHM BLM RDM THF are available from the start; the other jobs are "advanced" and must be unlocked
+# on the character first (the game keeps that as a bit per job id in char_jobs.unlocked).
+STARTER_JOBS = {1, 2, 3, 4, 5, 6}
+
+# ----- greetings -----
+# The lines a mate says when called, when they level up, when they fall and on a weaponskill. The launcher edits
+# them here and writes them for the server as Lua; the server reads that file when it starts.
+GREETING_EVENTS = ("spawn", "levelup", "death", "weaponskill")
+GREETING_LABELS = {"spawn": "When called", "levelup": "Level up", "death": "Knocked out", "weaponskill": "Weaponskill"}
+GREETING_HELP = ("One line per greeting; one is picked at random. {master}, {zone} and {job} are filled in when the "
+                 "mate speaks. Leave a box empty to use the mate's built-in voice lines for that moment.")
+GREETINGS_MARKER = "-- Written by the FFXI Solo launcher (Squad tab > Greetings). It is rewritten when you save there."
+
+
+def load_json(path):
+    try:
+        with open(path, encoding="utf-8-sig") as handle:
+            data = json.load(handle)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def clean_greeting_lines(lines, limit=12):
+    """One line per entry, no newlines, no blanks, and short enough for party chat."""
+    out = []
+    for line in lines or []:
+        text = str(line).replace("\r", " ").replace("\n", " ").strip()
+        if text:
+            out.append(text[:160])
+    return out[:limit]
+
+
+def greeting_data(default_path, user_path):
+    """Every mate's effective lines: the user's entries where given (even an empty list), else the built-in ones."""
+    defaults = load_json(default_path)
+    user = load_json(user_path)
+    data = {}
+    for name in sorted(set(defaults) | set(user)):
+        built_in = defaults.get(name) if isinstance(defaults.get(name), dict) else {}
+        edited = user.get(name) if isinstance(user.get(name), dict) else {}
+        row = {}
+        for event in GREETING_EVENTS:
+            lines = edited[event] if event in edited else built_in.get(event)
+            row[event] = clean_greeting_lines(lines)
+        data[name] = row
+    return data
+
+
+def _write_json(path, data):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        json.dump(data, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+
+
+def save_greetings(user_path, name, lines_by_event):
+    """Stores one mate's greetings as the user's own. A missing event keeps the built-in lines."""
+    user = load_json(user_path)
+    row = user.get(name) if isinstance(user.get(name), dict) else {}
+    for event in GREETING_EVENTS:
+        row[event] = clean_greeting_lines(lines_by_event.get(event))
+    user[name] = row
+    _write_json(user_path, user)
+    return user
+
+
+def clear_greetings(user_path, name):
+    """Drops the user's lines for one mate, so the built-in ones are used again."""
+    user = load_json(user_path)
+    if name in user:
+        del user[name]
+        _write_json(user_path, user)
+    return user
+
+
+def rename_greetings(user_path, old, new):
+    """Keeps a mate's own lines when the launcher renames them."""
+    user = load_json(user_path)
+    if old in user and new not in user:
+        user[new] = user.pop(old)
+        _write_json(user_path, user)
+    return user
+
+
+def write_greetings_lua(lua_path, data):
+    """Writes the server's data file. Mates or moments with no lines are left out, so the voice lines are used."""
+    import launcher_rules as lr
+    clean = {}
+    for name, row in data.items():
+        events = {}
+        for event in GREETING_EVENTS:
+            lines = clean_greeting_lines((row or {}).get(event))
+            if lines:
+                events[event] = lines
+        if events:
+            clean[name] = events
+    lr.write_lua(lua_path, clean, GREETINGS_MARKER)
+    return clean
+
+
+# (slot index, label) in a friendly display order
+EQUIP_SLOTS = [
+    (0, "Main"), (1, "Sub"), (2, "Range"), (3, "Ammo"),
+    (4, "Head"), (9, "Neck"), (11, "Ear 1"), (12, "Ear 2"),
+    (5, "Body"), (6, "Hands"), (13, "Ring 1"), (14, "Ring 2"),
+    (15, "Back"), (10, "Waist"), (7, "Legs"), (8, "Feet"),
+]
+
+
+def connect(cfg):
+    import mariadb  # installed with the server's Python requirements
+
+    return mariadb.connect(
+        host=cfg.get("db_host", "127.0.0.1"),
+        port=int(cfg.get("db_port", 3306)),
+        user=cfg["db_user"],
+        password=cfg["db_pass"],
+        database=cfg["db_name"],
+    )
+
+
+def _all(conn, sql, params=()):
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+
+def _run(conn, sql, params=()):
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    conn.commit()
+    cur.close()
+
+
+def pretty(item_name):
+    return item_name.replace("_", " ").title() if item_name else ""
+
+
+def list_characters(conn):
+    """Only human characters; bot players are chars on reserved accounts too."""
+    rows = _all(
+        conn,
+        "SELECT charid, charname FROM chars "
+        "WHERE accid > 0 AND accid < ? ORDER BY charname",
+        (BOT_ACCOUNT_BASE,),
+    )
+    return [(int(r[0]), r[1]) for r in rows]
+
+
+def get_squad(conn, charid):
+    mates = {}
+    for r in _all(conn, "SELECT id, slot, name, race, face, mjob, sjob FROM squad_mate WHERE charid = ? ORDER BY slot", (charid,)):
+        mates[int(r[0])] = {"id": int(r[0]), "slot": int(r[1]), "name": r[2], "race": int(r[3]), "face": int(r[4]),
+                            "mjob": int(r[5]), "sjob": int(r[6]), "jobs": {}, "equip": {}}
+    if not mates:
+        return []
+    for r in _all(conn, "SELECT squad_id, job, level, exp FROM squad_job WHERE squad_id IN (SELECT id FROM squad_mate WHERE charid = ?)", (charid,)):
+        if int(r[0]) in mates:
+            mates[int(r[0])]["jobs"][int(r[1])] = (int(r[2]), int(r[3]))
+    for r in _all(conn, "SELECT e.squad_id, e.job, e.slot, e.itemid, i.name FROM squad_equip e "
+                        "LEFT JOIN item_equipment i ON i.itemId = e.itemid "
+                        "WHERE e.squad_id IN (SELECT id FROM squad_mate WHERE charid = ?)", (charid,)):
+        if int(r[0]) in mates:
+            mates[int(r[0])]["equip"].setdefault(int(r[1]), {})[int(r[2])] = (int(r[3]), r[4])
+    return sorted(mates.values(), key=lambda m: m["slot"])
+
+
+def job_level(mate, job):
+    return mate["jobs"].get(job, (1, 0))[0]
+
+
+def effective_levels(mate):
+    """Main level, sub job and sub level, using the same rules as the game side."""
+    main = job_level(mate, mate["mjob"])
+    sub, sub_level = 0, 0
+    if mate["sjob"] and mate["sjob"] != mate["mjob"] and main >= 18:
+        sub = mate["sjob"]
+        sub_level = max(1, min(job_level(mate, sub), main // 2))
+    return main, sub, sub_level
+
+
+def describe(mate):
+    main, sub, sub_level = effective_levels(mate)
+    text = f"{mate['slot']}. {mate['name']}  {JOBS[mate['mjob'] - 1]}{main}"
+    if sub:
+        text += f"/{JOBS[sub - 1]}{sub_level}"
+    return text
+
+
+def unlocked_jobs(conn, charid):
+    """Job ids (1-15) this character may use: the starter jobs plus any advanced job they have unlocked."""
+    rows = _all(conn, "SELECT unlocked FROM char_jobs WHERE charid = ?", (charid,))
+    mask = int(rows[0][0]) if rows else 0
+    return STARTER_JOBS | {j for j in range(7, 19) if (mask >> j) & 1}
+
+
+def _require_unlocked(conn, charid, jobs, already=()):
+    allowed = unlocked_jobs(conn, charid) | set(already)
+    for job in jobs:
+        if job and job not in allowed:
+            raise ValueError(f"{JOBS[job - 1]} is an advanced job that has not been unlocked on this character yet.")
+
+
+def create_mate(conn, charid, name, job, level):
+    _require_unlocked(conn, charid, [job])
+    taken = {int(r[0]) for r in _all(conn, "SELECT slot FROM squad_mate WHERE charid = ?", (charid,))}
+    slot = next((s for s in range(1, MAX_SLOTS + 1) if s not in taken), None)
+    if slot is None:
+        raise ValueError(f"Your squad is full ({MAX_SLOTS}). Delete one first.")
+    _run(conn, "INSERT INTO squad_mate (charid, slot, name, race, face, nation, mjob, sjob, template) VALUES (?, ?, ?, 1, 0, 0, ?, 0, 0)",
+         (charid, slot, name, job))
+    mate_id = int(_all(conn, "SELECT id FROM squad_mate WHERE charid = ? AND slot = ?", (charid, slot))[0][0])
+    set_job_level(conn, mate_id, job, level, 0)
+    return mate_id
+
+
+def delete_mate(conn, mate_id):
+    for table in ("squad_equip", "squad_job"):
+        _run(conn, f"DELETE FROM {table} WHERE squad_id = ?", (mate_id,))
+    _run(conn, "DELETE FROM squad_mate WHERE id = ?", (mate_id,))
+
+
+def rename_mate(conn, mate_id, name):
+    _run(conn, "UPDATE squad_mate SET name = ? WHERE id = ?", (name, mate_id))
+
+
+def set_look(conn, mate_id, race, face):
+    _run(conn, "UPDATE squad_mate SET race = ?, face = ? WHERE id = ?", (race, face, mate_id))
+
+
+def set_jobs(conn, charid, mate_id, mjob, sjob):
+    if sjob == mjob:
+        sjob = 0
+    current = _all(conn, "SELECT mjob, sjob FROM squad_mate WHERE id = ?", (mate_id,))
+    already = {int(current[0][0]), int(current[0][1])} if current else set()
+    _require_unlocked(conn, charid, [mjob, sjob], already)
+    _run(conn, "UPDATE squad_mate SET mjob = ?, sjob = ? WHERE id = ?", (mjob, sjob, mate_id))
+
+
+def set_job_level(conn, mate_id, job, level, exp=0):
+    level = max(1, min(MAX_LEVEL, int(level)))
+    _run(conn, "REPLACE INTO squad_job (squad_id, job, level, exp) VALUES (?, ?, ?, ?)", (mate_id, job, level, exp))
+
+
+def set_equip(conn, mate_id, job, slot, item_id):
+    if not item_id:
+        _run(conn, "DELETE FROM squad_equip WHERE squad_id = ? AND job = ? AND slot = ?", (mate_id, job, slot))
+    else:
+        _run(conn, "REPLACE INTO squad_equip (squad_id, job, slot, itemid) VALUES (?, ?, ?, ?)", (mate_id, job, slot, item_id))
+
+
+def unlocked_count(conn, charid):
+    return int(_all(conn, "SELECT COUNT(*) FROM squad_unlock WHERE charid = ?", (charid,))[0][0])
+
+
+def search_items(conn, slot, job, max_level, text, charid=None, require_unlock=False, limit=300):
+    """Equipment that fits `slot`. job/max_level filter to what that job can wear at that level (pass 0 to skip)."""
+    sql = "SELECT i.itemId, i.name, i.level FROM item_equipment i WHERE (i.slot & ?) <> 0"
+    params = [1 << slot]
+    if job:
+        sql += " AND ((i.jobs >> ?) & 1) = 1"
+        params.append(job - 1)
+    if max_level:
+        sql += " AND i.level <= ?"
+        params.append(max_level)
+    if text:
+        sql += " AND i.name LIKE ?"
+        params.append("%" + text.strip().replace(" ", "_").replace("%", "") + "%")
+    if require_unlock:
+        sql += " AND i.itemId IN (SELECT itemid FROM squad_unlock WHERE charid = ?)"
+        params.append(charid)
+    sql += " ORDER BY i.level, i.name LIMIT ?"
+    params.append(limit)
+    return [(int(r[0]), r[1], int(r[2])) for r in _all(conn, sql, tuple(params))]
+
+
+# ----- roles and modes -----
+def behavior_var(mate_id):
+    return f"SQUAD_AI_{int(mate_id)}"
+
+
+def encode_behavior(role, mode):
+    if role not in ROLES:
+        raise ValueError(f"unknown role {role!r}")
+    if mode not in MODES:
+        raise ValueError(f"unknown mode {mode!r}")
+    return ROLES.index(role) * 10 + MODES.index(mode)
+
+
+def decode_behavior(code):
+    """The server's rule: anything it does not understand means auto / balanced."""
+    try:
+        code = int(code or 0)
+    except (TypeError, ValueError):
+        code = 0
+    role_index, mode_index = divmod(code, 10)
+    return (ROLES[role_index] if 0 <= role_index < len(ROLES) else "auto", MODES[mode_index] if 0 <= mode_index < len(MODES) else "balanced")
+
+
+def get_behavior(conn, charid, mate_id):
+    rows = _all(conn, "SELECT value FROM char_vars WHERE charid = ? AND varname = ?", (int(charid), behavior_var(mate_id)))
+    return decode_behavior(rows[0][0]) if rows else ("auto", "balanced")
+
+
+def set_behavior(conn, charid, mate_id, role, mode):
+    """Stores a mate's role and mode. auto + balanced is the default, so it removes the variable (the server does the same for a zero)."""
+    code = encode_behavior(role, mode)
+    name = behavior_var(mate_id)
+    if code == 0:
+        _run(conn, "DELETE FROM char_vars WHERE charid = ? AND varname = ?", (int(charid), name))
+        return code
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM char_vars LIMIT 0")
+    columns = [d[0] for d in cur.description]
+    missing = [c for c in ("charid", "varname", "value") if c not in columns]
+    if missing:
+        cur.close()
+        raise RuntimeError("the char_vars table has no " + ", ".join(missing) + " column, so this game's variables are stored differently")
+    cur.execute("UPDATE char_vars SET value = ? WHERE charid = ? AND varname = ?", (code, int(charid), name))
+    if cur.rowcount == 0:
+        values = {"charid": int(charid), "varname": name, "value": code}
+        if "expiry" in columns:
+            values["expiry"] = 0                       # never expires
+        names = list(values)
+        cur.execute(f"INSERT INTO char_vars ({', '.join(names)}) VALUES ({', '.join('?' for _ in names)})", [values[n] for n in names])
+    conn.commit()
+    cur.close()
+    return code
