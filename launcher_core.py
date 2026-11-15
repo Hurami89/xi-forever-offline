@@ -68,7 +68,7 @@ def kill(image_name):
 
 def kill_squad_chat():
     """Stop a squad-chat sidecar left over from an earlier run (two of them would both answer every line)."""
-    script = ("Get-CimInstance Win32_Process -Filter \"name='pythonw.exe' OR name='python.exe' OR name='XI Forever Offline.exe'\" | "
+    script = ("Get-CimInstance Win32_Process -Filter \"name='pythonw.exe' OR name='python.exe' OR name LIKE 'XI_Forever_Offline.exe'\" | "
               "Where-Object { $_.CommandLine -like '*squad_chat.py*' } | "
               "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
     _run(["powershell", "-NoProfile", "-Command", script])

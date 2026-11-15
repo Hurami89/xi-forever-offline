@@ -1,7 +1,8 @@
 # Puts an "XI Forever Offline" shortcut on your desktop that opens the launcher window (no console).
 # It points at "XI Forever Offline.exe" when that is here (players), else at launcher_gui.pyw with Python (the dev copy).
-$exe = Join-Path $PSScriptRoot "XI Forever Offline.exe"
-if (Test-Path $exe) {
+# (a GitHub download is named XI.Forever.Offline.exe: either name works)
+$exe = Get-ChildItem $PSScriptRoot -Filter "XI?Forever?Offline.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+if ($exe) {
   $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) "XI Forever Offline.lnk"
   $s = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
   $s.TargetPath = $exe
