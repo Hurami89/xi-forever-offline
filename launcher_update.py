@@ -1,0 +1,198 @@
+"""Updates for players: is there a newer XI: Forever Offline, and install it (no GUI code here).
+
+The kit (launcher, scripts, addons) and the server are released separately on GitHub. Installing a kit update unpacks
+the player zip over the kit folder (only files that come in the zip are replaced, so config.json, rates.json, your squad
+mates and every other personal file stay). Installing a server update first saves the database, then unpacks the server
+zip over the server folder (settings/network.lua and the files the launcher writes are not in it), and then updates the
+database the way the server's own tools/dbtool.py does: the game-data tables are imported again, the player tables
+(accounts, characters, linkshells, auction house...) never are, and the migrations in tools/migrations run.
+"""
+import hashlib
+import importlib.util
+import json
+import os
+import re
+import shutil
+import sys
+import time
+import zipfile
+
+KIT_REPO = "Hurami89/xi-forever-offline"
+SERVER_REPO = "Hurami89/xi-forever-offline-server"
+KIT_ASSET = r"^xi-forever-offline-v.+-win64\.zip$"
+SERVER_ASSET = r"^xi-forever-offline-server-v.+-win64\.zip$"
+# from the server's tools/dbtool.py (player_data); read again from the server folder when it is there
+PLAYER_DATA = ("account_ip_record accounts accounts_banned accounts_files accounts_friends accounts_messages accounts_profile "
+               "accounts_totp auction_house_items auction_house audit_bazaar audit_chat audit_dbox audit_gm audit_trade audit_vendor "
+               "char_blacklist char_chocobos char_effects char_equip char_equip_saved char_exp char_fishing_contest_history char_flags "
+               "char_history char_inventory char_jobs char_job_points char_look char_merit char_monstrosity char_pet char_points "
+               "char_profile char_skills char_spells char_stats char_storage char_style char_unlocks char_vars char_world_passes chars "
+               "chocobo_race_quills chocobo_race_results conquest_system delivery_box fishing_contest fishing_contest_entries help_desk "
+               "ip_exceptions linkshell_concierge linkshells server_variables unity_system").split()
+
+
+def version_key(tag):
+    """v0.1.10 -> (0, 1, 10) so versions sort as numbers."""
+    return tuple(int(x) for x in re.findall(r"\d+", str(tag or ""))) or (0,)
+
+
+def installed_version(folder):
+    """The version in VERSION.txt (written into both release zips), or None (a self-built copy)."""
+    try:
+        with open(os.path.join(folder, "VERSION.txt"), encoding="utf-8") as handle:
+            found = re.search(r"\bv\d[\w.\-]*", handle.readline())
+        return found.group(0) if found else None
+    except OSError:
+        return None
+
+
+def newest_release(repo, test_builds, fetch):
+    """The newest published release (pre-releases only when test_builds), or None."""
+    import launcher_thirdparty as tp
+    releases = json.loads(fetch(tp.API + repo + "/releases?per_page=30"))
+    usable = [r for r in releases if not r.get("draft") and (test_builds or not r.get("prerelease"))]
+    usable.sort(key=lambda r: version_key(r.get("tag_name")), reverse=True)
+    return usable[0] if usable else None
+
+
+def check(kit, server, test_builds, fetch):
+    """{"kit": {...}, "server": {...}} each with installed, newest (tag), notes, release, and newer (bool)."""
+    out = {}
+    for key, repo, folder in (("kit", KIT_REPO, kit), ("server", SERVER_REPO, server)):
+        have = installed_version(folder) if folder else None
+        release = newest_release(repo, test_builds, fetch)
+        tag = release.get("tag_name") if release else None
+        out[key] = {"installed": have, "newest": tag, "notes": (release or {}).get("body", ""), "release": release,
+                    "newer": bool(tag and have and version_key(tag) > version_key(have))}
+    return out
+
+
+def _download(release, pattern, kit, fetch, log, what):
+    assets = {a["name"]: a["browser_download_url"] for a in release.get("assets", [])}
+    names = [n for n in assets if re.search(pattern, n)]
+    if not names:
+        raise RuntimeError(f"The {what} release {release.get('tag_name')} has no download.")
+    name = names[0]
+    log(f"Downloading {name}...")
+    data = fetch(assets[name], timeout=3600)
+    if "SHA256SUMS.txt" in assets:
+        sums = fetch(assets["SHA256SUMS.txt"]).decode("utf-8", "replace")
+        wanted = next((line.split()[0].lower() for line in sums.splitlines() if line.strip().endswith(name)), None)
+        if wanted and hashlib.sha256(data).hexdigest() != wanted:
+            raise RuntimeError(f"{name} does not match its published checksum: nothing was changed.")
+    folder = os.path.join(kit, "downloads", "updates")
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, name)
+    with open(path, "wb") as handle:
+        handle.write(data)
+    return path
+
+
+def _unpack(zip_path, dest, keep=(), log=print, running_exe=None):
+    """Unpacks the zip's single top folder over dest. A file in keep is never replaced. The running exe is renamed
+    out of the way first (Windows lets a running program be renamed, not replaced)."""
+    count = 0
+    with zipfile.ZipFile(zip_path) as archive:
+        for info in archive.infolist():
+            head, _, rest = info.filename.partition("/")
+            if not rest or info.is_dir():
+                continue
+            parts = rest.split("/")
+            if ".." in parts or ":" in rest:
+                raise RuntimeError("refusing a path outside the folder: " + info.filename)
+            if rest in keep:
+                continue
+            target = os.path.join(dest, *parts)
+            if running_exe and os.path.normcase(os.path.abspath(target)) == os.path.normcase(os.path.abspath(running_exe)):
+                old = target[:-4] + ".old.exe"
+                if os.path.exists(old):
+                    os.remove(old)
+                os.replace(target, old)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with archive.open(info) as src, open(target + ".part", "wb") as out:
+                shutil.copyfileobj(src, out)
+            os.replace(target + ".part", target)
+            count += 1
+    log(f"{count} files updated.")
+    return count
+
+
+def update_kit(kit, release, fetch, log=print):
+    """Installs a kit release over the kit folder. Returns True: the launcher must restart."""
+    path = _download(release, KIT_ASSET, kit, fetch, log, "launcher")
+    running = sys.executable if getattr(sys, "frozen", False) else None
+    _unpack(path, kit, log=log, running_exe=running)
+    return True
+
+
+def player_tables(server_dir):
+    """The player tables from the server's own dbtool.py, else the list above."""
+    try:
+        with open(os.path.join(server_dir, "tools", "dbtool.py"), encoding="utf-8") as handle:
+            text = handle.read()
+        block = text[text.index("player_data = ["):]
+        block = block[:block.index("]")]
+        found = re.findall(r'"([a-z_0-9]+)\.sql"', block)
+        if found:
+            return found
+    except (OSError, ValueError):
+        pass
+    return list(PLAYER_DATA)
+
+
+def update_database(cfg, server_dir, log=print, run=None, connect=None):
+    """Like 'dbtool.py update': import every SQL file again except the player tables that exist, then run the migrations."""
+    import subprocess
+    import launcher_setup as setup
+    run = run or subprocess.run
+    mdb, port, pw = cfg["mariadb_dir"], int(cfg.get("db_port", 3306)), cfg["db_pass"]
+    existing = set(setup.sql(mdb, port, cfg["db_user"], pw, "SHOW TABLES", database=cfg["db_name"], run=run).split())
+    protected = {t + ".sql" for t in player_tables(server_dir) if t in existing}
+    files = [f for f in setup.import_order(server_dir)
+             if not (os.path.dirname(f) == os.path.join(server_dir, "sql") and os.path.basename(f) in protected)]
+    log(f"Database: importing {len(files)} files (your {len(protected)} player tables are kept)...")
+    setup.import_sql(mdb, port, pw, files, log=log, run=run)
+    folder = os.path.join(server_dir, "tools", "migrations")
+    if not os.path.isdir(folder):
+        return
+    if connect is None:
+        import mariadb
+        connect = lambda: mariadb.connect(host="127.0.0.1", port=port, user=cfg["db_user"], password=pw, database=cfg["db_name"])
+    db = connect()
+    cur = db.cursor()
+    ran = 0
+    try:
+        for name in sorted(n for n in os.listdir(folder) if n.endswith(".py")):
+            spec = importlib.util.spec_from_file_location("migration_" + name[:-3], os.path.join(folder, name))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            module.check_preconditions(cur)
+            if module.needs_to_run(cur):
+                log("Database: " + module.migration_name())
+                module.migrate(cur, db)
+                ran += 1
+        db.commit()
+    finally:
+        db.close()
+    log(f"Database up to date ({ran} migration(s) run).")
+
+
+def update_server(kit, cfg, release, fetch, log=print, run=None, connect=None):
+    """Saves the database, installs a server release over the server folder, updates the database."""
+    import subprocess
+    import launcher_setup as setup
+    run = run or subprocess.run
+    server = cfg["server_dir"]
+    path = _download(release, SERVER_ASSET, kit, fetch, log, "server")
+    backups = os.path.join(kit, "backups")
+    os.makedirs(backups, exist_ok=True)
+    dump = os.path.join(backups, f"db-before-{release.get('tag_name')}-{time.strftime('%Y%m%d-%H%M%S')}.sql")
+    log("Saving your database first...")
+    result = run([setup.mariadb_exe(cfg["mariadb_dir"], "mariadb-dump"), "-h127.0.0.1", f"-P{cfg.get('db_port', 3306)}",
+                  f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"], f"--result-file={dump}"],
+                 capture_output=True, text=True, creationflags=0x08000000)
+    if result.returncode != 0:
+        raise RuntimeError("Could not save the database, so nothing was changed: " + (result.stderr or "")[-300:])
+    _unpack(path, server, keep=("settings/network.lua",), log=log)
+    update_database(cfg, server, log=log, run=run, connect=connect)
+    log(f"Server updated to {release.get('tag_name')}. Your database from before is in {dump}.")

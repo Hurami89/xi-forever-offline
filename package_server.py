@@ -22,7 +22,7 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROGRAMS = ["xi_connect.exe", "xi_world.exe", "xi_search.exe", "xi_profile.exe", "xi_map.exe"]
 DLLS = ["libcrypto-3-x64.dll", "libluajit_64.dll", "libmariadb64.dll", "libssl-3-x64.dll", "libzmq_64.dll"]
-TRACKED = ["scripts", "sql", "modules", "data", "res", "ximeshes"]
+TRACKED = ["scripts", "sql", "modules", "data", "res", "ximeshes", "tools/migrations", "tools/dbtool.py"]   # the last two: database updates for players
 ROOT_FILES = ["LICENSE", "README.md"]
 NEVER = (".before-", ".bak", ".retired", ".pdb", ".cert", ".key")
 

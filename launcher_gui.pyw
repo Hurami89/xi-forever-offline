@@ -46,7 +46,7 @@ LIST_HINT_SECOND = "Tick what you want loaded in the second window (dualbox). Ch
 # The page buttons along the bottom: (picture in assets\\ui, name, the pages it opens). A button for several pages opens the one you were last on
 # in it. A page that is in none of them gets a MORE button, so nothing is ever unreachable.
 NAV_BUTTONS = (("home", "HOME", ("Play",)), ("squad", "SQUADS", ("Squad",)), ("config", "CONFIG", ("Rates", "Graphics", "Shaders")),
-               ("tools", "TOOLS", ("Addons", "Plugins")), ("settings", "SETTINGS", ("Settings",)))
+               ("addons", "ADDONS", ("Addons", "Plugins", "Other")), ("settings", "SETTINGS", ("Settings",)))
 PRESS_ANCHOR = 0.38      # press pictures are wider than the frame is tall: keep the part 38% of the way down (sky and skyline are above, people below)
 PRESS_NOTE = ""
 
@@ -209,16 +209,31 @@ class Cancelled(Exception):
 
 
 class CheckList(tk.Frame):
-    """Scrollable list of checkboxes. Ticking one adds/removes its load line immediately."""
+    """The addons or plugins of one Ashita window, like other private-server launchers list them: a switch, the name,
+    version and author, where it comes from, and what it does. Switching one adds/removes its load line right away."""
+
+    TAG_COLORS = {"XI: Forever Offline": GOLD, "download": ACCENT, "added by you": GREEN, "Ashita": DIM}
 
     def __init__(self, parent, kind, scripts):
         super().__init__(parent, bg=BG)
         self.kind, self.scripts, self.message = kind, scripts, ""
-        canvas = tk.Canvas(self, bg=BG, highlightthickness=0)
-        bar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        top = tk.Frame(self, bg=BG)
+        top.pack(fill="x", padx=8, pady=(0, 4))
+        tk.Label(top, text="Search:", bg=BG, fg=DIM).pack(side="left")
+        self.search = tk.StringVar()
+        entry = tk.Entry(top, textvariable=self.search, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", width=24)
+        entry.pack(side="left", padx=6)
+        self.search.trace_add("write", lambda *a: self.reload())
+        self.count = tk.Label(top, text="", bg=BG, fg=DIM)
+        self.count.pack(side="right")
+        box = tk.Frame(self, bg=BG)
+        box.pack(fill="both", expand=True)
+        canvas = tk.Canvas(box, bg=BG, highlightthickness=0)
+        bar = ttk.Scrollbar(box, orient="vertical", command=canvas.yview)
         self.inner = tk.Frame(canvas, bg=BG)
-        canvas.create_window((0, 0), window=self.inner, anchor="nw")
+        window = canvas.create_window((0, 0), window=self.inner, anchor="nw")
         self.inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(window, width=e.width))      # rows as wide as the page
         canvas.configure(yscrollcommand=bar.set)
         canvas.pack(side="left", fill="both", expand=True)
         bar.pack(side="right", fill="y")
@@ -229,11 +244,19 @@ class CheckList(tk.Frame):
         self.scripts, self.message = scripts, message
         self.reload()
 
+    def thirdparty_ids(self):
+        try:
+            import launcher_thirdparty
+            return [i["id"] for i in launcher_thirdparty.load_manifest(HERE)] + ["XIUIplus", "Nameplate", "autobot", "movement"]
+        except Exception:
+            return []
+
     def reload(self):
         for w in self.inner.winfo_children():
             w.destroy()
         if self.scripts is None:
             tk.Label(self.inner, text=self.message or "Nothing to show.", bg=BG, fg=DIM, wraplength=480, justify="left").pack(anchor="w", padx=8, pady=8)
+            self.count.configure(text="")
             return
         ashita = self.scripts.ashita
         names = core.list_addons(ashita) if self.kind == "addon" else core.list_plugins(ashita)
@@ -241,20 +264,41 @@ class CheckList(tk.Frame):
             on = self.scripts.enabled(self.kind)
         except Exception:
             on = set()
+        self.count.configure(text=f"{sum(1 for n in names if n.lower() in on)} of {len(names)} loaded")
         if not names:
-            tk.Label(self.inner, text="Nothing found. Copy addon folders into the addons folder, then press Refresh.",
+            tk.Label(self.inner, text="Nothing here yet. Use 'Add addon or plugin...' below, or copy one into the folder and press Refresh.",
                      bg=BG, fg=DIM, wraplength=480, justify="left").pack(anchor="w", padx=8, pady=8)
+        wanted = self.search.get().strip().lower()
+        third, added = self.thirdparty_ids(), core.added_items(HERE)
         for n in names:
+            info = core.addon_info(ashita, n) if self.kind == "addon" else {"name": n, "version": "", "author": "",
+                                                                            "desc": core.PLUGIN_NOTES.get(n.lower(), "")}
+            if wanted and wanted not in (n + " " + info["author"] + " " + info["desc"]).lower():
+                continue
+            origin = core.item_origin(self.kind, n, third, added)
+            row = tk.Frame(self.inner, bg=PANEL)
+            row.pack(fill="x", padx=8, pady=2)
             var = tk.BooleanVar(value=n.lower() in on)
-            tk.Checkbutton(self.inner, text=n, variable=var, command=lambda n=n, v=var: self.toggle(n, v),
-                           bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
-                           anchor="w", font=("Segoe UI", 10)).pack(fill="x", padx=8, pady=1)
+            tk.Checkbutton(row, variable=var, command=lambda n=n, v=var: self.toggle(n, v), bg=PANEL, activebackground=PANEL,
+                           fg=FG, activeforeground=FG, selectcolor=BG).grid(row=0, column=0, rowspan=2, padx=(6, 2), pady=4, sticky="n")
+            head = tk.Frame(row, bg=PANEL)
+            head.grid(row=0, column=1, sticky="w", pady=(4, 0))
+            tk.Label(head, text=n, bg=PANEL, fg=FG, font=("Segoe UI", 10, "bold")).pack(side="left")
+            extra = "  ".join(x for x in ((("v" + info["version"]) if info["version"] else ""), (("by " + info["author"]) if info["author"] else "")) if x)
+            if extra:
+                tk.Label(head, text=extra, bg=PANEL, fg=DIM, font=("Segoe UI", 9)).pack(side="left", padx=(8, 0))
+            tk.Label(head, text=origin, bg=PANEL, fg=self.TAG_COLORS.get(origin, DIM), font=("Segoe UI", 8, "bold")).pack(side="left", padx=(10, 0))
+            if info["desc"]:
+                tk.Label(row, text=info["desc"], bg=PANEL, fg=DIM, font=("Segoe UI", 9), wraplength=720, justify="left",
+                         anchor="w").grid(row=1, column=1, sticky="w", pady=(0, 4))
+            row.columnconfigure(1, weight=1)
 
     def toggle(self, name, var):
         try:
             self.scripts.set(self.kind, name, var.get())
         except Exception as e:
             messagebox.showerror("Could not save", str(e))
+        self.reload()
 
 
 class ItemPicker(tk.Toplevel):
@@ -1756,19 +1800,24 @@ class UpdatesTab(tk.Frame):
             button = tk.Button(gm_bar, text=text, command=command, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5, activebackground=BORDER, activeforeground=FG)
             button.pack(side="left", padx=(0, 8))
             self.gm_buttons.append(button)
-        tk.Label(self, text="Keep your server up to date with Phoenix", bg=BG, fg=FG, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=14, pady=(8, 2))
-        tk.Label(self, text=("Check shows what is new and changes nothing. Update saves your database, then merges the new version in, applies database "
-                             "changes and rebuilds the server. If anything clashes with our own changes it is cancelled and nothing changes. "
-                             "Close the game before updating. Undo goes back to the version from before the last update."),
-                 bg=BG, fg=DIM, wraplength=900, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=14, pady=(0, 8))
-        bar = tk.Frame(self, bg=BG)
-        bar.pack(anchor="w", padx=14)
+        self.player = bool(app.cfg.get("mariadb_dir"))      # a player install (first-run setup); else this is the dev PC
         self.buttons = []
-        for text, command in (("Check for updates", self.check), ("Update now", self.update), ("Undo last update", self.undo),
-                              ("Open backups folder", lambda: app.open_dir(os.path.join(HERE, "backups")))):
-            button = tk.Button(bar, text=text, command=command, bg=PANEL, fg=FG, relief="flat", padx=14, pady=6, activebackground=PANEL2, activeforeground=FG)
-            button.pack(side="left", padx=(0, 8))
-            self.buttons.append(button)
+        if self.player:
+            self.build_player_updates()
+        else:
+            self.build_publish()
+            tk.Label(self, text="Keep your server up to date with Phoenix", bg=BG, fg=FG, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=14, pady=(8, 2))
+            tk.Label(self, text=("Check shows what is new and changes nothing. Update saves your database, then merges the new version in, applies database "
+                                 "changes and rebuilds the server. If anything clashes with our own changes it is cancelled and nothing changes. "
+                                 "Close the game before updating. Undo goes back to the version from before the last update."),
+                     bg=BG, fg=DIM, wraplength=900, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=14, pady=(0, 8))
+            bar = tk.Frame(self, bg=BG)
+            bar.pack(anchor="w", padx=14)
+            for text, command in (("Check for updates", self.check), ("Update now", self.update), ("Undo last update", self.undo),
+                                  ("Open backups folder", lambda: app.open_dir(os.path.join(HERE, "backups")))):
+                button = tk.Button(bar, text=text, command=command, bg=PANEL, fg=FG, relief="flat", padx=14, pady=6, activebackground=PANEL2, activeforeground=FG)
+                button.pack(side="left", padx=(0, 8))
+                self.buttons.append(button)
         box = tk.Frame(self, bg=BG)
         box.pack(fill="both", expand=True, padx=14, pady=10)
         self.output = tk.Text(box, bg=PANEL, fg=FG, font=("Consolas", 9), state="disabled", relief="flat", wrap="word", bd=0, highlightthickness=0)
@@ -1776,8 +1825,131 @@ class UpdatesTab(tk.Frame):
         self.output.configure(yscrollcommand=scroll.set)
         scroll.pack(side="right", fill="y")
         self.output.pack(side="left", fill="both", expand=True)
-        self.write("Press 'Check for updates' to see whether Phoenix has released anything new. The GM buttons above print their results here too.")
+        self.write("Press 'Check for updates' to see whether there is a new version." if self.player else
+                   "Press 'Check for updates' to see whether Phoenix has released anything new. The GM buttons above print their results here too.")
+        if self.player:
+            self.after(1500, lambda: self.player_check(True))       # quietly, on start: only speaks up when there is an update
         self.after(200, self.pump)
+
+    # ----- dev PC: publish an update for players -----
+    def build_publish(self):
+        frame = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+        frame.pack(fill="x", padx=14, pady=6)
+        tk.Label(frame, text="Publish an update for players", bg=PANEL, fg=FG, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        tk.Label(frame, text=("Players only get what you publish: your own changes and Phoenix updates reach them when you publish a new version. "
+                              "This builds the launcher and the server and player zips, tags and pushes both repos and creates the GitHub "
+                              "releases. It shows everything first and asks before anything is pushed."),
+                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(0, 8))
+        tk.Button(frame, text="Publish update...", command=lambda: PublishDialog(self.app), bg=ACCENT, fg="white", relief="flat",
+                  padx=14, pady=5).pack(anchor="w", padx=12, pady=(0, 12))
+
+    # ----- player install: updates from the GitHub releases -----
+    def build_player_updates(self):
+        tk.Label(self, text="Updates", bg=BG, fg=FG, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=14, pady=(8, 2))
+        import launcher_update as lu
+        have = lu.installed_version(HERE) or "self-built"
+        tk.Label(self, text=(f"You have {have}. The launcher checks for a new version when it starts. Updating keeps your settings, "
+                             "characters and squad mates; your database is saved first."),
+                 bg=BG, fg=DIM, wraplength=900, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=14, pady=(0, 6))
+        bar = tk.Frame(self, bg=BG)
+        bar.pack(anchor="w", padx=14)
+        for text, command in (("Check for updates", lambda: self.player_check(False)), ("Update now", self.player_update)):
+            button = tk.Button(bar, text=text, command=command, bg=PANEL, fg=FG, relief="flat", padx=14, pady=6)
+            button.pack(side="left", padx=(0, 8))
+            self.buttons.append(button)
+        self.test_builds = tk.BooleanVar(value=bool(self.app.cfg.get("test_builds", False)))
+        tk.Checkbutton(bar, text="Get test builds (pre-releases)", variable=self.test_builds, command=self.save_test_builds,
+                       bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG).pack(side="left", padx=(8, 0))
+        self.update_info = None
+
+    def save_test_builds(self):
+        import json
+        self.app.cfg["test_builds"] = bool(self.test_builds.get())
+        try:
+            path = os.path.join(HERE, "config.json")
+            with open(path, encoding="utf-8-sig") as handle:
+                cfg = json.load(handle)
+            cfg["test_builds"] = self.app.cfg["test_builds"]
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(cfg, handle, indent=2)
+        except (OSError, ValueError) as e:
+            self.write(f"Could not save the setting: {e}")
+
+    def player_check(self, silent):
+        """Looks for a newer version. silent: on start, only speaks up when there is one."""
+        def work():
+            try:
+                import launcher_update as lu
+                import launcher_thirdparty as tp
+                info = lu.check(HERE, self.app.cfg.get("server_dir"), bool(self.app.cfg.get("test_builds")), tp._get)
+            except Exception as e:
+                if not silent:
+                    self.lines.put(("line", f"Could not check for updates: {e}"))
+                return
+            self.update_info = info
+            newer = [k for k in ("server", "kit") if info[k]["newer"]]
+            if not silent or newer:
+                for key, label in (("kit", "Launcher"), ("server", "Server")):
+                    i = info[key]
+                    self.lines.put(("line", f"{label}: you have {i['installed'] or '?'}, newest {i['newest'] or 'none published'}"
+                                            + (" - update available" if i["newer"] else "")))
+            if newer and silent:
+                self.after(0, self.offer_update)
+        threading.Thread(target=work, daemon=True).start()
+
+    def offer_update(self):
+        info = self.update_info
+        newest = max((info[k]["newest"] for k in ("kit", "server") if info[k]["newer"]), key=lambda t: t or "")
+        notes = next((info[k]["notes"] for k in ("kit", "server") if info[k]["newer"] and info[k]["notes"]), "")
+        if messagebox.askyesno("Update available", f"XI: Forever Offline {newest} is out.\n\n{notes[:900]}\n\nUpdate now? "
+                               "Your settings, characters and squad mates are kept, and your database is saved first."):
+            self.player_update()
+
+    def player_update(self):
+        if self.app.running:
+            messagebox.showwarning("Close the game first", "The servers are running. Close the game (it stops the servers), then update.")
+            return
+        info = self.update_info
+        if not info or not (info["kit"]["newer"] or info["server"]["newer"]):
+            self.write("No update to install (press Check for updates first).")
+            return
+        if self.busy:
+            return
+        self.busy = True
+        for button in self.buttons:
+            button.configure(state="disabled")
+        cfg = self.app.cfg
+
+        def work():
+            restart = False
+            try:
+                import launcher_update as lu
+                import launcher_thirdparty as tp
+                import launcher_setup
+                log = lambda m: self.lines.put(("line", m))
+                if info["server"]["newer"]:
+                    started = launcher_setup.start_portable(cfg)
+                    if started is not None:
+                        self.app.db_proc = started
+                    lu.update_server(HERE, cfg, info["server"]["release"], tp._get, log=log)
+                if info["kit"]["newer"]:
+                    restart = lu.update_kit(HERE, info["kit"]["release"], tp._get, log=log)
+                log("Update finished." + (" The launcher restarts now." if restart else ""))
+            except Exception as e:
+                self.lines.put(("line", f"Update stopped: {e}"))
+            self.lines.put(("done", 0))
+            if restart:
+                self.after(1500, self.restart_launcher)
+        threading.Thread(target=work, daemon=True).start()
+
+    def restart_launcher(self):
+        try:
+            if getattr(sys, "frozen", False):
+                subprocess.Popen([sys.executable], cwd=HERE)
+            else:
+                subprocess.Popen([sys.executable, os.path.join(HERE, "launcher_gui.pyw")], cwd=HERE)
+        finally:
+            self.app.on_close()
 
     def write(self, text):
         self.output.configure(state="normal")
@@ -1850,11 +2022,97 @@ class UpdatesTab(tk.Frame):
                     self.write(value)
                 else:
                     self.busy = False
-                    for button in self.buttons[:3] + self.gm_buttons:
+                    for button in self.buttons + self.gm_buttons:
                         button.configure(state="normal")
         except queue.Empty:
             pass
         self.after(200, self.pump)
+
+
+class PublishDialog(tk.Toplevel):
+    """Publish an update for players (dev PC). Shows the version, what changed and what is not ready yet; publishes after you confirm.
+    The work is launcher_publish.publish."""
+
+    def __init__(self, app):
+        super().__init__(app)
+        import launcher_publish as lpub
+        self.app, self.lpub = app, lpub
+        self.server = app.cfg["server_dir"]
+        self.title("Publish an update for players")
+        self.geometry("820x680")
+        self.configure(bg=BG)
+        self.q = queue.Queue()
+        last = lpub.last_tag(HERE)
+        top = tk.Frame(self, bg=BG)
+        top.pack(fill="x", padx=14, pady=(12, 4))
+        tk.Label(top, text=f"Last published: {last or 'nothing yet'}     New version:", bg=BG, fg=FG).pack(side="left")
+        self.version = tk.StringVar(value=lpub.next_version(last))
+        tk.Entry(top, textvariable=self.version, width=12, bg=PANEL, fg=FG, insertbackground=FG, relief="flat").pack(side="left", padx=6)
+        self.prerelease = tk.BooleanVar(value=True)
+        tk.Checkbutton(top, text="Test build (only players with 'Get test builds' on get it)", variable=self.prerelease,
+                       bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG).pack(side="left", padx=(12, 0))
+        tk.Label(self, text="Release notes (players see these). Filled in from your commit messages; edit them as you like.",
+                 bg=BG, fg=DIM, font=("Segoe UI", 9)).pack(anchor="w", padx=14)
+        self.notes = tk.Text(self, height=10, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", wrap="word", font=("Segoe UI", 9))
+        self.notes.pack(fill="x", padx=14, pady=4)
+        lines = ["## What's new", ""] + [f"- {c}" for c in lpub.changes(HERE, last)]
+        server_changes = lpub.changes(self.server, lpub.last_tag(self.server))
+        if server_changes:
+            lines += ["", "Server:"] + [f"- {c}" for c in server_changes]
+        self.notes.insert("1.0", "\n".join(lines) + "\n")
+        self.checks = tk.Label(self, text="", bg=BG, fg=FG, wraplength=780, justify="left", font=("Segoe UI", 9))
+        self.checks.pack(anchor="w", padx=14, pady=4)
+        bar = tk.Frame(self, bg=BG)
+        bar.pack(anchor="w", padx=14, pady=4)
+        tk.Button(bar, text="Check again", command=self.run_checks, bg=PANEL, fg=FG, relief="flat", padx=12).pack(side="left")
+        self.go = tk.Button(bar, text="Publish", command=self.publish, bg=ACCENT, fg="white", relief="flat", padx=18)
+        self.go.pack(side="left", padx=8)
+        self.log = tk.Text(self, bg=PANEL, fg=FG, relief="flat", font=("Consolas", 9), wrap="word", state="disabled")
+        self.log.pack(fill="both", expand=True, padx=14, pady=(4, 12))
+        self.run_checks()
+        self.after(200, self.pump)
+
+    def run_checks(self):
+        problems, warnings = self.lpub.preflight(HERE, self.server, server_running=self.app.running)
+        text = "\n".join(["Not ready: " + p for p in problems] + ["Check: " + w for w in warnings]) or "Ready to publish."
+        self.checks.configure(text=text, fg=RED if problems else (GOLD if warnings else GREEN))
+        self.go.configure(state="disabled" if problems else "normal")
+
+    def publish(self):
+        import re
+        version = self.version.get().strip()
+        if not re.fullmatch(r"v\d+\.\d+\.\d+", version):
+            messagebox.showinfo("Publish", "Use a version like v0.1.1.", parent=self)
+            return
+        kind = "a test build" if self.prerelease.get() else "a full release (every player is offered it)"
+        if not messagebox.askyesno("Publish", f"Publish {version} as {kind}?\n\nThis will:\n"
+                                   "1. build XI Forever Offline.exe\n2. make the server and player zips\n"
+                                   f"3. tag both repos {version} and push the tags and the server's release branch\n"
+                                   "4. create both GitHub releases and upload the files\n\nIt takes a while (the server zip is ~400 MB).",
+                                   parent=self):
+            return
+        self.go.configure(state="disabled")
+        notes = self.notes.get("1.0", "end").strip()
+
+        def work():
+            try:
+                self.lpub.publish(HERE, self.server, version, notes, self.prerelease.get(), log=lambda m: self.q.put(m))
+            except Exception as e:
+                self.q.put(f"Stopped: {e}")
+        threading.Thread(target=work, daemon=True).start()
+
+    def pump(self):
+        try:
+            while True:
+                line = self.q.get_nowait()
+                self.log.configure(state="normal")
+                self.log.insert("end", line + "\n")
+                self.log.see("end")
+                self.log.configure(state="disabled")
+        except queue.Empty:
+            pass
+        if self.winfo_exists():
+            self.after(200, self.pump)
 
 
 class App(tk.Tk):
@@ -2088,6 +2346,10 @@ class App(tk.Tk):
                 tk.Button(bar, text="Refresh", command=lst.reload, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left", padx=4)
                 tk.Button(bar, text=f"Open {folder} folder", relief="flat", bg=PANEL, fg=FG, padx=10,
                           command=lambda f=folder: self.open_dir(os.path.join(self.ashita, f))).pack(side="left", padx=4)
+                tk.Button(bar, text="Add addon or plugin...", relief="flat", bg=ACCENT, fg="white", padx=12,
+                          command=lambda: self.add_user_item(folder=False)).pack(side="left", padx=(12, 4))
+                tk.Button(bar, text="Add a folder...", relief="flat", bg=PANEL, fg=FG, padx=10,
+                          command=lambda: self.add_user_item(folder=True)).pack(side="left", padx=4)
         if tp is not None and os.path.exists(os.path.join(HERE, "thirdparty.json")):
             self.build_downloads_page(tabs)
         self.build_nav()
@@ -2125,6 +2387,32 @@ class App(tk.Tk):
             return None, f"Could not read the second window's script: {e}"
         self.second_scripts = manager
         return manager, ""
+
+    def add_user_item(self, folder=False):
+        """Install an addon or plugin the player has: a .zip, a plugin .dll, or an addon folder."""
+        if folder:
+            path = filedialog.askdirectory(title="Choose the addon's folder (the one with <name>.lua in it)")
+        else:
+            path = filedialog.askopenfilename(title="Choose an addon or plugin",
+                                              filetypes=[("Addon or plugin", "*.zip *.dll"), ("Zip file", "*.zip"), ("Plugin", "*.dll")])
+        if not path:
+            return
+        try:
+            done = core.install_user_item(self.ashita, path, os.path.join(HERE, "backups", "addons"))
+        except Exception as e:
+            messagebox.showerror("Add addon or plugin", str(e))
+            return
+        core.remember_added(HERE, [name for _kind, name in done])
+        names = ", ".join(f"{name} ({kind})" for kind, name in done)
+        if messagebox.askyesno("Add addon or plugin", f"Installed: {names}.\n\nLoad it in your main game window from the next PLAY?"):
+            for kind, name in done:
+                try:
+                    self.scripts.set(kind, name, True)
+                except Exception as e:
+                    messagebox.showerror("Add addon or plugin", str(e))
+        for lst in self.lists:
+            lst.reload()
+        self.say(f"Added {names}. Anything it replaced is saved in backups\\addons.")
 
     def build_interface_row(self, page):
         """XIUI (an addon, stable) or XIUIplus (a plugin, alpha): the party list, target bar and other windows."""
@@ -2222,7 +2510,7 @@ class App(tk.Tk):
     # ----- Downloads: other people's add-ons and tools, from their official releases (thirdparty.json) -----
     def build_downloads_page(self, tabs):
         page = tk.Frame(tabs, bg=BG)
-        tabs.add(page, text="  Downloads  ")
+        tabs.add(page, text="  Other  ")
         tk.Label(page, text="Add-ons and tools made by other people. Each one comes straight from its author's own release page; "
                  "files it replaces are saved in backups\\thirdparty first, and your settings are never overwritten.",
                  bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=880, justify="left").pack(anchor="w", padx=10, pady=(10, 6))

@@ -111,8 +111,15 @@ def resolve(item, fetch=_get):
     kind = source["type"]
     if kind == "github_release":
         tag = source.get("tag", "latest")
-        path = "releases/latest" if tag == "latest" else "releases/tags/" + tag
-        release = json.loads(fetch(API + source["repo"] + "/" + path))
+        if tag == "latest" and source.get("prereleases"):
+            # GitHub's releases/latest skips pre-releases: take the newest published one, test builds included
+            releases = [r for r in json.loads(fetch(API + source["repo"] + "/releases?per_page=20")) if not r.get("draft")]
+            if not releases:
+                raise RuntimeError(f"{item['name']}: no release published yet.")
+            release = releases[0]
+        else:
+            path = "releases/latest" if tag == "latest" else "releases/tags/" + tag
+            release = json.loads(fetch(API + source["repo"] + "/" + path))
         assets = {a["name"]: a["browser_download_url"] for a in release.get("assets", [])}
         names = [n for n in assets if re.search(source["asset"], n)]
         if not names:
@@ -277,6 +284,9 @@ def latest_version(item, fetch=_get):
     if source["type"] != "github_release":
         return None
     try:
+        if source.get("prereleases"):
+            releases = [r for r in json.loads(fetch(API + source["repo"] + "/releases?per_page=20")) if not r.get("draft")]
+            return releases[0]["tag_name"] if releases else None
         return json.loads(fetch(API + source["repo"] + "/releases/latest")).get("tag_name")
     except Exception:
         return None

@@ -19,6 +19,8 @@
 !/launcher_personality.py
 !/launcher_thirdparty.py
 !/launcher_setup.py
+!/launcher_update.py
+!/launcher_publish.py
 !/thirdparty.json
 # launcher_classic.pyw and "Classic launcher.bat" (the old look) stay on the dev PC only
 !/launcher.bat
@@ -27,6 +29,7 @@
 !/make-shortcut.ps1
 !/build_release.ps1
 !/package_server.py
+!/package_kit.py
 !/RELEASING.md
 
 # ---- server setup and updates ----

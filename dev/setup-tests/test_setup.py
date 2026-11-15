@@ -142,8 +142,8 @@ class SetupTests(unittest.TestCase):
                                                 {"name": "SHA256SUMS.txt", "browser_download_url": "u/sums"}]}
 
         def fetch(url, timeout=60):
-            if url.startswith(tp.API):
-                return json.dumps(release).encode()
+            if url.startswith(tp.API):           # the server item lists releases (pre-releases count)
+                return json.dumps([dict(release, draft=False, prerelease=True)] if "/releases?" in url else release).encode()
             return {"u/zip": data, "u/sums": (hashlib.sha256(data).hexdigest() + "  " + name + "\n").encode()}[url]
         items = {i["id"]: i for i in tp.load_manifest(self.kit)}
         new_server = os.path.join(self.tmp, "newserver")

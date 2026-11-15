@@ -166,6 +166,150 @@ def list_plugins(ashita_dir):
     return out
 
 
+# ---------- what an addon or plugin is (for the Addons page) ----------
+OWN_ADDONS = {"gambits", "followme", "servermenu", "squadpanel", "crystalboy"}
+PLUGIN_NOTES = {"addons": "Runs Lua addons (keep this on).", "thirdparty": "Lets third-party plugins load.",
+                "screenshot": "Screenshots without the interface.", "minimap": "A minimap on screen.",
+                "hardwaremouse": "Hardware mouse cursor.", "toon": "Cel-shaded look.", "winefix": "Fixes for Wine (Linux).",
+                "xiuiplus": "XIUIplus: the party list, target bar and other windows (alpha).",
+                "nameplate": "Clearer name plates.", "movement": "Movement helper used by AutoBot."}
+
+
+def addon_info(ashita_dir, name):
+    """name, version, author and description from the addon's own lua file (addon.version = '...' and so on)."""
+    info = {"name": name, "version": "", "author": "", "desc": ""}
+    path = os.path.join(ashita_dir, "addons", name, name + ".lua")
+    if not os.path.exists(path):
+        folder = os.path.join(ashita_dir, "addons", name)
+        hits = [f for f in os.listdir(folder) if f.lower() == name.lower() + ".lua"] if os.path.isdir(folder) else []
+        path = os.path.join(folder, hits[0]) if hits else path
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            head = handle.read(30000)
+    except OSError:
+        return info
+    for key, field in (("version", "version"), ("author", "author"), ("desc", "desc")):
+        found = re.search(r"addon\.%s\s*=\s*(['\"])(.*?)\1" % field, head)
+        if found:
+            info[key] = found.group(2).strip()
+    return info
+
+
+def item_origin(kind, name, thirdparty_ids=(), added=()):
+    """Where it comes from, for the Addons page: ours, a third-party download, one the player added, or Ashita's own."""
+    low = name.lower()
+    if kind == "addon" and low in OWN_ADDONS:
+        return "XI: Forever Offline"
+    if low in {t.lower() for t in added}:
+        return "added by you"
+    if low in {t.lower() for t in thirdparty_ids}:
+        return "download"
+    return "Ashita"
+
+
+def added_items(kit_dir):
+    """Names the player added with 'Add addon or plugin' (kept in added-addons.json in the kit folder)."""
+    try:
+        with open(os.path.join(kit_dir, "added-addons.json"), encoding="utf-8") as handle:
+            return set(json.load(handle))
+    except (OSError, ValueError):
+        return set()
+
+
+def remember_added(kit_dir, names):
+    have = added_items(kit_dir) | set(names)
+    with open(os.path.join(kit_dir, "added-addons.json"), "w", encoding="utf-8") as handle:
+        json.dump(sorted(have), handle, indent=1)
+
+
+def _backup(path, backups, name):
+    stamp = __import__("time").strftime("%Y%m%d-%H%M%S")
+    dest = os.path.join(backups, f"{name}-{stamp}")
+    os.makedirs(backups, exist_ok=True)
+    if os.path.isdir(path):
+        shutil.copytree(path, dest)
+    else:
+        shutil.copy2(path, dest + os.path.splitext(path)[1])
+    return dest
+
+
+def install_user_item(ashita_dir, source, backups):
+    """Adds an addon or plugin the player chose: a plugin .dll, an addon folder (with <name>.lua in it), or a .zip holding
+    either (also the usual 'addons/<name>/...' and 'plugins/x.dll' layouts, under one top folder or not). Anything it
+    replaces is copied to backups first. Returns [(kind, name)] of what was installed."""
+    import tempfile
+    import zipfile
+    installed = []
+    work = None
+    try:
+        if source.lower().endswith(".zip"):
+            work = tempfile.mkdtemp(prefix="xifo-addon-")
+            with zipfile.ZipFile(source) as archive:
+                for info in archive.infolist():
+                    parts = info.filename.replace("\\", "/").split("/")
+                    if ".." in parts or info.filename.startswith(("/", "\\")) or ":" in info.filename:
+                        raise RuntimeError("That zip has a file outside its own folders - not installed.")
+                archive.extractall(work)
+            root = work
+            entries = [e for e in os.listdir(root) if not e.startswith((".", "__MACOSX"))]
+            if len(entries) == 1 and os.path.isdir(os.path.join(root, entries[0])) and not _is_addon(os.path.join(root, entries[0])):
+                root = os.path.join(root, entries[0])          # one top folder around everything (a GitHub "main" zip)
+            candidates = [root]
+        else:
+            candidates = [source]
+        for base in candidates:
+            if os.path.isfile(base) and base.lower().endswith(".dll"):
+                installed.append(_put(ashita_dir, "plugin", base, backups))
+                continue
+            if _is_addon(base):
+                installed.append(_put(ashita_dir, "addon", base, backups))
+                continue
+            for folder, kind in (("addons", "addon"), ("plugins", "plugin")):
+                sub = os.path.join(base, folder)
+                if not os.path.isdir(sub):
+                    continue
+                for entry in sorted(os.listdir(sub)):
+                    path = os.path.join(sub, entry)
+                    if kind == "addon" and _is_addon(path):
+                        installed.append(_put(ashita_dir, "addon", path, backups))
+                    elif kind == "plugin" and entry.lower().endswith(".dll"):
+                        installed.append(_put(ashita_dir, "plugin", path, backups))
+            if not installed and os.path.isdir(base):     # loose: addon folders or dlls straight inside
+                for entry in sorted(os.listdir(base)):
+                    path = os.path.join(base, entry)
+                    if _is_addon(path):
+                        installed.append(_put(ashita_dir, "addon", path, backups))
+                    elif entry.lower().endswith(".dll"):
+                        installed.append(_put(ashita_dir, "plugin", path, backups))
+    finally:
+        if work:
+            shutil.rmtree(work, ignore_errors=True)
+    if not installed:
+        raise RuntimeError("No addon (a folder with <name>.lua in it) or plugin (.dll) was found there.")
+    return installed
+
+
+def _is_addon(path):
+    name = os.path.basename(path.rstrip("/\\"))
+    return os.path.isdir(path) and any(f.lower() == name.lower() + ".lua" for f in os.listdir(path))
+
+
+def _put(ashita_dir, kind, path, backups):
+    name = os.path.basename(path.rstrip("/\\"))
+    if kind == "addon":
+        dest = os.path.join(ashita_dir, "addons", name)
+        if os.path.exists(dest):
+            _backup(dest, backups, "addon-" + name)
+        shutil.copytree(path, dest, dirs_exist_ok=True)
+        return ("addon", name)
+    dest = os.path.join(ashita_dir, "plugins", name)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    if os.path.exists(dest):
+        _backup(dest, backups, "plugin-" + name[:-4])
+    shutil.copy2(path, dest)
+    return ("plugin", name[:-4])
+
+
 class ScriptManager:
     """Owns scripts\\xiforever.txt (phoenixsolo.txt on older installs). The first time, it copies your boot script into it and points the
     boot .ini at it; after that, toggling an addon adds/removes its '/addon load' line."""

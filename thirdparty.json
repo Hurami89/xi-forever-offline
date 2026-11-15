@@ -40,7 +40,8 @@
         "repo": "Hurami89/xi-forever-offline-server",
         "tag": "latest",
         "asset": "^xi-forever-offline-server-.+-win64\\.zip$",
-        "sha256sums": "SHA256SUMS.txt"
+        "sha256sums": "SHA256SUMS.txt",
+        "prereleases": true
       },
       "files": [
         [

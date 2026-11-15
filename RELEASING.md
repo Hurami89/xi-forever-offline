@@ -1,31 +1,37 @@
 # Making a release
 
-Players get two things from GitHub releases: the server package (repo `xi-forever-offline-server`) and the launcher
-(repo `xi-forever-offline`). The first-run setup downloads the newest server release by itself.
+Players only get what you publish. Your own changes and the Phoenix updates you pull reach them when you publish a new
+version; their launcher then offers it (Settings > Updates, and a question when it starts). Test builds (pre-releases)
+only reach players who switched on "Get test builds".
 
-## Server
-1. Commit everything in the server folder, then build it (`Rebuild server.bat`).
-2. Make the package (in the kit folder; `--list` first shows what goes in):
-   ```powershell
-   cd C:\FFXISOLO
-   python package_server.py v0.1.0 --list
-   python package_server.py v0.1.0
-   ```
-   It writes `dist\xi-forever-offline-server-v0.1.0-win64.zip` and `dist\SHA256SUMS.txt`. Only files git tracks go in
-   (plus the navmeshes and ximeshes submodules); never backups, logs, crash dumps, this PC's settings or the
-   `.cert`/`.key` files (the server makes its own on first start).
-3. Tag the commit and publish it as the `release` branch (your `beta` branch keeps following Phoenix):
-   ```powershell
-   cd C:\ffxi-local\server
-   git tag -a v0.1.0 -m "XI: Forever Offline server v0.1.0"
-   git push xiforever HEAD:refs/heads/release
-   git push xiforever v0.1.0
-   ```
-4. On GitHub, xi-forever-offline-server > Releases > Draft a new release: choose the tag, attach both files from `dist\`, publish.
+## The easy way: the launcher
+Commit and push your work (kit and server), rebuild the server if C++ changed (`Rebuild server.bat`), close the game,
+then Settings > **Publish update...**. It shows the next version, release notes from your commit messages and anything
+not ready yet, and after you confirm it:
+1. builds `XI Forever Offline.exe` (`build_release.ps1`, in its own Python environment),
+2. makes `dist\xi-forever-offline-server-<v>-win64.zip` (`package_server.py`) and `dist\kit\xi-forever-offline-<v>-win64.zip` (`package_kit.py`), each with a SHA256SUMS.txt,
+3. tags both repos `<v>` and pushes the tags and the server's `release` branch,
+4. creates both GitHub releases as drafts, uploads the files, then publishes them (using the GitHub sign-in Git keeps on this PC).
 
-## Launcher
-1. Commit and push the kit, then build the exe: `.\build_release.ps1`.
-2. Tag it (`git tag -a v0.1.0 -m "..."`, `git push origin v0.1.0`) and attach `XI Forever Offline.exe` to a release
-   of xi-forever-offline.
+## By hand
+```powershell
+cd C:\FFXISOLO
+.\build_release.ps1
+python package_server.py v0.1.1
+python package_kit.py v0.1.1
+cd C:\ffxi-local\server
+git tag -a v0.1.1 -m "XI: Forever Offline v0.1.1"
+git push xiforever HEAD:refs/heads/release
+git push xiforever v0.1.1
+cd C:\FFXISOLO
+git tag -a v0.1.1 -m "XI: Forever Offline v0.1.1"
+git push origin v0.1.1
+```
+Then on GitHub: **Save draft first, upload the files, then Publish** (uploading on an unsaved form makes a separate draft).
+Server release: the server zip + `dist\SHA256SUMS.txt`. Launcher release: `dist\kit\` zip + `dist\kit\SHA256SUMS.txt`.
 
-While the repos are private, players cannot download either release.
+## What players download
+`xi-forever-offline-<v>-win64.zip`: unzip anywhere, run `XI Forever Offline.exe`. The first-run setup downloads the
+server and everything else.
+
+While the repos are private, players cannot download anything.
