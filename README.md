@@ -1,10 +1,14 @@
 # XI: Forever Offline
 
+![XI: Forever Offline](assets/promo/hero-1920x1080.jpg)
+
+**[Download the latest version](https://github.com/Hurami89/xi-forever-offline/releases/latest/download/XI-Forever-Offline.zip)**  ·  **[Discord](https://discord.gg/2bh3QYPptz)**  ·  [All releases](https://github.com/Hurami89/xi-forever-offline/releases)
+
 An offline, single-player take on classic-era FINAL FANTASY XI. Each player runs the whole world on their own PC:
 a 75-era server based on [Phoenix](https://github.com/phoenixffxi/Phoenix) (a fork of LandSandBoat), a launcher,
 and Ashita addons.
 
-> **Status: in development. Not released yet.** Nothing here is ready for players.
+> **Status: early release.** Expect rough edges; please report bugs in the Discord's #bug-reports forum.
 
 ## What it adds
 - **Squad**: up to six persistent party members with their own jobs, levels, gear and roles, controlled by their own AI.
@@ -19,7 +23,11 @@ and Ashita addons.
 - A legitimately installed FINAL FANTASY XI client. This project does not include or distribute any game files.
 - Windows 10 or 11.
 
-Install steps, prebuilt downloads and a first-run setup will come with the first release.
+## Install
+1. Download `XI-Forever-Offline.zip` (link above).
+2. Unzip it anywhere, for example `C:\XIForeverOffline`.
+3. Run `XI Forever Offline.exe` and follow the setup. It finds your game, then downloads Ashita, the server, a small
+   database and the add-ons you pick, all from their official sources.
 
 ## Repositories
 - `xi-forever-offline`: the launcher, tools, addons and art (this repository).
