@@ -517,6 +517,25 @@ RATE_PRESETS = {
              "map.CRAFT_HQ_CHANCE_MULTIPLIER": 1.5, "map.FISHING_SKILL_MULTIPLIER": 4.0},
 }
 
+# Player installs (first-run setup) only see the options that fit this era project. The rest stay at their era values
+# (the RATE_DEFAULTS above): level cap 75, everything after Aht Urhgan off, switched-off content hidden, no Trust quests
+# or Gobbie Mystery Box, the Harvest Festival as set, and the Aht Urhgan-era exp tables on. The dev launcher shows all of it.
+PLAYER_HIDDEN_RATES = {"map.CAPACITY_RATE", "main.SPARKS_RATE", "main.MAX_LEVEL", "main.ENABLE_WOTG", "main.ENABLE_ACP",
+                       "main.ENABLE_AMK", "main.ENABLE_ASA", "main.ENABLE_ABYSSEA", "main.ENABLE_SOA", "main.ENABLE_ROV",
+                       "main.ENABLE_VOIDWATCH", "main.ENABLE_TVR", "main.RESTRICT_CONTENT", "main.ENABLE_TRUST_QUESTS",
+                       "main.ENABLE_DAILY_TALLY", "main.HALLOWEEN_2005"}
+RATE_PRESETS["Era default"] = {}
+PLAYER_RATE_PRESETS = ["Era default", "Relaxed solo", "Fast"]
+
+
+def lock_player_rates(rates):
+    """A player's rates with the hidden options back at their era values (a preset or an old rates.json can't change them)."""
+    out = dict(rates)
+    for key in PLAYER_HIDDEN_RATES:
+        out[key] = RATE_DEFAULTS[key]
+    out["era_exp"] = True
+    return out
+
 
 def rates_path(here):
     return os.path.join(here, "rates.json")

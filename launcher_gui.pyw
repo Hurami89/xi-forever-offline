@@ -1325,13 +1325,14 @@ class ImageButton(tk.Canvas):
 class RatesTab(tk.Frame):
     """Experience, drop, gil and skill-up rates, the level cap and a few switches. Read when PLAY is pressed."""
 
-    def __init__(self, parent, rates):
+    def __init__(self, parent, rates, player=False):
         super().__init__(parent, bg=BG)
-        self.vars, self.rates = {}, rates
+        self.vars, self.rates, self.player = {}, rates, player      # player: a player install shows only the era options
         top = tk.Frame(self, bg=BG)
         top.pack(fill="x", padx=10, pady=(10, 4))
         tk.Label(top, text="Preset:", bg=BG, fg=FG).pack(side="left")
-        self.preset = ttk.Combobox(top, values=list(core.RATE_PRESETS), state="readonly", width=22)
+        self.preset = ttk.Combobox(top, values=core.PLAYER_RATE_PRESETS if player else [p for p in core.RATE_PRESETS if p != "Era default"],
+                                   state="readonly", width=22)
         self.preset.pack(side="left", padx=6)
         tk.Button(top, text="Fill in preset", command=self.fill_preset, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left")
         world = tk.Frame(self, bg=BG)
@@ -1362,12 +1363,17 @@ class RatesTab(tk.Frame):
         canvas.pack(side="left", fill="both", expand=True)
         bar.pack(side="right", fill="y")
 
-        for i, field in enumerate(core.RATE_FIELDS):
-            tk.Label(inner, text=field[3], bg=BG, fg=FG, anchor="w", width=38).grid(row=i, column=0, sticky="w", padx=6, pady=2)
-            var = tk.StringVar(value=str(rates.get(field[0], field[4])))
-            ttk.Spinbox(inner, from_=field[5], to=field[6], increment=1 if field[7] == "int" else 0.25,
-                        textvariable=var, width=8).grid(row=i, column=1, padx=6, pady=2)
+        row = 0
+        for field in core.RATE_FIELDS:
+            hidden = player and field[0] in core.PLAYER_HIDDEN_RATES
+            var = tk.StringVar(value=str(field[4] if hidden else rates.get(field[0], field[4])))
             self.vars[field[0]] = var
+            if hidden:
+                continue
+            tk.Label(inner, text=field[3], bg=BG, fg=FG, anchor="w", width=38).grid(row=row, column=0, sticky="w", padx=6, pady=2)
+            ttk.Spinbox(inner, from_=field[5], to=field[6], increment=1 if field[7] == "int" else 0.25,
+                        textvariable=var, width=8).grid(row=row, column=1, padx=6, pady=2)
+            row += 1
         n = len(core.RATE_FIELDS)
         self.all_crafts = tk.BooleanVar(value=rates.get("all_crafts", True))
         tk.Checkbutton(inner, text="Every craft can reach 100 (off = only one, like the retail rule)", variable=self.all_crafts, bg=BG, fg=FG,
@@ -1375,10 +1381,12 @@ class RatesTab(tk.Frame):
         self.ah_sim = tk.BooleanVar(value=rates.get("ah_sim", False))
         tk.Checkbutton(inner, text="Auction house simulator (stocks the auction house, buys what you list)", variable=self.ah_sim, bg=BG, fg=FG,
                        selectcolor=PANEL, activebackground=BG, activeforeground=FG).grid(row=n + 1, column=0, columnspan=2, sticky="w", padx=6, pady=2)
-        self.era_exp = tk.BooleanVar(value=rates.get("era_exp", True))
-        tk.Checkbutton(inner, text="Aht Urhgan-era experience tables (kill exp and per-monster cap). Keep 'Experience from monsters' at 1.0 with this on.",
-                       variable=self.era_exp, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
-                       wraplength=520, justify="left").grid(row=n + 2, column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        self.era_exp = tk.BooleanVar(value=True if player else rates.get("era_exp", True))
+        era_box = tk.Checkbutton(inner, text="Aht Urhgan-era experience tables (kill exp and per-monster cap). Keep 'Experience from monsters' at 1.0 with this on.",
+                                 variable=self.era_exp, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                                 wraplength=520, justify="left")
+        if not player:                                   # players always have the era tables
+            era_box.grid(row=n + 2, column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.conquest_sim = tk.BooleanVar(value=rates.get("conquest_sim", True))
         tk.Checkbutton(inner, text="Conquest simulator: the other nations and the beastmen act while you are away, so regions can change hands",
                        variable=self.conquest_sim, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
@@ -1404,13 +1412,14 @@ class RatesTab(tk.Frame):
                        variable=self.crowds_chat_ai, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=n + 8, column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.crowds_field = tk.BooleanVar(value=rates.get("crowds_field", True))
-        tk.Checkbutton(inner, text="Field parties: adventurer parties camping and fighting monsters out in the field (away from you)",
-                       variable=self.crowds_field, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
-                       wraplength=520, justify="left").grid(row=n + 9, column=0, columnspan=2, sticky="w", padx=6, pady=2)
-        tk.Label(inner, text="Field parties per area (0-3)", bg=BG, fg=FG, anchor="w", width=38).grid(
-            row=n + 10, column=0, sticky="w", padx=6, pady=2)
         self.crowds_field_parties = tk.StringVar(value=str(rates.get("crowds_field_parties", 1)))
-        ttk.Spinbox(inner, from_=0, to=3, increment=1, textvariable=self.crowds_field_parties, width=8).grid(row=n + 10, column=1, padx=6, pady=2)
+        if not player:                                   # players get field parties from their world choice
+            tk.Checkbutton(inner, text="Field parties: adventurer parties camping and fighting monsters out in the field (away from you)",
+                           variable=self.crowds_field, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                           wraplength=520, justify="left").grid(row=n + 9, column=0, columnspan=2, sticky="w", padx=6, pady=2)
+            tk.Label(inner, text="Field parties per area (0-3)", bg=BG, fg=FG, anchor="w", width=38).grid(
+                row=n + 10, column=0, sticky="w", padx=6, pady=2)
+            ttk.Spinbox(inner, from_=0, to=3, increment=1, textvariable=self.crowds_field_parties, width=8).grid(row=n + 10, column=1, padx=6, pady=2)
         self.bots = tk.BooleanVar(value=rates.get("bots", True))
         tk.Checkbutton(inner, text="Bot players: real characters (no game window) living in the nation towns - /sea, /check, invite them",
                        variable=self.bots, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
@@ -1494,7 +1503,7 @@ class RatesTab(tk.Frame):
                 rates[key] = default
         rates["squad_chat"] = bool(self.squad_chat.get())
         rates["claim_shield"] = False
-        return rates
+        return core.lock_player_rates(rates) if self.player else rates
 
 
 class GraphicsTab(tk.Frame):
@@ -2273,7 +2282,8 @@ class App(tk.Tk):
         self.update_btn = self.ui_button(actions, "update", self.check_updates, "UPDATE")
         self.update_btn.pack(side="left", padx=6)
         self.logs_btn = self.ui_button(actions, "logs", self.toggle_details, "LOGS")
-        self.logs_btn.pack(side="left", padx=6)
+        if not self.cfg.get("mariadb_dir"):              # players don't need the server log; the status line says what happens
+            self.logs_btn.pack(side="left", padx=6)
 
         # Squad tab
         self.squad_tab = None
@@ -2289,7 +2299,7 @@ class App(tk.Tk):
             self.add_note(tabs, "Squad", "The Squad tab needs db_user, db_pass and db_name in config.json.")
 
         # Rates tab
-        self.rates_tab = RatesTab(tabs, self.rates)
+        self.rates_tab = RatesTab(tabs, self.rates, player=bool(self.cfg.get("mariadb_dir")))
         tabs.add(self.rates_tab, text="  Rates  ")
 
         # Graphics tab (needs the Ashita boot file)
