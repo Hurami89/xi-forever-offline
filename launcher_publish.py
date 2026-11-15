@@ -15,6 +15,10 @@ KIT_REPO = "Hurami89/xi-forever-offline"
 SERVER_REPO = "Hurami89/xi-forever-offline-server"
 API = "https://api.github.com/repos/"
 UPLOADS = "https://uploads.github.com/repos/"
+# The one-click download (Discord, website): GitHub always serves the newest full release's file under this name at
+# https://github.com/Hurami89/xi-forever-offline/releases/latest/download/XI-Forever-Offline.zip
+ONE_CLICK_NAME = "XI-Forever-Offline.zip"
+ONE_CLICK_URL = f"https://github.com/{KIT_REPO}/releases/latest/download/{ONE_CLICK_NAME}"
 NO_WINDOW = 0x08000000
 
 
@@ -103,8 +107,8 @@ def make_release(repo, tag, title, notes, prerelease, files, token, log=print, o
     """Creates the release as a draft, uploads the files, then publishes it (so players never see a half-made one)."""
     release = opener("POST", API + repo + "/releases", token, {"tag_name": tag, "name": title, "body": notes,
                                                              "draft": True, "prerelease": bool(prerelease)})
-    for path in files:
-        name = os.path.basename(path).replace(" ", ".")
+    for item in files:                               # a path, or (path, name to upload it as)
+        path, name = item if isinstance(item, tuple) else (item, os.path.basename(item).replace(" ", "."))
         log(f"Uploading {name} ({os.path.getsize(path) / 1e6:.0f} MB)...")
         with open(path, "rb") as handle:
             opener("POST", f"{UPLOADS}{repo}/releases/{release['id']}/assets?name={urllib.request.quote(name)}", token,
@@ -148,5 +152,6 @@ def publish(kit, server, version, notes, prerelease, log=print, run=subprocess.r
         make_release(SERVER_REPO, version, f"XI: Forever Offline server {version}", notes, prerelease,
                      [os.path.join(dist, f"xi-forever-offline-server-{version}-win64.zip"), os.path.join(dist, "SHA256SUMS.txt")], token, log)
         make_release(KIT_REPO, version, f"XI: Forever Offline {version}", notes, prerelease,
-                     [os.path.join(dist, "kit", f"xi-forever-offline-{version}-win64.zip"), os.path.join(dist, "kit", "SHA256SUMS.txt")], token, log)
+                     [os.path.join(dist, "kit", f"xi-forever-offline-{version}-win64.zip"), os.path.join(dist, "kit", "SHA256SUMS.txt"),
+                      (os.path.join(dist, "kit", f"xi-forever-offline-{version}-win64.zip"), ONE_CLICK_NAME)], token, log)
     log(f"Done: {version} is published. Players' launchers will offer it" + (" to testers (test build)." if prerelease else "."))
