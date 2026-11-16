@@ -34,7 +34,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.10';
+addon.version = '1.11';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -290,6 +290,8 @@ local function onLine(payload)
         S.incomingEngage = nil;
         S.opts = S.incomingOpts or {};
         S.incomingOpts = nil;
+        S.adv = S.incomingAdv;                  -- (nil from an older server: the Advanced button stays hidden)
+        S.incomingAdv = nil;
         -- the second window holds the camp too: no following while a camp is set
         local hold = S.camp ~= nil and S.camp.on == true;
         if hold ~= S.duoHold then
@@ -304,6 +306,17 @@ local function onLine(payload)
     -- (squad.lua for servermenu 1.10) engage|<1 first> and opt|<slot>|<size 0-3>|<ws TP, 0 chain>|<WS or ->|<range 0-3>|<usable WS or ->
     local engage = payload:match('^engage|([01])$');
     if engage then S.incomingEngage = engage == '1' and 'first' or 'normal'; return; end
+    -- (squad.lua for servermenu 1.11) adv|<follow 0-2>|<camp rest 1/0>|<order digits or -> and delay|<slot>|<seconds>
+    local afollow, arest, aorder = payload:match('^adv|(%d)|([01])|([%d-]+)$');
+    if afollow then
+        S.incomingAdv = { follow = tonumber(afollow), rest = arest == '1', order = aorder ~= '-' and aorder or nil, delay = {} };
+        return;
+    end
+    local dslot, dsecs = payload:match('^delay|(%d+)|(%d+)$');
+    if dslot then
+        if S.incomingAdv then S.incomingAdv.delay[tonumber(dslot)] = tonumber(dsecs); end
+        return;
+    end
     local oslot, osize, otp, ows, orange, olist = payload:match('^opt|(%d+)|(%d+)|(%d+)|([^|]+)|(%d+)|(.*)$');
     if oslot then
         local list = {};
@@ -859,6 +872,81 @@ local function sizeRow(mate, opt)
     tooltip('His body size. It can be set only once, so pick carefully.');
 end
 
+-- ---------------------------------------------------------------- Advanced (follow distance, camp rest, call order, engage delay)
+local FOLLOWS = { 'close', 'normal', 'far' };
+local FOLLOW_HELP = {
+    close  = 'Mates stay right behind you',
+    normal = 'The usual distance',
+    far    = 'Mates follow from further back (handy in narrow tunnels and when you pull)',
+};
+local FOLLOW_OF = { [0] = 'normal', [1] = 'close', [2] = 'far' };
+local DELAYS = { '0', '1', '2', '3', '4', '5', '6', '8', '10' };
+
+-- the mates in "call all" order (the server's order digits; slots it doesn't list come after, in slot order)
+local function orderedMates()
+    local rank = {};
+    local i = 0;
+    for d in tostring((S.adv and S.adv.order) or ''):gmatch('%d') do
+        i = i + 1;
+        rank[tonumber(d)] = rank[tonumber(d)] or i;
+    end
+    local list = {};
+    for k, mate in ipairs(S.mates) do list[k] = mate; end
+    table.sort(list, function(a, b) return (rank[a.slot] or (100 + a.slot)) < (rank[b.slot] or (100 + b.slot)); end);
+    return list;
+end
+
+local function advancedPanel()
+    local adv = S.adv;
+    local open, began = beginChild('##sm_advanced', 0, 92, true, true);
+    if open then
+        dimText('Follow'); imgui.SameLine(0, 8);
+        local follow = combo('advfollow', FOLLOW_OF[adv.follow] or 'normal', FOLLOWS, 100, FOLLOW_HELP);
+        if follow then
+            enqueue('/say !squad follow ' .. follow);
+            for k, v in pairs(FOLLOW_OF) do if v == follow then adv.follow = k; end end
+            ask(1.5);
+        end
+        imgui.SameLine(0, 18);
+        if button(adv.rest and 'Rest at camp: on' or 'Rest at camp: off', 'advrest', 140, 0, adv.rest and 'on' or nil) then
+            enqueue('/say !squad camp rest ' .. (adv.rest and 'off' or 'on'));
+            adv.rest = not adv.rest;
+            ask(1.5);
+        end
+        tooltip('With a camp set, mates sit and rest between fights while the pull is out');
+
+        gap(2);
+        dimText('Call order'); imgui.SameLine(0, 8);
+        local list = orderedMates();
+        for i, mate in ipairs(list) do
+            if i > 1 then
+                imgui.SameLine(0, 4);
+                if button('<', 'advup' .. mate.slot, 22, 0) then
+                    list[i - 1], list[i] = list[i], list[i - 1];
+                    local code = {};
+                    for _, m in ipairs(list) do code[#code + 1] = tostring(m.slot); end
+                    enqueue('/say !squad order ' .. table.concat(code, ','));
+                    adv.order = table.concat(code, '');
+                    ask(1.5);
+                end
+                tooltip('Move ' .. mate.name .. ' earlier');
+                imgui.SameLine(0, 4);
+            end
+            colorText(C.text, mate.name);
+        end
+        imgui.SameLine(0, 12);
+        if button('Reset', 'advorderreset', 56, 0) then
+            enqueue('/say !squad order reset');
+            adv.order = nil;
+            ask(1.5);
+        end
+        tooltip('"Call all" brings them out in slot order again');
+        dimText('Each mate\'s "Wait" (on its card) is how many seconds it holds back when a fight starts, so the tank gets hate first.');
+    end
+    endChild(began);
+    gap(2);
+end
+
 local function squadTab()
     if button('Call all', 'callall', 92, 26) then enqueue('/say !squad call all'); ask(3); end
     tooltip('Bring every squad mate out, one after another');
@@ -877,8 +965,17 @@ local function squadTab()
         tooltip(first and 'Your mates attack a monster as soon as you or any of them is fighting it (click: wait for you)'
             or 'Your mates attack when you do (click: they may start the fight before you swing)');
     end
+    if S.adv then
+        imgui.SameLine(0, 6);
+        if button('Advanced', 'advanced', 92, 26, S.showAdvanced and 'selected' or nil) then S.showAdvanced = not S.showAdvanced; end
+        tooltip('Follow distance, resting at camp, call order and each mate\'s wait before fighting');
+    end
     imgui.SameLine(0, 14);
     dimText(#S.mates == 1 and '1 mate' or (#S.mates .. ' mates'));
+    if S.adv and S.showAdvanced then
+        gap(2);
+        advancedPanel();
+    end
 
     if S.pendingApply then
         gap(2);
@@ -901,6 +998,8 @@ local function squadTab()
             local opt = S.opts and S.opts[mate.slot];
             local height = S.more[mate.slot] and 128 or 88;
             if opt then height = height + 26 + ((S.more[mate.slot] and opt.size == 0) and 26 or 0); end
+            local waitSecs = S.showAdvanced and S.adv and S.adv.delay[mate.slot];
+            if waitSecs then height = height + 26; end
             local cardOpen, cardBegan = beginChild('##sm_mate' .. mate.slot, 0, height, true, true);
             if cardOpen then
                 colorText(C.gold, mate.name);
@@ -932,6 +1031,17 @@ local function squadTab()
                 if opt then
                     gap(2);
                     styleRow(mate, opt);
+                end
+                if waitSecs then
+                    gap(2);
+                    dimText('Wait '); imgui.SameLine(0, 8);
+                    local w = combo('wait' .. mate.slot, tostring(waitSecs), DELAYS, 70);
+                    if w then
+                        changeMate(mate, 'delay', w);
+                        S.adv.delay[mate.slot] = tonumber(w);
+                    end
+                    imgui.SameLine(0, 8);
+                    dimText('seconds before joining a fight');
                 end
 
                 if S.more[mate.slot] then
