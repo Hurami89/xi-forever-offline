@@ -93,6 +93,27 @@ class GameTests(unittest.TestCase):
             reg.set(p, n, v)
         self.assertFalse(lg.needs_switch(self.cfg, reg))
 
+    def test_every_language_key_follows_the_copy(self):
+        # an EU install (or a second install under another language) left Ashita and FFXi.dll on the retail folder
+        us = r"SOFTWARE\PlayOnlineUS\InstallFolder"
+        eu = r"SOFTWARE\PlayOnlineEU\InstallFolder"
+        jp = r"SOFTWARE\PlayOnline\InstallFolder"
+        reg = FakeReg({(eu, "0001"): RETAIL_F, (eu, "1000"): RETAIL_V, (us, "0001"): r"C:\Other\FINAL FANTASY XI"})
+        want = dict(((p, n), v) for p, n, v in lg.entries("EU", self.copy["viewer"], self.copy["ffxi"], reg))
+        for key in (eu, us):
+            self.assertEqual(want[(key, "0001")], self.copy["ffxi"])
+            self.assertEqual(want[(key, "1000")], self.copy["viewer"])
+        self.assertNotIn((jp, "0001"), want)                  # JP doesn't exist here: not created
+        state = os.path.join(self.kit, lg.STATE_FILE)
+        with open(state, "w", encoding="utf-8") as handle:
+            json.dump({"lang": "EU", "viewer": self.copy["viewer"], "ffxi": self.copy["ffxi"]}, handle)
+        seen = []
+        lg.hold(state, reg, lambda: (seen.append(reg.get(us, "0001")) or len(seen) < 2), sleep=lambda s: None)
+        self.assertEqual(seen[0], self.copy["ffxi"])
+        self.assertEqual(reg.get(us, "0001"), r"C:\Other\FINAL FANTASY XI")   # put back
+        self.assertIsNone(reg.get(us, "1000"))                             # created only for the game: removed again
+        self.assertEqual(reg.get(eu, "0001"), RETAIL_F)
+
     def _touch(self, *parts):
         path = os.path.join(*parts)
         os.makedirs(os.path.dirname(path), exist_ok=True)

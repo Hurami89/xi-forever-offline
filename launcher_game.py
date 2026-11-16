@@ -112,6 +112,17 @@ def entries(lang, viewer, ffxi, reg):
     polcore_path = _moved(reg.get(polcore, ""), reg.get(folder, "1000"), viewer, POLCORE_DLL[lang])
     game_path = _moved(reg.get(game, ""), reg.get(folder, "0001"), ffxi, FFXI_DLL)
     want = [(folder, "0001", ffxi), (folder, "1000", viewer), (polcore, "", polcore_path), (game, "", game_path)]
+    # The other PlayOnline language keys too: FFXi.dll tries PlayOnline (JP), then PlayOnlineUS, then PlayOnlineEU, and
+    # Ashita reads the English one (its boot file says playonline = 2). With an EU install, or a second install
+    # registered under another language, Ashita and the game found the retail folder (Miniberg, datadecay, 2026-11-16:
+    # the game closed ~20 s after "Profile loaded."; Ashita's log showed the retail path). PlayOnlineUS is always
+    # pointed at the copy; JP and EU only when they exist. Put back (or removed again) after the game closes.
+    for other_lang, key in LANG_KEY.items():
+        other = rf"SOFTWARE\{key}\InstallFolder"
+        if other == folder:
+            continue
+        if key == "PlayOnlineUS" or reg.get(other, "0001") is not None or reg.get(other, "1000") is not None:
+            want += [(other, "0001", ffxi), (other, "1000", viewer)]
     # Every other COM class of the game or PlayOnline follows too. FFXi.dll itself creates FFXiMain.dll through COM
     # ({0DF0E951-...}): pointing only FFXi.dll at the copy left the game's main file (and so its menus, item data
     # and event files) loading from the retail install (shujimi, 2026-11-16: crash in the retail FFXiMain.dll).
