@@ -791,7 +791,8 @@ class SquadTab(tk.Frame):
             tk.Label(grid, text=job, bg=BG, fg=FG, width=5, anchor="w").grid(row=r, column=col, pady=2)
             var = tk.IntVar(value=1)
             self.level_vars[i + 1] = var
-            spin = tk.Spinbox(grid, from_=1, to=sq.MAX_LEVEL, width=4, textvariable=var, bg=PANEL, fg=FG, relief="flat")
+            spin = tk.Spinbox(grid, from_=1, to=sq.MAX_LEVEL, width=4, textvariable=var, bg=PANEL, fg=FG, relief="flat",
+                              state="disabled" if self.player else "normal")     # players: levels are earned (and set when a mate is made)
             spin.grid(row=r, column=col + 1, padx=4)
             self.level_spins[i + 1] = spin
             exp = tk.Label(grid, text="", bg=BG, fg=DIM, width=10, anchor="w")
@@ -1227,14 +1228,29 @@ class SquadTab(tk.Frame):
                 return
             if not (name.isalpha() and 3 <= len(name) <= 15):
                 raise ValueError("The name must be 3-15 letters, no spaces or numbers.")
-            new_id = sq.create_mate(self.conn, charid, name, 1, 1)
+            job = simpledialog.askstring("New squad mate", f"Job for {name} (e.g. WAR, WHM, BLM):", initialvalue="WAR", parent=self)
+            if job is None:
+                return
+            job = job.strip().upper()
+            if job not in sq.JOBS:
+                raise ValueError("Unknown job. Jobs: " + " ".join(sq.JOBS))
+            top = sq.new_mate_max_level(self.conn, charid) if self.player else sq.MAX_LEVEL
+            level = 1
+            if top > 1:
+                level = simpledialog.askinteger("New squad mate", f"Starting level for {name} (1-{top}; after that "
+                                                f"they level up by fighting with you):", initialvalue=top,
+                                                minvalue=1, maxvalue=top, parent=self)
+                if level is None:
+                    return
+            job_id = sq.JOBS.index(job) + 1
+            new_id = sq.create_mate(self.conn, charid, name, job_id, level)
             if lp is not None:                    # squad chat writes their personality, as it does for !squad new
                 try:
-                    lp.request_ai_sheet(HERE, name, 1, "WAR", 1)
+                    lp.request_ai_sheet(HERE, name, 1, job, level)
                 except Exception:
                     pass
             self.load_squad(new_id)
-            self.say(f"Created {name} as a level 1 WAR. Change the job, levels and gear on the right.")
+            self.say(f"Created {name} as a level {level} {job}. Set their look and gear on the right.")
         self.guard(go)
 
     def delete_mate(self):

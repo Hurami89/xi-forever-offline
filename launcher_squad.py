@@ -245,6 +245,18 @@ def create_mate(conn, charid, name, job, level):
     return mate_id
 
 
+NEW_MATE_MAX_LEVEL = 12      # same as squad.lua: a new mate may start at up to this level, never above the character
+
+
+def char_level(conn, charid):
+    rows = _all(conn, "SELECT mlvl FROM char_stats WHERE charid = ?", (charid,))
+    return int(rows[0][0]) if rows and rows[0][0] is not None else 1
+
+
+def new_mate_max_level(conn, charid):
+    return max(1, min(NEW_MATE_MAX_LEVEL, char_level(conn, charid)))
+
+
 def delete_mate(conn, mate_id):
     _run(conn, "DELETE FROM char_vars WHERE varname = ?", (look_var(mate_id),))
     for table in ("squad_equip", "squad_job"):
