@@ -218,8 +218,36 @@ def import_sql(mariadb_dir, port, db_password, files, log=print, run=subprocess.
         if index % 20 == 1 or index == len(files):
             log(f"Database: importing {index}/{len(files)} ({os.path.basename(path)})...")
         sql(mariadb_dir, port, DB_USER, db_password,
-            f"SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0; SOURCE {source}; "
+            f"SET SESSION lock_wait_timeout=120; SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0; "
+            f"SOURCE {source}; "
             "SET unique_checks=1; SET foreign_key_checks=1; COMMIT;", database=DB_NAME, run=run)
+
+
+def trigger_names(server_dir):
+    """The triggers the server's sql/triggers.sql creates (the map server stops at start when one is missing)."""
+    import re
+    path = os.path.join(server_dir, "sql", "triggers.sql")
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        return re.findall(r"CREATE\s+TRIGGER\s+`?(\w+)`?", handle.read(), re.IGNORECASE)
+
+
+def ensure_triggers(cfg, server_dir, log=print, run=subprocess.run):
+    """Re-creates the server's triggers when any is missing (an update run by an older launcher could lose them:
+    its Squad tab held a table lock while triggers.sql was re-imported). Returns the names that were missing."""
+    wanted = trigger_names(server_dir)
+    if not wanted:
+        return []
+    mdb, port, pw = cfg["mariadb_dir"], int(cfg.get("db_port", 3306)), cfg["db_pass"]
+    have = set(sql(mdb, port, cfg.get("db_user", DB_USER), pw,
+                   "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()",
+                   database=cfg.get("db_name", DB_NAME), run=run).split())
+    missing = [name for name in wanted if name not in have]
+    if missing:
+        log("Database: putting back missing triggers (" + ", ".join(missing) + ")...")
+        import_sql(mdb, port, pw, [os.path.join(server_dir, "sql", "triggers.sql")], log=lambda m: None, run=run)
+    return missing
 
 
 def create_account(mariadb_dir, port, db_password, login, password, run=subprocess.run):

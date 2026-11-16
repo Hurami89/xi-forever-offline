@@ -2893,6 +2893,10 @@ class App(tk.Tk):
             if started is not None:
                 self.db_proc = started
                 self.say("Database started.")
+            try:                              # the map server stops at start when a trigger is missing
+                launcher_setup.ensure_triggers(cfg, cfg["server_dir"], log=self.say)
+            except Exception as e:
+                self.say(f"Could not check the database triggers ({e}) - starting anyway.")
         else:
             svc = cfg.get("mariadb_service", "MariaDB")
             if not core.ensure_service(svc):
