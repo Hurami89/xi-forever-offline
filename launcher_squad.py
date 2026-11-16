@@ -242,6 +242,7 @@ def create_mate(conn, charid, name, job, level):
 
 
 def delete_mate(conn, mate_id):
+    _run(conn, "DELETE FROM char_vars WHERE varname = ?", (look_var(mate_id),))
     for table in ("squad_equip", "squad_job"):
         _run(conn, f"DELETE FROM {table} WHERE squad_id = ?", (mate_id,))
     _run(conn, "DELETE FROM squad_mate WHERE id = ?", (mate_id,))
@@ -249,6 +250,20 @@ def delete_mate(conn, mate_id):
 
 def rename_mate(conn, mate_id, name):
     _run(conn, "UPDATE squad_mate SET name = ? WHERE id = ?", (name, mate_id))
+
+
+def look_var(mate_id):
+    # the same character variable squad.lua sets on !squad look: a mate's look is picked once
+    return f"SQUAD_LOOK_{int(mate_id)}"
+
+
+def look_locked(conn, charid, mate_id):
+    rows = _all(conn, "SELECT value FROM char_vars WHERE charid = ? AND varname = ?", (charid, look_var(mate_id)))
+    return bool(rows) and int(rows[0][0]) == 1
+
+
+def lock_look(conn, charid, mate_id):
+    _run(conn, "REPLACE INTO char_vars (charid, varname, value) VALUES (?, ?, 1)", (charid, look_var(mate_id)))
 
 
 def set_look(conn, mate_id, race, face):

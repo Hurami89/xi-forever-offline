@@ -684,6 +684,8 @@ class SquadTab(tk.Frame):
         self.conn = None
         self.chars, self.mates, self.mate = [], [], None
         self.require_unlock = bool(cfg.get("squad_require_unlock", True))
+        # player installs: mates start at level 1 and level up in game, and a look is picked once (as in squad.lua)
+        self.player = bool(cfg.get("mariadb_dir"))
         self.level_vars, self.gear_vars, self.level_spins = {}, {}, {}
         self.gear_icons, self.gear_items = {}, {}
         self.icon_loader = itemicons.ItemIcons(self, ASSETS) if itemicons else None
@@ -751,7 +753,11 @@ class SquadTab(tk.Frame):
         f = self.row(page, "Face")
         self.face_box = ttk.Combobox(f, values=[str(i) for i in range(1, 17)], state="readonly", width=6)
         self.face_box.pack(side="left")
-        tk.Button(f, text="Apply look", command=self.apply_look, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left", padx=6)
+        self.look_button = tk.Button(f, text="Apply look", command=self.apply_look, bg=PANEL, fg=FG, relief="flat", padx=8)
+        self.look_button.pack(side="left", padx=6)
+        if self.player:
+            self.look_note = tk.Label(page, text="", bg=BG, fg=DIM, justify="left")
+            self.look_note.pack(anchor="w", padx=10)
 
         f = self.row(page, "Main job")
         self.mjob_box = ttk.Combobox(f, values=sq.JOBS, state="readonly", width=8)
@@ -783,9 +789,11 @@ class SquadTab(tk.Frame):
             exp = tk.Label(grid, text="", bg=BG, fg=DIM, width=10, anchor="w")
             exp.grid(row=r, column=col + 2)
             self.level_vars[("exp", i + 1)] = exp
-        tk.Button(page, text="Save levels", command=self.apply_levels, bg=ACCENT, fg="white", relief="flat", padx=14).pack(pady=8)
-        tk.Label(page, text="Each job levels on its own in game. Exp is shown next to each level.",
-                 bg=BG, fg=DIM).pack(anchor="w", padx=10)
+        if not self.player:
+            tk.Button(page, text="Save levels", command=self.apply_levels, bg=ACCENT, fg="white", relief="flat", padx=14).pack(pady=8)
+        tk.Label(page, text="Each job levels on its own in game. Exp is shown next to each level." if not self.player else
+                 "Squad mates start at level 1 and level up by fighting with you, one job at a time.\n"
+                 "Exp is shown next to each level.", bg=BG, fg=DIM, justify="left").pack(anchor="w", padx=10, pady=8)
 
     def build_gear_page(self, pages):
         page = tk.Frame(pages, bg=BG)
@@ -1126,6 +1134,13 @@ class SquadTab(tk.Frame):
         self.name_var.set(m["name"])
         self.race_box.current((m["race"] or 1) - 1)  # a mate with no race chosen is a Hume male
         self.face_box.current(min(m["face"], 15))
+        if self.player:
+            fixed = sq.look_locked(self.conn, self.charid(), m["id"])
+            for w in (self.race_box, self.face_box):
+                w.configure(state="disabled" if fixed else "readonly")
+            self.look_button.configure(state="disabled" if fixed else "normal")
+            self.look_note.configure(text="This look is set for good." if fixed else
+                                     "Pick carefully: a look can be set only once.")
         # Only offer jobs this character has unlocked (plus whatever the mate already has set)
         self.choices = sorted((self.unlocked | {m["mjob"], m["sjob"]}) - {0})
         names = [sq.JOBS[j - 1] for j in self.choices]
@@ -1142,7 +1157,7 @@ class SquadTab(tk.Frame):
             level, exp = m["jobs"].get(job, (1, 0))
             locked = job not in self.unlocked and job not in m["jobs"]
             self.level_vars[job].set(level)
-            self.level_spins[job].configure(state="disabled" if locked else "normal")
+            self.level_spins[job].configure(state="disabled" if (locked or self.player) else "normal")
             self.level_vars[("exp", job)].configure(text="locked" if locked else (f"{exp} exp" if exp else ""))
         self.refresh_gear()
         self.show_behavior()
@@ -1233,8 +1248,19 @@ class SquadTab(tk.Frame):
             self.guard(go)
 
     def apply_look(self):
+        def go():
+            charid, mate_id = self.charid(), self.mate["id"]
+            if self.player:
+                if sq.look_locked(self.conn, charid, mate_id):
+                    raise ValueError(f"{self.mate['name']}'s look is already set for good.")
+                if not messagebox.askyesno("Set look", f"Set {self.mate['name']}'s look for good? It can't be changed later."):
+                    return
+            sq.set_look(self.conn, mate_id, self.race_box.current() + 1, self.face_box.current())
+            if self.player:
+                sq.lock_look(self.conn, charid, mate_id)
+            self.reload()
         if self.mate:
-            self.guard(lambda: (sq.set_look(self.conn, self.mate["id"], self.race_box.current() + 1, self.face_box.current()), self.reload()))
+            self.guard(go)
 
     def apply_jobs(self):
         if self.mate:
@@ -1244,6 +1270,8 @@ class SquadTab(tk.Frame):
             self.guard(lambda: (sq.set_jobs(self.conn, self.charid(), self.mate["id"], mjob, sjob), self.reload()))
 
     def apply_levels(self):
+        if self.player:
+            return
         def go():
             for job in range(1, 16):
                 if job not in self.unlocked and job not in self.mate["jobs"]:
