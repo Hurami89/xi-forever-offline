@@ -292,6 +292,8 @@ local function onLine(payload)
         S.incomingOpts = nil;
         S.adv = S.incomingAdv;                  -- (nil from an older server: the Advanced button stays hidden)
         S.incomingAdv = nil;
+        S.readyAt = S.incomingReady or {};      -- (1.12) [slot] = os.time() when that mate can be called again
+        S.incomingReady = nil;
         -- the second window holds the camp too: no following while a camp is set
         local hold = S.camp ~= nil and S.camp.on == true;
         if hold ~= S.duoHold then
@@ -310,6 +312,13 @@ local function onLine(payload)
     local afollow, arest, aorder = payload:match('^adv|(%d)|([01])|([%d-]+)$');
     if afollow then
         S.incomingAdv = { follow = tonumber(afollow), rest = arest == '1', order = aorder ~= '-' and aorder or nil, delay = {} };
+        return;
+    end
+    -- (squad.lua for servermenu 1.12) cd|<slot>|<seconds before the mate can be called again>
+    local cslot, csecs = payload:match('^cd|(%d+)|(%d+)$');
+    if cslot then
+        S.incomingReady = S.incomingReady or {};
+        S.incomingReady[tonumber(cslot)] = os.time() + tonumber(csecs);
         return;
     end
     local dslot, dsecs = payload:match('^delay|(%d+)|(%d+)$');
@@ -1020,7 +1029,11 @@ local function squadTab()
                 colorText(mate.out and C.good or C.dim, mate.out and 'out' or 'away');
                 imgui.SameLine(0, 12);
                 if not mate.out then
-                    if button('Call', 'call' .. mate.slot, 56, 0) then enqueue('/say !squad call ' .. mate.slot); ask(3); end
+                    local wait = S.readyAt and S.readyAt[mate.slot] and (S.readyAt[mate.slot] - os.time()) or 0;
+                    if wait > 0 then
+                        colorText(C.dim, string.format('ready in %d:%02d', math.floor(wait / 60), wait % 60));
+                        tooltip('The call timer: this mate can be called again then (the launcher\'s Rates tab sets how long)');
+                    elseif button('Call', 'call' .. mate.slot, 56, 0) then enqueue('/say !squad call ' .. mate.slot); ask(3); end
                     imgui.SameLine(0, 6);
                 end
                 if button(S.more[mate.slot] and 'Less' or 'Jobs', 'more' .. mate.slot, 56, 0) then S.more[mate.slot] = not S.more[mate.slot]; end

@@ -993,8 +993,25 @@ def apply_graphics(ini_path, values):
     for key in sorted(pending):
         lines.insert(insert_at, f"{key} = {pending[key]}")
         insert_at += 1
+    lines = _borderless_startpos(lines, values["window_mode"] == 3)
     with open(ini_path, "w", encoding="utf-8", newline="") as f:
         f.write(newline.join(lines) + newline)
+
+
+def _borderless_startpos(lines, borderless):
+    """A borderless window starts at the screen's top-left corner (x = 0, y = 0 in [ashita.window.startpos]); otherwise
+    Ashita's default (-1: centred). Only the launcher's own values (-1 or 0) are changed, never a position someone set."""
+    want = "0" if borderless else "-1"
+    inside = False
+    for i, line in enumerate(lines):
+        head = line.strip().lower()
+        if head.startswith("["):
+            inside = head == "[ashita.window.startpos]"
+            continue
+        m = re.match(r"^(\s*)([xy])(\s*=\s*)(-?\d+)(.*)$", line) if inside else None
+        if m and m.group(4) in ("-1", "0"):
+            lines[i] = f"{m.group(1)}{m.group(2)}{m.group(3)}{want}{m.group(5)}"
+    return lines
 
 
 def restore_graphics(ini_path):
