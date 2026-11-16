@@ -34,7 +34,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.11';
+addon.version = '1.12';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -623,6 +623,15 @@ end
 
 -- ---------------------------------------------------------------- small ImGui helpers (every optional call is checked first)
 local function has(name) return imgui ~= nil and type(imgui[name]) == 'function'; end
+
+-- Sizes are laid out for the usual 13 px font. With a bigger game font (Ashita font scale, high-DPI setups) every fixed width
+-- and height grows with it, so labels and card rows are not cut off (1.12).
+local function px(n)
+    if type(n) ~= 'number' or n <= 0 then return n; end
+    local size = has('GetFontSize') and imgui.GetFontSize() or 13;
+    local scale = (type(size) == 'number' and size > 0) and math.max(1, math.min(3, size / 13)) or 1;
+    return math.floor(n * scale + 0.5);
+end
 local function G(name) return rawget(_G, name); end
 
 local function colorText(color, text)
@@ -669,7 +678,7 @@ local function button(label, id, w, h, look)
     local n = 0;
     if look == 'selected' then n = pushColors({ { 'ImGuiCol_Button', C.sel }, { 'ImGuiCol_ButtonHovered', C.selHi }, { 'ImGuiCol_ButtonActive', C.selHi } });
     elseif look == 'on' then n = pushColors({ { 'ImGuiCol_Button', C.on }, { 'ImGuiCol_ButtonHovered', C.onHi }, { 'ImGuiCol_ButtonActive', C.onHi } }); end
-    local clicked = imgui.Button(label .. '##' .. id, { w or 0, h or 0 });
+    local clicked = imgui.Button(label .. '##' .. id, { px(w or 0), px(h or 0) });
     if n > 0 then imgui.PopStyleColor(n); end
     return clicked;
 end
@@ -678,7 +687,7 @@ end
 local function combo(id, current, items, width, help)
     local chosen = nil;
     if has('BeginCombo') and has('Selectable') and has('EndCombo') then
-        if has('PushItemWidth') then imgui.PushItemWidth(width); end
+        if has('PushItemWidth') then imgui.PushItemWidth(px(width)); end
         if imgui.BeginCombo('##' .. id, current or '?') then
             for _, item in ipairs(items) do
                 if imgui.Selectable(item .. '##' .. id .. item, item == current) then chosen = item; end
@@ -702,7 +711,7 @@ local function bar(fraction, color, overlay, width)
     fraction = math.max(0, math.min(1, fraction or 0));
     if has('ProgressBar') then
         local n = pushColors({ { 'ImGuiCol_PlotHistogram', color } });
-        imgui.ProgressBar(fraction, { width, 20 }, overlay);
+        imgui.ProgressBar(fraction, { px(width), px(20) }, overlay);
         if n > 0 then imgui.PopStyleColor(n); end
     else
         imgui.Text(overlay);
@@ -714,9 +723,9 @@ local function beginChild(id, w, h, border, noScroll)
     local flags = border and (G('ImGuiChildFlags_Borders') or G('ImGuiChildFlags_Border') or true) or 0;
     if noScroll then
         local wflags = (G('ImGuiWindowFlags_NoScrollbar') or 0) + (G('ImGuiWindowFlags_NoScrollWithMouse') or 0);
-        return imgui.BeginChild(id, { w, h }, flags, wflags), true;
+        return imgui.BeginChild(id, { px(w), px(h) }, flags, wflags), true;
     end
-    return imgui.BeginChild(id, { w, h }, flags), true;
+    return imgui.BeginChild(id, { px(w), px(h) }, flags), true;
 end
 
 local function endChild(began) if began and has('EndChild') then imgui.EndChild(); end end
@@ -1191,11 +1200,11 @@ gambitsPanel = function(height)
                     if type(row.actions) == 'table' and #row.actions > 0 then help = help .. '  -  ' .. table.concat(row.actions, ', '); end
                     tooltip(help);
                     local layer = LAYERS[row.layer or ''];
-                    imgui.SameLine(330, 0);
+                    imgui.SameLine(px(330), 0);
                     colorText(layer and layer[2] or C.dim, layer and layer[1] or tostring(row.layer or ''));
-                    imgui.SameLine(430, 0);
+                    imgui.SameLine(px(430), 0);
                     dimText(TARGETS[row.target or ''] or tostring(row.target or ''));
-                    imgui.SameLine(530, 0);
+                    imgui.SameLine(px(530), 0);
                     if button('^', 'up' .. position, 22, 0) and not old then moveRow(position, -1); end
                     tooltip('Higher priority');
                     imgui.SameLine(0, 2);
@@ -1247,7 +1256,7 @@ local function diagnosticsTab()
         heading('Can he cast it?');
         dimText('Press Check during a fight: it tests, one by one, what he needs before he can cast.');
         if has('InputText') then
-            if has('PushItemWidth') then imgui.PushItemWidth(180); end
+            if has('PushItemWidth') then imgui.PushItemWidth(px(180)); end
             imgui.InputText('##sm_spell', S.spell, 32);
             if has('PopItemWidth') then imgui.PopItemWidth(); end
             imgui.SameLine(0, 6);
@@ -1490,8 +1499,8 @@ end
 
 local function menuWindow()
     if not S.open[1] then return; end
-    imgui.SetNextWindowSize({ 620, 560 }, G('ImGuiCond_FirstUseEver') or 4);
-    if has('SetNextWindowSizeConstraints') then imgui.SetNextWindowSizeConstraints({ 600, 420 }, { 1200, 1000 }); end
+    imgui.SetNextWindowSize({ px(620), px(560) }, G('ImGuiCond_FirstUseEver') or 4);
+    if has('SetNextWindowSizeConstraints') then imgui.SetNextWindowSizeConstraints({ px(600), px(420) }, { px(1200), px(1000) }); end
     local vars = pushVars({ { 'ImGuiStyleVar_WindowRounding', 8 }, { 'ImGuiStyleVar_ChildRounding', 6 }, { 'ImGuiStyleVar_FrameRounding', 5 },
                             { 'ImGuiStyleVar_WindowPadding', { 14, 12 } }, { 'ImGuiStyleVar_ItemSpacing', { 8, 6 } }, { 'ImGuiStyleVar_FramePadding', { 8, 4 } } });
     local colors = pushColors({ { 'ImGuiCol_WindowBg', { 0.07, 0.08, 0.11, 0.96 } }, { 'ImGuiCol_ChildBg', { 0.10, 0.11, 0.15, 0.80 } },
@@ -1508,7 +1517,7 @@ local function menuWindow()
         dimText('XI: Forever Offline');
         if has('GetWindowWidth') then
             local w = imgui.GetWindowWidth();
-            if type(w) == 'number' then imgui.SameLine(w - 44, 0); else imgui.SameLine(0, 20); end
+            if type(w) == 'number' then imgui.SameLine(w - px(44), 0); else imgui.SameLine(0, 20); end
         else
             imgui.SameLine(0, 20);
         end
@@ -1551,7 +1560,7 @@ local function buttonWindow()
     end
     if S.cfg.button_locked == 'true' then flags = flags + (G('ImGuiWindowFlags_NoMove') or 0); end
     if imgui.Begin('##servermenu_button', { true }, flags) then
-        local clicked = imgui.Button('Squads##sm_open', { 76, 30 });
+        local clicked = imgui.Button('Squads##sm_open', { px(76), px(30) });
         -- dragging the button moves it (unless locked); a drag is not a click
         if S.cfg.button_locked ~= 'true' and has('IsItemActive') and has('IsMouseDragging') and has('GetMouseDragDelta') then
             if imgui.IsItemActive() and imgui.IsMouseDragging(0, 3) then
@@ -1801,11 +1810,11 @@ local function drawHeader(h)
     end
 
     local pos, width, draw = screenPos(), contentWidth(), windowDraw();
-    local height = 32;
+    local height = px(32);
     if pos and width > 0 and fillRect(draw, pos[1], pos[2], width, height, { rgba[1] * 0.82, rgba[2] * 0.82, rgba[3] * 0.82, 0.96 }, 4) then
         fillRect(draw, pos[1], pos[2], 3, height, rgba, 0);
-        seek(pos[1] + 10, pos[2] + 7);
-        tint({ 1, 1, 1, 1 }, fit(h.name, width - 180));
+        seek(pos[1] + 10, pos[2] + px(7));
+        tint({ 1, 1, 1, 1 }, fit(h.name, width - px(180)));
         imgui.SameLine(0, 8);
         tint({ 1, 1, 1, 0.82 }, jobs);
         local roleText = ROLE_NAME[role] or role;
@@ -1917,10 +1926,10 @@ local function renderSheet()
         title = string.format('%s (%s %d)###sm_sheet', d.hdr.name, tostring(d.hdr.job), tonumber(d.hdr.main) or 0);
     end
     if has('SetNextWindowSize') and G('ImGuiCond_FirstUseEver') then
-        imgui.SetNextWindowSize({ 580, 660 }, G('ImGuiCond_FirstUseEver'));
+        imgui.SetNextWindowSize({ px(580), px(660) }, G('ImGuiCond_FirstUseEver'));
     end
     if has('SetNextWindowSizeConstraints') then
-        imgui.SetNextWindowSizeConstraints({ 540, 420 }, { 800, 900 });
+        imgui.SetNextWindowSizeConstraints({ px(540), px(420) }, { px(800), px(900) });
     end
     local role = d and d.hdr and string.lower(tostring(d.hdr.role or 'auto')) or 'auto';
     local roleColor = ROLE_COLORS[role] or ROLE_COLORS.auto;
@@ -1977,7 +1986,7 @@ local function renderSheet()
                     local c = d.combat and d.combat[i];
                     if s then
                         tint(C.dim, s[1]);
-                        imgui.SameLine(56, 0);
+                        imgui.SameLine(px(56), 0);
                         tint(C.text, tostring(s[2]));
                     else
                         imgui.Text(' ');

@@ -16,7 +16,9 @@ reset()
 -- the server bits squad.lua uses
 xi = { module = { registerCommand = function() end }, objType = { PC = 1, TRUST = 2, MOB = 3 }, animation = { NONE = 0, ATTACK = 1, HEALING = 33 }, settings = { map = { EXP_RATE = 1 } }, effect = {}, zone = {}, job = {} }
 setmetatable(xi, { __index = function(t, k) local v = setmetatable({}, { __index = function() return 0 end }) rawset(t, k, v) return v end })
-Module = { new = function(self, name) return { addOverride = function() end } end }
+OVERRIDES = {}
+super = function() return 'base' end
+Module = { new = function(self, name) return { addOverride = function(_, k, fn) OVERRIDES[k] = fn end } end }
 package.preload['modules/module_utils'] = function() return true end
 package.preload['modules/custom/lua/squad_starter_gear'] = function() return dofile(GEAR) end
 os.time = function() return W.clock end
@@ -157,6 +159,32 @@ W.squad = { mate(1, 1, 1, 20) }
 cmd.onTrigger(player, 'call', '1')
 local cap = W.spawned[1]; cap:setLocalVar('SQUAD_RELEVEL', 21); W.clock = W.clock + 10; tick(cap)
 check(W.cleared == 0 and cap:getLocalVar('SQUAD_RELEVEL') == 0, 'synced to your level 20: nothing would change, no re-call')
+
+section('zoning: the mates who were out come back, no call timer')
+reset(); player = entity(xi.objType.PC, { level = 30, id = 4 })
+player.inMogHouse = function(self) return self.mh == true end
+W.squad = { mate(1, 1, 1, 30), mate(2, 2, 3, 30), mate(3, 3, 4, 30) }
+cmd.onTrigger(player, 'call', '1'); cmd.onTrigger(player, 'call', '2'); runTimers()
+tick(W.spawned[1]); tick(W.spawned[2])
+local calledVar = player.vars and player.vars['SQUAD_CALLED_1']
+player.party = {} -- (zoning took them away)
+local gameIn = OVERRIDES['xi.player.onGameIn']
+check(gameIn ~= nil, 'squad.lua hooks your arrival in an area')
+W.clock = W.clock + 20; local n0 = #W.spawned
+check(gameIn(player, false, true) == 'base', 'the game\'s own arrival still runs')
+runTimers()
+check(#W.spawned == n0 + 2, 'the two mates who were out come back (not the third): ' .. (#W.spawned - n0))
+-- through the Mog House: they wait for the next area
+tick(W.spawned[#W.spawned]); tick(W.spawned[#W.spawned - 1]); player.party = {}
+player.mh = true; n0 = #W.spawned; gameIn(player, false, true); runTimers()
+check(#W.spawned == n0, 'not inside your Mog House')
+player.mh = false; W.clock = W.clock + 600; gameIn(player, false, true); runTimers()
+check(#W.spawned == n0 + 2, 'back out of the Mog House (even minutes later), they come back')
+-- dismissed: they stay away
+tick(W.spawned[#W.spawned]); cmd.onTrigger(player, 'dismiss'); n0 = #W.spawned
+W.clock = W.clock + 5; gameIn(player, false, true); runTimers()
+check(#W.spawned == n0, 'dismissed mates do not come back after zoning')
+check(gameIn(player, true, false) == 'base', 'a fresh log in calls nobody')
 
 section('resting with you')
 reset(); player = entity(xi.objType.PC, { level = 30, id = 4 })
