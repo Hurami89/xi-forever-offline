@@ -60,10 +60,25 @@ for i = 1, 300 do bots[i] = bot(16000000 + i) end
 local late = bot(16000999)
 roster[late.id] = nil -- (joins after the head start began)
 
-G.headStart(bots[1])
-check('the first one records how far the head start goes (the roster then)', sv['[Bots]HeadStart'] == 16000300, sv['[Bots]HeadStart'])
+-- the launcher switch (bots_config.lua head_start): off = nobody gets it
+local config = { head_start = false, roster = 300 }
+package.preload['modules/custom/lua/bots_config'] = function() return config end
+check('switch off: no head start', G.headStart(bots[1]) == false and bots[1].lvl == 1 and sv['[Bots]HeadStartArmed'] == nil)
+
+-- a fresh server with the switch on: while the roster fills up, every bot that logs in gets it
+config.head_start = true
+local saved = {}
+for id, v in pairs(roster) do saved[id] = v end
+roster = { [bots[1].id] = saved[bots[1].id] }
+function BotList() return roster end
+check('switch on while filling: the first bot gets it', G.headStart(bots[1]) == true and sv['[Bots]HeadStartArmed'] == 1 and (sv['[Bots]HeadStartAll'] or 0) == 0)
+roster = saved
+function BotList() return roster end
+config.head_start = false -- (the next PLAY: the switch is gone, the server keeps it armed)
+G.headStart(bots[2])
+check('the roster full: it records how far the head start goes', sv['[Bots]HeadStartAll'] == 16000300, sv['[Bots]HeadStartAll'])
 roster[late.id] = { online = true }
-for i = 2, 300 do G.headStart(bots[i]) end
+for i = 3, 300 do G.headStart(bots[i]) end
 check('a bot that joined later starts at level 1', G.headStart(late) == false and late.lvl == 1)
 
 local buckets, max = { 0, 0, 0, 0, 0, 0, 0, 0 }, 0

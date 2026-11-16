@@ -434,7 +434,9 @@ RATE_DEFAULTS.update({"crowds": True, "crowds_per_zone": 15})   # ambient crowds
 RATE_DEFAULTS.update({"crowds_chat": True, "crowds_chat_amount": "normal", "crowds_chat_ai": True})   # crowd chat (crowds_chat.lua)
 RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # field parties (crowds_field.lua)
 RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
-RATE_DEFAULTS.update({"bots_growth": "realistic"})   # bots grow while you are away (bots_growth.lua)
+RATE_DEFAULTS.update({"bots_growth": "realistic"})
+RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False})   # one-time bot head start (bots_growth.lua)
+RATE_DEFAULTS.update({"squad_call_cooldown": 5})   # minutes before a squad mate can be called again (squad.lua)   # bots grow while you are away (bots_growth.lua)
 RATE_DEFAULTS.update({"squad_chat": True})   # squad mates answer in party chat with the local AI (squad-chat/squad_chat.py)
 
 # ---------- the world: install-time choice, also on the Rates tab ----------
@@ -595,9 +597,21 @@ def write_crowds_config(server_dir, rates):
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         growth = rates.get("bots_growth", "realistic")
         growth = growth if growth in ("off", "realistic", "fast") else "realistic"
-        f.write("return { enabled = %s, roster = %d, online = %d, growth = '%s' }\n" % (
+        head_start = bool(rates.get("bots_head_start")) and not rates.get("bots_head_start_done")
+        f.write("return { enabled = %s, roster = %d, online = %d, growth = '%s', head_start = %s }\n" % (
             "true" if rates.get("bots", True) else "false", max(0, min(600, int(rates.get("bots_roster", 100) or 0))),
-            max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth))
+            max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth, "true" if head_start else "false"))
+    with open(os.path.join(module_dir, "squad_config.lua"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+        f.write("return { call_cooldown_min = %d }\n" % clean_call_cooldown(rates.get("squad_call_cooldown", 5)))
+
+
+def clean_call_cooldown(value):
+    """Squad call timer: minutes before a mate can be called again, 0-30 (anything else falls back to 5)."""
+    try:
+        return max(0, min(30, int(round(float(str(value).strip().replace(",", "."))))))
+    except ValueError:
+        return 5
 
 
 def clean_crowd_size(value):
@@ -645,6 +659,11 @@ def load_rates(here):
             rates["squad_chat"] = bool(saved["squad_chat"])
         if saved.get("bots_growth") in ("off", "realistic", "fast"):
             rates["bots_growth"] = saved["bots_growth"]
+        for key in ("bots_head_start", "bots_head_start_done"):
+            if key in saved:
+                rates[key] = bool(saved[key])
+        if "squad_call_cooldown" in saved:
+            rates["squad_call_cooldown"] = clean_call_cooldown(saved["squad_call_cooldown"])
         for key, lo, hi in (("bots_roster", 0, 600), ("bots_online", 0, 550)):
             if key in saved:
                 try:
@@ -669,7 +688,8 @@ def apply_preset(rates, name):
     for key, default in (("crowds_chat", True), ("crowds_chat_amount", "normal"), ("crowds_chat_ai", True),
                          ("crowds_field", True), ("crowds_field_parties", 1),
                          ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"),
-                         ("squad_chat", True)):
+                         ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
+                         ("squad_call_cooldown", 5)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
     out["main.MAX_LEVEL"] = rates.get("main.MAX_LEVEL", 75)

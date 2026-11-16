@@ -141,6 +141,23 @@ player.party[#player.party + 1] = entity(xi.objType.TRUST, { level = 20 })
 player.level = 22; W.clock = W.clock + 10; tick(W.spawned[1]); runTimers()
 check(W.cleared == 1 and #W.spawned == 2, 'only squad mates are called back (one mate, one new spawn)')
 
+section('a mate levels up while out: back at the new level after the fight')
+reset(); player = entity(xi.objType.PC, { level = 30, id = 4 })
+W.squad = { mate(1, 1, 1, 20) }
+cmd.onTrigger(player, 'call', '1')
+local lv = W.spawned[1]
+lv.getPacketName = function() return 'Mate1' end
+lv.engaged = true; lv:setLocalVar('SQUAD_RELEVEL', 21); W.squad[1].jobs[1].level = 21
+W.clock = W.clock + 10; tick(lv); check(W.cleared == 0, 'not while the mate is fighting')
+lv.engaged = false; W.clock = W.clock + 10; tick(lv); check(W.cleared == 1, 'once the fight is over, called again')
+check(W.printed[#W.printed]:find('Mate1 comes back at level 21') ~= nil, 'told: ' .. tostring(W.printed[#W.printed]))
+runTimers(); check(W.spawned[#W.spawned].spec.mlevel == 21, 'back at 21')
+reset(); player = entity(xi.objType.PC, { level = 20, id = 4 })
+W.squad = { mate(1, 1, 1, 20) }
+cmd.onTrigger(player, 'call', '1')
+local cap = W.spawned[1]; cap:setLocalVar('SQUAD_RELEVEL', 21); W.clock = W.clock + 10; tick(cap)
+check(W.cleared == 0 and cap:getLocalVar('SQUAD_RELEVEL') == 0, 'synced to your level 20: nothing would change, no re-call')
+
 section('resting with you')
 reset(); player = entity(xi.objType.PC, { level = 30, id = 4 })
 W.squad = { mate(1, 1, 3, 30), mate(2, 2, 1, 30) }

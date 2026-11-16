@@ -1497,6 +1497,19 @@ class RatesTab(tk.Frame):
         tk.Checkbutton(inner, text="Squad mates talk: they answer you in party chat with the local AI (Ollama), each with their own personality",
                        variable=self.squad_chat, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=n + 15, column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        tk.Label(inner, text="Squad call timer (minutes, 0-30)", bg=BG, fg=FG, anchor="w", width=38).grid(row=n + 16, column=0, sticky="w", padx=6, pady=2)
+        self.squad_call_cooldown = tk.StringVar(value=str(rates.get("squad_call_cooldown", 5)))
+        ttk.Spinbox(inner, from_=0, to=30, increment=1, textvariable=self.squad_call_cooldown, width=8).grid(
+            row=n + 16, column=1, padx=6, pady=2)
+        # One time per server: once a PLAY has used it, the switch is gone for good
+        self.head_start_done = bool(rates.get("bots_head_start_done", False))
+        self.bots_head_start = tk.BooleanVar(value=bool(rates.get("bots_head_start", False)) and not self.head_start_done)
+        if not self.head_start_done:
+            tk.Checkbutton(inner, text="Bot head start (one time): the starting bots get a few months of history - levels 1-75 "
+                           "(most 10-30), subjobs, crafts, gil, gear - as if the server had been running a while. "
+                           "Used at your next PLAY, then this switch goes away.",
+                           variable=self.bots_head_start, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                           wraplength=520, justify="left").grid(row=n + 17, column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.show_world(rates)
 
     def show_world(self, rates):
@@ -1561,6 +1574,9 @@ class RatesTab(tk.Frame):
             except (TypeError, ValueError):
                 rates[key] = default
         rates["squad_chat"] = bool(self.squad_chat.get())
+        rates["squad_call_cooldown"] = core.clean_call_cooldown(self.squad_call_cooldown.get())
+        rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done
+        rates["bots_head_start_done"] = self.head_start_done
         rates["claim_shield"] = False
         return core.lock_player_rates(rates) if self.player else rates
 
@@ -2988,6 +3004,15 @@ class App(tk.Tk):
                 self.say(note)
         except Exception as e:
             self.say(f"Could not apply the rates ({e}) - starting with the server's normal settings.")
+        if self.rates.get("bots_head_start") and not self.rates.get("bots_head_start_done"):
+            # the one-time bot head start went into bots_config.lua: the server keeps it from here, the switch goes away
+            self.rates["bots_head_start"], self.rates["bots_head_start_done"] = False, True
+            self.rates_tab.head_start_done = True
+            try:
+                core.save_rates(HERE, self.rates)
+            except OSError:
+                pass
+            self.say("Bot head start: on. The starting bots get a few months of history as they log in.")
         try:
             core.write_kit_paths(cfg["server_dir"], HERE, cfg.get("ashita_dir"))
         except Exception as e:
