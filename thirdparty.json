@@ -215,7 +215,7 @@
     },
     {
       "id": "gambatte",
-      "name": "Gambatte core (Crystal Boy)",
+      "name": "Mini game player",
       "author": "libretro / Gambatte",
       "license": "GPL-2.0",
       "homepage": "https://docs.libretro.com/library/gambatte/",
