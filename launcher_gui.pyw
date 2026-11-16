@@ -2875,6 +2875,8 @@ class App(tk.Tk):
                 launcher_setup.install_own_addons(HERE, cfg["ashita_dir"])
             except Exception as e:
                 self.say(f"Could not refresh the addons ({e}) - starting anyway.")
+            import launcher_client            # our game-file changes, again if an update or the era pack replaced them
+            launcher_client.apply_all(HERE, cfg.get("ffxi_client_dir", ""), cfg["server_dir"], log=self.say)
             started = launcher_setup.start_portable(cfg)
             if started is not None:
                 self.db_proc = started

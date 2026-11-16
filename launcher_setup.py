@@ -141,7 +141,10 @@ def start_mariadb(mariadb_dir, port, popen=subprocess.Popen, wait=30):
         if s.connect_ex(("127.0.0.1", int(port))) == 0:
             return None
     proc = popen([mariadb_exe(mariadb_dir, "mariadbd"), f"--datadir={os.path.join(mariadb_dir, 'data')}", f"--port={port}",
-                  "--bind-address=127.0.0.1"], cwd=mariadb_dir, creationflags=NO_WINDOW,
+                  "--bind-address=127.0.0.1",
+                  # write the log to disk once a second instead of after every statement: the map server waits on each
+                  # database write, and a slow disk then made its watchdog stop it (seen 2026-11-11 with 500 bots)
+                  "--innodb-flush-log-at-trx-commit=2"], cwd=mariadb_dir, creationflags=NO_WINDOW,
                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(wait * 2):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -432,6 +435,8 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
                 log(line)
         except Exception as problem:
             log(f"The Era-DATs were not installed ({problem}); do it later on the Downloads tab.")
+    import launcher_client                            # Home Point teleport, Crystal Boy items, Chariot Band (never stops setup)
+    launcher_client.apply_all(kit, choices["ffxi_dir"], server, log=log)
     if choices.get("world") == "living_ai":           # the AI: Ollama, then the model (about 8 GB) - never stops the setup
         try:
             if not tp.find_ollama():

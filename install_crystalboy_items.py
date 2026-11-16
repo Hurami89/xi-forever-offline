@@ -43,26 +43,26 @@ ITEMS = [
     {
         "id": 8101, "key": "ffa_cartridge", "name": "Mana Recollection",
         "log": "Recollection of the Mana Tree", "plural": "Recollections of the Mana Tree", "article": 0,
-        "desc": "A crystal tablet that remembers a\nhero's journey to the Mana Tree.\nUse it with a Crystal Boy.\n(Final Fantasy Adventure)",
+        "desc": "A crystal tablet that remembers a\nhero's journey to the Mana Tree.\nUse it with a Crystal Boy.",
         "icon": "cart_ffa.png",
         "old_names": ("FF Adventure",),
     },
     {
         "id": 8102, "key": "tower_recollection", "name": "Tower Recollection",
         "log": "Recollection of the Tower", "plural": "Recollections of the Tower", "article": 0,
-        "desc": "A crystal tablet that remembers a\ntower reaching up to Paradise.\nUse it with a Crystal Boy.\n(Final Fantasy Legend)",
+        "desc": "A crystal tablet that remembers a\ntower reaching up to Paradise.\nUse it with a Crystal Boy.",
         "icon": "cart_ffl1.png",
     },
     {
         "id": 8103, "key": "magi_recollection", "name": "Magi Recollection",
         "log": "Recollection of the Magi", "plural": "Recollections of the Magi", "article": 0,
-        "desc": "A crystal tablet that remembers the\nscattered pieces of a goddess.\nUse it with a Crystal Boy.\n(Final Fantasy Legend II)",
+        "desc": "A crystal tablet that remembers the\nscattered pieces of a goddess.\nUse it with a Crystal Boy.",
         "icon": "cart_ffl2.png",
     },
     {
         "id": 8104, "key": "time_recollection", "name": "Time Recollection",
         "log": "Recollection of Time", "plural": "Recollections of Time", "article": 0,
-        "desc": "A crystal tablet that remembers a\nship sailing through time.\nUse it with a Crystal Boy.\n(Final Fantasy Legend III)",
+        "desc": "A crystal tablet that remembers a\nship sailing through time.\nUse it with a Crystal Boy.",
         "icon": "cart_ffl3.png",
         "title": "SEIKEN DENSETSU",   # ROM header title (the addon matches the ROM by this)
     },
