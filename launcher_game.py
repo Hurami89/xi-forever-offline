@@ -375,6 +375,119 @@ def copy_install(ffxi_dir, viewer_dir, dest_root, log=print, free=None):
     return paths
 
 
+# ----- is the game new enough? (and refreshing a copy from an updated install) -----
+# The server speaks the newest game version. A game from before FFXI's September 2026 version update misreads some of
+# what it sends (shujimi, 2026-11-16: an August 2026 FFXiMain.dll crashed opening Equipment; October works). The game's
+# build is the link date of FFXiMain.dll. Raise this when a later update turns out to be needed too.
+MIN_GAME_BUILD = (2026, 9, 1)
+MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+          "November", "December")
+
+
+def game_build(ffxi_dir):
+    """(year, month, day) FFXiMain.dll was built (its PE time stamp), or None."""
+    import struct
+    import datetime
+    try:
+        with open(os.path.join(ffxi_dir, "FFXiMain.dll"), "rb") as handle:
+            head = handle.read(4096)
+        pe = struct.unpack_from("<I", head, 0x3C)[0]
+        if head[pe:pe + 4] != b"PE\0\0":
+            return None
+        stamp = struct.unpack_from("<I", head, pe + 8)[0]
+        when = datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc)
+        return (when.year, when.month, when.day)
+    except (OSError, ValueError, OverflowError, struct.error):
+        return None
+
+
+def build_text(build):
+    return f"{MONTHS[build[1] - 1]} {build[0]}" if build else "an unknown version"
+
+
+def too_old(build):
+    return build is not None and tuple(build) < MIN_GAME_BUILD
+
+
+def retail_install(kit, cfg, reg=None):
+    """(ffxi, viewer) of the player's regular FFXI that a copy was made from (the registry's PlayOnline folders when no
+    switch is in place), or None. Only meaningful for a copy install."""
+    if os.path.exists(os.path.join(kit, STATE_FILE)):
+        return None           # the registry points at the copy right now
+    reg = reg or registry()
+    copy_ffxi = cfg.get("ffxi_client_dir", "")
+    order = [cfg.get("pol_lang", "US")] + [lang for lang in LANG_KEY if lang != cfg.get("pol_lang", "US")]
+    for lang in order:
+        folder = rf"SOFTWARE\{LANG_KEY.get(lang, 'PlayOnlineUS')}\InstallFolder"
+        ffxi, viewer = reg.get(folder, "0001"), reg.get(folder, "1000")
+        if ffxi and not _same(ffxi, copy_ffxi) and os.path.isfile(os.path.join(ffxi, "FFXiMain.dll")):
+            return ffxi, (viewer if viewer and os.path.isdir(viewer) and not _same(viewer, cfg.get("pol_dir")) else None)
+    return None
+
+
+def game_check(kit, cfg, reg=None):
+    """What PLAY should say about the game's version: {build, too_old, copy, retail, retail_build, retail_ok}."""
+    build = game_build(cfg.get("ffxi_client_dir", ""))
+    info = {"build": build, "too_old": too_old(build), "copy": bool(cfg.get("game_copy")), "retail": None,
+            "retail_build": None, "retail_ok": False}
+    if info["too_old"] and info["copy"]:
+        try:
+            retail = retail_install(kit, cfg, reg)
+        except Exception:
+            retail = None
+        if retail:
+            rb = game_build(retail[0])
+            info.update(retail=retail, retail_build=rb, retail_ok=bool(rb) and not too_old(rb) and tuple(rb) > tuple(build))
+    return info
+
+
+def refresh_copy(kit, cfg, retail_ffxi, retail_viewer=None, log=print):
+    """Brings the copy up to date with the (updated) regular install: copies every file that is new, a different size
+    or newer. Game files the Era-DATs replaced keep the era version in the game; the updated original goes into
+    dat-backup instead (what restore-original-dats.ps1 puts back). Files the Era-DATs added are left alone. Returns
+    the number of files copied."""
+    copy_ffxi, copy_viewer = cfg.get("ffxi_client_dir", ""), cfg.get("pol_dir", "")
+    backup = os.path.join(kit, "dat-backup")
+    added = set()
+    try:
+        with open(os.path.join(backup, "new-files.txt"), encoding="utf-8") as handle:
+            added = {os.path.normcase(os.path.normpath(line.strip())) for line in handle if line.strip()}
+    except OSError:
+        pass
+
+    def stale(src, dst):
+        if not os.path.exists(dst):
+            return True
+        a, b = os.stat(src), os.stat(dst)
+        return a.st_size != b.st_size or int(a.st_mtime) > int(b.st_mtime) + 2
+
+    jobs = [(retail_ffxi, copy_ffxi, True)]
+    if retail_viewer and copy_viewer:
+        jobs.insert(0, (retail_viewer, copy_viewer, False))
+    todo = []
+    for src_root, dst_root, is_game in jobs:
+        for root, dirs, files in os.walk(src_root):
+            dirs[:] = [d for d in dirs if d.lower() != "patchfiles"]
+            for name in files:
+                src = os.path.join(root, name)
+                rel = os.path.relpath(src, src_root)
+                if is_game and os.path.normcase(os.path.normpath(rel)) in added:
+                    continue
+                target = os.path.join(dst_root, rel)
+                if is_game and os.path.isfile(os.path.join(backup, rel)):
+                    target = os.path.join(backup, rel)        # an era file is in the game: refresh its saved original
+                if stale(src, target):
+                    todo.append((src, target))
+    log(f"Updating the game copy: {len(todo)} files to copy...")
+    for index, (src, target) in enumerate(todo, 1):
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        shutil.copy2(src, target)
+        if index % 200 == 0:
+            log(f"   {index}/{len(todo)}")
+    log(f"The game copy is up to date ({len(todo)} files copied).")
+    return len(todo)
+
+
 # ----- Square Enix's official installer -----
 def download_to(url, path, log=print, context=None, chunk=1 << 20):
     """Streams a big file to disk; a stopped download carries on from where it was (<name>.part)."""

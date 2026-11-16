@@ -114,6 +114,74 @@ class GameTests(unittest.TestCase):
         self.assertIsNone(reg.get(us, "1000"))                             # created only for the game: removed again
         self.assertEqual(reg.get(eu, "0001"), RETAIL_F)
 
+    def _ffximain(self, folder, when):
+        import struct
+        import datetime
+        os.makedirs(folder, exist_ok=True)
+        stamp = int(datetime.datetime(*when, 12, tzinfo=datetime.timezone.utc).timestamp())
+        head = bytearray(512)
+        head[0:2] = b"MZ"
+        struct.pack_into("<I", head, 0x3C, 0x80)
+        head[0x80:0x84] = b"PE\0\0"
+        struct.pack_into("<I", head, 0x88, stamp)
+        with open(os.path.join(folder, "FFXiMain.dll"), "wb") as handle:
+            handle.write(head)
+
+    def test_game_build_and_age(self):
+        self._ffximain(self.copy["ffxi"], (2026, 8, 17))
+        self.assertEqual(lg.game_build(self.copy["ffxi"]), (2026, 8, 17))
+        self.assertTrue(lg.too_old(lg.game_build(self.copy["ffxi"])))
+        self.assertEqual(lg.build_text((2026, 8, 17)), "August 2026")
+        self._ffximain(self.copy["ffxi"], (2026, 10, 21))
+        self.assertFalse(lg.too_old(lg.game_build(self.copy["ffxi"])))
+        self.assertIsNone(lg.game_build(os.path.join(self.kit, "nowhere")))
+
+    def test_game_check_finds_a_newer_retail_install(self):
+        retail_f = os.path.join(self.kit, "retail", "FINAL FANTASY XI")
+        retail_v = os.path.join(self.kit, "retail", "PlayOnlineViewer")
+        os.makedirs(retail_v)
+        self._ffximain(self.copy["ffxi"], (2026, 8, 17))
+        self._ffximain(retail_f, (2026, 11, 2))
+        folder = r"SOFTWARE\PlayOnlineUS\InstallFolder"
+        reg = FakeReg({(folder, "0001"): retail_f, (folder, "1000"): retail_v})
+        info = lg.game_check(self.kit, self.cfg, reg)
+        self.assertTrue(info["too_old"])
+        self.assertTrue(info["retail_ok"])
+        self.assertEqual(info["retail"], (retail_f, retail_v))
+        # while a switch is in place the registry points at the copy: no retail is reported
+        open(os.path.join(self.kit, lg.STATE_FILE), "w").close()
+        self.assertFalse(lg.game_check(self.kit, self.cfg, reg)["retail_ok"])
+
+    def test_refresh_copy_keeps_era_files(self):
+        retail = os.path.join(self.kit, "retail", "FINAL FANTASY XI")
+        backup = os.path.join(self.kit, "dat-backup")
+        def write(path, text):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as handle:
+                handle.write(text)
+        write(os.path.join(retail, "FFXiMain.dll"), "new main")
+        write(os.path.join(retail, "ROM", "1", "1.DAT"), "new retail event")
+        write(os.path.join(retail, "ROM", "9", "9.DAT"), "retail only")
+        write(os.path.join(retail, "ROM", "5", "5.DAT"), "retail file the era pack also adds")
+        write(os.path.join(self.copy["ffxi"], "FFXiMain.dll"), "old main")
+        write(os.path.join(self.copy["ffxi"], "ROM", "1", "1.DAT"), "ERA")
+        write(os.path.join(self.copy["ffxi"], "ROM", "5", "5.DAT"), "ERA added")
+        write(os.path.join(backup, "ROM", "1", "1.DAT"), "old retail event")
+        write(os.path.join(backup, "new-files.txt"), os.path.join("ROM", "5", "5.DAT") + "\n")
+        import time as _time
+        for root, _dirs, files in os.walk(retail):                 # the regular install was updated after the copy
+            for name in files:
+                os.utime(os.path.join(root, name), (_time.time() + 100, _time.time() + 100))
+        n = lg.refresh_copy(self.kit, self.cfg, retail, None, log=lambda m: None)
+        read = lambda p: open(p).read()
+        self.assertEqual(read(os.path.join(self.copy["ffxi"], "FFXiMain.dll")), "new main")
+        self.assertEqual(read(os.path.join(self.copy["ffxi"], "ROM", "1", "1.DAT")), "ERA")                 # era kept
+        self.assertEqual(read(os.path.join(backup, "ROM", "1", "1.DAT")), "new retail event")              # original refreshed
+        self.assertEqual(read(os.path.join(self.copy["ffxi"], "ROM", "9", "9.DAT")), "retail only")
+        self.assertEqual(read(os.path.join(self.copy["ffxi"], "ROM", "5", "5.DAT")), "ERA added")
+        self.assertEqual(n, 3)
+        self.assertEqual(lg.refresh_copy(self.kit, self.cfg, retail, None, log=lambda m: None), 0)       # nothing left
+
     def _touch(self, *parts):
         path = os.path.join(*parts)
         os.makedirs(os.path.dirname(path), exist_ok=True)

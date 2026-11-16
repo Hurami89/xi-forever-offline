@@ -2818,6 +2818,8 @@ class App(tk.Tk):
                                    "installer puts in an older version). Show the steps?\n\nNo = play anyway.", parent=self):
                 PolUpdateGuide(self)
                 return
+        if not getattr(self, "age_checked", False) and self.game_too_old():
+            return
         self.rates = self.rates_tab.collect()
         try:
             core.save_rates(HERE, self.rates)
@@ -2835,6 +2837,63 @@ class App(tk.Tk):
         self.progress.start(14)
         self.refresh_stage()
         threading.Thread(target=self.worker, daemon=True).start()
+
+    def game_too_old(self):
+        """Before PLAY: a game older than the server needs crashes (Equipment) and freezes NPCs. Offers the fix; True
+        when PLAY should wait. Asked once per launcher session."""
+        self.age_checked = True
+        try:
+            import launcher_game as lg
+            info = lg.game_check(HERE, self.cfg)
+        except Exception:
+            return False
+        if not info.get("too_old"):
+            return False
+        have, need = lg.build_text(info["build"]), lg.MONTHS[lg.MIN_GAME_BUILD[1] - 1] + f" {lg.MIN_GAME_BUILD[0]}"
+        if info.get("retail_ok"):
+            if messagebox.askyesno("Update your game copy", f"XI: Forever Offline's copy of FINAL FANTASY XI is the {have} "
+                                   f"version, older than the {need} update the server needs (older games crash opening "
+                                   f"Equipment and can freeze at some NPCs).\n\nYour regular FFXI is newer "
+                                   f"({lg.build_text(info['retail_build'])}). Update the copy from it now? Only changed "
+                                   f"files are copied; your era files stay.\n\nNo = play anyway.", parent=self):
+                self.refresh_game_copy(info["retail"])
+                return True
+            return False
+        where = "XI: Forever Offline's copy of FINAL FANTASY XI" if info.get("copy") else "Your FINAL FANTASY XI"
+        if messagebox.askyesno("Update FINAL FANTASY XI", f"{where} is the {have} version, older than the {need} update "
+                               f"the server needs (older games crash opening Equipment and can freeze at some NPCs)."
+                               f"\n\nTo update: open PlayOnline, log in with your Square Enix account, start FINAL FANTASY "
+                               f"XI and let it download the update, then quit at the title screen."
+                               + ("\nAfter that, press PLAY here: the launcher offers to copy the update into its copy."
+                                  if info.get("copy") else "") +
+                               "\n\nOpen PlayOnline now?\n\nNo = play anyway.", parent=self):
+            try:
+                cfg = dict(self.cfg)
+                if info.get("retail"):
+                    cfg = {"ffxi_client_dir": info["retail"][0], "pol_dir": info["retail"][1] or ""}
+                elif info.get("copy"):
+                    cfg = {"ffxi_client_dir": "", "pol_dir": ""}          # the registry's own PlayOnline
+                lg.open_playonline(cfg)
+            except Exception as e:
+                messagebox.showinfo("PlayOnline", f"{e}", parent=self)
+            self.age_checked = False                                    # ask again after the update
+            return True
+        return False
+
+    def refresh_game_copy(self, retail):
+        import launcher_game as lg
+        self.play_btn.configure(state="disabled")
+        self.progress.start(14)
+
+        def work():
+            try:
+                lg.refresh_copy(HERE, self.cfg, retail[0], retail[1], log=self.say)
+                self.say("Game copy updated. Press PLAY.")
+            except Exception as e:
+                self.say(f"Could not update the game copy: {e}")
+            self.after(0, lambda: (self.progress.stop(), self.play_btn.configure(state="normal")))
+
+        threading.Thread(target=work, daemon=True).start()
 
     def stop(self):
         self.stop_requested = True
