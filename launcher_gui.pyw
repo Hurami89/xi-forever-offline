@@ -2438,7 +2438,10 @@ class App(tk.Tk):
         self.go("Settings")
         tab = getattr(self, "updates_tab", None)
         if tab is not None:
-            tab.check()
+            if tab.player:             # a player install checks for our releases, not Phoenix's git history
+                tab.player_check(False)
+            else:
+                tab.check()
 
     def second_manager(self):
         """The second window's addon/plugin list: (manager, "") or (None, why it is not available)."""

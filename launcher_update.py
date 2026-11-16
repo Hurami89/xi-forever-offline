@@ -106,7 +106,10 @@ def _unpack(zip_path, dest, keep=(), log=print, running_exe=None):
             if running_exe and os.path.normcase(os.path.abspath(target)) == os.path.normcase(os.path.abspath(running_exe)):
                 old = target[:-4] + ".old.exe"
                 if os.path.exists(old):
-                    os.remove(old)
+                    try:
+                        os.remove(old)
+                    except OSError:               # still running (an old launcher or one of its helpers): move it aside
+                        os.replace(old, target[:-4] + f".old-{int(time.time())}.exe")
                 os.replace(target, old)
             os.makedirs(os.path.dirname(target), exist_ok=True)
             with archive.open(info) as src, open(target + ".part", "wb") as out:
@@ -119,6 +122,12 @@ def _unpack(zip_path, dest, keep=(), log=print, running_exe=None):
 
 def update_kit(kit, release, fetch, log=print):
     """Installs a kit release over the kit folder. Returns True: the launcher must restart."""
+    for name in os.listdir(kit):                  # leftovers from an update made while an old copy was still running
+        if name.lower().endswith(".exe") and ".old-" in name:
+            try:
+                os.remove(os.path.join(kit, name))
+            except OSError:
+                pass
     path = _download(release, KIT_ASSET, kit, fetch, log, "launcher")
     running = sys.executable if getattr(sys, "frozen", False) else None
     _unpack(path, kit, log=log, running_exe=running)

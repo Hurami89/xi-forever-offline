@@ -8,6 +8,8 @@ OLD_MANAGED_SCRIPT = "phoenixsolo.txt"    # the same script on installs made bef
 DEFAULT_BOOT = "xiforever.ini"            # boot file name for a new install; config.json's ashita_boot wins
 # Packaged as "XI Forever Offline.exe" (PyInstaller) the kit folder is where the exe is, not where Python unpacked itself.
 FROZEN = bool(getattr(sys, "frozen", False))
+if FROZEN:   # programs we start from the exe (helpers, the restarted launcher) are new instances, not onefile children:
+    os.environ["PYINSTALLER_RESET_ENVIRONMENT"] = "1"   # else "invalid originating onefile parent process" once we exit
 KIT_DIR = os.path.dirname(sys.executable) if FROZEN else os.path.dirname(os.path.abspath(__file__))
 
 
@@ -797,6 +799,9 @@ def apply_rates(server_dir, rates):
     # Keep crash dumps on: settings/main.lua is rebuilt from the defaults every launch, so a hand edit
     # there is lost. With dumps on, a crash writes a minidump and a tombstone that names the function.
     wanted["main.lua"].append(("GENERATE_CORE_DUMP", True, "bool"))
+    # The watchdog kills the map server when one tick takes 2 s. On slower PCs a log in (the bots logging in with you and
+    # catching up on their history) can take longer; that's fine offline, so allow 15 s before it counts as a hang.
+    wanted["main.lua"].append(("INACTIVITY_WATCHDOG_PERIOD", 15000, "int"))
 
     for filename, entries in wanted.items():
         default_path = os.path.join(settings_dir, "default", filename)
