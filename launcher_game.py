@@ -27,9 +27,12 @@ POLCORE_CLSID = {"JP": "{07974581-0DF6-4EF0-BD05-604B3ADA9BE9}", "US": "{3501F5D
 POLCORE_DLL = {"JP": "polcore.dll", "US": "polcore.dll", "EU": "polcoreeu.dll"}
 FFXI_CLSID = "{989D790D-6236-11D4-80E9-00105A81E890}"
 FFXI_DLL = "FFXi.dll"
-# Square Enix's own full installer (FFXI, PlayOnline and every expansion), straight from Square Enix
-OFFICIAL_INSTALLER = {"US": ["https://gdl.square-enix.com/ffxi/download/us/FFXIFullSetup_US.part1.exe",
-                             "https://gdl.square-enix.com/ffxi/download/us/FFXIFullSetup_US.part2.rar"]}
+# Square Enix's own full installer (FFXI, PlayOnline and every expansion), straight from Square Enix: part1.exe
+# unpacks itself and part2.rar, part3.rar... (5 parts, about 7.2 GB, in 2026) into FFXIFullSetup_US, then
+# FFXISetup.exe in there installs the game. Parts are fetched until Square Enix has no next one.
+OFFICIAL_BASE = {"US": "https://gdl.square-enix.com/ffxi/download/us/FFXIFullSetup_US"}
+OFFICIAL_MIN_PARTS = 5
+OFFICIAL_MAX_PARTS = 12
 STATE_FILE = "game-switch.json"
 HKLM = "HKLM"
 
@@ -288,19 +291,54 @@ def download_to(url, path, log=print, context=None, chunk=1 << 20):
     return path
 
 
-def download_official(kit, log=print, lang="US", context=None):
-    folder = os.path.join(kit, "downloads", "ffxi-installer")
+def official_folder(kit):
+    return os.path.join(kit, "downloads", "ffxi-installer")
+
+
+def download_official(kit, log=print, lang="US", context=None, download=None):
+    """Every part of Square Enix's installer into downloads\\ffxi-installer (parts already there are kept)."""
+    import urllib.error
+    download = download or download_to
+    folder = official_folder(kit)
     os.makedirs(folder, exist_ok=True)
     files = []
-    for url in OFFICIAL_INSTALLER[lang]:
-        log(f"   Downloading {url.rsplit('/', 1)[-1]} from Square Enix...")
-        files.append(download_to(url, os.path.join(folder, url.rsplit("/", 1)[-1]), log=log, context=context))
+    for number in range(1, OFFICIAL_MAX_PARTS + 1):
+        name = f"{OFFICIAL_BASE[lang].rsplit('/', 1)[-1]}.part{number}." + ("exe" if number == 1 else "rar")
+        url = f"{OFFICIAL_BASE[lang]}.part{number}." + ("exe" if number == 1 else "rar")
+        log(f"   Downloading {name} from Square Enix...")
+        try:
+            files.append(download(url, os.path.join(folder, name), log=log, context=context))
+        except urllib.error.HTTPError as problem:
+            if problem.code == 404 and number > OFFICIAL_MIN_PARTS:
+                log(f"   That was the last part ({number - 1} in all).")
+                break
+            raise
     return files
 
 
-def run_official_installer(files, popen=subprocess.Popen):
-    """Starts Square Enix's installer (the first part unpacks the rest and opens FFXI's setup) and waits for it."""
-    proc = popen([files[0]], cwd=os.path.dirname(files[0]))
+def find_setup(kit):
+    """FFXISetup.exe inside what part1.exe unpacked, or None."""
+    for root, _dirs, names in os.walk(official_folder(kit)):
+        for name in names:
+            if name.lower() == "ffxisetup.exe":
+                return os.path.join(root, name)
+    return None
+
+
+def run_official_installer(kit, files, log=print, popen=subprocess.Popen):
+    """Unpacks the parts (part1.exe: press Extract and keep its folder) unless that was done, then runs FFXISetup.exe
+    (tick PlayOnline, FINAL FANTASY XI and the expansions, then Install) and waits for it."""
+    setup = find_setup(kit)
+    if setup is None:
+        log("   Square Enix's unpacker is opening: press Extract and keep the folder it suggests.")
+        popen([files[0]], cwd=os.path.dirname(files[0])).wait()
+        setup = find_setup(kit)
+        if setup is None:
+            raise RuntimeError("Square Enix's files were not unpacked into " + official_folder(kit) + ". Press Install again "
+                               "and let the unpacker extract into the folder it suggests.")
+    log("   Square Enix's setup is opening: tick every box (PlayOnline, FINAL FANTASY XI and the expansions), press "
+        "Install and follow it to the end.")
+    proc = popen([setup], cwd=os.path.dirname(setup))
     proc.wait()
     return proc.returncode
 

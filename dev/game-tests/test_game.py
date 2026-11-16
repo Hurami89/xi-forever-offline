@@ -141,6 +141,52 @@ class GameTests(unittest.TestCase):
         eu = FakeReg({(r"SOFTWARE\PlayOnlineEU\InstallFolder", "0001"): RETAIL_F})
         self.assertEqual(lg.detect_lang(RETAIL_F, reg=eu), "EU")
 
+    def test_download_official_until_last_part(self):
+        import urllib.error
+        got = []
+
+        def download(url, path, log=None, context=None):
+            number = int(url.rsplit(".part", 1)[1].split(".")[0])
+            if number > 5:
+                raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
+            got.append(os.path.basename(path))
+            return path
+        files = lg.download_official(self.kit, log=lambda m: None, download=download)
+        self.assertEqual(got, ["FFXIFullSetup_US.part1.exe"] + [f"FFXIFullSetup_US.part{n}.rar" for n in range(2, 6)])
+        self.assertEqual(len(files), 5)
+
+    def test_download_official_missing_part_is_an_error(self):
+        import urllib.error
+
+        def download(url, path, log=None, context=None):
+            if ".part3." in url:
+                raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
+            return path
+        with self.assertRaises(urllib.error.HTTPError):
+            lg.download_official(self.kit, log=lambda m: None, download=download)
+
+    def test_run_official_installer_unpacks_then_runs_setup(self):
+        ran = []
+        unpacked = os.path.join(lg.official_folder(self.kit), "FFXIFullSetup_US")
+
+        class Proc:
+            returncode = 0
+
+            def __init__(self, cmd, cwd=None):
+                ran.append(os.path.basename(cmd[0]))
+                if cmd[0].endswith(".exe") and "part1" in cmd[0]:     # the unpacker makes the setup folder
+                    os.makedirs(unpacked, exist_ok=True)
+                    open(os.path.join(unpacked, "FFXISetup.exe"), "w").close()
+
+            def wait(self):
+                return 0
+        part1 = os.path.join(lg.official_folder(self.kit), "FFXIFullSetup_US.part1.exe")
+        lg.run_official_installer(self.kit, [part1], log=lambda m: None, popen=Proc)
+        self.assertEqual(ran, ["FFXIFullSetup_US.part1.exe", "FFXISetup.exe"])
+        ran.clear()
+        lg.run_official_installer(self.kit, [part1], log=lambda m: None, popen=Proc)   # already unpacked: setup only
+        self.assertEqual(ran, ["FFXISetup.exe"])
+
     def test_find_viewer_sibling(self):
         ffxi = os.path.join(self.kit, "SquareEnix", "FINAL FANTASY XI")
         os.makedirs(ffxi)
