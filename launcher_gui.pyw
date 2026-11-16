@@ -204,6 +204,14 @@ def elevate_and_exit():
     sys.exit(0)
 
 
+def run_elevated(args, script="launcher_game.py"):
+    """Runs one of the kit's scripts as administrator (Windows asks first) and returns at once."""
+    cmd = core.py_cmd(os.path.join(HERE, script), *args)
+    result = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd[0], subprocess.list2cmdline(cmd[1:]), HERE, 0)
+    if result <= 32:
+        raise RuntimeError("Windows' permission prompt was refused.")
+
+
 class Cancelled(Exception):
     pass
 
@@ -2176,6 +2184,13 @@ class App(tk.Tk):
                 self.db_proc = launcher_setup.start_portable(self.cfg)
             except Exception as e:
                 print(f"Could not start the database: {e}")
+        if self.cfg.get("game_copy"):          # a game copy switch left in place by a crash: put PlayOnline back
+            try:
+                import launcher_game as lg
+                if lg.pending_recovery(HERE) and not core.is_running("xiloader"):
+                    run_elevated(["recover", os.path.join(HERE, lg.STATE_FILE)])
+            except Exception as e:
+                print(f"Could not put PlayOnline's settings back: {e}")
         self.q = queue.Queue()
         self.procs, self.logfiles = {}, []
         self.running, self.stop_requested = False, False
@@ -2967,6 +2982,10 @@ class App(tk.Tk):
         self.logfiles.append(alog)
         boot = getattr(self, "launch_boot", None) or cfg.get("ashita_boot", core.DEFAULT_BOOT)      # the GM game starts with its own boot file
         self.launch_boot = None
+        if cfg.get("game_copy"):     # our own copy of the game: point PlayOnline at it until every game window closes
+            import launcher_game as lg
+            if lg.start_switch(HERE, cfg, run_elevated, is_running=lambda: core.is_running("xiloader")):
+                self.say("Pointed PlayOnline at XI: Forever Offline's copy of the game (put back when the game closes).")
         subprocess.Popen([cli, boot], cwd=self.ashita, stdout=alog,
                          stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
         for _ in range(60):
@@ -3233,6 +3252,8 @@ class SetupWizard(tk.Tk):
         self.q = queue.Queue()
         layout = launcher_setup.default_layout(HERE)
         self.ffxi = tk.StringVar(value=launcher_setup.find_ffxi() or "")
+        # the game files: a separate copy when FFXI is installed, else Square Enix's official installer
+        self.game = tk.StringVar(value="copy" if self.ffxi.get() else "official")
         self.ashita = tk.StringVar(value=layout["ashita_dir"])
         self.server = tk.StringVar(value=layout["server_dir"])
         self.world = tk.StringVar(value="living")
@@ -3278,10 +3299,26 @@ class SetupWizard(tk.Tk):
 
     def page_folders(self):
         self.clear("1. Where things are")
-        self.text("This sets up everything on this PC: the game add-on loader (Ashita), the game server and a small database. "
-                  "It takes a few minutes and needs an internet connection for the downloads. You need Final Fantasy XI "
-                  "installed (the PlayOnline version).")
-        self.folder_row("Final Fantasy XI", self.ffxi, "Found from PlayOnline's settings when it can be. The folder with FFXiMain.dll in it.")
+        self.text("This sets up everything on this PC: the game files, the game add-on loader (Ashita), the game server and a "
+                  "small database. It takes a while and needs an internet connection for the downloads.")
+        found = bool(self.setup.valid_ffxi(self.ffxi.get()))
+        options = [("copy", "Make a separate copy of my FINAL FANTASY XI for XI: Forever Offline (recommended)",
+                    "Your own install (retail, other servers, HD packs) stays exactly as it is. Needs as much free space as "
+                    "your FFXI install uses. On PLAY, Windows asks once for permission to point PlayOnline at the copy; "
+                    "it is put back when the game closes."),
+                   ("existing", "Use my installed FINAL FANTASY XI",
+                    "No copy. The Era-DATs (next page) then go into that install; its original files are backed up."),
+                   ("official", "Download FINAL FANTASY XI from Square Enix (I don't have it)",
+                    "Square Enix's official installer, about 7 GB. Its setup window opens: install with the default "
+                    "choices. Afterwards PlayOnline updates the game once (free).")]
+        for key, label, about in options:
+            if key == "official" and found:
+                continue
+            tk.Radiobutton(self.body, text=label, value=key, variable=self.game, bg=BG, fg=FG, selectcolor=PANEL,
+                           activebackground=BG, activeforeground=FG, font=("Segoe UI", 10, "bold")).pack(anchor="w")
+            tk.Label(self.body, text=about, bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
+        self.folder_row("Final Fantasy XI", self.ffxi, "Found from PlayOnline's settings when it can be. The folder with FFXiMain.dll "
+                        "in it (not needed for the Square Enix download).")
         self.folder_row("Ashita", self.ashita, "A new folder is fine: Ashita is downloaded from its official release.")
         self.folder_row("Server", self.server, "A new folder is fine: the ready-made server is downloaded (a few hundred MB). "
                         "If you built the server yourself, choose its folder.")
@@ -3348,8 +3385,8 @@ class SetupWizard(tk.Tk):
 
     def check_page(self):
         if self.page == 0:
-            if not self.setup.valid_ffxi(self.ffxi.get()):
-                return "Choose the FINAL FANTASY XI folder (the one with FFXiMain.dll in it)."
+            if self.game.get() != "official" and not self.setup.valid_ffxi(self.ffxi.get()):
+                return "Choose the FINAL FANTASY XI folder (the one with FFXiMain.dll in it), or pick the Square Enix download."
         if self.page == 2 and not self.setup.valid_login(self.login.get()):
             return "The login must be 3-16 letters and numbers."
         if self.page == 2 and len(self.password.get()) < 6:
@@ -3360,7 +3397,7 @@ class SetupWizard(tk.Tk):
     def start_install(self):
         self.next_btn.configure(state="disabled")
         self.back_btn.configure(state="disabled")
-        choices = {"ffxi_dir": self.ffxi.get(), "ashita_dir": self.ashita.get(), "server_dir": self.server.get(),
+        choices = {"ffxi_dir": self.ffxi.get(), "game": self.game.get(), "ashita_dir": self.ashita.get(), "server_dir": self.server.get(),
                    "mariadb_dir": self.mariadb_dir, "world": self.world.get(), "population": self.population.get(),
                    "interface": self.interface.get(), "extras": [k for k, v in self.extras.items() if v.get()],
                    "era_dats": self.era_dats.get(),

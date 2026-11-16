@@ -21,6 +21,7 @@
 !/launcher_setup.py
 !/launcher_update.py
 !/launcher_publish.py
+!/launcher_game.py
 !/thirdparty.json
 # launcher_classic.pyw and "Classic launcher.bat" (the old look) stay on the dev PC only
 !/launcher.bat

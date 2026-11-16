@@ -1,0 +1,152 @@
+"""Stand-in tests for launcher_game.py (no Windows needed): python test_game.py [kit folder]"""
+import json
+import os
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, sys.argv.pop(1) if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", ".."))
+import launcher_game as lg   # noqa: E402
+
+RETAIL_V = r"C:\Program Files (x86)\PlayOnline\SquareEnix\PlayOnlineViewer"
+RETAIL_F = r"C:\Program Files (x86)\PlayOnline\SquareEnix\FINAL FANTASY XI"
+
+
+class FakeReg:
+    def __init__(self, values=None):
+        self.v = dict(values or {})
+
+    def get(self, path, name):
+        return self.v.get((path, name))
+
+    def set(self, path, name, value):
+        self.v[(path, name)] = value
+
+    def delete(self, path, name):
+        self.v.pop((path, name), None)
+
+
+def retail():
+    folder = r"SOFTWARE\PlayOnlineUS\InstallFolder"
+    return FakeReg({(folder, "0001"): RETAIL_F, (folder, "1000"): RETAIL_V,
+                    (rf"SOFTWARE\Classes\CLSID\{lg.POLCORE_CLSID['US']}\InprocServer32", ""): RETAIL_V + r"\polcore.dll",
+                    (rf"SOFTWARE\Classes\CLSID\{lg.FFXI_CLSID}\InprocServer32", ""): RETAIL_F + r"\FFXi.dll"})
+
+
+class GameTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.kit = self.tmp.name
+        self.copy = lg.game_paths(os.path.join(self.kit, "Game"))
+        self.cfg = {"game_copy": True, "pol_lang": "US", "pol_dir": self.copy["viewer"], "ffxi_client_dir": self.copy["ffxi"]}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_entries_keep_file_names(self):
+        reg = retail()
+        want = dict(((p, n), v) for p, n, v in lg.entries("US", r"D:\G\V", r"D:\G\F", reg))
+        self.assertEqual(want[(rf"SOFTWARE\Classes\CLSID\{lg.FFXI_CLSID}\InprocServer32", "")], r"D:\G\F\FFXi.dll")
+        self.assertEqual(want[(r"SOFTWARE\PlayOnlineUS\InstallFolder", "1000")], r"D:\G\V")
+
+    def test_no_switch_without_copy_or_when_already_pointing(self):
+        reg = retail()
+        self.assertFalse(lg.needs_switch({"ffxi_client_dir": RETAIL_F}, reg))
+        self.assertTrue(lg.needs_switch(self.cfg, reg))
+        for p, n, v in lg.entries("US", self.copy["viewer"], self.copy["ffxi"], reg):
+            reg.set(p, n, v)
+        self.assertFalse(lg.needs_switch(self.cfg, reg))
+
+    def test_hold_switches_then_restores(self):
+        reg, before = retail(), dict(retail().v)
+        state = os.path.join(self.kit, lg.STATE_FILE)
+        with open(state, "w") as h:
+            json.dump({"lang": "US", "viewer": self.copy["viewer"], "ffxi": self.copy["ffxi"]}, h)
+        seen = []
+        running = iter([False, True, True, False])      # not yet started, two windows of play, closed
+
+        def is_running():
+            seen.append(lg.needs_switch(self.cfg, reg))  # while held, the registry points at the copy
+            return next(running)
+        lg.hold(state, reg, is_running, sleep=lambda s: None)
+        self.assertEqual(seen[:3], [False, False, False])
+        self.assertEqual(reg.v, before)
+        self.assertFalse(os.path.exists(state))
+
+    def test_hold_restores_a_value_that_was_missing(self):
+        reg = retail()
+        reg.delete(rf"SOFTWARE\Classes\CLSID\{lg.FFXI_CLSID}\InprocServer32", "")
+        before = dict(reg.v)
+        state = os.path.join(self.kit, lg.STATE_FILE)
+        with open(state, "w") as h:
+            json.dump({"lang": "US", "viewer": "V", "ffxi": "F"}, h)
+        lg.hold(state, reg, lambda: False, sleep=lambda s: None, start_wait=2)
+        self.assertEqual(reg.v, before)
+
+    def test_recover_after_crash(self):
+        reg, before = retail(), dict(retail().v)
+        state = os.path.join(self.kit, lg.STATE_FILE)
+        originals = [(p, n, reg.get(p, n)) for p, n, _v in lg.entries("US", "V", "F", reg)]
+        for p, n, v in lg.entries("US", "V", "F", reg):
+            reg.set(p, n, v)
+        with open(state, "w") as h:
+            json.dump({"lang": "US", "viewer": "V", "ffxi": "F", "originals": originals, "applied": True}, h)
+        self.assertTrue(lg.pending_recovery(self.kit))
+        self.assertTrue(lg.recover(state, reg))
+        self.assertEqual(reg.v, before)
+        self.assertFalse(lg.pending_recovery(self.kit))
+
+    def test_start_switch_runs_helper_and_waits(self):
+        reg = retail()
+        calls = []
+
+        def run_elevated(args):          # stands in for the elevated helper: it marks the state as applied
+            calls.append(args[0])
+            with open(args[1]) as h:
+                s = json.load(h)
+            s["applied"] = True
+            with open(args[1], "w") as h:
+                json.dump(s, h)
+        self.assertTrue(lg.start_switch(self.kit, self.cfg, run_elevated, reg=reg, sleep=lambda s: None))
+        self.assertEqual(calls, ["hold"])
+        self.assertFalse(lg.start_switch(self.kit, {"ffxi_client_dir": RETAIL_F}, run_elevated, reg=reg))
+
+    def test_start_switch_refused(self):
+        with self.assertRaises(RuntimeError):
+            lg.start_switch(self.kit, self.cfg, lambda a: None, reg=retail(), sleep=lambda s: None, timeout=1)
+        self.assertFalse(lg.pending_recovery(self.kit))
+
+    def test_copy_install_and_resume(self):
+        src = os.path.join(self.kit, "src", "SquareEnix")
+        for sub, name in (("PlayOnlineViewer", "polcore.dll"), ("FINAL FANTASY XI", "FFXiMain.dll"),
+                          (os.path.join("FINAL FANTASY XI", "ROM", "0", "0"), "0.DAT")):
+            os.makedirs(os.path.join(src, sub), exist_ok=True)
+            with open(os.path.join(src, sub, name), "wb") as h:
+                h.write(b"x" * 1000)
+        logs = []
+        paths = lg.copy_install(os.path.join(src, "FINAL FANTASY XI"), os.path.join(src, "PlayOnlineViewer"),
+                                os.path.join(self.kit, "Game"), log=logs.append, free=10 ** 12)
+        self.assertTrue(os.path.isfile(os.path.join(paths["ffxi"], "ROM", "0", "0", "0.DAT")))
+        self.assertTrue(os.path.isfile(os.path.join(paths["viewer"], "polcore.dll")))
+        logs.clear()
+        lg.copy_install(os.path.join(src, "FINAL FANTASY XI"), os.path.join(src, "PlayOnlineViewer"),
+                        os.path.join(self.kit, "Game"), log=logs.append, free=10 ** 12)
+        self.assertIn("Copying 0 game files", logs[0])
+        with self.assertRaises(RuntimeError):
+            lg.copy_install(os.path.join(src, "FINAL FANTASY XI"), os.path.join(src, "PlayOnlineViewer"),
+                            os.path.join(self.kit, "Game2"), free=1000)
+
+    def test_detect_lang(self):
+        self.assertEqual(lg.detect_lang(RETAIL_F, reg=retail()), "US")
+        eu = FakeReg({(r"SOFTWARE\PlayOnlineEU\InstallFolder", "0001"): RETAIL_F})
+        self.assertEqual(lg.detect_lang(RETAIL_F, reg=eu), "EU")
+
+    def test_find_viewer_sibling(self):
+        ffxi = os.path.join(self.kit, "SquareEnix", "FINAL FANTASY XI")
+        os.makedirs(ffxi)
+        os.makedirs(os.path.join(self.kit, "SquareEnix", "PlayOnlineViewer"))
+        self.assertEqual(lg.find_viewer(ffxi, reg=FakeReg()), os.path.join(self.kit, "SquareEnix", "PlayOnlineViewer"))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -354,9 +354,34 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
     items = {item["id"]: item for item in tp.load_manifest(kit)}
     ashita, server, mdb = choices["ashita_dir"], choices["server_dir"], choices["mariadb_dir"]
 
-    log("1/9 Checking Final Fantasy XI...")
+    log("1/9 Final Fantasy XI...")
+    game = choices.get("game", "existing")      # copy | existing | official (launcher_game.py)
+    extra_cfg = {}
+    if game == "official" and not valid_ffxi(choices.get("ffxi_dir")):
+        import launcher_game as lg
+        found = find_ffxi()
+        if not valid_ffxi(found):
+            files = lg.download_official(kit, log=log, context=tp.ssl_context())
+            log("   Square Enix's installer is opening: install with its default choices, then come back here.")
+            lg.run_official_installer(files, popen=popen)
+            found = find_ffxi()
+            if not valid_ffxi(found):
+                raise RuntimeError("FINAL FANTASY XI isn't installed yet. Finish Square Enix's installer (it may still be "
+                                   "open), then press Install again; the download is kept.")
+        choices["ffxi_dir"] = found
+        extra_cfg["game_update_needed"] = True
     if not valid_ffxi(choices.get("ffxi_dir")):
         raise RuntimeError("That folder is not FINAL FANTASY XI (FFXiMain.dll is missing). Install the game first.")
+    if game == "copy":
+        import launcher_game as lg
+        lang = lg.detect_lang(choices["ffxi_dir"])
+        viewer = lg.find_viewer(choices["ffxi_dir"], lang)
+        if not viewer:
+            raise RuntimeError("The PlayOnline folder that goes with that FFXI folder wasn't found, so the game can't be "
+                               "copied. Choose 'Use my installed FFXI' instead.")
+        paths = lg.copy_install(choices["ffxi_dir"], viewer, os.path.join(kit, "Game"), log=log)
+        choices["ffxi_dir"] = paths["ffxi"]
+        extra_cfg.update({"game_copy": True, "pol_dir": paths["viewer"], "pol_lang": lang})
 
     log("2/9 The game server...")
     if not valid_server(server):
@@ -458,7 +483,10 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         "server_dir": server, "ffxi_client_dir": choices["ffxi_dir"], "ashita_dir": ashita, "ashita_boot": BOOT_NAME,
         "db_name": DB_NAME, "db_user": DB_USER, "db_pass": keys["xi"], "db_port": keys["port"],
         "game_user": choices["login"], "game_pass": choices["password"],
-        "mariadb_dir": mdb, "mariadb_service": "", "world": choices["world"]})
+        "mariadb_dir": mdb, "mariadb_service": "", "world": choices["world"], **extra_cfg})
+    if extra_cfg.get("game_update_needed"):
+        log("One more step before your first PLAY: start PlayOnline (or FINAL FANTASY XI) from the Start menu once and "
+            "let it update the game files (Square Enix's free update), then close it.")
     log("Setup finished.")
     return cfg
 
