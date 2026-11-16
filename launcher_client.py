@@ -1,7 +1,7 @@
 """Game-file changes XI: Forever Offline makes to the player's FINAL FANTASY XI folder, after the era game files.
 
-  1. Home Point teleport window: the era files only offer "Set home point"; the retail Home Point entries are put
-     back (restore_retail_homepoints.py; needs the era installer's backup in <kit>\\dat-backup).
+  1. Home Point teleport window: the era files only offer "Set home point"; 11 bytes per Home Point are put back
+     (client-patches\\homepoints.json; only when the era files are installed, i.e. <kit>\\dat-backup exists).
   2. Crystal Boy items: the Crystal Boy and the four Recollections (ROM\\118\\107.DAT), the four Memory key items
      (ROM\\175\\35.DAT) and the Anniversary Ring made stackable (ROM\\118\\109.DAT) (install_crystalboy_items.py).
   3. Chariot Band: its description (+75%, 720 min, 4000), 3 charges and a 15-hour recast (client-patches\\chariot_band.json).
@@ -25,37 +25,90 @@ def _kit_module(kit, name):
 
 
 # ----- 1. Home Points -----
-def homepoints(kit, game, server, log=print):
-    rrh = _kit_module(kit, "restore_retail_homepoints")
-    era_backup = os.path.join(kit, "dat-backup")
-    if not os.path.isdir(era_backup):
+def _entry_starts(data):
+    """{NPC id: start} for an event file (count, table of entry sizes, entries that begin with the NPC id)."""
+    import struct
+    if len(data) < 8:
+        return {}
+    count = struct.unpack_from("<I", data, 0)[0]
+    if count == 0 or count > 5000 or 4 + 4 * count > len(data):
+        return {}
+    sizes = struct.unpack_from("<%dI" % count, data, 4)
+    if 4 + 4 * count + sum(sizes) != len(data):
+        return {}
+    out, off = {}, 4 + 4 * count
+    for size in sizes:
+        if size >= 4:
+            out[struct.unpack_from("<I", data, off)[0]] = off
+        off += size
+    return out
+
+
+def homepoints(kit, game, server=None, log=print):
+    """Puts the Home Point teleport window back with the 11-byte table in client-patches\\homepoints.json. It never
+    copies from the player's own game files: an older launcher copied whole retail entries from them, which breaks
+    with a game version newer than the era files (the crystal shows a Chains of Promathia message and waits). Files
+    that older launcher changed are rebuilt from the untouched era file it saved in backups\\homepoint-events."""
+    if not os.path.isdir(os.path.join(kit, "dat-backup")):
         return "Home Points: the era game files are not installed, so they are already retail."
-    hp_ids = rrh.homepoint_ids(server)
-    if not hp_ids:
-        return "Home Points: no Home Points found in the server's zone data; skipped."
-    total = files = 0
-    for rel, changes, _skipped, _already in sorted(rrh.plan(game, era_backup, hp_ids)):
-        if not changes:
+    with open(os.path.join(kit, "client-patches", "homepoints.json"), encoding="utf-8") as handle:
+        table = json.load(handle)
+    retail = bytes.fromhex(table["retail"])
+    by_file = {}
+    for row in table["entries"]:
+        by_file.setdefault(row["file"], []).append(row)
+    fixed = files = repaired = 0
+    unknown = []
+    for rel, rows in sorted(by_file.items()):
+        parts = rel.split("/")
+        path = os.path.join(game, *parts)
+        keep = os.path.join(kit, "backups", "homepoint-events", *parts)
+        if not os.path.isfile(path):
             continue
-        path = os.path.join(game, rel)
-        keep = os.path.join(rrh.BACKUP, rel)
-        if not os.path.exists(keep):
-            os.makedirs(os.path.dirname(keep), exist_ok=True)
-            with open(path, "rb") as src, open(keep, "wb") as dst:
-                dst.write(src.read())
         with open(path, "rb") as handle:
-            data = bytearray(handle.read())
-        for start, want in changes:
-            data[start:start + len(want)] = want
+            current = handle.read()
+        source = current
+        if os.path.isfile(keep):
+            with open(keep, "rb") as handle:
+                source = handle.read()             # the untouched era file
+        data = bytearray(source)
+        starts = _entry_starts(data)
+        changed = 0
+        for row in rows:
+            start = starts.get(row["npc"])
+            if start is None:
+                unknown.append(row["npc"])
+                continue
+            at = start + row["at"]
+            here = bytes(data[at:at + len(retail)])
+            if here == retail:
+                continue
+            if here != bytes.fromhex(row["era"]):
+                unknown.append(row["npc"])
+                continue
+            data[at:at + len(retail)] = retail
+            changed += 1
+        if bytes(data) == current:
+            continue
+        if not os.path.isfile(keep):
+            os.makedirs(os.path.dirname(keep), exist_ok=True)
+            with open(keep, "wb") as handle:
+                handle.write(current)
         tmp = path + ".hp-tmp"
         with open(tmp, "wb") as handle:
             handle.write(data)
         os.replace(tmp, path)
-        total += len(changes)
         files += 1
-    if not total:
-        return None
-    return f"Home Points: the teleport window is back on {total} crystal(s) in {files} file(s)."
+        fixed += changed
+        if source is not current:
+            repaired += 1
+    notes = []
+    if files:
+        notes.append(f"Home Points: the teleport window is back on {fixed} crystal(s) in {files} file(s)"
+                     + (f" ({repaired} file(s) rebuilt from the era originals)" if repaired else "") + ".")
+    if unknown:
+        notes.append(f"Home Points: {len(unknown)} crystal(s) skipped (their event file is not the expected era file).")
+    return " ".join(notes) or None
 
 
 # ----- 2. Crystal Boy items -----

@@ -1501,6 +1501,8 @@ class RatesTab(tk.Frame):
         values = core.apply_world(self.collect(), world, population)
         for key in ("crowds", "crowds_chat", "crowds_chat_ai", "crowds_field", "bots", "squad_chat"):
             getattr(self, key).set(bool(values[key]))
+        if values.get("ah_sim"):
+            self.ah_sim.set(True)
         self.crowds_size.set(str(values["crowds_per_zone"]))
         self.bots_roster.set(str(values["bots_roster"]))
         self.bots_online.set(str(values["bots_online"]))

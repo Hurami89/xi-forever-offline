@@ -440,8 +440,8 @@ RATE_DEFAULTS.update({"squad_chat": True})   # squad mates answer in party chat 
 # (the Rates tab then shows "Custom").
 WORLDS = {
     "quiet": ("Quiet world", "No town crowds or bot players. Squad mates use their scripted lines. Nothing uses the AI."),
-    "living": ("Living world", "Town crowds, parties in the field and bot players who level, craft and chat with "
-                               "ready-made lines. No AI download."),
+    "living": ("Living world", "Town crowds, parties in the field, bot players who level, craft and chat with "
+                               "ready-made lines, and a stocked auction house. No AI download."),
     "living_ai": ("Living world + AI chat", "The living world, plus AI-written crowd chatter, bot players who answer "
                                             "you, and squad mates who talk. Needs Ollama and a model (about 8 GB)."),
 }
@@ -450,6 +450,8 @@ WORLD_SWITCHES = {
     "living": {"crowds": True, "crowds_chat": True, "crowds_chat_ai": False, "crowds_field": True, "bots": True, "squad_chat": False},
     "living_ai": {"crowds": True, "crowds_chat": True, "crowds_chat_ai": True, "crowds_field": True, "bots": True, "squad_chat": True},
 }
+# worlds that also switch the auction house simulator on (it stays the player's own switch afterwards)
+LIVING_AH = ("living", "living_ai")
 # crowd size per town, bot players in the roster, bot players online at once
 POPULATIONS = {"small": ("Small", 10, 100, 40), "medium": ("Medium", 20, 200, 150), "large": ("Large", 30, 300, 500)}
 
@@ -459,6 +461,8 @@ def apply_world(rates, world=None, population=None):
     out = dict(rates)
     if world in WORLD_SWITCHES:
         out.update(WORLD_SWITCHES[world])
+        if world in LIVING_AH:
+            out["ah_sim"] = True    # a living world starts with a stocked auction house (not part of world_of)
     if population in POPULATIONS:
         _label, crowd, roster, online = POPULATIONS[population]
         out.update({"crowds_per_zone": crowd, "bots_roster": roster, "bots_online": online})
