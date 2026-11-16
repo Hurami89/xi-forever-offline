@@ -72,6 +72,31 @@ class WinRegistry:
         except OSError:
             pass
 
+    def com_servers(self):
+        """[(clsid, dll)] for every 32-bit COM class whose DLL is in a PlayOnline or FINAL FANTASY XI folder."""
+        w = self.w
+        found = []
+        try:
+            root = w.OpenKey(w.HKEY_LOCAL_MACHINE, r"SOFTWARE\Classes\CLSID", 0, w.KEY_READ | w.KEY_WOW64_32KEY)
+        except OSError:
+            return found
+        with root:
+            index = 0
+            while True:
+                try:
+                    clsid = w.EnumKey(root, index)
+                except OSError:
+                    break
+                index += 1
+                try:
+                    with w.OpenKey(root, clsid + r"\InprocServer32") as key:
+                        dll = w.QueryValueEx(key, "")[0]
+                except OSError:
+                    continue
+                if isinstance(dll, str) and _game_dll(dll):
+                    found.append((clsid, dll))
+        return found
+
 
 def registry():
     return WinRegistry()
@@ -86,7 +111,59 @@ def entries(lang, viewer, ffxi, reg):
     # PlayOnlineViewer), only the folder moves; if the copy has it elsewhere, use the copy's own file
     polcore_path = _moved(reg.get(polcore, ""), reg.get(folder, "1000"), viewer, POLCORE_DLL[lang])
     game_path = _moved(reg.get(game, ""), reg.get(folder, "0001"), ffxi, FFXI_DLL)
-    return [(folder, "0001", ffxi), (folder, "1000", viewer), (polcore, "", polcore_path), (game, "", game_path)]
+    want = [(folder, "0001", ffxi), (folder, "1000", viewer), (polcore, "", polcore_path), (game, "", game_path)]
+    # Every other COM class of the game or PlayOnline follows too. FFXi.dll itself creates FFXiMain.dll through COM
+    # ({0DF0E951-...}): pointing only FFXi.dll at the copy left the game's main file (and so its menus, item data
+    # and event files) loading from the retail install (shujimi, 2026-11-16: crash in the retail FFXiMain.dll).
+    roots = [(reg.get(folder, "0001"), ffxi), (reg.get(folder, "1000"), viewer)]
+    done = {polcore.lower(), game.lower()}
+    for clsid, dll in (reg.com_servers() if hasattr(reg, "com_servers") else []):
+        path = rf"SOFTWARE\Classes\CLSID\{clsid}\InprocServer32"
+        if path.lower() in done:
+            continue
+        new = _into_copy(dll, roots, viewer, ffxi)
+        if new is not None and not _same(new, dll):
+            want.append((path, "", new))
+            done.add(path.lower())
+    return want
+
+
+def _game_dll(dll):
+    """True for a DLL inside a PlayOnline / FINAL FANTASY XI folder (the COM classes the game and PlayOnline use)."""
+    low = dll.lower()
+    return "final fantasy xi" in low or "playonline" in low
+
+
+def _into_copy(dll, roots, viewer, ffxi):
+    """The copy's file for a retail game or PlayOnline DLL, or None (already the copy's, or the copy has no such file)."""
+    full = ntpath.normpath(dll.strip('"'))
+    low = full.lower()
+    for mine in (ffxi, viewer):
+        if mine and low.startswith(ntpath.normpath(mine).rstrip("\\").lower() + "\\"):
+            return None
+    candidates = []
+    for old, new in roots:
+        if old and new:
+            base = ntpath.normpath(old).rstrip("\\").lower() + "\\"
+            if low.startswith(base) and not _same(old, new):
+                candidates.append((new, full[len(base):]))
+    parts = full.split("\\")
+    for i in range(len(parts) - 2, -1, -1):
+        name = parts[i].lower()
+        if name == "final fantasy xi" and ffxi:
+            candidates.append((ffxi, "\\".join(parts[i + 1:])))
+            break
+        if name == "playonlineviewer" and viewer:
+            candidates.append((viewer, "\\".join(parts[i + 1:])))
+            break
+    for new_root, rel in candidates:
+        path = ntpath.join(new_root, rel)
+        if os.path.exists(path.replace("\\", os.sep)):
+            return path
+        moved = ntpath.join(new_root, "viewer", "com", ntpath.basename(full))     # (the newer PlayOnline layout)
+        if os.path.exists(moved.replace("\\", os.sep)):
+            return moved
+    return None
 
 
 def _moved(registered, old_root, new_root, default_name):

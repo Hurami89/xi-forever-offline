@@ -25,6 +25,13 @@ class FakeReg:
     def delete(self, path, name):
         self.v.pop((path, name), None)
 
+    def com_servers(self):
+        out = []
+        for (path, name), value in self.v.items():
+            if name == "" and path.startswith("SOFTWARE\\Classes\\CLSID\\") and lg._game_dll(value or ""):
+                out.append((path.split("\\")[3], value))
+        return out
+
 
 def retail():
     folder = r"SOFTWARE\PlayOnlineUS\InstallFolder"
@@ -48,6 +55,43 @@ class GameTests(unittest.TestCase):
         want = dict(((p, n), v) for p, n, v in lg.entries("US", r"D:\G\V", r"D:\G\F", reg))
         self.assertEqual(want[(rf"SOFTWARE\Classes\CLSID\{lg.FFXI_CLSID}\InprocServer32", "")], r"D:\G\F\FFXi.dll")
         self.assertEqual(want[(r"SOFTWARE\PlayOnlineUS\InstallFolder", "1000")], r"D:\G\V")
+
+    def test_ffximain_com_class_follows_the_copy(self):
+        # FFXi.dll creates FFXiMain.dll through COM: that class must point at the copy too (shujimi, 2026-11-16)
+        main = r"SOFTWARE\Classes\CLSID\{0DF0E951-D03C-4A94-90EF-40AE60668F5F}\InprocServer32"
+        other = r"SOFTWARE\Classes\CLSID\{11111111-2222-3333-4444-555555555555}\InprocServer32"
+        reg = retail()
+        reg.set(main, "", RETAIL_F + r"\FFXiMain.dll")
+        reg.set(other, "", RETAIL_F + r"\NotInTheCopy.dll")
+        self._touch(self.copy["ffxi"], "FFXiMain.dll")
+        want = dict(((p, n), v) for p, n, v in lg.entries("US", self.copy["viewer"], self.copy["ffxi"], reg))
+        self.assertEqual(want[(main, "")].replace("\\", "/"), os.path.join(self.copy["ffxi"], "FFXiMain.dll").replace("\\", "/"))
+        self.assertNotIn((other, ""), want)                 # the copy has no such file: left alone
+        self.assertTrue(lg.needs_switch(self.cfg, reg))
+        # the switch puts it back afterwards
+        state = os.path.join(self.kit, lg.STATE_FILE)
+        with open(state, "w", encoding="utf-8") as handle:
+            json.dump({"lang": "US", "viewer": self.copy["viewer"], "ffxi": self.copy["ffxi"]}, handle)
+        seen = []
+        lg.hold(state, reg, lambda: (seen.append(reg.get(main, "")) or len(seen) < 2), sleep=lambda s: None)
+        self.assertTrue(any(v.replace("\\", "/") == os.path.join(self.copy["ffxi"], "FFXiMain.dll").replace("\\", "/") for v in seen))
+        self.assertEqual(reg.get(main, ""), RETAIL_F + r"\FFXiMain.dll")
+
+    def test_ffximain_redirected_even_when_the_folders_already_point_at_the_copy(self):
+        # a registry left pointing at the copy for the four main values still had FFXiMain.dll at retail
+        main = r"SOFTWARE\Classes\CLSID\{0DF0E951-D03C-4A94-90EF-40AE60668F5F}\InprocServer32"
+        reg = retail()
+        for p, n, v in lg.entries("US", self.copy["viewer"], self.copy["ffxi"], reg)[:4]:
+            reg.set(p, n, v)
+        reg.set(main, "", RETAIL_F + r"\FFXiMain.dll")
+        self._touch(self.copy["ffxi"], "FFXiMain.dll")
+        self.assertTrue(lg.needs_switch(self.cfg, reg))
+        reg.set(main, "", os.path.join(self.copy["ffxi"], "FFXiMain.dll"))
+        self._touch(self.copy["ffxi"], "FFXi.dll")
+        self._touch(self.copy["viewer"], "polcore.dll")
+        for p, n, v in lg.entries("US", self.copy["viewer"], self.copy["ffxi"], reg)[:4]:
+            reg.set(p, n, v)
+        self.assertFalse(lg.needs_switch(self.cfg, reg))
 
     def _touch(self, *parts):
         path = os.path.join(*parts)
