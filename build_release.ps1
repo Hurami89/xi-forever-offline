@@ -13,20 +13,20 @@ if (-not (Test-Path (Join-Path $venv "Scripts\python.exe"))) {
   if ($LASTEXITCODE -ne 0) { throw "Could not make the build environment (python -m venv)" }
 }
 $py = Join-Path $venv "Scripts\python.exe"
-& $py -m pip install --disable-pip-version-check pyinstaller mariadb bcrypt pillow
+& $py -m pip install --disable-pip-version-check pyinstaller mariadb bcrypt pillow certifi
 if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
 
 # The kit's scripts run inside the exe but are not part of it, so PyInstaller cannot see what they import:
 # bundle the whole standard library (minus its tests and tools), the database drivers and the launcher's modules.
 $skip = "idlelib test lib2to3 ensurepip turtledemo turtle pydoc_data venv distutils msilib"
 $std = & $py -c "import sys; skip=set('$skip'.split()); print('\n'.join(sorted(n for n in sys.stdlib_module_names if not n.startswith('_') and n not in skip)))"
-$hidden = @($std -split "`r?`n" | Where-Object { $_ }) + @("bcrypt", "mariadb", "PIL.Image", "PIL.ImageTk",
+$hidden = @($std -split "`r?`n" | Where-Object { $_ }) + @("bcrypt", "certifi", "mariadb", "PIL.Image", "PIL.ImageTk",
             "launcher_core", "launcher_squad", "launcher_rules", "launcher_icons", "launcher_personality",
             "launcher_thirdparty", "launcher_setup")
 $opts = @("--noconfirm", "--onefile", "--windowed", "--name", "XI Forever Offline",
           "--icon", (Join-Path $PSScriptRoot "assets\ui\icon.ico"),
           "--distpath", $PSScriptRoot, "--workpath", (Join-Path $PSScriptRoot "build\pyinstaller"),
-          "--specpath", (Join-Path $PSScriptRoot "build\pyinstaller"), "--collect-all", "mariadb")
+          "--specpath", (Join-Path $PSScriptRoot "build\pyinstaller"), "--collect-all", "mariadb", "--collect-data", "certifi")
 foreach ($m in $hidden) { $opts += @("--hidden-import", $m) }
 
 & $py -m PyInstaller @opts (Join-Path $PSScriptRoot "launcher_gui.pyw")

@@ -99,9 +99,28 @@ def status(item, kit, ashita, state=None, server=None):
 
 
 # ----- finding the download -----
+_SSL_CONTEXT = None
+
+
+def ssl_context():
+    """Windows' own certificates plus Mozilla's list (certifi, bundled in the exe). A fresh PC or VM often has not
+    fetched GitHub's root certificate into Windows yet, which gave CERTIFICATE_VERIFY_FAILED during setup."""
+    global _SSL_CONTEXT
+    if _SSL_CONTEXT is None:
+        import ssl
+        context = ssl.create_default_context()
+        try:
+            import certifi
+            context.load_verify_locations(cafile=certifi.where())
+        except (ImportError, OSError, ssl.SSLError):
+            pass
+        _SSL_CONTEXT = context
+    return _SSL_CONTEXT
+
+
 def _get(url, timeout=60):
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.urlopen(request, timeout=timeout, context=ssl_context()) as response:
         return response.read()
 
 
