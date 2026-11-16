@@ -362,8 +362,7 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         found = find_ffxi()
         if not valid_ffxi(found):
             files = lg.download_official(kit, log=log, context=tp.ssl_context())
-            log("   Square Enix's installer is opening: install with its default choices, then come back here.")
-            lg.run_official_installer(files, popen=popen)
+            lg.run_official_installer(kit, files, log=log, popen=popen)
             found = find_ffxi()
             if not valid_ffxi(found):
                 raise RuntimeError("FINAL FANTASY XI isn't installed yet. Finish Square Enix's installer (it may still be "
