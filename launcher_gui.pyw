@@ -1228,6 +1228,11 @@ class SquadTab(tk.Frame):
             if not (name.isalpha() and 3 <= len(name) <= 15):
                 raise ValueError("The name must be 3-15 letters, no spaces or numbers.")
             new_id = sq.create_mate(self.conn, charid, name, 1, 1)
+            if lp is not None:                    # squad chat writes their personality, as it does for !squad new
+                try:
+                    lp.request_ai_sheet(HERE, name, 1, "WAR", 1)
+                except Exception:
+                    pass
             self.load_squad(new_id)
             self.say(f"Created {name} as a level 1 WAR. Change the job, levels and gear on the right.")
         self.guard(go)
