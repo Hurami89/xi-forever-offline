@@ -260,7 +260,7 @@
       "source": {
         "type": "github_release",
         "repo": "phoenixffxi/xiloader",
-        "tag": "v2.2.0-phoenix.2",
+        "tag": "v3.0.0-phoenix.1",
         "asset": "^xiloader\\.exe$"
       },
       "files": [

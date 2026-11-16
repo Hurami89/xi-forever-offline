@@ -22,6 +22,7 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROGRAMS = ["xi_connect.exe", "xi_world.exe", "xi_search.exe", "xi_profile.exe", "xi_map.exe"]
 DLLS = ["libcrypto-3-x64.dll", "libluajit_64.dll", "libmariadb64.dll", "libssl-3-x64.dll", "libzmq_64.dll"]
+GENERATED_DIRS = ["scripts/enum"]   # build output the map server needs (see file_list)
 TRACKED = ["scripts", "sql", "modules", "data", "res", "ximeshes", "tools/migrations", "tools/dbtool.py"]   # the last two: database updates for players
 ROOT_FILES = ["LICENSE", "README.md"]
 NEVER = (".before-", ".bak", ".retired", ".pdb", ".cert", ".key")
@@ -73,6 +74,19 @@ def file_list(server):
         else:
             warnings.append("tracked but missing on disk: " + rel)
     files += walk(server, os.path.join(server, "navmeshes"))
+    # Files the build generates (git-ignored, so ls-files misses them) that the servers load at run time:
+    # scripts/enum/*.codegen.lua holds xi.zone, xi.job, xi.element, xi.effect... Without them the map server's Lua breaks.
+    generated = []
+    for folder in GENERATED_DIRS:
+        root = os.path.join(server, *folder.split("/"))
+        if os.path.isdir(root):
+            for name in sorted(os.listdir(root)):
+                if name.endswith(".codegen.lua"):
+                    generated.append((os.path.join(root, name), folder + "/" + name))
+    if not generated:
+        raise RuntimeError("No scripts/enum/*.codegen.lua files: build the server first (the build generates them).")
+    known = {rel for _p, rel in files}
+    files += [g for g in generated if g[1] not in known]
     changed = [line for line in git(server, "status", "--porcelain", "--untracked-files=no", "--", *TRACKED).splitlines()]
     if changed:
         warnings.append(f"{len(changed)} tracked file(s) have changes that are not committed; they are packaged as they are "

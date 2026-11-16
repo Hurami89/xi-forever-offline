@@ -786,6 +786,9 @@ def apply_rates(server_dir, rates):
     wanted["login.lua"].append(("RISE_OF_ZILART", True, "bool"))          # always part of the base setup
     wanted["login.lua"].append(("MOG_WARDROBE_3", True, "bool"))          # the character screen offers Mog Wardrobe 3 and 4
     wanted["login.lua"].append(("MOG_WARDROBE_4", True, "bool"))
+    # Phoenix's defaults only let the newest retail client in (FFXI-3331 "The game's data has been updated"); this is an
+    # offline server, so any client version may log in
+    wanted["login.lua"].append(("VER_LOCK", 0, "int"))
     # crafting: 600 = the 75-era point where the shared pool starts; 3200 lets all eight crafts reach the top
     wanted["map.lua"].append(("CRAFT_COMMON_CAP", 600, "int"))
     wanted["map.lua"].append(("CRAFT_SPECIALIZATION_POINTS", 3200 if rates.get("all_crafts", True) else 400, "int"))

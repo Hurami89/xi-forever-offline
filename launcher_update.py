@@ -196,3 +196,25 @@ def update_server(kit, cfg, release, fetch, log=print, run=None, connect=None):
     _unpack(path, server, keep=("settings/network.lua",), log=log)
     update_database(cfg, server, log=log, run=run, connect=connect)
     log(f"Server updated to {release.get('tag_name')}. Your database from before is in {dump}.")
+
+# Tools a server release depends on: when the kit pins another version (thirdparty.json "tag"), the installed copy is
+# replaced. xiloader has to match the server (Phoenix's server from 2026-11 refuses any xiloader older than 3.0).
+PINNED_REFRESH = ("xiloader",)
+
+
+def refresh_pinned(kit, cfg, fetch, log=print, ids=PINNED_REFRESH):
+    """Reinstalls pinned tools whose recorded version differs from the pin. Returns the ids reinstalled."""
+    import launcher_thirdparty as tp
+    state = tp.load_state(kit)
+    done = []
+    for item in tp.load_manifest(kit):
+        tag = item.get("source", {}).get("tag")
+        if item.get("id") not in ids or not tag or tag == "latest":
+            continue
+        have = (state.get(item["id"]) or {}).get("version")
+        if have == tag:
+            continue
+        log(f"{item['name']}: updating {have or 'the installed copy'} to {tag} (the server needs it)...")
+        tp.install(item, kit, cfg.get("ashita_dir"), fetch=fetch, log=log, server=cfg.get("server_dir"))
+        done.append(item["id"])
+    return done

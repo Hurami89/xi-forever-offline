@@ -1943,6 +1943,7 @@ class UpdatesTab(tk.Frame):
                     lu.update_server(HERE, cfg, info["server"]["release"], tp._get, log=log)
                 if info["kit"]["newer"]:
                     restart = lu.update_kit(HERE, info["kit"]["release"], tp._get, log=log)
+                lu.refresh_pinned(HERE, cfg, tp._get, log=log)
                 log("Update finished." + (" The launcher restarts now." if restart else ""))
             except Exception as e:
                 self.lines.put(("line", f"Update stopped: {e}"))
@@ -2140,6 +2141,13 @@ class App(tk.Tk):
             except Exception:
                 pass
         self.cfg = core.load_config(os.path.join(HERE, "config.json"))
+        self.db_proc = None
+        if self.cfg.get("mariadb_dir"):     # a player install: the kit's own MariaDB has no Windows service, so start it now
+            try:                            # (the Squad tab reads the mates from it); stopped again when the launcher closes
+                import launcher_setup
+                self.db_proc = launcher_setup.start_portable(self.cfg)
+            except Exception as e:
+                print(f"Could not start the database: {e}")
         self.q = queue.Queue()
         self.procs, self.logfiles = {}, []
         self.running, self.stop_requested = False, False
@@ -2814,6 +2822,12 @@ class App(tk.Tk):
 
         if cfg.get("mariadb_dir"):            # a player install: the kit's own MariaDB, started here (no Windows service)
             import launcher_setup
+            try:                              # a loader the server needs (e.g. after updating from an older launcher)
+                import launcher_update as lu
+                import launcher_thirdparty as tp
+                lu.refresh_pinned(HERE, cfg, tp._get, log=self.say)
+            except Exception as e:
+                self.say(f"Could not update the game loader ({e}) - starting anyway.")
             started = launcher_setup.start_portable(cfg)
             if started is not None:
                 self.db_proc = started
