@@ -66,6 +66,7 @@
 !/install_crystalboy.py
 !/install_crystalboy_items.py
 !/crystalboy/
+!/crystalboy-games/
 !/crystalboy-server/
 
 # ---- addons (our own only; third-party ones are downloaded at install) ----
@@ -128,6 +129,8 @@ __pycache__/
 *.gb
 *.gbc
 *.sav
+!/crystalboy-games/*.gb
+!/crystalboy-games/*.gbc
 *.sn1
 *.DAT
 *.dat

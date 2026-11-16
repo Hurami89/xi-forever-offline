@@ -6,11 +6,13 @@ local M = {}
 
 M.CRYSTAL_BOY = 8100
 
+-- Each cartridge plays the first of its titles that is in the roms folder. The free games that come with
+-- XI: Forever Offline (crystalboy-games, copied into roms) are last, so a ROM of your own still comes first.
 M.list = {
-    [8101] = { name = 'Final Fantasy Adventure', titles = { 'SEIKEN DENSETSU', 'FINAL FANTASY ADV', 'FF ADVENTURE', 'MYSTIC QUEST' } },
-    [8102] = { name = 'Final Fantasy Legend', titles = { 'SAGA' } },
-    [8103] = { name = 'Final Fantasy Legend II', titles = { 'SAGA2 DX', 'SAGA2' } },
-    [8104] = { name = 'Final Fantasy Legend III', titles = { 'SAGA3 DX', 'SAGA3' } },
+    [8101] = { name = 'Mana Recollection', titles = { 'SEIKEN DENSETSU', 'FINAL FANTASY ADV', 'FF ADVENTURE', 'MYSTIC QUEST', 'AEVILIA' } },
+    [8102] = { name = 'Tower Recollection', titles = { 'SAGA', 'AIRAKI1' } },
+    [8103] = { name = 'Magi Recollection', titles = { 'SAGA2 DX', 'SAGA2', 'LABIRYNT' } },
+    [8104] = { name = 'Time Recollection', titles = { 'SAGA3 DX', 'SAGA3', 'GBHACK' } },
 }
 
 -- Only the main inventory counts: the Crystal Boy and the cartridge must be in your bag to play

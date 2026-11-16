@@ -2871,6 +2871,10 @@ class App(tk.Tk):
                 lu.refresh_pinned(HERE, cfg, tp._get, log=self.say)
             except Exception as e:
                 self.say(f"Could not update the game loader ({e}) - starting anyway.")
+            try:                              # an update brings new versions of our own addons and the free mini games
+                launcher_setup.install_own_addons(HERE, cfg["ashita_dir"])
+            except Exception as e:
+                self.say(f"Could not refresh the addons ({e}) - starting anyway.")
             started = launcher_setup.start_portable(cfg)
             if started is not None:
                 self.db_proc = started
@@ -3231,7 +3235,7 @@ class SetupWizard(tk.Tk):
     The work itself is launcher_setup.run_setup; this window only asks the questions and shows the progress."""
 
     EXTRAS = (("mobdb", "mobdb: monster info on your target", True), ("nameplate", "Nameplate: clearer name plates", True),
-              ("gambatte", "Gambatte core: lets the Crystal Boy play its games", True),
+              ("gambatte", "Mini game player", True),
               ("chains", "Chains: skillchain helper", False), ("autobot", "AutoBot: for a second (dualbox) character", False))
 
     def __init__(self):
@@ -3307,7 +3311,7 @@ class SetupWizard(tk.Tk):
                     "your FFXI install uses. On PLAY, Windows asks once for permission to point PlayOnline at the copy; "
                     "it is put back when the game closes."),
                    ("existing", "Use my installed FINAL FANTASY XI",
-                    "No copy. The Era-DATs (next page) then go into that install; its original files are backed up."),
+                    "No copy. The era game files (Phoenix Era-DATs) then go into that install; its original files are backed up."),
                    ("official", "Download FINAL FANTASY XI from Square Enix (I don't have it)",
                     "Square Enix's official installer, about 7 GB. Its setup window opens: install with the default "
                     "choices. Afterwards PlayOnline updates the game once (free).")]
@@ -3343,8 +3347,7 @@ class SetupWizard(tk.Tk):
         for key, label in (("xiui", "XIUI (stable)"), ("xiuiplus", "XIUIplus (alpha, newer)"), ("none", "The game's own")):
             tk.Radiobutton(row, text=label, value=key, variable=self.interface, bg=BG, fg=FG, selectcolor=PANEL,
                            activebackground=BG, activeforeground=FG).pack(side="left", padx=6)
-        tk.Checkbutton(self.body, text="Era-accurate game files (Phoenix Era-DATs; your originals are backed up)", variable=self.era_dats,
-                       bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG).pack(anchor="w", pady=(8, 0))
+        self.era_dats.set(True)        # the era game files are always installed: the server is built for them
         tk.Label(self.body, text="Add-ons (downloaded from their authors; more on the launcher's Downloads tab later):",
                  bg=BG, fg=FG).pack(anchor="w", pady=(10, 2))
         for key, label, _on in self.EXTRAS:

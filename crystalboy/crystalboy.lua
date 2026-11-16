@@ -114,6 +114,11 @@ local function load_rules()
         if err ~= 'missing' then say('rewards.lua has a problem: ' .. tostring(err)) end
         t = {}
     end
+    -- games added in a later version (the addon's rewards_default.lua) count too; your own rewards.lua wins
+    local defaults = util.load_table(P.addon .. 'rewards_default.lua')
+    for title, rule in pairs(type(defaults) == 'table' and defaults or {}) do
+        if t[title] == nil then t[title] = rule end
+    end
     G.rules = t
 end
 

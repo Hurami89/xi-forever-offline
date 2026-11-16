@@ -39,3 +39,11 @@ Each comes from its official release page and keeps its own license.
 The launcher, tools, server modules (squad, bots, crowds, caskets, era experience, Crystal Boy questline and others)
 and the Gambits, Crystal Boy, followme, servermenu and squadpanel addons were written for this project.
 Gambits began as the TitanGambits engine and was brought here by its author.
+
+## Crystal Boy mini games
+
+Free Game Boy games, included unchanged with their licenses (`crystalboy-games\licenses`), from Homebrew Hub (https://hh.gbdev.io):
+- **Aevilia**: AeviDev team (ISSOtm, Kai, Parzival, Charmy), Apache 2.0; music engine DevSound by DevEd, MIT. https://github.com/ISSOtm/Aevilia-GB
+- **Airaki!**: furrtek, GPL 3.0 or later (source: https://github.com/furrtek/Airaki)
+- **Labirinth**: Bartek "godai" Biedrzycki / Gniazdo Światów, CC BY-SA 4.0. https://github.com/godai78/labirinth
+- **GBHack**: statico, MIT. https://github.com/statico/gbhack

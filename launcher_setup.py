@@ -336,13 +336,32 @@ def install_own_addons(kit, ashita_dir):
     src = os.path.join(kit, "crystalboy")
     if os.path.isdir(src):
         shutil.copytree(src, os.path.join(addons, "crystalboy"), dirs_exist_ok=True,
-                        ignore=shutil.ignore_patterns("*.before-*", "*.bak", "rewards_default.lua"))
+                        ignore=shutil.ignore_patterns("*.before-*", "*.bak"))
         cfg = os.path.join(ashita_dir, "config", "addons", "crystalboy")
         for folder in ("roms", "system", "saves", "states", "claims", "snaps"):
             os.makedirs(os.path.join(cfg, folder), exist_ok=True)
         rewards = os.path.join(cfg, "rewards.lua")
         if not os.path.exists(rewards) and os.path.exists(os.path.join(src, "rewards_default.lua")):
             shutil.copy2(os.path.join(src, "rewards_default.lua"), rewards)
+        install_free_games(kit, cfg)
+
+
+def install_free_games(kit, crystalboy_cfg):
+    """The free Game Boy games in <kit>\\crystalboy-games go into Crystal Boy's roms folder (never over a file there)."""
+    src = os.path.join(kit, "crystalboy-games")
+    roms = os.path.join(crystalboy_cfg, "roms")
+    if not os.path.isdir(src):
+        return []
+    os.makedirs(roms, exist_ok=True)
+    added = []
+    for name in sorted(os.listdir(src)):
+        if name.lower().endswith((".gb", ".gbc")) and not os.path.exists(os.path.join(roms, name)):
+            shutil.copy2(os.path.join(src, name), os.path.join(roms, name))
+            added.append(name)
+    for name in ("CREDITS.md",):
+        if os.path.exists(os.path.join(src, name)):
+            shutil.copy2(os.path.join(src, name), os.path.join(roms, "FREE-GAMES-" + name))
+    return added
 
 
 # ----- the whole setup -----
