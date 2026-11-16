@@ -55,15 +55,25 @@ class ThirdPartyTests(unittest.TestCase):
             f.write("mine")
         with open(os.path.join(self.ash, "Ashita-cli.exe"), "w") as f:
             f.write("old")
+        os.makedirs(os.path.join(self.ash, "config", "ashita"))
+        for name, text in (("ashita.offsets.ini", "old offsets"), ("custom.offsets.ini", "my offsets")):
+            with open(os.path.join(self.ash, "config", "ashita", name), "w") as f:
+                f.write(text)
         data = zip_of({"Ashita-v4beta-x/Ashita-cli.exe": "new", "Ashita-v4beta-x/config/boot/my.ini": "theirs",
-                       "Ashita-v4beta-x/addons/fps/fps.lua": "fps"})
-        url = "https://github.com/AshitaXI/Ashita-v4beta/archive/v4.3.1.1.zip"
+                       "Ashita-v4beta-x/addons/fps/fps.lua": "fps",
+                       "Ashita-v4beta-x/config/ashita/ashita.offsets.ini": "new offsets",
+                       "Ashita-v4beta-x/config/ashita/custom.offsets.ini": "blank"})
+        ref = self.items["ashita"]["source"]["ref"]
+        url = "https://github.com/AshitaXI/Ashita-v4beta/archive/%s.zip" % ref
         tp.install(self.items["ashita"], self.kit, self.ash, fetch=self.fake({}, {url: data}), log=lambda m: None)
         read = lambda *p: open(os.path.join(self.ash, *p)).read()
         self.assertEqual((read("Ashita-cli.exe"), read("config", "boot", "my.ini"), read("addons", "fps", "fps.lua")), ("new", "mine", "fps"))
+        # Ashita's own offsets follow its version (the November 2026 client fix); the player's custom file stays
+        self.assertEqual((read("config", "ashita", "ashita.offsets.ini"), read("config", "ashita", "custom.offsets.ini")),
+                         ("new offsets", "my offsets"))
         backups = os.listdir(os.path.join(self.kit, "backups", "thirdparty"))
         self.assertEqual(len(backups), 1)
-        self.assertEqual(tp.status(self.items["ashita"], self.kit, self.ash), (True, "v4.3.1.1"))
+        self.assertEqual(tp.status(self.items["ashita"], self.kit, self.ash), (True, ref))
 
     def test_model_status_reads_ollama_list(self):
         tp.ollama_models = lambda run=None: ["gemma4:12b", "mistral-nemo:latest"]

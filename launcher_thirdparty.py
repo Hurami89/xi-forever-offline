@@ -273,13 +273,16 @@ def install(item, kit, ashita, fetch=_get, log=print, server=None, run=None):
         if not moves:
             raise RuntimeError(f"{item['name']}: nothing in {found['name']} matched where it should go.")
         keep = tuple(item.get("keep", []))
+        # files inside a kept folder that belong to the tool itself and must follow its version (Ashita's own memory
+        # offsets and pointers in config/ashita/ashita.*.ini; the player's custom.*.ini stay)
+        replace = tuple(item.get("replace", []))
         stamp = time.strftime("%Y%m%d-%H%M%S")
         backup = os.path.join(kit, "backups", "thirdparty", f"{item['id']}-{stamp}")
         written = kept = 0
         for name, rel in moves:
             dest = os.path.join(root, rel)
             if os.path.exists(dest):
-                if rel.startswith(keep) and keep:
+                if keep and rel.startswith(keep) and not (replace and rel.replace("\\", "/").startswith(replace)):
                     kept += 1
                     continue
                 os.makedirs(os.path.dirname(os.path.join(backup, rel)), exist_ok=True)

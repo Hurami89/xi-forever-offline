@@ -12,7 +12,8 @@
       "source": {
         "type": "github_archive",
         "repo": "AshitaXI/Ashita-v4beta",
-        "ref": "v4.3.1.1"
+        "ref": "a8074265f9be39474d9a5a65c4994a3170b830cb",
+        "note": "main of 2026-11-11: v4.3.2.1 plus the fix for the November 2026 game update (target offset)"
       },
       "files": [
         [
@@ -23,6 +24,9 @@
       "keep": [
         "config/",
         "scripts/"
+      ],
+      "replace": [
+        "config/ashita/ashita."
       ],
       "check": "Ashita-cli.exe"
     },
