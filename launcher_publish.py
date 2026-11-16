@@ -103,6 +103,23 @@ def api(method, url, token, data=None, body=None, content_type="application/json
     return json.loads(text) if text else {}
 
 
+class _ReadProgress:
+    """Hands a file to the upload a block at a time and logs every 10%, so a big upload never looks stuck."""
+
+    def __init__(self, handle, total, name, log):
+        self.handle, self.total, self.name, self.log = handle, max(total, 1), name, log
+        self.done, self.next = 0, 10
+
+    def read(self, size=-1):
+        data = self.handle.read(size)
+        self.done += len(data)
+        percent = self.done * 100 // self.total
+        if percent >= self.next:
+            self.log(f"   {self.name}: {percent}% ({self.done / 1e6:.0f} of {self.total / 1e6:.0f} MB)")
+            self.next = percent // 10 * 10 + 10
+        return data
+
+
 def make_release(repo, tag, title, notes, prerelease, files, token, log=print, opener=api):
     """Creates the release as a draft, uploads the files, then publishes it (so players never see a half-made one)."""
     release = opener("POST", API + repo + "/releases", token, {"tag_name": tag, "name": title, "body": notes,
@@ -112,7 +129,8 @@ def make_release(repo, tag, title, notes, prerelease, files, token, log=print, o
         log(f"Uploading {name} ({os.path.getsize(path) / 1e6:.0f} MB)...")
         with open(path, "rb") as handle:
             opener("POST", f"{UPLOADS}{repo}/releases/{release['id']}/assets?name={urllib.request.quote(name)}", token,
-                   body=handle, content_type="application/octet-stream", length=os.path.getsize(path))
+                   body=_ReadProgress(handle, os.path.getsize(path), name, log), content_type="application/octet-stream",
+                   length=os.path.getsize(path))
     opener("PATCH", API + repo + f"/releases/{release['id']}", token, {"draft": False})
     log(f"Published {repo} {tag}.")
     return release
