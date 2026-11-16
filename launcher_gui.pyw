@@ -200,8 +200,27 @@ def is_admin():
 
 def elevate_and_exit():
     params = "" if getattr(sys, "frozen", False) else f'"{os.path.abspath(__file__)}"'     # the exe needs no script
-    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, HERE, 1)
-    sys.exit(0)
+    try:
+        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, HERE, 1)
+    except Exception as e:
+        result = f"{type(e).__name__}: {e}"
+    if isinstance(result, int) and result > 32:
+        sys.exit(0)                                       # the administrator copy is starting
+    # Refused (No on Windows' prompt) or no prompt available: say so instead of closing without a word.
+    text = ("XI: Forever Offline needs to run as administrator (it starts the game server and points PlayOnline at "
+            "the game it uses), but Windows' permission prompt was refused or could not be shown "
+            f"(code {result}).\n\nStart it again and choose Yes, or right-click it and pick 'Run as administrator'.")
+    try:
+        os.makedirs(LOGS, exist_ok=True)
+        with open(os.path.join(LOGS, "launcher-error.log"), "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+    except OSError:
+        pass
+    try:
+        messagebox.showerror("XI: Forever Offline", text)
+    except Exception:
+        pass
+    sys.exit(1)
 
 
 def run_elevated(args, script="launcher_game.py"):
