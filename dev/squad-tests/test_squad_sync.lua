@@ -186,6 +186,22 @@ W.clock = W.clock + 5; gameIn(player, false, true); runTimers()
 check(#W.spawned == n0, 'dismissed mates do not come back after zoning')
 check(gameIn(player, true, false) == 'base', 'a fresh log in calls nobody')
 
+section('dismissing one mate')
+reset(); player = entity(xi.objType.PC, { level = 30, id = 4 })
+W.squad = { mate(1, 1, 1, 30), mate(2, 2, 3, 30) }
+cmd.onTrigger(player, 'call', 'all'); runTimers()
+local gone = {}
+SquadDismissMate = function(t) gone[#gone + 1] = t
+    for i, x in ipairs(player.party) do if x == t then table.remove(player.party, i) break end end
+    return true end
+cmd.onTrigger(player, 'dismiss', '2')
+check(#gone == 1 and gone[1] == W.spawned[2] and W.cleared == 0, 'only mate 2 leaves; nobody else is touched')
+check(W.printed[#W.printed]:find('Mate2 has been dismissed') ~= nil, 'told: ' .. tostring(W.printed[#W.printed]))
+cmd.onTrigger(player, 'dismiss', '2'); check(W.printed[#W.printed]:find('not out') ~= nil, 'a mate who is away: told so')
+SquadDismissMate = nil; cmd.onTrigger(player, 'dismiss', '1')
+check(W.printed[#W.printed]:find('UPDATE') ~= nil and #player.party == 1, 'an older server: told to update, nobody dismissed')
+cmd.onTrigger(player, 'dismiss'); check(W.cleared == 1, '!squad dismiss alone still sends everyone off')
+
 section('resting with you')
 reset(); player = entity(xi.objType.PC, { level = 30, id = 4 })
 W.squad = { mate(1, 1, 3, 30), mate(2, 2, 1, 30) }

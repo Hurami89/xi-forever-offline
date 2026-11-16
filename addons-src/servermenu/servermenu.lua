@@ -34,7 +34,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.12';
+addon.version = '1.13';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1028,13 +1028,23 @@ local function squadTab()
                 imgui.SameLine(0, 12);
                 colorText(mate.out and C.good or C.dim, mate.out and 'out' or 'away');
                 imgui.SameLine(0, 12);
+                local wait = S.readyAt and S.readyAt[mate.slot] and (S.readyAt[mate.slot] - os.time()) or 0;
                 if not mate.out then
-                    local wait = S.readyAt and S.readyAt[mate.slot] and (S.readyAt[mate.slot] - os.time()) or 0;
                     if wait > 0 then
                         colorText(C.dim, string.format('ready in %d:%02d', math.floor(wait / 60), wait % 60));
                         tooltip('The call timer: this mate can be called again then (the launcher\'s Rates tab sets how long)');
                     elseif button('Call', 'call' .. mate.slot, 56, 0) then enqueue('/say !squad call ' .. mate.slot); ask(3); end
                     imgui.SameLine(0, 6);
+                else
+                    -- (1.13) out: send just this one off, and how long before a dismiss and call works straight away
+                    if button('Dismiss', 'dismiss' .. mate.slot, 70, 0) then enqueue('/say !squad dismiss ' .. mate.slot); ask(1.5); end
+                    tooltip('Sends only this mate off; the others stay');
+                    imgui.SameLine(0, 6);
+                    if wait > 0 then
+                        colorText(C.dim, string.format('recall in %d:%02d', math.floor(wait / 60), wait % 60));
+                        tooltip('If you dismiss this mate now, the call timer lets you call them again after this');
+                        imgui.SameLine(0, 6);
+                    end
                 end
                 if button(S.more[mate.slot] and 'Less' or 'Jobs', 'more' .. mate.slot, 56, 0) then S.more[mate.slot] = not S.more[mate.slot]; end
                 tooltip('Change this mate\'s main and support job');
