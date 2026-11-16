@@ -27,7 +27,7 @@ require('common');
 local bit = require('bit');
 addon.name = 'Gambits';
 addon.author = 'XI: Forever Offline';
-addon.version = '2.2.207';
+addon.version = '2.2.208';
 addon.desc = 'Player Gambits: ordered rules, 18 jobs, persistent editor.';
 addon.link = '';
 
@@ -4003,7 +4003,7 @@ function E.actor_switch_load(ctx,force)
         if S.switchPath==path and S.switchText then S.switchError='Switch file temporarily unavailable'; return false,S.switchError; end
         E.mkdir(E.root()..'characters/'); E.mkdir(E.root()..'characters/'..identity..'/');
         local initial=(S.settings or DEFAULT).Enabled~=false;
-        local ok,data=E.writefile(path,{Version=1,Player=initial,GuestDefault=initial,Guests={}},
+        local ok,data=E.writefile(path,{Version=2,Player=false,GuestDefault=initial,Guests={}},   -- your own gambits start OFF: /gambits on
             'Local master switches for this player and owned Trusts.');
         if not ok then S.switchError=tostring(data); return false,S.switchError; end
         txt=data;
@@ -4017,6 +4017,11 @@ function E.actor_switch_load(ctx,force)
         for key,enabled in pairs(value.Guests) do
             if type(key)~='string' or type(enabled)~='boolean' then value=nil; err='Invalid Trust master switch'; break; end
         end
+    end
+    if value and value.Version~=2 then   -- 2.2.208: the player's own gambits are off unless switched on (once per character)
+        value.Player=false; value.Version=2;
+        local ok,data=E.writefile(path,value,'Local master switches for this player and owned Trusts.');
+        if ok then txt=data; E.log('Your own gambits are now off unless you turn them on: /gambits on',true); end
     end
     if not value then S.switchError=readError or err; return false,S.switchError; end
     S.switchPath=path; S.switchText=txt; S.switches=value; S.switchError=nil;
