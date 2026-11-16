@@ -2210,6 +2210,8 @@ class App(tk.Tk):
         self.after(1000, self.lights)
         self.after(PICTURE_SECONDS * 1000, self.next_picture)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        if self.cfg.get("game_update_needed"):     # installed with Square Enix's installer: its first update comes first
+            self.after(700, lambda: PolUpdateGuide(self))
 
     # ----- UI -----
     def build_ui(self):
@@ -2806,6 +2808,11 @@ class App(tk.Tk):
     def start(self):
         if self.running:
             return
+        if self.cfg.get("game_update_needed"):
+            if messagebox.askyesno("Update the game first", "Your game hasn't had its first update yet (Square Enix's "
+                                   "installer puts in an older version). Show the steps?\n\nNo = play anyway.", parent=self):
+                PolUpdateGuide(self)
+                return
         self.rates = self.rates_tab.collect()
         try:
             core.save_rates(HERE, self.rates)
@@ -3237,6 +3244,162 @@ class App(tk.Tk):
         self.say("Servers stopped.")
 
 
+def save_config_value(key, value):
+    """Changes one value in config.json (keeps everything else as it is)."""
+    import json
+    path = os.path.join(HERE, "config.json")
+    with open(path, encoding="utf-8-sig") as handle:
+        cfg = json.load(handle)
+    if value is None:
+        cfg.pop(key, None)
+    else:
+        cfg[key] = value
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(cfg, handle, indent=2)
+
+
+class PolUpdateGuide(tk.Toplevel):
+    """The first update of a game installed with Square Enix's installer. PlayOnline only offers FINAL FANTASY XI's
+    update after the game has connected to Square Enix once (the install is registered then), so this needs one login
+    with a Square Enix account that has the game. LandSandBoat's client guide says the same; we don't work around it."""
+
+    STEPS = [
+        ("Open PlayOnline",
+         "Press the button below. PlayOnline updates itself first (Windows may ask for permission; say Yes). "
+         "Wait until its welcome screen shows."),
+        ("Log in with your Square Enix account",
+         "Add a member with your Square Enix ID and password (and your one-time password, if you use one). The account "
+         "needs FINAL FANTASY XI on it (a free trial account works). This is the only time you connect to Square Enix."),
+        ("Start FINAL FANTASY XI once",
+         "Choose FINAL FANTASY XI and press Play. PlayOnline downloads the game's update first: 10 to 60 minutes. "
+         "Let it finish."),
+        ("Quit, then press I'm done",
+         "When the game reaches its title or character screen, quit (you don't need to make a character there). "
+         "Close PlayOnline and press I'm done here. From now on you only use PLAY in this launcher."),
+    ]
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.app = app
+        self.title("One more step: update the game")
+        self.configure(bg=BG)
+        self.geometry("760x760")
+        self.minsize(700, 560)
+        tk.Label(self, text="Update FINAL FANTASY XI once", bg=BG, fg=GOLD, font=("Segoe UI", 15, "bold")).pack(
+            anchor="w", padx=18, pady=(14, 2))
+        tk.Label(self, text="Square Enix's installer puts in an older version of the game. PlayOnline brings it up to date "
+                            "after one login with your Square Enix account. After that you play offline with PLAY.",
+                 bg=BG, fg=DIM, wraplength=710, justify="left").pack(anchor="w", padx=18, pady=(0, 8))
+        body = tk.Frame(self, bg=BG)
+        body.pack(fill="both", expand=True, padx=12)
+        for n, (title, text) in enumerate(self.STEPS, 1):
+            row = tk.Frame(body, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+            row.pack(fill="x", pady=4)
+            pic = tk.Canvas(row, width=210, height=118, bg="#0d1620", highlightthickness=0)
+            pic.pack(side="left", padx=8, pady=8)
+            getattr(self, f"draw_{n}")(pic)
+            words = tk.Frame(row, bg=PANEL)
+            words.pack(side="left", fill="both", expand=True, padx=(4, 10), pady=8)
+            tk.Label(words, text=f"{n}. {title}", bg=PANEL, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w")
+            tk.Label(words, text=text, bg=PANEL, fg=DIM, wraplength=440, justify="left").pack(anchor="w", pady=(2, 0))
+            if n == 1:
+                tk.Button(words, text="Open PlayOnline", command=self.open_pol, bg=ACCENT, fg="white", relief="flat",
+                          padx=14).pack(anchor="w", pady=(6, 0))
+        self.note = tk.StringVar(value="")
+        bar = tk.Frame(self, bg=BG)
+        bar.pack(side="bottom", fill="x", padx=18, pady=12, before=body)        # buttons stay visible on small screens
+        tk.Label(self, textvariable=self.note, bg=BG, fg=GOLD, wraplength=720, justify="left").pack(
+            side="bottom", anchor="w", padx=18, pady=(6, 0), before=body)
+        tk.Button(bar, text="I'm done", command=self.done, bg=GREEN, fg="white", relief="flat", padx=18).pack(side="right")
+        tk.Button(bar, text="Later", command=self.destroy, bg=PANEL, fg=FG, relief="flat", padx=14).pack(side="right", padx=6)
+        tk.Button(bar, text="Game already updated before? Re-check files", command=self.force, bg=PANEL, fg=FG,
+                  relief="flat", padx=10).pack(side="left")
+        self.transient(app)
+        self.lift()
+
+    # ----- little pictures (drawn, so they work in any language and need no files) -----
+    def window(self, c, title):
+        c.create_rectangle(8, 8, 202, 110, fill="#1b2a3a", outline="#3a5468")
+        c.create_rectangle(8, 8, 202, 24, fill="#2c4258", outline="#3a5468")
+        c.create_text(14, 16, text=title, anchor="w", fill="#cfe3ee", font=("Segoe UI", 7))
+
+    def draw_1(self, c):
+        self.window(c, "PlayOnline Viewer")
+        c.create_text(105, 52, text="Updating PlayOnline...", fill="#e9f1f5", font=("Segoe UI", 9))
+        c.create_rectangle(30, 68, 180, 80, outline="#5f7f95")
+        c.create_rectangle(31, 69, 120, 79, fill=ACCENT, outline="")
+
+    def draw_2(self, c):
+        self.window(c, "PlayOnline - Member")
+        for i, label in enumerate(("Square Enix ID", "Password", "One-time pass")):
+            y = 36 + i * 22
+            c.create_text(16, y, text=label, anchor="w", fill="#9fb6c4", font=("Segoe UI", 7))
+            c.create_rectangle(96, y - 8, 192, y + 8, fill="#0d1620", outline="#5f7f95")
+            c.create_text(101, y, text="your own" if i == 0 else ("********" if i == 1 else "(if used)"), anchor="w",
+                          fill=GOLD, font=("Consolas", 8, "bold"))
+        c.create_rectangle(120, 94, 190, 106, fill="#2c4258", outline=GOLD)
+        c.create_text(155, 100, text="Connect", fill="#e9f1f5", font=("Segoe UI", 7, "bold"))
+
+    def draw_3(self, c):
+        self.window(c, "PlayOnline - Version Update")
+        c.create_text(105, 40, text="FINAL FANTASY XI", fill=GOLD, font=("Segoe UI", 8, "bold"))
+        c.create_text(105, 56, text="Downloading update...", fill="#e9f1f5", font=("Segoe UI", 8))
+        c.create_rectangle(30, 68, 180, 80, outline="#5f7f95")
+        c.create_rectangle(31, 69, 95, 79, fill=ACCENT, outline="")
+        c.create_text(105, 98, text="10 - 60 minutes", fill=DIM, font=("Segoe UI", 7))
+
+    def draw_4(self, c):
+        self.window(c, "FINAL FANTASY XI")
+        c.create_text(105, 44, text="Select Character", fill="#e9f1f5", font=("Segoe UI", 8))
+        c.create_rectangle(40, 56, 170, 68, fill="#22364a", outline="#3a5468")
+        c.create_rectangle(40, 72, 170, 84, fill="#3b5a2a", outline=GOLD, width=2)
+        c.create_text(105, 78, text="Exit", fill="#e9f1f5", font=("Segoe UI", 8, "bold"))
+        c.create_text(105, 100, text="then press I'm done", fill=DIM, font=("Segoe UI", 7))
+
+    # ----- buttons -----
+    def open_pol(self):
+        import launcher_game as lg
+        try:
+            exe = lg.open_playonline(self.app.cfg)
+            self.note.set(f"PlayOnline started ({exe}). Follow steps 2 to 4 there.")
+        except Exception as e:
+            self.note.set(str(e))
+
+    def force(self):
+        import launcher_game as lg
+        ffxi = self.app.cfg.get("ffxi_client_dir", "")
+        if core.is_running("pol"):
+            self.note.set("Close PlayOnline first, then press this button again.")
+            return
+        try:
+            lg.force_version_check(ffxi)
+            self.note.set("Done: open PlayOnline, click Check Files, choose FINAL FANTASY XI and let it repair. "
+                          "(This works once the game has connected to Square Enix one time.)")
+        except Exception as e:
+            self.note.set(f"Couldn't do that: {e}")
+
+    def done(self):
+        import launcher_game as lg
+        try:
+            result = lg.finish_version_check(self.app.cfg.get("ffxi_client_dir", ""))
+        except Exception as e:
+            self.note.set(f"Couldn't check the game files: {e}")
+            return
+        if result == "restored":
+            if not messagebox.askyesno("Update", "PlayOnline didn't finish updating the game (a file it should have "
+                                       "rebuilt is missing, so the old one was put back).\n\nClose this guide anyway?",
+                                       parent=self):
+                return
+        else:
+            self.app.cfg.pop("game_update_needed", None)
+            try:
+                save_config_value("game_update_needed", None)
+            except (OSError, ValueError) as e:
+                self.note.set(f"Couldn't save that the update is done: {e}")
+                return
+        self.destroy()
+
+
 class SetupWizard(tk.Tk):
     """First run (no config.json yet): find FFXI, install Ashita and the add-ons, set up the database and the account.
     The work itself is launcher_setup.run_setup; this window only asks the questions and shows the progress."""
@@ -3321,7 +3484,8 @@ class SetupWizard(tk.Tk):
                     "No copy. The era game files (Phoenix Era-DATs) then go into that install; its original files are backed up."),
                    ("official", "Download FINAL FANTASY XI from Square Enix (I don't have it)",
                     "Square Enix's official installer, about 7 GB. Its setup window opens: install with the default "
-                    "choices. Afterwards PlayOnline updates the game once (free).")]
+                    "choices. You need a Square Enix account with FINAL FANTASY XI (a free trial works): you log in once so PlayOnline "
+                    "can update the game, then you play offline.")]
         for key, label, about in options:
             if key == "official" and found:
                 continue

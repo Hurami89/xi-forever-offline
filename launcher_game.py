@@ -343,6 +343,63 @@ def run_official_installer(kit, files, log=print, popen=subprocess.Popen):
     return proc.returncode
 
 
+# ----- the first update of a fresh install (PlayOnline's free "Check Files"; no Square Enix account needed) -----
+VTABLE = "VTABLE.DAT"
+VTABLE_BACKUP = "VTABLE.DAT.before-update"
+
+
+def viewer_dir(cfg, reg=None):
+    """The PlayOnline viewer folder of this install (the copy's own, or the one that goes with the FFXI folder)."""
+    if cfg.get("pol_dir") and os.path.isdir(cfg["pol_dir"]):
+        return cfg["pol_dir"]
+    ffxi = cfg.get("ffxi_client_dir", "")
+    lang = cfg.get("pol_lang") or detect_lang(ffxi, reg)
+    return find_viewer(ffxi, lang, reg)
+
+
+def pol_exe(cfg, reg=None):
+    viewer = viewer_dir(cfg, reg)
+    for name in ("pol.exe", "polboot.exe"):
+        if viewer and os.path.isfile(os.path.join(viewer, name)):
+            return os.path.join(viewer, name)
+    return None
+
+
+def open_playonline(cfg, start=None, reg=None):
+    """Starts PlayOnline the way Windows would (so it can ask for administrator rights for its own update)."""
+    exe = pol_exe(cfg, reg)
+    if not exe:
+        raise RuntimeError("PlayOnline (pol.exe) wasn't found next to your game. Start 'PlayOnline Viewer' from the "
+                           "Start menu instead.")
+    (start or os.startfile)(exe)
+    return exe
+
+
+def force_version_check(ffxi_dir):
+    """When Check Files says there is nothing to update (it happens without a retail account), moving VTABLE.DAT
+    aside makes it look again. finish_version_check puts it back if PlayOnline didn't rebuild it."""
+    table, backup = os.path.join(ffxi_dir, VTABLE), os.path.join(ffxi_dir, VTABLE_BACKUP)
+    if not os.path.exists(table):
+        return os.path.exists(backup)          # already moved
+    if os.path.exists(backup):
+        os.remove(backup)
+    os.replace(table, backup)
+    return True
+
+
+def finish_version_check(ffxi_dir):
+    """'updated' (PlayOnline rebuilt VTABLE.DAT: our copy is dropped), 'restored' (it didn't: ours put back),
+    or 'unchanged' (the trick was never used)."""
+    table, backup = os.path.join(ffxi_dir, VTABLE), os.path.join(ffxi_dir, VTABLE_BACKUP)
+    if not os.path.exists(backup):
+        return "unchanged"
+    if os.path.exists(table):
+        os.remove(backup)
+        return "updated"
+    os.replace(backup, table)
+    return "restored"
+
+
 def main(argv):
     """XI Forever Offline.exe --run launcher_game.py hold|recover <state file>   (run elevated by the launcher)"""
     if len(argv) != 2 or argv[0] not in ("hold", "recover"):

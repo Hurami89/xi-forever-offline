@@ -194,5 +194,44 @@ class GameTests(unittest.TestCase):
         self.assertEqual(lg.find_viewer(ffxi, reg=FakeReg()), os.path.join(self.kit, "SquareEnix", "PlayOnlineViewer"))
 
 
+    def test_version_check_trick(self):
+        ffxi = os.path.join(self.kit, "ffxi")
+        os.makedirs(ffxi)
+        self.assertEqual(lg.finish_version_check(ffxi), "unchanged")
+        table = os.path.join(ffxi, lg.VTABLE)
+        with open(table, "w") as f:
+            f.write("old")
+        self.assertTrue(lg.force_version_check(ffxi))
+        self.assertFalse(os.path.exists(table))
+        self.assertTrue(lg.force_version_check(ffxi))          # pressing it twice is fine
+        self.assertEqual(lg.finish_version_check(ffxi), "restored")   # PlayOnline didn't rebuild it: ours goes back
+        with open(table) as f:
+            self.assertEqual(f.read(), "old")
+        lg.force_version_check(ffxi)
+        with open(table, "w") as f:                            # PlayOnline rebuilt it
+            f.write("new")
+        self.assertEqual(lg.finish_version_check(ffxi), "updated")
+        self.assertFalse(os.path.exists(os.path.join(ffxi, lg.VTABLE_BACKUP)))
+        with open(table) as f:
+            self.assertEqual(f.read(), "new")
+
+    def test_open_playonline(self):
+        viewer = os.path.join(self.kit, "PlayOnlineViewer")
+        ffxi = os.path.join(self.kit, "FINAL FANTASY XI")
+        os.makedirs(viewer)
+        os.makedirs(ffxi)
+        cfg = {"ffxi_client_dir": ffxi}
+        with self.assertRaises(RuntimeError):
+            lg.open_playonline(cfg, start=lambda p: None, reg=FakeReg())
+        open(os.path.join(viewer, "pol.exe"), "w").close()
+        started = []
+        self.assertEqual(lg.open_playonline(cfg, start=started.append, reg=FakeReg()), os.path.join(viewer, "pol.exe"))
+        self.assertEqual(started, [os.path.join(viewer, "pol.exe")])
+        other = os.path.join(self.kit, "copy-viewer")          # a game copy uses its own viewer folder
+        os.makedirs(other)
+        open(os.path.join(other, "pol.exe"), "w").close()
+        self.assertEqual(lg.pol_exe({"ffxi_client_dir": ffxi, "pol_dir": other}, reg=FakeReg()), os.path.join(other, "pol.exe"))
+
+
 if __name__ == "__main__":
     unittest.main()

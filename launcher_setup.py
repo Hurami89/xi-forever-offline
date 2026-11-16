@@ -508,8 +508,8 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         "game_user": choices["login"], "game_pass": choices["password"],
         "mariadb_dir": mdb, "mariadb_service": "", "world": choices["world"], **extra_cfg})
     if extra_cfg.get("game_update_needed"):
-        log("One more step before your first PLAY: start PlayOnline (or FINAL FANTASY XI) from the Start menu once and "
-            "let it update the game files (Square Enix's free update), then close it.")
+        log("One more step before your first PLAY: log in to PlayOnline once with your Square Enix account (a free "
+            "trial works) so it can update the game. The launcher shows you how when it opens.")
     log("Setup finished.")
     return cfg
 
