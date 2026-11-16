@@ -141,6 +141,10 @@ def connect(cfg):
         user=cfg["db_user"],
         password=cfg["db_pass"],
         database=cfg["db_name"],
+        # The launcher keeps this connection open. Without autocommit, a plain
+        # SELECT leaves a transaction open that holds a lock on the tables it read,
+        # and database updates (like re-creating triggers) wait on it forever.
+        autocommit=True,
     )
 
 
