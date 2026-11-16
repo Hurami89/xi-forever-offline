@@ -82,11 +82,37 @@ def entries(lang, viewer, ffxi, reg):
     folder = rf"SOFTWARE\{LANG_KEY[lang]}\InstallFolder"
     polcore = rf"SOFTWARE\Classes\CLSID\{POLCORE_CLSID[lang]}\InprocServer32"
     game = rf"SOFTWARE\Classes\CLSID\{FFXI_CLSID}\InprocServer32"
-    # keep the file names the installed registration uses (polcore.dll / FFXi.dll), only the folder moves
-    polcore_name = ntpath.basename(reg.get(polcore, "") or "") or POLCORE_DLL[lang]
-    game_name = ntpath.basename(reg.get(game, "") or "") or FFXI_DLL
-    return [(folder, "0001", ffxi), (folder, "1000", viewer),
-            (polcore, "", ntpath.join(viewer, polcore_name)), (game, "", ntpath.join(ffxi, game_name))]
+    # keep where the installed registration has the DLL inside its folder (polcore.dll is not always at the top of
+    # PlayOnlineViewer), only the folder moves; if the copy has it elsewhere, use the copy's own file
+    polcore_path = _moved(reg.get(polcore, ""), reg.get(folder, "1000"), viewer, POLCORE_DLL[lang])
+    game_path = _moved(reg.get(game, ""), reg.get(folder, "0001"), ffxi, FFXI_DLL)
+    return [(folder, "0001", ffxi), (folder, "1000", viewer), (polcore, "", polcore_path), (game, "", game_path)]
+
+
+def _moved(registered, old_root, new_root, default_name):
+    """Where the registered DLL is inside new_root. Tried in order: the same path below the folder as in the old
+    install; the newer PlayOnline layout (PlayOnlineViewer\\viewer\\com\\polcore.dll); the top of new_root; any file of
+    that name in the copy except under patchfiles (PlayOnline's update staging, not the live files). If none
+    exists, the first of those paths."""
+    registered = registered or ""
+    name = ntpath.basename(registered) or default_name
+    rels = []
+    if registered and old_root:
+        root = ntpath.normpath(old_root).rstrip("\\").lower() + "\\"
+        full = ntpath.normpath(registered)
+        if full.lower().startswith(root):
+            rels.append(full[len(root):])
+    rels += ["viewer\\com\\" + name, name]
+    for rel in rels:
+        path = ntpath.join(new_root, rel)
+        if os.path.exists(path.replace("\\", os.sep)):     # (os.sep is "\\" on Windows; this lets the tests run anywhere)
+            return path
+    for here, dirs, files in os.walk(new_root.replace("\\", os.sep)):
+        dirs[:] = sorted(d for d in dirs if d.lower() != "patchfiles")
+        for f in files:
+            if f.lower() == name.lower():
+                return os.path.join(here, f)
+    return ntpath.join(new_root, rels[0])
 
 
 def _same(a, b):

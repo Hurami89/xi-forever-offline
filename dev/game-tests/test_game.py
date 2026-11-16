@@ -49,6 +49,46 @@ class GameTests(unittest.TestCase):
         self.assertEqual(want[(rf"SOFTWARE\Classes\CLSID\{lg.FFXI_CLSID}\InprocServer32", "")], r"D:\G\F\FFXi.dll")
         self.assertEqual(want[(r"SOFTWARE\PlayOnlineUS\InstallFolder", "1000")], r"D:\G\V")
 
+    def _touch(self, *parts):
+        path = os.path.join(*parts)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(path, "w").close()
+        return path
+
+    def _polcore(self, reg):
+        key = (rf"SOFTWARE\Classes\CLSID\{lg.POLCORE_CLSID['US']}\InprocServer32", "")
+        return dict(((p, n), v) for p, n, v in lg.entries("US", self.copy["viewer"], self.copy["ffxi"], reg))[key]
+
+    def test_polcore_in_viewer_com_not_patchfiles(self):
+        # newer PlayOnline: polcore.dll lives in viewer\com, with an update copy under patchfiles (shujimi, 2026-11-16)
+        v = self.copy["viewer"]
+        self._touch(v, "patchfiles", "PlayOnlineViewer", "viewer", "com", "polcore.dll")
+        live = self._touch(v, "viewer", "com", "polcore.dll")
+        self.assertEqual(os.path.normpath(self._polcore(retail()).replace("\\", os.sep)), os.path.normpath(live))
+
+    def test_polcore_keeps_registered_subfolder(self):
+        reg = retail()
+        reg.set(rf"SOFTWARE\Classes\CLSID\{lg.POLCORE_CLSID['US']}\InprocServer32", "", RETAIL_V + r"\viewer\com\polcore.dll")
+        live = self._touch(self.copy["viewer"], "viewer", "com", "polcore.dll")
+        self.assertEqual(os.path.normpath(self._polcore(reg).replace("\\", os.sep)), os.path.normpath(live))
+
+    def test_polcore_at_top_still_works(self):
+        live = self._touch(self.copy["viewer"], "polcore.dll")
+        self.assertEqual(os.path.normpath(self._polcore(retail()).replace("\\", os.sep)), os.path.normpath(live))
+
+    def test_other_server_install_restored_exactly(self):
+        # a player with another private server: their own registry values come back unchanged after play
+        reg = retail()
+        reg.set(rf"SOFTWARE\Classes\CLSID\{lg.POLCORE_CLSID['US']}\InprocServer32", "", r"E:\Horizon\PlayOnlineViewer\viewer\com\polcore.dll")
+        self._touch(self.copy["viewer"], "viewer", "com", "polcore.dll")
+        before = dict(reg.v)
+        state = os.path.join(self.kit, lg.STATE_FILE)
+        with open(state, "w") as h:
+            json.dump({"lang": "US", "viewer": self.copy["viewer"], "ffxi": self.copy["ffxi"]}, h)
+        running = iter([True, False])
+        lg.hold(state, reg, lambda: next(running), sleep=lambda s: None)
+        self.assertEqual(reg.v, before)
+
     def test_no_switch_without_copy_or_when_already_pointing(self):
         reg = retail()
         self.assertFalse(lg.needs_switch({"ffxi_client_dir": RETAIL_F}, reg))
