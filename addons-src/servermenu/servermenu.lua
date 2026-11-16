@@ -34,7 +34,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.8';
+addon.version = '1.9';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1574,7 +1574,13 @@ local function drawHeader(h)
     local role = string.lower(tostring(h.role or 'auto'));
     local rgba = ROLE_COLORS[role] or ROLE_COLORS.auto;
     local jobs = tostring(h.job or '?') .. ' ' .. tostring(h.main or 0);
-    if h.sub ~= '-' and h.sub ~= '' and h.sub ~= nil then jobs = jobs .. ' / ' .. tostring(h.sub) .. ' ' .. tostring(h.subLevel); end
+    if h.sub ~= '-' and h.sub ~= '' and h.sub ~= nil then
+        if (tonumber(h.subLevel) or 0) > 0 then
+            jobs = jobs .. ' / ' .. tostring(h.sub) .. ' ' .. tostring(h.subLevel);
+        else
+            jobs = jobs .. ' / ' .. tostring(h.sub) .. ' (locked)';   -- support jobs work once you have them yourself
+        end
+    end
 
     local pos, width, draw = screenPos(), contentWidth(), windowDraw();
     local height = 32;
