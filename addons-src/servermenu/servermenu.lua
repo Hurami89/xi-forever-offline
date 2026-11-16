@@ -34,7 +34,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.9';
+addon.version = '1.10';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -286,6 +286,10 @@ local function onLine(payload)
         S.incoming = nil;
         S.camp = S.incomingCamp;                -- (nil from a server without camps: the Camp row stays hidden)
         S.incomingCamp = nil;
+        S.engage = S.incomingEngage;            -- (nil from an older server: the engage button and the Style row stay hidden)
+        S.incomingEngage = nil;
+        S.opts = S.incomingOpts or {};
+        S.incomingOpts = nil;
         -- the second window holds the camp too: no following while a camp is set
         local hold = S.camp ~= nil and S.camp.on == true;
         if hold ~= S.duoHold then
@@ -297,6 +301,20 @@ local function onLine(payload)
     end
     local camp = parseCamp(payload);
     if camp then S.incomingCamp = camp; return; end
+    -- (squad.lua for servermenu 1.10) engage|<1 first> and opt|<slot>|<size 0-3>|<ws TP, 0 chain>|<WS or ->|<range 0-3>|<usable WS or ->
+    local engage = payload:match('^engage|([01])$');
+    if engage then S.incomingEngage = engage == '1' and 'first' or 'normal'; return; end
+    local oslot, osize, otp, ows, orange, olist = payload:match('^opt|(%d+)|(%d+)|(%d+)|([^|]+)|(%d+)|(.*)$');
+    if oslot then
+        local list = {};
+        for name in tostring(olist):gmatch('[^,]+') do
+            if name ~= '-' then list[#list + 1] = (name:gsub('_', ' ')); end
+        end
+        S.incomingOpts = S.incomingOpts or {};
+        S.incomingOpts[tonumber(oslot)] = { size = tonumber(osize), tp = tonumber(otp), ws = ows ~= '-' and (ows:gsub('_', ' ')) or nil,
+                                            range = tonumber(orange), list = list };
+        return;
+    end
     -- (squad.lua with pull choices) campwant|<Monster_Name or -> and campmob|<Monster_Name>|<lowest lv>|<highest lv>|<how many>|<1 pullable>
     local want = payload:match('^campwant|(.+)$');
     if want and S.incomingCamp then
@@ -773,6 +791,74 @@ local function campRow()
     end
 end
 
+-- ---------------------------------------------------------------- the Style row (range, weapon skills) and body size
+local RANGES = { 'auto', 'melee', 'mid', 'far' };
+local RANGE_HELP = {
+    auto  = 'The usual distance for its job (casters and ranged jobs stand back, the rest melee)',
+    melee = 'Stands next to the monster',
+    mid   = 'Stands about 6 yalms from the monster',
+    far   = 'Stands about 12 yalms from the monster',
+};
+local WS_WHEN = { 'chain', '1000', '1500', '2000', '2500', '3000' };
+local WS_WHEN_HELP = {
+    chain  = 'Times its weapon skills to skillchain with the party (the default)',
+    ['1000'] = 'Weapon skills as soon as it has 1000 TP',
+    ['1500'] = 'Waits for 1500 TP',
+    ['2000'] = 'Waits for 2000 TP',
+    ['2500'] = 'Waits for 2500 TP',
+    ['3000'] = 'Waits for 3000 TP (strongest hits, fewest of them)',
+};
+local SIZES = { 'small', 'medium', 'large' };
+
+local function wsKey(name) return tostring(name or ''):lower():gsub('[^%w]', ''); end
+
+-- !squad ws <slot> <when> <which>: the server wants both, so the part not being changed is sent as it is now
+local function setWs(mate, opt, when, which)
+    when = when or ((opt.tp or 0) > 0 and tostring(opt.tp) or 'chain');
+    which = which or opt.ws or 'best';
+    changeMate(mate, 'ws', when .. ' ' .. (which == 'best' and 'best' or which:gsub(' ', '_')));
+    opt.tp = when == 'chain' and 0 or tonumber(when);
+    opt.ws = which ~= 'best' and which or nil;
+end
+
+local function styleRow(mate, opt)
+    dimText('Range'); imgui.SameLine(0, 8);
+    local range = combo('range' .. mate.slot, RANGES[(opt.range or 0) + 1], RANGES, 90, RANGE_HELP);
+    if range then
+        changeMate(mate, 'range', range);
+        for i, r in ipairs(RANGES) do if r == range then opt.range = i - 1; end end
+    end
+    imgui.SameLine(0, 18);
+    dimText('WS at'); imgui.SameLine(0, 8);
+    local when = combo('wswhen' .. mate.slot, (opt.tp or 0) > 0 and tostring(opt.tp) or 'chain', WS_WHEN, 80, WS_WHEN_HELP);
+    if when then setWs(mate, opt, when, nil); end
+    imgui.SameLine(0, 10);
+    local items, current = { 'best' }, 'best';
+    for _, name in ipairs(opt.list or {}) do
+        items[#items + 1] = name;
+        if opt.ws and wsKey(name) == wsKey(opt.ws) then current = name; end
+    end
+    if opt.ws and current == 'best' then items[#items + 1] = opt.ws; current = opt.ws; end
+    local which = combo('wswhich' .. mate.slot, current, items, 150);
+    if which then setWs(mate, opt, nil, which); end
+    tooltip(#(opt.list or {}) > 0 and 'Which weapon skill it uses: "best" picks its strongest one'
+        or 'Which weapon skill it uses. Call this mate to see the ones it can use now.');
+end
+
+-- body size: picked once, like at character creation
+local function sizeRow(mate, opt)
+    dimText('Size'); imgui.SameLine(0, 8);
+    S.sizePick = S.sizePick or {};
+    local pick = combo('size' .. mate.slot, S.sizePick[mate.slot] or 'medium', SIZES, 100);
+    if pick then S.sizePick[mate.slot] = pick; end
+    imgui.SameLine(0, 10);
+    if button('Set for good', 'setsize' .. mate.slot, 100, 0) then
+        changeMate(mate, 'size', S.sizePick[mate.slot] or 'medium');
+        opt.size = ({ small = 1, medium = 2, large = 3 })[S.sizePick[mate.slot] or 'medium'];
+    end
+    tooltip('His body size. It can be set only once, so pick carefully.');
+end
+
 local function squadTab()
     if button('Call all', 'callall', 92, 26) then enqueue('/say !squad call all'); ask(3); end
     tooltip('Bring every squad mate out, one after another');
@@ -780,6 +866,17 @@ local function squadTab()
     if button('Dismiss all', 'dismiss', 112, 26) then enqueue('/say !squad dismiss'); ask(1.5); end
     imgui.SameLine(0, 6);
     if button('Refresh', 'refresh', 80, 26) then ask(); end
+    if S.engage then
+        imgui.SameLine(0, 6);
+        local first = S.engage == 'first';
+        if button(first and 'Engage: first' or 'Engage: with you', 'engage', 136, 26, first and 'on' or nil) then
+            enqueue('/say !squad engage ' .. (first and 'normal' or 'first'));
+            S.engage = first and 'normal' or 'first';
+            ask(1.5);
+        end
+        tooltip(first and 'Your mates attack a monster as soon as you or any of them is fighting it (click: wait for you)'
+            or 'Your mates attack when you do (click: they may start the fight before you swing)');
+    end
     imgui.SameLine(0, 14);
     dimText(#S.mates == 1 and '1 mate' or (#S.mates .. ' mates'));
 
@@ -801,7 +898,10 @@ local function squadTab()
             dimText('   Make one in chat:  !squad new Bob WAR');
         end
         for _, mate in ipairs(S.mates) do
-            local cardOpen, cardBegan = beginChild('##sm_mate' .. mate.slot, 0, S.more[mate.slot] and 128 or 88, true, true);
+            local opt = S.opts and S.opts[mate.slot];
+            local height = S.more[mate.slot] and 128 or 88;
+            if opt then height = height + 26 + ((S.more[mate.slot] and opt.size == 0) and 26 or 0); end
+            local cardOpen, cardBegan = beginChild('##sm_mate' .. mate.slot, 0, height, true, true);
             if cardOpen then
                 colorText(C.gold, mate.name);
                 imgui.SameLine(0, 10);
@@ -829,6 +929,10 @@ local function squadTab()
                 dimText('Mode'); imgui.SameLine(0, 8);
                 local mode = combo('mode' .. mate.slot, mate.mode, MODES, 120, MODE_HELP);
                 if mode then changeMate(mate, 'mode', mode); end
+                if opt then
+                    gap(2);
+                    styleRow(mate, opt);
+                end
 
                 if S.more[mate.slot] then
                     gap(2);
@@ -842,6 +946,10 @@ local function squadTab()
                     local sub = combo('sub' .. mate.slot, mate.sub == '-' and 'none' or mate.sub, subs, 120);
                     if sub then changeMate(mate, 'sub', sub); end
                     dimText('A job your character has not unlocked is refused by the server (it says so in chat).');
+                    if opt and opt.size == 0 then
+                        gap(2);
+                        sizeRow(mate, opt);
+                    end
                 end
             end
             endChild(cardBegan);

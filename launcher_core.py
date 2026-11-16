@@ -424,6 +424,8 @@ RATE_FIELDS = [
     ("main.ENABLE_DAILY_TALLY",         "main.lua", "ENABLE_DAILY_TALLY",          "Gobbie Mystery Box (1 = on)", 0, 0, 1, "int"),
     ("main.HALLOWEEN_2005",             "main.lua", "HALLOWEEN_2005",              "Harvest Festival (Oct 20-Nov 1, 1=on)", 1,   0,   1,     "int"),
     ("main.NEW_CHARACTER_CUTSCENE",     "main.lua", "NEW_CHARACTER_CUTSCENE",      "New-character cutscenes (1 = on)", 1, 0, 1, "int"),
+    ("map.BASE_SPEED",                  "map.lua",  "BASE_SPEED",                  "Run speed (50 = retail)",               50,  40,  120,   "int"),
+    ("map.MOUNT_SPEED",                 "map.lua",  "MOUNT_SPEED",                 "Chocobo and mount speed (80 = retail)", 80,  50,  150,   "int"),
 ]
 RATE_DEFAULTS = {f[0]: f[4] for f in RATE_FIELDS}
 RATE_DEFAULTS.update({"all_crafts": True, "ah_sim": False, "era_exp": True, "conquest_sim": True, "claim_shield": False,

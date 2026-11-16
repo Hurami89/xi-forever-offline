@@ -2953,6 +2953,8 @@ class App(tk.Tk):
         self.start_ah_sim()
         if core.needs_ai(self.rates):        # Quiet world / Living world: nothing talks through the AI, so leave Ollama alone
             self.start_ollama()
+        else:
+            self.unload_ollama()             # ...and give back the memory a model loaded earlier still holds
         if self.rates.get("squad_chat", True):
             self.start_squad_chat()
         self.start_crowd_chat_ai()
@@ -3105,6 +3107,31 @@ class App(tk.Tk):
         except Exception as e:
             self.say(f"The conquest simulator did not run: {e}")
             return False
+
+    def unload_ollama(self):
+        # AI chat is off for this world: an Ollama left running (by us or by an earlier session) keeps its model in
+        # memory for half an hour. Ask it to unload every loaded model now. Nothing happens if Ollama isn't running.
+        import json, urllib.request
+        url = "http://127.0.0.1:11434"
+        try:
+            with open(os.path.join(HERE, "squad-chat", "config.json"), encoding="utf-8-sig") as f:
+                url = json.load(f).get("ollama_url", url)
+        except Exception:
+            pass
+        url = url.rstrip("/")
+        try:
+            with urllib.request.urlopen(url + "/api/ps", timeout=2) as r:
+                models = [m.get("name") or m.get("model") for m in json.load(r).get("models", [])]
+        except Exception:
+            return
+        for name in filter(None, models):
+            try:
+                body = json.dumps({"model": name, "keep_alive": 0}).encode()
+                req = urllib.request.Request(url + "/api/generate", data=body, headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=10).close()
+                self.say("AI chat is off: unloaded %s from memory." % name)
+            except Exception:
+                pass
 
     def start_ollama(self):
         # Ollama (the local AI model squad chat, crowd chatter and the bots' tells use): start it if it is not running yet.
