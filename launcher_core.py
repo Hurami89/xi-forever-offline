@@ -423,6 +423,7 @@ RATE_FIELDS = [
     ("main.ENABLE_TRUST_QUESTS",        "main.lua", "ENABLE_TRUST_QUESTS",         "Trust quest NPCs (1 = on)", 0, 0, 1, "int"),
     ("main.ENABLE_DAILY_TALLY",         "main.lua", "ENABLE_DAILY_TALLY",          "Gobbie Mystery Box (1 = on)", 0, 0, 1, "int"),
     ("main.HALLOWEEN_2005",             "main.lua", "HALLOWEEN_2005",              "Harvest Festival (Oct 20-Nov 1, 1=on)", 1,   0,   1,     "int"),
+    ("main.NEW_CHARACTER_CUTSCENE",     "main.lua", "NEW_CHARACTER_CUTSCENE",      "New-character cutscenes (1 = on)", 1, 0, 1, "int"),
 ]
 RATE_DEFAULTS = {f[0]: f[4] for f in RATE_FIELDS}
 RATE_DEFAULTS.update({"all_crafts": True, "ah_sim": False, "era_exp": True, "conquest_sim": True, "claim_shield": False,
