@@ -23,6 +23,10 @@
 !/launcher_publish.py
 !/launcher_game.py
 !/launcher_client.py
+# co-op (experimental): the CO-OP page, the service two launchers talk through, and character passports
+!/launcher_coop_gui.py
+!/launcher_coop.py
+!/launcher_passport.py
 !/client-patches/
 !/thirdparty.json
 # launcher_classic.pyw and "Classic launcher.bat" (the old look) stay on the dev PC only

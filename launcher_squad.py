@@ -175,7 +175,11 @@ def list_characters(conn):
         "WHERE accid > 0 AND accid < ? ORDER BY charname",
         (BOT_ACCOUNT_BASE,),
     )
-    return [(int(r[0]), r[1]) for r in rows]
+    try:        # co-op: a friend's character visiting this world is not one of yours (launcher_passport.py)
+        guests = {int(r[0]) for r in _all(conn, "SELECT charid FROM coop_guest WHERE state <> 'gone'")}
+    except Exception:       # (this database has never been used for co-op)
+        guests = set()
+    return [(int(r[0]), r[1]) for r in rows if int(r[0]) not in guests]
 
 
 def get_squad(conn, charid):

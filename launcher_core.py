@@ -838,6 +838,10 @@ def apply_rates(server_dir, rates):
     # Phoenix's defaults only let the newest retail client in (FFXI-3331 "The game's data has been updated"); this is an
     # offline server, so any client version may log in
     wanted["login.lua"].append(("VER_LOCK", 0, "int"))
+    # co-op: while friends can reach this server, nobody makes accounts on it from the game's log in screen
+    # (a visitor gets its account from the launcher's CO-OP page)
+    if rates.get("coop_hosting"):
+        wanted["login.lua"].append(("ACCOUNT_CREATION", False, "bool"))
     # crafting: 600 = the 75-era point where the shared pool starts; 3200 lets all eight crafts reach the top
     wanted["map.lua"].append(("CRAFT_COMMON_CAP", 600, "int"))
     wanted["map.lua"].append(("CRAFT_SPECIALIZATION_POINTS", 3200 if rates.get("all_crafts", True) else 400, "int"))

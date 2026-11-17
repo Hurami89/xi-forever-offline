@@ -29,6 +29,10 @@ try:
     import launcher_icons as itemicons
 except Exception:  # the gear list still works, without pictures
     itemicons = None
+try:
+    import launcher_coop_gui as coopgui
+except Exception:  # the launcher still works, without the Co-op page
+    coopgui = None
 
 LOGS = os.path.join(HERE, "logs")
 BG, PANEL, PANEL2, FG, DIM = "#0a1118", "#101c28", "#162634", "#e9f1f5", "#8aa0ad"
@@ -45,7 +49,8 @@ LIST_HINT_SECOND = "Tick what you want loaded in the second window (dualbox). Ch
 
 # The page buttons along the bottom: (picture in assets\\ui, name, the pages it opens). A button for several pages opens the one you were last on
 # in it. A page that is in none of them gets a MORE button, so nothing is ever unreachable.
-NAV_BUTTONS = (("home", "HOME", ("Play",)), ("squad", "SQUADS", ("Squad",)), ("config", "CONFIG", ("Rates", "Graphics", "Shaders")),
+NAV_BUTTONS = (("home", "HOME", ("Play",)), ("squad", "SQUADS", ("Squad",)), ("coop", "CO-OP", ("Co-op",)),
+               ("config", "CONFIG", ("Rates", "Graphics", "Shaders")),
                ("addons", "ADDONS", ("Addons", "Plugins", "Other")), ("settings", "SETTINGS", ("Settings",)))
 PRESS_ANCHOR = 0.38      # press pictures are wider than the frame is tall: keep the part 38% of the way down (sky and skyline are above, people below)
 PRESS_NOTE = ""
@@ -2429,6 +2434,17 @@ class App(tk.Tk):
         self.updates_tab = UpdatesTab(tabs, self)
         tabs.add(self.updates_tab, text="  Settings  ")
 
+        # Co-op tab (experimental): host your world for friends, or visit a friend's (launcher_coop_gui.py)
+        self.coop_tab, self.visit, self.visit_mode = None, None, False
+        if coopgui is not None and "db_user" in self.cfg and "db_name" in self.cfg:
+            try:
+                import mariadb  # noqa: F401
+                self.coop_tab = coopgui.CoopTab(tabs, self, ImageButton)
+                tabs.add(self.coop_tab, text="  Co-op  ")
+            except Exception as e:
+                self.coop_tab = None
+                print(f"The Co-op page could not be made: {e}")
+
         # Addons / Plugins tabs
         self.lists = []
         if self.ashita and os.path.isdir(self.ashita):
@@ -2612,9 +2628,10 @@ class App(tk.Tk):
         self.fit_window()
 
     def fit_window(self):
-        """One window size for every page: the Play page has the big picture (LOGS shows the log in its place)."""
+        """One window size for every page: the Play page has the big picture (LOGS shows the log in its place).
+        With the CO-OP button in the bottom bar the window is a little wider, so the bar fits."""
         page = self.tabs.tab(getattr(self, "current_index", 0), "text").strip() if self.tabs.tabs() else ""
-        self.geometry("980x810")
+        self.geometry("1100x810" if getattr(self, "coop_tab", None) is not None else "980x810")
 
     def show_subnav(self, group, index):
         """The pages of the open group as small buttons at the top of the page (nothing for a group of one page)."""
@@ -2864,6 +2881,11 @@ class App(tk.Tk):
     def start(self):
         if self.running:
             return
+        visit, self.visit = self.visit, None           # set by the CO-OP page's PLAY THERE
+        if visit is None and self.coop_tab is not None:
+            visit = self.coop_tab.ask_play_there()      # a character is visiting a friend's world: play there?
+            if visit == "cancel":
+                return
         if self.cfg.get("game_update_needed"):
             if messagebox.askyesno("Update the game first", "Your game hasn't had its first update yet (Square Enix's "
                                    "installer puts in an older version). Show the steps?\n\nNo = play anyway.", parent=self):
@@ -2883,6 +2905,7 @@ class App(tk.Tk):
             except OSError:
                 pass
         self.running, self.stop_requested = True, False
+        self.pending_visit = visit
         self.play_btn.configure(state="disabled")
         self.stop_btn.configure(state="normal")
         self.progress.start(14)
@@ -2953,6 +2976,10 @@ class App(tk.Tk):
     def on_close(self):
         if self.running and not messagebox.askyesno("Quit", "The servers are running. Stop them and quit?"):
             return
+        if getattr(self, "coop_tab", None) is not None:
+            if not self.coop_tab.may_close():      # visitors' characters are still in this world
+                return
+            self.coop_tab.shutdown()
         self.stop_requested = True
         self.cleanup()
         if getattr(self, "db_proc", None) is not None:      # the kit's MariaDB, if this launcher started it
@@ -3017,9 +3044,19 @@ class App(tk.Tk):
             if not core.ensure_service(svc):
                 raise RuntimeError(f"The database service '{svc}' was not found or would not start.")
 
+        visit, self.pending_visit = getattr(self, "pending_visit", None), None
+        if visit is not None:                 # co-op: play in a friend's world; none of our own servers start
+            return self.launch_visit(visit)
+        hosting = False
+        if self.coop_tab is not None:         # co-op: while hosting, the world answers on the address friends use
+            try:
+                hosting = self.coop_tab.before_servers(self.say)
+            except Exception as e:
+                self.say(f"Co-op: could not set up hosting ({e}) - starting as a private world.")
+
         self.say("Applying your rates...")
         try:
-            for note in core.apply_rates(cfg["server_dir"], self.rates):
+            for note in core.apply_rates(cfg["server_dir"], dict(self.rates, coop_hosting=hosting)):
                 self.say(note)
         except Exception as e:
             self.say(f"Could not apply the rates ({e}) - starting with the server's normal settings.")
@@ -3068,6 +3105,11 @@ class App(tk.Tk):
         self.wait_for_map()
         time.sleep(2)
         self.check()
+        if hosting:
+            try:
+                self.coop_tab.after_servers(self.say)
+            except Exception as e:
+                self.say(f"Co-op: {e}")
 
         self.start_ah_sim()
         if core.needs_ai(self.rates):        # Quiet world / Living world: nothing talks through the AI, so leave Ollama alone
@@ -3081,6 +3123,27 @@ class App(tk.Tk):
             self.launch_ashita()
         else:
             self.launch_plain()
+
+    def launch_visit(self, visit):
+        """Co-op: the game starts in a friend's world with the visiting character's login (launcher_coop.py)."""
+        import launcher_coop as co
+        if not self.ashita:
+            raise RuntimeError("Playing in a friend's world needs Ashita (ashita_dir in config.json).")
+        host = visit["host"]
+        world = (host.get("world") or {}).get("name") or "your friend's world"
+        self.say(f"Getting ready to play in {world}...")
+        if self.graphics_tab is not None:      # the visit's boot file is a copy of yours: put your graphics settings in first
+            try:
+                core.apply_graphics(self.boot_ini, self.graphics)
+            except Exception:
+                pass
+        self.launch_boot = co.write_visit_boot(self.ashita, self.cfg.get("ashita_boot", core.DEFAULT_BOOT), host)
+        self.visit_mode = True
+        try:
+            self.launch_ashita()
+        finally:
+            self.visit_mode = False
+        self.say(f"{visit['name']} stays in {world} until you press COME HOME on the CO-OP page.")
 
     def wait_for_map(self):
         """Waits for the map server to say it is ready, showing the seconds so far. It waits as long as the map log keeps growing (the first
@@ -3144,7 +3207,8 @@ class App(tk.Tk):
         else:
             raise RuntimeError("The game loader never started.\n\nAshita said:\n"
                                + core.tail(os.path.join(LOGS, "ashita.log")))
-        self.say("Game is running. Closing it will stop the servers.")
+        self.say("Game is running in your friend's world." if getattr(self, "visit_mode", False)
+                 else "Game is running. Closing it will stop the servers.")
         while core.is_running("xiloader"):
             self.check()
             time.sleep(2)
@@ -3343,6 +3407,7 @@ class App(tk.Tk):
             self.say(f"Auction house simulator did not start: {e}")
 
     def cleanup(self):
+        had_servers = bool(self.procs)
         ollama = getattr(self, "ollama_proc", None)
         if ollama is not None:  # only the Ollama this launcher started (one you started yourself keeps running)
             try:
@@ -3396,7 +3461,8 @@ class App(tk.Tk):
                 pass
         self.logfiles.clear()
         self.procs.clear()
-        self.say("Servers stopped.")
+        if had_servers or not getattr(self, "coop_tab", None):     # (a visit to a friend's world started no servers)
+            self.say("Servers stopped.")
 
 
 def save_config_value(key, value):
