@@ -134,8 +134,44 @@ def init_mariadb(mariadb_dir, root_password, port, run=subprocess.run):
     return "Database folder created."
 
 
-def start_mariadb(mariadb_dir, port, popen=subprocess.Popen, wait=30):
-    """Starts the portable server in the background if nothing answers on its port. Returns the process (or None)."""
+def aria_logs_broken(mariadb_dir):
+    """True when the newest MariaDB error log says its Aria logs could not be replayed (a PC that lost power or a
+    database that was killed): "Aria recovery failed ... delete all aria_log.######## files"."""
+    data = os.path.join(mariadb_dir, "data")
+    try:
+        logs = [os.path.join(data, n) for n in os.listdir(data) if n.lower().endswith(".err")]
+    except OSError:
+        return False
+    if not logs:
+        return False
+    newest = max(logs, key=os.path.getmtime)
+    try:
+        with open(newest, "rb") as f:
+            f.seek(max(0, os.path.getsize(newest) - 20000))
+            tail = f.read().decode("utf-8", "replace")
+    except OSError:
+        return False
+    last = tail.rfind("Aria recovery failed")
+    return last >= 0 and "ready for connections" not in tail[last:]
+
+
+def set_aria_logs_aside(mariadb_dir):
+    """MariaDB's own advice for a failed Aria recovery: the aria_log files go (moved to mariadb/aria-logs-<time>, not
+    deleted), and the server checks its Aria tables itself when it starts. Returns how many files were moved."""
+    data = os.path.join(mariadb_dir, "data")
+    keep = os.path.join(mariadb_dir, "aria-logs-" + time.strftime("%Y%m%d-%H%M%S"))
+    moved = 0
+    for name in os.listdir(data):
+        if name.lower().startswith("aria_log"):
+            os.makedirs(keep, exist_ok=True)
+            shutil.move(os.path.join(data, name), os.path.join(keep, name))
+            moved += 1
+    return moved
+
+
+def start_mariadb(mariadb_dir, port, popen=subprocess.Popen, wait=30, _retry=True):
+    """Starts the portable server in the background if nothing answers on its port. Returns the process (or None).
+    If it stops at once because its Aria logs are broken, the logs are set aside and it is started once more."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(0.3)
         if s.connect_ex(("127.0.0.1", int(port))) == 0:
@@ -151,7 +187,11 @@ def start_mariadb(mariadb_dir, port, popen=subprocess.Popen, wait=30):
             s.settimeout(0.3)
             if s.connect_ex(("127.0.0.1", int(port))) == 0:
                 return proc
+        if getattr(proc, "poll", None) and proc.poll() is not None:
+            break                                     # it stopped already (its .err says why): no use waiting
         time.sleep(0.5)
+    if _retry and aria_logs_broken(mariadb_dir) and set_aria_logs_aside(mariadb_dir):
+        return start_mariadb(mariadb_dir, port, popen, wait, _retry=False)
     raise RuntimeError("The database did not start (see mariadb\\data\\*.err).")
 
 
