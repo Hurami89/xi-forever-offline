@@ -120,14 +120,32 @@ def _unpack(zip_path, dest, keep=(), log=print, running_exe=None):
     return count
 
 
-def update_kit(kit, release, fetch, log=print):
-    """Installs a kit release over the kit folder. Returns True: the launcher must restart."""
-    for name in os.listdir(kit):                  # leftovers from an update made while an old copy was still running
-        if name.lower().endswith(".exe") and ".old-" in name:
+def cleanup_old_exes(kit):
+    """Deletes the launcher copies an update moved aside (XI Forever Offline.old.exe, .old-<time>.exe). Called when the
+    launcher starts (the old one has closed by then) and before an update. One still running is left for next time."""
+    running = os.path.normcase(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False) else None
+    removed = 0
+    try:
+        names = os.listdir(kit)
+    except OSError:
+        return 0
+    for name in names:
+        low = name.lower()
+        if low.endswith(".exe") and (low.endswith(".old.exe") or ".old-" in low):
+            path = os.path.join(kit, name)
+            if running and os.path.normcase(os.path.abspath(path)) == running:
+                continue
             try:
-                os.remove(os.path.join(kit, name))
+                os.remove(path)
+                removed += 1
             except OSError:
                 pass
+    return removed
+
+
+def update_kit(kit, release, fetch, log=print):
+    """Installs a kit release over the kit folder. Returns True: the launcher must restart."""
+    cleanup_old_exes(kit)                         # leftovers from an update made while an old copy was still running
     path = _download(release, KIT_ASSET, kit, fetch, log, "launcher")
     running = sys.executable if getattr(sys, "frozen", False) else None
     _unpack(path, kit, log=log, running_exe=running)

@@ -3890,6 +3890,11 @@ def main():
         elevate_and_exit()
     if os.name == "nt" and not one_launcher_only():
         return
+    try:                                          # the launcher copy the last update moved aside (it has closed now)
+        import launcher_update
+        launcher_update.cleanup_old_exes(HERE)
+    except Exception:
+        pass
     try:
         if not os.path.exists(os.path.join(HERE, "config.json")):     # first run on a new PC: set everything up first
             wizard = SetupWizard()
