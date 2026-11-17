@@ -48,6 +48,9 @@
 
 # ---- simulators, tools and data builders ----
 !/ah_sim.py
+# the market prices the auction house simulator lists at (HorizonXI, from "python ah_sim.py prices"); without it every
+# item fell back to a vendor-price guess (Leaping Boots for 700 gil)
+!/ah_prices.json
 !/conquest_sim.py
 # main_auto.py (database password in it) and chat_cleanup.py (one-off patcher) are not shared
 !/house_rules.py
