@@ -112,7 +112,7 @@ def make_character(conn, accid, charid, name, level=30, gil=1000, linkshell=True
         run(conn, "INSERT INTO char_skills (charid, skillid, value, `rank`) VALUES (?, ?, ?, 0)", (charid, skill, value))
     for spell in (1, 2, 3):
         run(conn, "INSERT INTO char_spells (charid, spellid) VALUES (?, ?)", (charid, spell))
-    for var, value in (("[Quest]Progress", 3), ("TrustEngageType", 1), ("SQUAD_AI_5", 21), ("[Bots]LS", 4)):
+    for var, value in (("[Quest]Progress", 3), ("TrustEngageType", 1), ("SQUAD_FOLLOW", 1), ("[Bots]LS", 4)):
         run(conn, "INSERT INTO char_vars (charid, varname, value) VALUES (?, ?, ?)", (charid, var, value))
     conn.commit()
 
@@ -121,3 +121,22 @@ def rows_of(conn, table, charid, order):
     out = run(conn, f"SELECT * FROM `{table}` WHERE charid = ? ORDER BY {order}", (charid,))
     conn.rollback()
     return out
+
+
+def make_squad(conn, charid, mates, unlocks=()):
+    """Squad mates for a character: mates = [(slot, name, main job id, level)]. Each gets a second job, one piece of gear
+    and two settings that carry its number. Returns {slot: mate id}."""
+    ids = {}
+    for slot, name, job, level in mates:
+        run(conn, "INSERT INTO squad_mate (charid, slot, name, race, face, nation, mjob, sjob, template) VALUES (?, ?, ?, 3, 5, 2, ?, 2, 0)",
+            (charid, slot, name, job))
+        mate = run(conn, "SELECT id FROM squad_mate WHERE charid = ? AND slot = ?", (charid, slot))[0][0]
+        ids[slot] = mate
+        run(conn, "INSERT INTO squad_job (squad_id, job, level, exp) VALUES (?, ?, ?, 250), (?, 2, 10, 0)", (mate, job, level, mate))
+        run(conn, "INSERT INTO squad_equip (squad_id, job, slot, itemid) VALUES (?, ?, 0, 16535)", (mate, job))
+        run(conn, "INSERT INTO char_vars (charid, varname, value) VALUES (?, ?, ?), (?, ?, 1)",
+            (charid, f"SQUAD_AI_{mate}", 20 + slot, charid, f"SQUAD_LOOK_{mate}"))
+    for item in unlocks:
+        run(conn, "INSERT INTO squad_unlock (charid, itemid) VALUES (?, ?)", (charid, item))
+    conn.commit()
+    return ids

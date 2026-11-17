@@ -16,7 +16,10 @@ Rules that keep it safe:
   * Table and column names always come from this file and the local database, never from the passport.
   * While a character is away its home copy sits on a locked account, so it cannot be played in two places.
   * A return is only accepted for the visit it belongs to (the nonce made at departure), and only once.
-  * Linkshell items, squad mates and bot/squad settings belong to a world: they stay home and never travel.
+  * Linkshell items and bot settings belong to a world: they stay home and never travel.
+  * Squad mates travel with their character (levels, jobs, outfits, the shared gear collection and their settings).
+    Each world numbers mates its own way, so they are matched by their slot (1-6) and the settings that carry a
+    mate's number (SQUAD_AI_<n> and the like) are renumbered on the way in.
 
 Works with the `mariadb` Python package ('?' placeholders). Every function takes an open connection with autocommit OFF
 and finishes with a commit or a rollback, so no transaction is ever left open.
@@ -33,13 +36,18 @@ import secrets
 import time
 import zipfile
 
-FORMAT = 1
+FORMAT = 2                           # 2: squad mates travel too
+OLD_FORMAT = 1                       # the first co-op build: squads stayed home. Its backups, and the returns of
+                                     # visits that began with it, are still read (as they were written: no squad).
 BOT_ACCOUNT_BASE = 21000000          # bot players live on accounts from here up (bots.cpp)
 BOT_CHAR_BASE = 16000000             # ...and their characters from here up
 AWAY_LOGIN = "coopaway"              # the locked account that holds characters who are visiting another world
 LS_ITEMS = (513, 514, 515)           # linkshell, pearlsack, linkpearl: they point at a linkshell of one world
 LINK_SLOTS = (16, 17)                # char_equip slots of the two worn linkshells
-WORLD_VAR_PREFIXES = ("[Bots]", "[Bot]", "SQUAD_", "COOP_")     # character variables that belong to one world
+WORLD_VAR_PREFIXES = ("[Bots]", "[Bot]", "COOP_")               # character variables that belong to one world
+MAX_MATES = 12                # squad mates one character may bring (the game keeps six)
+SQUAD_TABLES = ("squad_mate", "squad_job", "squad_equip", "squad_unlock")
+MATE_VAR = re.compile(r"^(SQUAD_[A-Z_]*_)(\d+)$")                # a mate's own setting: SQUAD_AI_<mate id>, SQUAD_LOOK_<mate id>...
 GUEST_VAR = "COOP_GUEST"
 MAX_PASSPORT_BYTES = 64 * 1024 * 1024
 MAX_ROWS = 20000
@@ -61,7 +69,8 @@ DDL = (
     "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
     "CREATE TABLE IF NOT EXISTS `coop_away` (`charid` INT UNSIGNED NOT NULL, `accid` INT UNSIGNED NOT NULL, "
     "`nonce` VARCHAR(64) NOT NULL, `generation` INT UNSIGNED NOT NULL DEFAULT 1, `state` VARCHAR(16) NOT NULL DEFAULT 'away', "
-    "`host` TEXT NOT NULL, `since` DATETIME NOT NULL, `updated` DATETIME NOT NULL, PRIMARY KEY (`charid`)) "
+    "`host` TEXT NOT NULL, `since` DATETIME NOT NULL, `updated` DATETIME NOT NULL, `squad` TINYINT NOT NULL DEFAULT 0, "
+    "PRIMARY KEY (`charid`)) "
     "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
     "CREATE TABLE IF NOT EXISTS `coop_guest` (`guest_id` VARCHAR(32) NOT NULL, `gkey` VARCHAR(64) NOT NULL, "
     "`home_world` VARCHAR(64) NOT NULL, `home_charid` INT UNSIGNED NOT NULL, `name` VARCHAR(15) NOT NULL, "
@@ -105,6 +114,8 @@ def ensure_tables(conn):
     cur = conn.cursor()
     for statement in DDL:
         cur.execute(statement)
+    if "squad" not in table_columns(cur, "coop_away"):     # (a table made by the first co-op build)
+        cur.execute("ALTER TABLE `coop_away` ADD COLUMN `squad` TINYINT NOT NULL DEFAULT 0")
     conn.commit()
     cur.close()
 
@@ -129,16 +140,33 @@ def local_layout(cur):
     return layout
 
 
-def layout_signature(layout):
-    """One short text for 'these two worlds store characters the same way'."""
-    text = json.dumps(layout, sort_keys=True, separators=(",", ":"))
+def squad_layout(cur):
+    """{table: [columns that travel]} for the squad tables (charid is filled in on arrival). {} when a world has none."""
+    layout = {}
+    for table in SQUAD_TABLES:
+        cols = table_columns(cur, table)
+        if not cols:
+            return {}
+        layout[table] = [c for c in cols if c != "charid"]
+    need = {"squad_mate": ("id", "slot", "name"), "squad_job": ("squad_id",), "squad_equip": ("squad_id",)}
+    if any(c not in layout[t] for t, cs in need.items() for c in cs):
+        return {}
+    return layout
+
+
+def layout_signature(layout, squad=None, fmt=FORMAT):
+    """One short text for 'these two worlds store characters (and their squads) the same way'."""
+    if fmt == OLD_FORMAT:                  # (as the first co-op build wrote it: the character tables only)
+        text = json.dumps(layout, sort_keys=True, separators=(",", ":"))
+    else:
+        text = json.dumps([layout, squad or {}], sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
 
 
 def schema_signature(conn):
     cur = conn.cursor()
     try:
-        return layout_signature(local_layout(cur))
+        return layout_signature(local_layout(cur), squad_layout(cur))
     finally:
         cur.close()
         conn.rollback()
@@ -226,7 +254,7 @@ def unpack(data):
         raise
     except Exception:
         raise PassportError("That file is not a character passport (or it is damaged).")
-    if not isinstance(passport, dict) or passport.get("format") != FORMAT or not isinstance(passport.get("tables"), dict):
+    if not isinstance(passport, dict) or passport.get("format") not in (FORMAT, OLD_FORMAT) or not isinstance(passport.get("tables"), dict):
         raise PassportError("That passport was made by another version of XI: Forever Offline.")
     name = passport.get("name")
     if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z]{3,15}", name):
@@ -259,6 +287,37 @@ def _read(cur, layout, charid, full=False):
     if len(tables["chars"]["rows"]) != 1:
         raise PassportError("That character does not exist here.")
     return tables
+
+
+def _read_squad(cur, squad, charid):
+    """The character's squad: {table: {"cols", "rows"}} with this world's mate ids in it (they are renumbered on arrival)."""
+    if not squad:
+        return None
+    out = {}
+    for table, cols in squad.items():
+        names = ", ".join(f"`{c}`" for c in cols)
+        where = "`charid` = ?" if table in ("squad_mate", "squad_unlock") else "`squad_id` IN (SELECT id FROM squad_mate WHERE charid = ?)"
+        rows = _all(cur, f"SELECT {names} FROM `{table}` WHERE {where}", (charid,))
+        out[table] = {"cols": cols, "rows": [[_enc(v) for v in r] for r in rows]}
+    return out
+
+
+def squad_summary(squad):
+    """[{slot, name, job, level}] of a passport's squad block (each mate's main job and its level)."""
+    if not squad:
+        return []
+    mates, jobs = squad["squad_mate"], squad["squad_job"]
+    mi = {c: mates["cols"].index(c) for c in mates["cols"]}
+    ji = {c: jobs["cols"].index(c) for c in jobs["cols"]}
+    levels = {}
+    if all(c in ji for c in ("squad_id", "job", "level")):
+        levels = {(r[ji["squad_id"]], r[ji["job"]]): r[ji["level"]] for r in jobs["rows"]}
+    out = []
+    for row in sorted(mates["rows"], key=lambda r: r[mi["slot"]]):
+        job = row[mi["mjob"]] if "mjob" in mi else 0
+        out.append({"slot": int(row[mi["slot"]]), "name": row[mi["name"]], "job": JOBS[job] if isinstance(job, int) and 0 <= job < len(JOBS) else "?",
+                    "level": int(levels.get((row[mi["id"]], job), 1) or 1)})
+    return out
 
 
 def _cell(tables, table, column, default=None):
@@ -299,17 +358,51 @@ def find_character(conn, name):
         conn.rollback()
 
 
-def _make(kind, tables, name, world, home, nonce, generation, signature, versions=None, stamps=None):
+def _make(kind, tables, name, world, home, nonce, generation, signature, versions=None, stamps=None, squad=None):
+    look = summary(tables)
+    look["squad"] = squad_summary(squad)
     return {"format": FORMAT, "kind": kind, "name": name, "world": world, "home": home, "nonce": nonce,
             "generation": int(generation), "schema": signature, "made": int(time.time()), "versions": versions or {},
-            "stamps": list(stamps or []), "summary": summary(tables), "tables": tables}
+            "stamps": list(stamps or []), "summary": look, "tables": tables, "squad": squad}
 
 
 # ----- writing a character -----
-def _check_tables(passport, layout):
+def _check_squad(passport, squad):
+    """The passport's squad block must be exactly the squad tables and columns this world has."""
+    theirs = passport.get("squad")
+    if not squad:
+        if theirs:
+            raise PassportError("The two worlds are on different versions. Update both first.")
+        return
+    if not isinstance(theirs, dict) or set(theirs) != set(squad):
+        raise PassportError("The two worlds are on different versions. Update both first.")
+    for table, cols in squad.items():
+        block = theirs[table]
+        if not isinstance(block, dict) or block.get("cols") != cols or not isinstance(block.get("rows"), list):
+            raise PassportError("The two worlds are on different versions. Update both first.")
+        if len(block["rows"]) > MAX_ROWS or any(not isinstance(r, list) or len(r) != len(cols) for r in block["rows"]):
+            raise PassportError("That passport is damaged.")
+    mates = theirs["squad_mate"]
+    slots = [r[mates["cols"].index("slot")] for r in mates["rows"]]
+    ids = [r[mates["cols"].index("id")] for r in mates["rows"]]
+    names = [r[mates["cols"].index("name")] for r in mates["rows"]]
+    if len(mates["rows"]) > MAX_MATES or len(set(slots)) != len(slots) or len(set(ids)) != len(ids) or \
+            any(isinstance(v, bool) or not isinstance(v, int) or v < 1 for v in slots + ids) or any(v > 255 for v in slots):
+        raise PassportError("That passport is damaged.")
+    if any(not isinstance(n, str) or not n.isalpha() or len(n) > 15 for n in names):
+        raise PassportError("A squad mate in that passport has a name this world cannot use (letters only, 15 at most).")
+
+
+def _check_tables(passport, layout, squad=None):
     """The passport's tables must be exactly the tables and columns this world has (names are taken from `layout`)."""
     theirs = passport["tables"]
-    if passport.get("schema") != layout_signature(layout) or set(theirs) != set(layout):
+    fmt = passport.get("format")
+    if fmt == OLD_FORMAT:                   # written before squads travelled: there is no squad in it
+        if passport.get("squad"):
+            raise PassportError("That passport is damaged.")
+    else:
+        _check_squad(passport, squad)
+    if passport.get("schema") != layout_signature(layout, squad, fmt) or set(theirs) != set(layout):
         raise PassportError("The two worlds are on different versions (their characters are stored differently). "
                             "Update both to the same version of XI: Forever Offline first.")
     for table, cols in layout.items():
@@ -332,8 +425,18 @@ def _insert(cur, table, cols, rows, charid):
         cur.execute(statement, tuple([charid] + [_dec(v) for v in row]))
 
 
-def _travel_rows(table, block):
-    """A passport's rows for one table, minus anything that must never arrive from another world."""
+def _mate_var(name, mates):
+    """A variable's name in this world: a mate's own setting follows its mate's new number (None = that mate is gone)."""
+    found = MATE_VAR.match(name)
+    if not found:
+        return name
+    new = (mates or {}).get(int(found.group(2)))
+    return None if new is None else found.group(1) + str(new)
+
+
+def _travel_rows(table, block, mates=None):
+    """A passport's rows for one table, minus anything that must never arrive from another world. `mates` is
+    {a mate's number in the passport: its number here}."""
     cols, rows = block["cols"], block["rows"]
     if table == "char_inventory" and "itemId" in cols:
         i = cols.index("itemId")
@@ -343,8 +446,64 @@ def _travel_rows(table, block):
         rows = [r for r in rows if r[i] not in LINK_SLOTS]
     elif table == "char_vars" and "varname" in cols:
         i = cols.index("varname")
-        rows = [r for r in rows if isinstance(r[i], str) and not _is_world_var(r[i])]
+        out, seen = [], set()
+        for row in rows:
+            name = _mate_var(row[i], mates) if isinstance(row[i], str) and not _is_world_var(row[i]) else None
+            if name is not None and name not in seen:
+                seen.add(name)
+                out.append(row[:i] + [name] + row[i + 1:])
+        rows = out
     return rows
+
+
+def _put_squad(cur, squad, charid, theirs, keep_ids):
+    """Puts a passport's squad in place of the character's squad here. Returns {a mate's number in the passport: here}.
+    keep_ids=True (coming home, restoring): a mate in the same slot keeps the number it has here, so nothing else that
+    knows it by number changes; mates whose slot is not in the passport were dismissed for good while away."""
+    if not squad or not theirs:
+        return {}
+    mates = theirs["squad_mate"]
+    mcols = mates["cols"]
+    idi, sloti = mcols.index("id"), mcols.index("slot")
+    here = {int(r[1]): int(r[0]) for r in _all(cur, "SELECT id, slot FROM squad_mate WHERE charid = ?", (charid,))}
+    coming = {int(r[sloti]) for r in mates["rows"]}
+    for slot, mate_id in here.items():
+        if not keep_ids or slot not in coming:
+            for table in ("squad_equip", "squad_job"):
+                cur.execute(f"DELETE FROM `{table}` WHERE squad_id = ?", (mate_id,))
+            cur.execute("DELETE FROM squad_mate WHERE id = ?", (mate_id,))
+    mapping = {}
+    plain = [c for c in mcols if c not in ("id",)]
+    for row in sorted(mates["rows"], key=lambda r: r[sloti]):
+        values = {c: _dec(v) for c, v in zip(mcols, row)}
+        slot = int(values["slot"])
+        if keep_ids and slot in here:
+            sets = ", ".join(f"`{c}` = ?" for c in plain if c != "slot")
+            cur.execute(f"UPDATE squad_mate SET {sets} WHERE id = ?", tuple(values[c] for c in plain if c != "slot") + (here[slot],))
+            mapping[int(row[idi])] = here[slot]
+        else:
+            names = ", ".join(f"`{c}`" for c in plain)
+            cur.execute(f"INSERT INTO squad_mate (`charid`, {names}) VALUES (?, {', '.join('?' for _ in plain)})",
+                        tuple([charid] + [values[c] for c in plain]))
+            mapping[int(row[idi])] = int(cur.lastrowid)
+    for table in ("squad_job", "squad_equip"):
+        cols = theirs[table]["cols"]
+        si = cols.index("squad_id")
+        for mate_id in mapping.values():
+            cur.execute(f"DELETE FROM `{table}` WHERE squad_id = ?", (mate_id,))
+        names = ", ".join(f"`{c}`" for c in cols)
+        statement = f"INSERT INTO `{table}` ({names}) VALUES ({', '.join('?' for _ in cols)})"
+        for row in theirs[table]["rows"]:
+            if row[si] in mapping:
+                cur.execute(statement, tuple(mapping[row[si]] if i == si else _dec(v) for i, v in enumerate(row)))
+    cols = theirs["squad_unlock"]["cols"]
+    cur.execute("DELETE FROM squad_unlock WHERE charid = ?", (charid,))
+    if cols:
+        names = ", ".join(f"`{c}`" for c in cols)
+        statement = f"INSERT IGNORE INTO squad_unlock (`charid`, {names}) VALUES (?, {', '.join('?' for _ in cols)})"
+        for row in theirs["squad_unlock"]["rows"]:
+            cur.execute(statement, tuple([charid] + [_dec(v) for v in row]))
+    return mapping
 
 
 def _free_id(cur, table, column, start, limit, avoid=()):
@@ -445,13 +604,14 @@ def depart(conn, charid, host, versions=None):
             raise PassportError(f"{name} is a visitor here. Visitors go home before they travel on.")
         if is_online(cur, charid):
             raise PassportError(f"{name} is in the game right now. Log out first.")
-        layout = local_layout(cur)
+        layout, squad = local_layout(cur), squad_layout(cur)
         tables = _read(cur, layout, charid)
         nonce = secrets.token_hex(16)
         passport = _make("visit", tables, name, world, {"world": world["id"], "charid": charid}, nonce, 1,
-                         layout_signature(layout), versions)
-        cur.execute("REPLACE INTO coop_away (charid, accid, nonce, generation, state, host, since, updated) "
-                    "VALUES (?, ?, ?, 1, 'away', ?, ?, ?)", (charid, accid, nonce, json.dumps(host or {}), _now(), _now()))
+                         layout_signature(layout, squad), versions, squad=_read_squad(cur, squad, charid))
+        cur.execute("REPLACE INTO coop_away (charid, accid, nonce, generation, state, host, since, updated, squad) "
+                    "VALUES (?, ?, ?, 1, 'away', ?, ?, ?, ?)",
+                    (charid, accid, nonce, json.dumps(host or {}), _now(), _now(), 1 if squad else 0))
         cur.execute("UPDATE chars SET accid = ? WHERE charid = ?", (away_account(cur), charid))
         conn.commit()
         return pack(passport), nonce
@@ -519,8 +679,10 @@ def _put_back_kept(cur, charid, kept_items, kept_links, tables):
     return homeless
 
 
-def _replace_rows(cur, layout, charid, tables, accid=None):
-    """Puts a passport's rows in place of a home character's, keeping what belongs to this world. Returns notes."""
+def _replace_rows(cur, layout, charid, tables, accid=None, mates=None, squad_home=False):
+    """Puts a passport's rows in place of a home character's, keeping what belongs to this world. Returns notes.
+    `mates` = {a mate's number in the passport: its number here}, for the settings that carry a mate's number.
+    squad_home=True: the squad never left (a visit that began with the first co-op build), so its settings stay too."""
     notes = []
     kept_items, kept_links = [], []
     if "char_inventory" in layout:
@@ -538,13 +700,17 @@ def _replace_rows(cur, layout, charid, tables, accid=None):
     for table in ONE_ROW + MANY_ROWS:
         if table not in layout:
             continue
-        if table == "char_vars":               # this world's own variables (squad, bots) stay as they are
+        rows = _travel_rows(table, tables[table], mates)
+        if table == "char_vars":               # this world's own variables (bots, co-op) stay as they are
             for (varname,) in _all(cur, "SELECT varname FROM char_vars WHERE charid = ?", (charid,)):
-                if not _is_world_var(varname):
+                if not _is_world_var(varname) and not (squad_home and str(varname).startswith("SQUAD_")):
                     cur.execute("DELETE FROM char_vars WHERE charid = ? AND varname = ?", (charid, varname))
+            if squad_home and "varname" in layout[table]:
+                i = layout[table].index("varname")
+                rows = [r for r in rows if not str(r[i]).startswith("SQUAD_")]
         else:
             cur.execute(f"DELETE FROM `{table}` WHERE charid = ?", (charid,))
-        _insert(cur, table, layout[table], _travel_rows(table, tables[table]), charid)
+        _insert(cur, table, layout[table], rows, charid)
     cols = layout["chars"]
     row = [_dec(v) for v in tables["chars"]["rows"][0]]
     pairs = [(c, v) for c, v in zip(cols, row) if c != "charname"]
@@ -567,10 +733,11 @@ def backup_character(conn, charid):
     world = world_identity(conn)
     cur = conn.cursor()
     try:
-        layout = local_layout(cur)
+        layout, squad = local_layout(cur), squad_layout(cur)
         tables = _read(cur, layout, charid, full=True)
         name = _cell(tables, "chars", "charname")
-        return pack(_make("backup", tables, name, world, {"world": world["id"], "charid": charid}, "", 0, layout_signature(layout)))
+        return pack(_make("backup", tables, name, world, {"world": world["id"], "charid": charid}, "", 0,
+                          layout_signature(layout, squad), squad=_read_squad(cur, squad, charid)))
     finally:
         cur.close()
         conn.rollback()
@@ -591,12 +758,18 @@ def restore_backup(conn, data):
             raise PassportError(f"{passport['name']} is not a character of this world any more.")
         if is_online(cur, charid):
             raise PassportError(f"{row[0]} is in the game right now. Log out first.")
-        layout = local_layout(cur)
-        _check_tables(passport, layout)
+        layout, squad = local_layout(cur), squad_layout(cur)
+        _check_tables(passport, layout, squad)
+        old = passport.get("format") == OLD_FORMAT          # (a backup from before squads travelled: the squad is not in it)
+        mates = None if old else _put_squad(cur, squad, charid, passport.get("squad"), keep_ids=True)
         for table in ONE_ROW + MANY_ROWS:
             if table in layout:
+                rows = passport["tables"][table]["rows"]
+                if not old and table == "char_vars" and "varname" in layout[table]:      # a mate's settings follow its number here
+                    i = layout[table].index("varname")
+                    rows = [r[:i] + [_mate_var(r[i], mates)] + r[i + 1:] for r in rows if isinstance(r[i], str) and _mate_var(r[i], mates)]
                 cur.execute(f"DELETE FROM `{table}` WHERE charid = ?", (charid,))
-                _insert(cur, table, layout[table], passport["tables"][table]["rows"], charid)
+                _insert(cur, table, layout[table], rows, charid)
         cols = layout["chars"]
         pairs = [(c, _dec(v)) for c, v in zip(cols, passport["tables"]["chars"]["rows"][0]) if c != "charname"]
         cur.execute(f"UPDATE chars SET {', '.join(f'`{c}` = ?' for c, _v in pairs)} WHERE charid = ?",
@@ -614,7 +787,14 @@ def difference(before, after):
     """What a visit changed, for the 'welcome home' message."""
     out = {"job": after.get("job"), "level": after.get("level"), "levels": after.get("level", 0) - before.get("level", 0)
            if after.get("job") == before.get("job") else 0, "gil": after.get("gil", 0) - before.get("gil", 0),
-           "items": after.get("items", 0) - before.get("items", 0)}
+           "items": after.get("items", 0) - before.get("items", 0), "mates": []}
+    was = {m["slot"]: m for m in before.get("squad") or []}
+    for mate in after.get("squad") or []:
+        old = was.get(mate["slot"])
+        if old is None:
+            out["mates"].append(dict(mate, gained=0, new=True))
+        elif old.get("job") == mate.get("job") and mate.get("level", 0) > old.get("level", 0):
+            out["mates"].append(dict(mate, gained=mate["level"] - old["level"], new=False))
     return out
 
 
@@ -630,7 +810,7 @@ def come_home(conn, data, backup_dir=None):
     ensure_tables(conn)
     cur = conn.cursor()
     try:
-        away = _one(cur, "SELECT accid, nonce, state, generation FROM coop_away WHERE charid = ? FOR UPDATE", (charid,))
+        away = _one(cur, "SELECT accid, nonce, state, generation, squad FROM coop_away WHERE charid = ? FOR UPDATE", (charid,))
         if away is None or away[1] != passport.get("nonce"):
             raise PassportError("That passport is from an older visit and cannot be used any more.")
         name_row = _one(cur, "SELECT charname FROM chars WHERE charid = ? FOR UPDATE", (charid,))
@@ -639,22 +819,31 @@ def come_home(conn, data, backup_dir=None):
         if away[2] != "away":
             conn.rollback()
             return {"name": name_row[0], "already": True, "changes": {}, "notes": [], "summary": passport["summary"]}
-        layout = local_layout(cur)
-        _check_tables(passport, layout)
+        layout, squad = local_layout(cur), squad_layout(cur)
+        _check_tables(passport, layout, squad)
+        # Did the squad leave with the character? Not on a visit that began with the first co-op build: then the
+        # squad at home is left exactly as it is, whatever the passport holds.
+        took_squad = bool(away[4]) and passport.get("format") == FORMAT
+        if bool(away[4]) and not took_squad:
+            raise PassportError("That passport was made by another version of XI: Forever Offline.")
         before_tables = _read(cur, layout, charid, full=True)
+        before_squad = _read_squad(cur, squad, charid)
         before = summary(before_tables)
+        before["squad"] = squad_summary(before_squad) if took_squad else []
         backup_path = None
         if backup_dir:
             os.makedirs(backup_dir, exist_ok=True)
             backup_path = os.path.join(backup_dir, f"home-{name_row[0]}-{time.strftime('%Y%m%d-%H%M%S')}.zip")
             with open(backup_path, "wb") as handle:
                 handle.write(pack(_make("backup", before_tables, name_row[0], world, {"world": world["id"], "charid": charid},
-                                        "", 0, layout_signature(layout))))
-        notes = _replace_rows(cur, layout, charid, passport["tables"], accid=int(away[0]))
+                                        "", 0, layout_signature(layout, squad), squad=before_squad)))
+        mates = _put_squad(cur, squad, charid, passport.get("squad"), keep_ids=True) if took_squad else None
+        notes = _replace_rows(cur, layout, charid, passport["tables"], accid=int(away[0]), mates=mates, squad_home=not took_squad)
         cur.execute("UPDATE coop_away SET state = 'home', generation = ?, updated = ? WHERE charid = ?",
                     (int(passport.get("generation", 0)), _now(), charid))
         conn.commit()
-        return {"name": name_row[0], "already": False, "changes": difference(before, passport["summary"]), "notes": notes,
+        after = passport["summary"] if took_squad else dict(passport["summary"], squad=[])
+        return {"name": name_row[0], "already": False, "changes": difference(before, after), "notes": notes,
                 "summary": passport["summary"], "backup": backup_path, "stamps": passport.get("stamps", [])}
     except Exception:
         conn.rollback()
@@ -746,6 +935,8 @@ def import_guest(conn, data, guest_id, gkey, login, password, max_guests=6, stam
     home_world, home_charid = str(home.get("world", "")), int(home.get("charid", 0))
     if passport.get("kind") != "visit" or not home_world or not home_charid or not passport.get("nonce"):
         raise PassportError("That is not a passport for a visit.")
+    if passport.get("format") != FORMAT:      # (a new visit: both worlds on the version in which squads travel)
+        raise PassportError("That passport was made by another version of XI: Forever Offline. Update both worlds first.")
     if home_world == world["id"]:
         raise PassportError("That character lives in this world already.")
     name = passport["name"]
@@ -763,8 +954,8 @@ def import_guest(conn, data, guest_id, gkey, login, password, max_guests=6, stam
         active = _one(cur, "SELECT COUNT(*) FROM coop_guest WHERE state = 'active'")[0]
         if old is None and int(active) >= int(max_guests):
             raise PassportError("This world already has all the visitors it allows.")
-        layout = local_layout(cur)
-        _check_tables(passport, layout)
+        layout, squad = local_layout(cur), squad_layout(cur)
+        _check_tables(passport, layout, squad)
         if old is not None:                      # an earlier visit of the same character: its old copy here is replaced
             if old[4] != "gone":
                 if is_online(cur, int(old[1])):
@@ -790,11 +981,12 @@ def import_guest(conn, data, guest_id, gkey, login, password, max_guests=6, stam
         cur.execute(f"INSERT INTO chars ({', '.join('`' + c + '`' for c in extra_cols)}, {names}) "
                     f"VALUES ({', '.join('?' for _ in extra_cols)}, {', '.join('?' for _ in cols)})",
                     tuple(extra_vals + values))
+        mates = _put_squad(cur, squad, charid, passport.get("squad"), keep_ids=False)     # its squad, numbered this world's way
         for table in ONE_ROW + MANY_ROWS:        # the new-character trigger made empty rows: the passport's replace them
             if table not in layout:
                 continue
             cur.execute(f"DELETE FROM `{table}` WHERE charid = ?", (charid,))
-            _insert(cur, table, layout[table], _travel_rows(table, passport["tables"][table]), charid)
+            _insert(cur, table, layout[table], _travel_rows(table, passport["tables"][table], mates), charid)
         if "char_vars" in layout:
             vcols = table_columns(cur, "char_vars")
             cur.execute("REPLACE INTO char_vars (charid, varname, value" + (", expiry" if "expiry" in vcols else "") + ") "
@@ -855,12 +1047,13 @@ def export_guest(conn, guest_id, final=False, versions=None, save_dir=None):
         charid = int(row[0])
         if final and is_online(cur, charid):
             raise PassportError(f"{row[7]} is still in the game. Log out first.")
-        layout = local_layout(cur)
+        layout, squad = local_layout(cur), squad_layout(cur)
         tables = _read(cur, layout, charid)
         generation = int(row[4]) + 1
         info = json.loads(row[8] or "{}")
         data = pack(_make("return" if final else "checkpoint", tables, row[7], world, {"world": row[5], "charid": int(row[6])},
-                          row[3], generation, layout_signature(layout), versions, info.get("stamps")))
+                          row[3], generation, layout_signature(layout, squad), versions, info.get("stamps"),
+                          squad=_read_squad(cur, squad, charid)))
         path = None
         if final:
             if not save_dir:

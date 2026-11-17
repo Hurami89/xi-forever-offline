@@ -27,8 +27,8 @@ TAILSCALE_URL = "https://tailscale.com/download"
 INTRO = ("Co-op lets a friend bring their own character into your world, or you into theirs. Whatever is earned on a "
          "visit goes home with the visitor. It works on the same network (LAN or Wi-Fi, no internet needed) and over "
          "the internet with Tailscale.\n\n"
-         "This is an early test version: both of you need the same version of XI: Forever Offline, squad mates stay "
-         "home for now, and a copy of each travelling character is saved before every trip.")
+         "This is an early test version: both of you need the same version of XI: Forever Offline. A character's "
+         "squad mates travel with it, and a copy of each travelling character is saved before every trip.")
 TAILSCALE_STEPS = ("Tailscale is a free program that puts your PC and your friend's on one private network, so nothing "
                    "on your PC is opened to the rest of the internet.\n\n"
                    "1. Both of you install Tailscale from tailscale.com/download and sign in.\n"
@@ -168,7 +168,7 @@ class CoopTab(tk.Frame):
         top.pack(fill="x", padx=14, pady=(10, 2))
         tk.Label(top, text="Co-op", bg=BG, fg=FG, font=("Segoe UI", 14, "bold")).pack(side="left")
         self.badge(top, "experimental", "EXPERIMENTAL").pack(side="left", padx=10)
-        tk.Label(top, text="Same version on both PCs. Squad mates stay home for now.", bg=BG, fg=DIM, font=SMALL).pack(side="left")
+        tk.Label(top, text="Same version on both PCs. Squad mates travel with their character.", bg=BG, fg=DIM, font=SMALL).pack(side="left")
         tk.Button(top, text="Turn co-op off", command=self.turn_off, bg=PANEL, fg=DIM, relief="flat", padx=8, font=SMALL).pack(side="right")
         columns = tk.Frame(self.body, bg=BG)
         columns.pack(fill="both", expand=True, padx=8)
@@ -675,7 +675,8 @@ class CoopTab(tk.Frame):
         if not messagebox.askyesno("Visit", f"{name} travels to {invite['world'] or 'your friend'}.\n\n"
                                    f"• {name} cannot be played at home until it comes back.\n"
                                    "• Everything earned there comes home with it.\n"
-                                   "• Squad mates and linkshells stay home.\n"
+                                   "• Its squad mates travel with it; what they earn comes home too.\n"
+                                   "• Linkshells stay home.\n"
                                    "• Auction listings and delivery-box items at home wait for the return.\n\nGo?", parent=self):
             return
 
@@ -798,6 +799,11 @@ class CoopTab(tk.Frame):
             lines.append(f"Gil: {changes['gil']:+,}.")
         if changes.get("items"):
             lines.append(f"Item stacks: {changes['items']:+d}.")
+        for mate in changes.get("mates") or []:                         # the squad mates that came back stronger, or new
+            if mate.get("new"):
+                lines.append(f"New squad mate: {mate['name']} ({mate.get('job', '')} {mate.get('level', 1)}).")
+            else:
+                lines.append(f"{mate['name']}: level {mate.get('level')} {mate.get('job', '')} (+{mate.get('gained', 0)}).")
         if result.get("from_checkpoint") is True:
             lines.append("Brought back from the last saved copy.")
         elif result.get("from_checkpoint") is False:

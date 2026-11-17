@@ -179,7 +179,11 @@ def list_characters(conn):
         guests = {int(r[0]) for r in _all(conn, "SELECT charid FROM coop_guest WHERE state <> 'gone'")}
     except Exception:       # (this database has never been used for co-op)
         guests = set()
-    return [(int(r[0]), r[1]) for r in rows if int(r[0]) not in guests]
+    try:        # ...and one of yours that is away in a friend's world took its squad along: nothing to edit until it is home
+        away = {int(r[0]) for r in _all(conn, "SELECT charid FROM coop_away WHERE state = 'away'")}
+    except Exception:
+        away = set()
+    return [(int(r[0]), r[1]) for r in rows if int(r[0]) not in guests and int(r[0]) not in away]
 
 
 def get_squad(conn, charid):

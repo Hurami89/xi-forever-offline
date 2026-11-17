@@ -67,7 +67,7 @@ class PassportTests(unittest.TestCase):
         eq = passport["tables"]["char_equip"]
         self.assertEqual([r[eq["cols"].index("equipslotid")] for r in eq["rows"]], [0])
         names = [r[passport["tables"]["char_vars"]["cols"].index("varname")] for r in passport["tables"]["char_vars"]["rows"]]
-        self.assertEqual(sorted(names), ["TrustEngageType", "[Quest]Progress"])
+        self.assertEqual(sorted(names), ["SQUAD_FOLLOW", "TrustEngageType", "[Quest]Progress"])
         self.assertEqual(passport["summary"]["gil"], 1000)
         self.assertEqual(passport["summary"]["level"], 30)
         self.assertEqual([a["name"] for a in pp.away_list(self.home)], ["Visitor"])
@@ -148,7 +148,7 @@ class PassportTests(unittest.TestCase):
         ct.run(h, "INSERT INTO char_equip (charid, slotid, equipslotid, containerid) VALUES (?, 4, 17, 0)", (charid,))
         ct.run(h, "UPDATE char_stats SET mlvl = 33 WHERE charid = ?", (charid,))
         ct.run(h, "UPDATE char_jobs SET war = 33 WHERE charid = ?", (charid,))
-        ct.run(h, "INSERT INTO char_vars (charid, varname, value) VALUES (?, '[Quest]New', 7), (?, 'SQUAD_X', 9)", (charid, charid))
+        ct.run(h, "INSERT INTO char_vars (charid, varname, value) VALUES (?, '[Quest]New', 7), (?, 'COOP_X', 9)", (charid, charid))
         ct.run(h, "UPDATE chars SET pos_zone = 100, playtime = 9999 WHERE charid = ?", (charid,))
         h.commit()
 
@@ -191,7 +191,7 @@ class PassportTests(unittest.TestCase):
         self.assertEqual(self.q(self.home, "SELECT COUNT(*) FROM char_equip WHERE charid = ? AND equipslotid IN (16, 17)", (HOME_CHAR,))[0][0], 0)
         self.assertEqual(self.q(self.home, "SELECT quantity FROM char_inventory WHERE charid = ? AND location = 0 AND slot = 0", (HOME_CHAR,))[0][0], 1500)
         names = dict(self.q(self.home, "SELECT varname, value FROM char_vars WHERE charid = ?", (HOME_CHAR,)))
-        self.assertEqual(names, {"[Quest]Progress": 3, "TrustEngageType": 1, "[Quest]New": 7, "SQUAD_AI_5": 21, "[Bots]LS": 4})
+        self.assertEqual(names, {"[Quest]Progress": 3, "TrustEngageType": 1, "[Quest]New": 7, "SQUAD_FOLLOW": 1, "[Bots]LS": 4})
         self.assertEqual(self.q(self.home, "SELECT mlvl FROM char_stats WHERE charid = ?", (HOME_CHAR,))[0][0], 33)
         self.assertEqual(pp.away_list(self.home), [])
         # the same passport again, and the older checkpoint: no change
@@ -310,6 +310,213 @@ class PassportTests(unittest.TestCase):
         self.assertEqual(self.q(self.host, "SELECT value FROM char_vars WHERE charid = ? AND varname = 'COOP_GUEST'", (guest["charid"],)), [(1,)])
         self.assertEqual(self.q(self.host, "SELECT gmlevel FROM chars WHERE charid = ?", (guest["charid"],))[0][0], 0)
         self.assertEqual(self.q(self.host, "SELECT COUNT(*) FROM chars")[0][0], 2)
+
+    # --- squad mates travel with their character ---
+    def squads(self):
+        """Home: Kasumi (slot 1) and Gio (slot 2). The host has three mates of its own, so the visitors get other numbers."""
+        ct.make_squad(self.host, HOME_CHAR, [(1, "Momo", 1, 50), (2, "Kyo", 3, 50), (4, "Rin", 6, 50)], unlocks=(900,))
+        ct.run(self.home, "INSERT INTO squad_mate (charid, slot, name, mjob) VALUES (999, 1, 'Other', 1)")      # somebody else's mate
+        home = ct.make_squad(self.home, HOME_CHAR, [(1, "Kasumi", 1, 30), (2, "Gio", 3, 28)], unlocks=(100, 200))
+        ct.run(self.home, "INSERT INTO char_vars (charid, varname, value) VALUES (?, 'SQUAD_AI_777', 5), (?, ?, 7)",
+               (HOME_CHAR, HOME_CHAR, f"SQUAD_WS_{home[2]}"))
+        self.home.commit()
+        return home
+
+    def mates(self, conn, charid):
+        return {r[0]: r[1:] for r in self.q(conn, "SELECT m.slot, m.id, m.name, m.mjob, j.level FROM squad_mate m "
+                                                  "LEFT JOIN squad_job j ON j.squad_id = m.id AND j.job = m.mjob WHERE m.charid = ? ORDER BY m.slot", (charid,))}
+
+    def vars(self, conn, charid, like="SQUAD%"):
+        return dict(self.q(conn, "SELECT varname, value FROM char_vars WHERE charid = ? AND varname LIKE ?", (charid, like)))
+
+    def test_squad_travels_and_is_renumbered(self):
+        home = self.squads()
+        data, _nonce, guest = self.visit()
+        passport = pp.unpack(data)
+        self.assertEqual([(m["slot"], m["name"], m["job"], m["level"]) for m in passport["summary"]["squad"]],
+                         [(1, "Kasumi", "WAR", 30), (2, "Gio", "WHM", 28)])
+        there = self.mates(self.host, guest["charid"])
+        self.assertEqual({slot: row[1:] for slot, row in there.items()}, {1: ("Kasumi", 1, 30), 2: ("Gio", 3, 28)})
+        self.assertTrue(all(row[0] not in home.values() or row[0] > 3 for row in there.values()))      # new numbers there
+        self.assertNotEqual(there[1][0], home[1])
+        self.assertEqual(self.vars(self.host, guest["charid"]),
+                         {f"SQUAD_AI_{there[1][0]}": 21, f"SQUAD_LOOK_{there[1][0]}": 1, f"SQUAD_AI_{there[2][0]}": 22,
+                          f"SQUAD_LOOK_{there[2][0]}": 1, f"SQUAD_WS_{there[2][0]}": 7, "SQUAD_FOLLOW": 1})      # the stray SQUAD_AI_777 is gone
+        self.assertEqual(self.q(self.host, "SELECT job, level, exp FROM squad_job WHERE squad_id = ? ORDER BY job", (there[1][0],)), [(1, 30, 250), (2, 10, 0)])
+        self.assertEqual(self.q(self.host, "SELECT job, slot, itemid FROM squad_equip WHERE squad_id = ?", (there[2][0],)), [(3, 0, 16535)])
+        self.assertEqual(self.q(self.host, "SELECT itemid FROM squad_unlock WHERE charid = ? ORDER BY itemid", (guest["charid"],)), [(100,), (200,)])
+        # the host's own squad is untouched
+        self.assertEqual({s: r[1:] for s, r in self.mates(self.host, HOME_CHAR).items()}, {1: ("Momo", 1, 50), 2: ("Kyo", 3, 50), 4: ("Rin", 6, 50)})
+        self.assertEqual(self.q(self.host, "SELECT itemid FROM squad_unlock WHERE charid = ?", (HOME_CHAR,)), [(900,)])
+
+        # in the friend's world: Kasumi gains three levels, Gio is dismissed for good, a new mate joins, a new piece of gear
+        h, kasumi, gio = self.host, there[1][0], there[2][0]
+        ct.run(h, "UPDATE squad_job SET level = 33, exp = 40 WHERE squad_id = ? AND job = 1", (kasumi,))
+        ct.run(h, "UPDATE char_vars SET value = 12 WHERE charid = ? AND varname = ?", (guest["charid"], f"SQUAD_AI_{kasumi}"))
+        for table in ("squad_job", "squad_equip"):
+            ct.run(h, f"DELETE FROM {table} WHERE squad_id = ?", (gio,))
+        ct.run(h, "DELETE FROM squad_mate WHERE id = ?", (gio,))
+        h.commit()
+        fresh = ct.make_squad(h, guest["charid"], [(3, "Nyx", 6, 12)], unlocks=(300,))[3]
+        check, _gen = pp.export_guest(self.host, "g1")
+        final, _gen = pp.export_guest(self.host, "g1", final=True, save_dir=self.tmp)
+        result = pp.come_home(self.home, final, backup_dir=self.tmp)
+        back = self.mates(self.home, HOME_CHAR)
+        self.assertEqual({slot: row[1:] for slot, row in back.items()}, {1: ("Kasumi", 1, 33), 3: ("Nyx", 6, 12)})
+        self.assertEqual(back[1][0], home[1])                                # Kasumi kept her number at home
+        self.assertNotIn(back[3][0], (home[1], home[2]))                    # the new mate got a number of its own
+        self.assertTrue(fresh)
+        self.assertEqual(self.vars(self.home, HOME_CHAR),
+                         {f"SQUAD_AI_{home[1]}": 12, f"SQUAD_LOOK_{home[1]}": 1, f"SQUAD_AI_{back[3][0]}": 23, f"SQUAD_LOOK_{back[3][0]}": 1, "SQUAD_FOLLOW": 1})
+        self.assertEqual(self.q(self.home, "SELECT job, level, exp FROM squad_job WHERE squad_id = ? ORDER BY job", (home[1],)), [(1, 33, 40), (2, 10, 0)])
+        self.assertEqual(self.q(self.home, "SELECT COUNT(*) FROM squad_job WHERE squad_id = ?", (home[2],))[0][0], 0)       # Gio's rows went with him
+        self.assertEqual(self.q(self.home, "SELECT itemid FROM squad_unlock WHERE charid = ? ORDER BY itemid", (HOME_CHAR,)), [(100,), (200,), (300,)])
+        self.assertEqual(self.q(self.home, "SELECT name FROM squad_mate WHERE charid = 999"), [("Other",)])
+        told = {m["name"]: (m["gained"], m["new"]) for m in result["changes"]["mates"]}
+        self.assertEqual(told, {"Kasumi": (3, False), "Nyx": (0, True)})
+        self.assertTrue(pp.come_home(self.home, check)["already"])
+        # the pre-return backup holds the squad as it was, and puts it back by slot
+        pp.restore_backup(self.home, open(result["backup"], "rb").read())
+        again = self.mates(self.home, HOME_CHAR)
+        self.assertEqual({slot: row[1:] for slot, row in again.items()}, {1: ("Kasumi", 1, 30), 2: ("Gio", 3, 28)})
+        self.assertEqual(again[1][0], home[1])
+        self.assertEqual(self.vars(self.home, HOME_CHAR)[f"SQUAD_WS_{again[2][0]}"], 7)
+        self.assertEqual(self.vars(self.home, HOME_CHAR)[f"SQUAD_AI_{again[2][0]}"], 22)
+        self.assertEqual(len(self.q(self.home, "SELECT 1 FROM squad_unlock WHERE charid = ?", (HOME_CHAR,))), 2)
+
+    def test_squad_comes_back_from_a_checkpoint(self):
+        home = self.squads()
+        _data, _nonce, guest = self.visit()
+        there = self.mates(self.host, guest["charid"])
+        ct.run(self.host, "UPDATE squad_job SET level = 31 WHERE squad_id = ? AND job = 1", (there[1][0],))
+        self.host.commit()
+        check, _gen = pp.export_guest(self.host, "g1")
+        ct.run(self.host, "UPDATE squad_job SET level = 40 WHERE squad_id = ? AND job = 1", (there[1][0],))
+        self.host.commit()
+        pp.take_back(self.home, HOME_CHAR, checkpoint=check)
+        back = self.mates(self.home, HOME_CHAR)
+        self.assertEqual({slot: row for slot, row in back.items()}, {1: (home[1], "Kasumi", 1, 31), 2: (home[2], "Gio", 3, 28)})
+        # taking back without any copy leaves the squad exactly as it was
+        data2, _n = pp.depart(self.home, HOME_CHAR, {})
+        pp.take_back(self.home, HOME_CHAR)
+        self.assertEqual(self.mates(self.home, HOME_CHAR), back)
+        self.assertEqual(self.vars(self.home, HOME_CHAR)[f"SQUAD_AI_{home[1]}"], 21)
+        self.assertTrue(data2)
+
+    def test_squad_blocks_that_must_be_refused(self):
+        self.squads()
+        data, _nonce = pp.depart(self.home, HOME_CHAR, {})
+        passport = pp.unpack(data)
+        mates = passport["squad"]["squad_mate"]
+        twice = dict(passport, squad=dict(passport["squad"], squad_mate={"cols": mates["cols"], "rows": mates["rows"] + [mates["rows"][0]]}))
+        with self.assertRaises(pp.PassportError):
+            self.arrive(pp.pack(twice))
+        other = dict(passport, squad=dict(passport["squad"], squad_mate={"cols": mates["cols"] + ["charid"], "rows": [r + [HOME_CHAR] for r in mates["rows"]]}))
+        with self.assertRaises(pp.PassportError):                          # a column this world does not expect (the owner)
+            self.arrive(pp.pack(other))
+        with self.assertRaises(pp.PassportError):                          # a squad left out of a passport that should have one
+            self.arrive(pp.pack(dict(passport, squad=None)))
+        self.assertEqual(self.q(self.host, "SELECT COUNT(*) FROM squad_mate")[0][0], 3)       # only the host's own three
+        ct.run(self.host, "ALTER TABLE squad_job ADD COLUMN merits INT NOT NULL DEFAULT 0")     # another version of the squad tables
+        self.host.commit()
+        with self.assertRaises(pp.PassportError):
+            self.arrive(data)
+        ct.run(self.host, "ALTER TABLE squad_job DROP COLUMN merits")
+        self.host.commit()
+        named = dict(passport, squad=dict(passport["squad"], squad_mate={"cols": mates["cols"], "rows": [
+            [("Bad Name!" if c == "name" else v) for c, v in zip(mates["cols"], mates["rows"][0])]] + mates["rows"][1:]}))
+        with self.assertRaises(pp.PassportError):                          # a name the game would never have allowed
+            self.arrive(pp.pack(named))
+        # rows for a mate that is not in the passport are left out; the rest arrives
+        jobs = passport["squad"]["squad_job"]
+        stray = [(987654 if c == "squad_id" else v) for c, v in zip(jobs["cols"], jobs["rows"][0])]
+        extra = dict(passport, squad=dict(passport["squad"], squad_job={"cols": jobs["cols"], "rows": jobs["rows"] + [stray]}))
+        guest = self.arrive(pp.pack(extra))
+        self.assertFalse(guest["again"])
+        self.assertEqual(len(self.mates(self.host, guest["charid"])), 2)
+        self.assertEqual(self.q(self.host, "SELECT COUNT(*) FROM squad_job WHERE squad_id = 987654")[0][0], 0)
+        self.assertEqual(self.q(self.host, "SELECT COUNT(*) FROM squad_job WHERE squad_id NOT IN (SELECT id FROM squad_mate)")[0][0], 0)
+
+    # --- what the first co-op build wrote (format 1: squads stayed home) is still understood ---
+    def as_first_build(self, data, conn):
+        """A passport of today rewritten the way the first co-op build wrote it: no squad, squad settings left home."""
+        passport = pp.unpack(data)
+        cur = conn.cursor()
+        layout = pp.local_layout(cur)
+        cur.close()
+        conn.rollback()
+        variables = passport["tables"]["char_vars"]
+        i = variables["cols"].index("varname")
+        variables["rows"] = [r for r in variables["rows"] if not r[i].startswith("SQUAD_")]
+        passport.pop("squad", None)
+        passport["summary"].pop("squad", None)
+        passport.update(format=pp.OLD_FORMAT, schema=pp.layout_signature(layout, fmt=pp.OLD_FORMAT))
+        return pp.pack(passport)
+
+    def test_a_visit_that_began_with_the_first_build_leaves_the_squad_alone(self):
+        home = self.squads()
+        before_vars = self.vars(self.home, HOME_CHAR)
+        data, _nonce = pp.depart(self.home, HOME_CHAR, {})
+        ct.run(self.home, "UPDATE coop_away SET squad = 0 WHERE charid = ?", (HOME_CHAR,))      # as that build recorded the trip
+        self.home.commit()
+        with self.assertRaises(pp.PassportError):                          # a new visit needs both worlds on today's version
+            self.arrive(self.as_first_build(data, self.home))
+        guest = self.arrive(data)
+        ct.run(self.host, "DELETE FROM squad_job WHERE squad_id IN (SELECT id FROM squad_mate WHERE charid = ?)", (guest["charid"],))
+        ct.run(self.host, "DELETE FROM squad_mate WHERE charid = ?", (guest["charid"],))          # (that build brought no squad)
+        ct.run(self.host, "DELETE FROM char_vars WHERE charid = ? AND varname LIKE 'SQUAD%'", (guest["charid"],))
+        ct.run(self.host, "UPDATE char_stats SET mlvl = 33 WHERE charid = ?", (guest["charid"],))
+        self.host.commit()
+        final, _gen = pp.export_guest(self.host, "g1", final=True, save_dir=self.tmp)
+        self.assertEqual(pp.unpack(final)["summary"]["squad"], [])
+        for passport in (final, self.as_first_build(final, self.host)):     # the host updated meanwhile, or it did not
+            result = pp.come_home(self.home, passport, backup_dir=self.tmp)
+            self.assertEqual(result["changes"].get("mates"), [])
+            self.assertEqual(self.q(self.home, "SELECT mlvl FROM char_stats WHERE charid = ?", (HOME_CHAR,))[0][0], 33)
+            self.assertEqual({slot: row for slot, row in self.mates(self.home, HOME_CHAR).items()},
+                             {1: (home[1], "Kasumi", 1, 30), 2: (home[2], "Gio", 3, 28)})
+            self.assertEqual(self.vars(self.home, HOME_CHAR), before_vars)
+            self.assertEqual(len(self.q(self.home, "SELECT 1 FROM squad_unlock WHERE charid = ?", (HOME_CHAR,))), 2)
+            ct.run(self.home, "UPDATE coop_away SET state = 'away' WHERE charid = ?", (HOME_CHAR,))       # (once more, the other way)
+            self.home.commit()
+
+    def test_a_first_build_passport_cannot_end_a_visit_the_squad_went_on(self):
+        home = self.squads()
+        _data, _nonce, guest = self.visit()
+        final, _gen = pp.export_guest(self.host, "g1", final=True, save_dir=self.tmp)
+        with self.assertRaises(pp.PassportError):
+            pp.come_home(self.home, self.as_first_build(final, self.host))
+        self.assertEqual(self.q(self.home, "SELECT state FROM coop_away WHERE charid = ?", (HOME_CHAR,)), [("away",)])
+        self.assertEqual(sorted(self.mates(self.home, HOME_CHAR)), [1, 2])
+        self.assertFalse(pp.come_home(self.home, final)["already"])
+        self.assertEqual(self.mates(self.home, HOME_CHAR)[1][0], home[1])
+        self.assertTrue(guest)
+
+    def test_a_backup_from_the_first_build_is_restored_without_touching_the_squad(self):
+        home = self.squads()
+        saved = self.as_first_build(pp.backup_character(self.home, HOME_CHAR), self.home)
+        full = pp.unpack(pp.backup_character(self.home, HOME_CHAR))["tables"]["char_vars"]          # (that build's backups held every variable)
+        old = pp.unpack(saved)
+        old["tables"]["char_vars"] = full
+        saved = pp.pack(old)
+        ct.run(self.home, "UPDATE char_stats SET mlvl = 1 WHERE charid = ?", (HOME_CHAR,))
+        ct.run(self.home, "UPDATE squad_job SET level = 35 WHERE squad_id = ? AND job = 1", (home[1],))
+        self.home.commit()
+        pp.restore_backup(self.home, saved)
+        self.assertEqual(self.q(self.home, "SELECT mlvl FROM char_stats WHERE charid = ?", (HOME_CHAR,))[0][0], 30)
+        self.assertEqual(self.mates(self.home, HOME_CHAR)[1], (home[1], "Kasumi", 1, 35))            # the squad is as it was left
+        self.assertEqual(self.vars(self.home, HOME_CHAR)[f"SQUAD_AI_{home[1]}"], 21)
+
+    def test_the_away_table_of_the_first_build_gets_its_new_column(self):
+        pp.ensure_tables(self.home)
+        ct.run(self.home, "ALTER TABLE coop_away DROP COLUMN squad")
+        self.home.commit()
+        pp.ensure_tables(self.home)
+        pp.ensure_tables(self.home)
+        self.assertEqual(self.q(self.home, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+                                           "AND table_name = 'coop_away' AND column_name = 'squad'")[0][0], 1)
+        pp.depart(self.home, HOME_CHAR, {})
+        self.assertEqual(self.q(self.home, "SELECT squad FROM coop_away WHERE charid = ?", (HOME_CHAR,)), [(1,)])
 
     # --- the rest ---
     def test_backup_and_restore(self):

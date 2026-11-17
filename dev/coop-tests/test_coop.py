@@ -286,6 +286,34 @@ class TwoLaunchers(unittest.TestCase):
         self.assertFalse(os.path.exists(co.checkpoint_file(self.kit_home, CHAR)))
         self.assertTrue(any("home safely" in line for line in self.logs))
 
+    def test_squad_mates_come_along(self):
+        ct.make_squad(self.host_db, CHAR, [(1, "Momo", 1, 60), (2, "Kyo", 3, 60)])
+        home = ct.make_squad(self.home, CHAR, [(1, "Kasumi", 1, 30), (3, "Gio", 3, 28)], unlocks=(100,))
+        ct.make_squad(self.home, CHAR + 2, [(1, "Stays", 1, 9)])                      # the other character's mate stays home
+        self.go()
+        guest = self.guest()
+        there = dict(self.q(self.host_db, "SELECT slot, id FROM squad_mate WHERE charid = ?", (guest["charid"],)))
+        self.assertEqual(sorted(there), [1, 3])
+        self.assertEqual(self.q(self.host_db, "SELECT COUNT(*) FROM squad_mate")[0][0], 4)
+        ct.run(self.host_db, "UPDATE squad_job SET level = 32 WHERE squad_id = ? AND job = 1", (there[1],))
+        self.host_db.commit()
+        self.assertEqual(co.keep_visit(self.cfg, self.kit_home, self.row(), now=time.time(), **self.kw()), "checkpoint")
+        saved = pp.unpack(read(co.checkpoint_file(self.kit_home, CHAR), "rb"))["summary"]["squad"]
+        self.assertEqual([(m["name"], m["level"]) for m in saved], [("Kasumi", 32), ("Gio", 28)])
+        ct.run(self.host_db, "UPDATE squad_job SET level = 34 WHERE squad_id = ? AND job = 1", (there[1],))
+        self.host_db.commit()
+        result = co.come_home(self.cfg, self.kit_home, CHAR, **self.kw())
+        self.assertEqual([(m["name"], m["gained"]) for m in result["changes"]["mates"]], [("Kasumi", 4)])
+        self.assertEqual(self.q(self.home, "SELECT m.id, m.name, j.level FROM squad_mate m JOIN squad_job j ON j.squad_id = m.id AND j.job = m.mjob "
+                                           "WHERE m.charid = ? ORDER BY m.slot", (CHAR,)), [(home[1], "Kasumi", 34), (home[3], "Gio", 28)])
+        self.assertEqual(self.q(self.home, "SELECT name FROM squad_mate WHERE charid = ?", (CHAR + 2,)), [("Stays",)])
+        # the host tidied up: only its own two mates are left, with nothing of the visitor's
+        self.assertEqual(self.q(self.host_db, "SELECT name FROM squad_mate ORDER BY slot"), [("Momo",), ("Kyo",)])
+        self.assertEqual(self.q(self.host_db, "SELECT COUNT(*) FROM squad_job WHERE squad_id NOT IN (SELECT id FROM squad_mate)")[0][0], 0)
+        self.assertEqual(self.q(self.host_db, "SELECT COUNT(*) FROM squad_equip WHERE squad_id NOT IN (SELECT id FROM squad_mate)")[0][0], 0)
+        self.assertEqual(self.q(self.host_db, "SELECT COUNT(*) FROM squad_unlock")[0][0], 0)
+        self.assertEqual(self.q(self.host_db, "SELECT COUNT(*) FROM char_vars WHERE varname LIKE 'SQUAD%' AND charid <> ?", (CHAR,))[0][0], 0)
+
     def test_host_sends_everyone_home(self):
         self.go()
         self.assertEqual(self.host.send_everyone_home(), [])
