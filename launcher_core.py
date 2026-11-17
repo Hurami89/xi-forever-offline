@@ -614,6 +614,26 @@ def clean_call_cooldown(value):
         return 5
 
 
+_SETTING_LINE = re.compile(r"""(?m)^(\s*)([A-Z][A-Z0-9_]*)(\s*=\s*)(-?\d[\d.]*|true|false|'[^'\n]*'|"[^"\n]*")""")
+
+
+def carry_hand_edits(text, base, old, managed):
+    """Settings the player changed by hand in a launcher-written file (old differs from base, what the launcher wrote
+    then) are put into the new text. Simple values only (numbers, true/false, quoted text); keys in managed are the
+    launcher's own and are never carried. Returns (new text, list of the keys kept)."""
+    before = {m.group(2): m.group(4) for m in _SETTING_LINE.finditer(base)}
+    now = {m.group(2): m.group(4) for m in _SETTING_LINE.finditer(old)}
+    kept = []
+    for key, value in now.items():
+        if key in managed or key not in before or before[key] == value:
+            continue
+        pattern = re.compile(r"(?m)^(\s*" + re.escape(key) + r"\s*=\s*)(-?\d[\d.]*|true|false|'[^'\n]*'|\"[^\"\n]*\")")
+        text, count = pattern.subn(lambda m, v=value: m.group(1) + v, text, count=1)
+        if count:
+            kept.append(key)
+    return text, kept
+
+
 def clean_crowd_size(value):
     """Ambient crowds: adventurers per area, 0-40 (anything else falls back to 15)."""
     try:
@@ -843,13 +863,29 @@ def apply_rates(server_dir, rates):
             if count == 0 and not (filename == "login.lua" and key in LOGIN_OPTIONAL_KEYS):
                 messages.append(f"{filename}: setting {key} not found - left at the default")
         target = os.path.join(settings_dir, filename)
+        base = os.path.join(settings_dir, ".launcher-base", filename)
+        base_text = f"{RATES_MARKER}{filename}\n" + text          # what the launcher alone writes (before your own edits)
         if os.path.exists(target):
             with open(target, "r", encoding="utf-8-sig", errors="replace") as f:
-                first = f.readline()
-            if not first.startswith((RATES_MARKER,) + OLD_RATES_MARKER):
+                old = f.read()
+            if not old.startswith((RATES_MARKER,) + OLD_RATES_MARKER):
                 shutil.copy2(target, target + ".before-launcher")  # keep a hand-made override safe, once
+            elif os.path.exists(base):
+                # your own edits in this file (SERVER_NAME and the like) are carried over: whatever differs from what the
+                # launcher wrote last time, except the values the Rates tab itself sets
+                with open(base, "r", encoding="utf-8-sig", errors="replace") as f:
+                    text, kept = carry_hand_edits(text, f.read(), old, {key for key, _v, _k in entries})
+                if kept:
+                    messages.append(f"{filename}: kept your own changes ({', '.join(kept)})")
+        out_text = f"{RATES_MARKER}{filename}\n" + text
         with open(target, "w", encoding="utf-8", newline="\n") as f:
-            f.write(f"{RATES_MARKER}{filename}\n" + text)
+            f.write(out_text)
+        try:
+            os.makedirs(os.path.dirname(base), exist_ok=True)
+            with open(base, "w", encoding="utf-8", newline="\n") as f:
+                f.write(base_text)
+        except OSError:
+            pass
 
     # The era experience module (modules/custom/lua/era_exp.lua) reads its on/off switch from this small file
     try:

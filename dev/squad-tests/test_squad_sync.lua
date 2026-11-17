@@ -202,6 +202,27 @@ SquadDismissMate = nil; cmd.onTrigger(player, 'dismiss', '1')
 check(W.printed[#W.printed]:find('UPDATE') ~= nil and #player.party == 1, 'an older server: told to update, nobody dismissed')
 cmd.onTrigger(player, 'dismiss'); check(W.cleared == 1, '!squad dismiss alone still sends everyone off')
 
+section('giving gear: one-of-a-kind items (squad_copy_items) stay with you')
+reset(); player = entity(xi.objType.PC, { level = 30, id = 4 })
+bit = bit or { band = function(a, b) return a & b end }
+xi.itemFlag = { RARE = 0x8000 }
+local deleted = {}
+package.loaded['modules/custom/lua/squad_copy_items'] = { [500] = 'Test Ring' }
+FindSquadItem = function(name) return tonumber(name) or 0 end
+player.hasItem = function() return true end
+player.delItem = function(_, id) deleted[#deleted + 1] = id end
+player.delItemAt = function(_, id) deleted[#deleted + 1] = id; return true end
+cmd.onTrigger(player, 'give', '500')
+check(W.unlocked[500] and #deleted == 0, '!squad give: a one-of-a-kind item is unlocked and you keep it')
+check(W.printed[#W.printed]:find('one of a kind') ~= nil, 'and you are told: ' .. tostring(W.printed[#W.printed]))
+cmd.onTrigger(player, 'give', '501')
+check(W.unlocked[501] and deleted[1] == 501, '!squad give: an ordinary item is taken as before')
+local trust = entity(xi.objType.TRUST, { level = 30 }); trust.master = player; trust.getPacketName = function() return 'Mate1' end
+trust.checkDistance = nil; player.checkDistance = function() return 1 end
+W.unlocked = {}; deleted = {}
+xi.squad.onTrade(player, trust, { { itemId = 500, slot = 3 }, { itemId = 502, slot = 4 } })
+check(W.unlocked[500] and W.unlocked[502] and #deleted == 1 and deleted[1] == 502, 'trading: the one-of-a-kind piece stays with you, the ordinary one is taken')
+
 section('resting with you')
 reset(); player = entity(xi.objType.PC, { level = 30, id = 4 })
 W.squad = { mate(1, 1, 3, 30), mate(2, 2, 1, 30) }
