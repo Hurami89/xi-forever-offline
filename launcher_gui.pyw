@@ -3021,6 +3021,7 @@ class App(tk.Tk):
         for n in core.SERVERS + ["xiloader"]:
             core.kill(n)
         core.kill_squad_chat()
+        core.kill_stray_helpers()              # helpers an earlier launcher left running
         time.sleep(2)
         self.check()
 
@@ -3425,27 +3426,15 @@ class App(tk.Tk):
             self.ollama_proc = None
         chat = getattr(self, "chat_proc", None)
         if chat is not None:
-            try:
-                if chat.poll() is None:
-                    chat.terminate()
-            except Exception:
-                pass
+            core.kill_tree(chat)   # (the packaged exe: the starter and the real helper both)
             self.chat_proc = None
         crowd_ai = getattr(self, "crowd_ai_proc", None)
         if crowd_ai is not None:
-            try:
-                if crowd_ai.poll() is None:
-                    crowd_ai.terminate()
-            except Exception:
-                pass
+            core.kill_tree(crowd_ai)   # (the packaged exe: the starter and the real helper both)
             self.crowd_ai_proc = None
         ah = getattr(self, "ah_proc", None)
         if ah is not None:
-            try:
-                if ah.poll() is None:
-                    ah.terminate()
-            except Exception:
-                pass
+            core.kill_tree(ah)   # (the packaged exe: the starter and the real helper both)
             self.ah_proc = None
         for p in self.procs.values():
             try:

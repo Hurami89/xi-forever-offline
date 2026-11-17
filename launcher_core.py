@@ -68,6 +68,38 @@ def count_running(image_name):
 def kill(image_name):
     _run(["taskkill", "/F", "/IM", f"{image_name}.exe"])
 
+def kill_tree(proc):
+    """Stops a process we started and everything it started. The packaged launcher runs its helpers (squad chat,
+    auction house, crowd chat AI) as 'XI Forever Offline.exe --run ...', and a one-file exe is two processes: a
+    starter and the real one. terminate() only ended the starter, so the real helpers kept running after the
+    launcher closed (Yumainai, Careb)."""
+    if proc is None:
+        return
+    try:
+        if proc.poll() is not None:
+            return
+    except Exception:
+        return
+    if os.name == "nt":
+        _run(["taskkill", "/PID", str(proc.pid), "/T", "/F"])
+    try:
+        if proc.poll() is None:
+            proc.terminate()
+    except Exception:
+        pass
+
+
+def kill_stray_helpers():
+    """At PLAY: helpers an earlier launcher left running (packaged exe with --run), except the game-copy helper,
+    which puts PlayOnline's settings back when the game closes."""
+    if os.name != "nt":
+        return
+    script = ("Get-CimInstance Win32_Process -Filter \"name LIKE 'XI%Forever%Offline%.exe'\" | "
+              "Where-Object { $_.ProcessId -ne %d -and $_.CommandLine -like '*--run*' -and $_.CommandLine -notlike '*launcher_game*' } | "
+              "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }").replace("%d", str(os.getpid()))
+    _run(["powershell", "-NoProfile", "-Command", script])
+
+
 def kill_squad_chat():
     """Stop a squad-chat sidecar left over from an earlier run (two of them would both answer every line)."""
     script = ("Get-CimInstance Win32_Process -Filter \"name='pythonw.exe' OR name='python.exe' OR name LIKE 'XI_Forever_Offline.exe'\" | "
