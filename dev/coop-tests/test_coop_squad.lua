@@ -90,6 +90,28 @@ assert(loadfile(SQUAD))()
 local H = __SQUAD_TEST.hooks
 local function sentLike(pat) local n = 0 for _, l in ipairs(sent) do if l:find(pat) then n = n + 1 end end return n end
 check(xi.squad.mine({}, {}) == true and xi.squad.visitor({}) == false, 'without the co-op script: every mate is yours, nobody is a visitor')
+
+-- a world without co-op: you, a second character (dualbox) and your two mates in one party
+do
+    local you  = entity(xi.objType.PC, { id = 11, name = 'Hurami' })
+    local dual = entity(xi.objType.PC, { id = 12, name = 'Kurami' })
+    local a, b = entity(xi.objType.TRUST, { name = 'Momo' }), entity(xi.objType.TRUST, { name = 'Gio' })
+    a.vars.SQUAD_ID, a.master, b.vars.SQUAD_ID, b.vars.MASTER_ID = 21, you, 22, 11       -- (Gio: known by the id it keeps)
+    you.party, dual.party = { dual, a, b }, { you, a, b }
+    local beast = entity(xi.objType.MOB, { name = 'Goblin Mugger' })
+    local plain, seen = overrides['xi.experiencePoints.calculate'], {}
+    super = function(member, mob, data) seen[#seen + 1] = data.partySize return { exp = 100 } end
+    plain(you, beast, { partySize = 2 })
+    plain(dual, beast, { partySize = 2 })
+    check(paid[21] == 1 and paid[22] == 1, 'a kill with a second character in the party: each mate is paid once, not twice (' .. tostring(paid[21]) .. ', ' .. tostring(paid[22]) .. ')')
+    check(seen[1] == 4 and seen[2] == 4, 'both players still share the kill with the two mates')
+    plain(dual, beast, { partySize = 2 })
+    check(paid[21] == 1, 'a kill only the second character is paid for: your mates earn nothing from it, like you')
+    local function n(list) return #list end
+    check(n(xi.squad.activeMates(you)) == 2 and n(xi.squad.activeMates(dual)) == 0, 'page exp: your page pays your mates, the second character\'s page does not pay them again')
+    paid = {}
+end
+
 super = function() return 'logged in' end
 assert(loadfile(COOP))()
 
@@ -191,13 +213,12 @@ check(sentLike('^NEWMATE\tCid') == 1, 'the owner\'s next command reaches the sid
 -- the same party without a visitor (a second character of the owner's): everything as it was before co-op
 visitor.charvars.COOP_GUEST = 0
 paid, sent = {}, {}
-check(ids(xi.squad.activeMates(owner)) == '5,6,7', 'no visitor: the mates in the party are counted together, as before')
+check(ids(xi.squad.activeMates(owner)) == '5,6', 'no visitor: page exp still goes to your own mates only')
 check(foodNames(owner) == 'MGK', 'no visitor: !squad food lists every mate in the party, as before')
 calc(owner, monster, { partySize = 2 })
 calc(visitor, monster, { partySize = 2 })
-check(paid[5] == 2 and paid[6] == 2 and paid[7] == 2, 'no visitor: paid on every player\'s share, as before')
 calc(second, monster, { partySize = 3 })
-check(paid[5] == 3 and paid[7] == 3, 'no visitor: a second character\'s share pays them too, as before')
+check(paid[5] == 1 and paid[6] == 1 and paid[7] == 1, 'no visitor: every mate is paid once, on its own player\'s share')
 owner.engaged = false
 H.chatFight(owner)
 clock = clock + 10
