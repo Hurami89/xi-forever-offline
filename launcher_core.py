@@ -436,6 +436,7 @@ RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # fiel
 RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
 RATE_DEFAULTS.update({"bots_growth": "realistic"})
 RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False})   # one-time bot head start (bots_growth.lua)
+RATE_DEFAULTS.update({"full_bags": True})   # every bag (inventory, Mog Safe, Satchel, Sack, Case, Wardrobes) at 80 from the start (crystalboy_quests.lua)
 RATE_DEFAULTS.update({"squad_call_cooldown": 5})   # minutes before a squad mate can be called again (squad.lua)   # bots grow while you are away (bots_growth.lua)
 RATE_DEFAULTS.update({"squad_chat": True})   # squad mates answer in party chat with the local AI (squad-chat/squad_chat.py)
 
@@ -604,6 +605,9 @@ def write_crowds_config(server_dir, rates):
     with open(os.path.join(module_dir, "squad_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         f.write("return { call_cooldown_min = %d }\n" % clean_call_cooldown(rates.get("squad_call_cooldown", 5)))
+    with open(os.path.join(module_dir, "storage_config.lua"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+        f.write("return { full_bags = %s }\n" % ("true" if rates.get("full_bags", True) else "false"))
 
 
 def clean_call_cooldown(value):
@@ -684,6 +688,8 @@ def load_rates(here):
                 rates[key] = bool(saved[key])
         if "squad_call_cooldown" in saved:
             rates["squad_call_cooldown"] = clean_call_cooldown(saved["squad_call_cooldown"])
+        if "full_bags" in saved:
+            rates["full_bags"] = bool(saved["full_bags"])
         for key, lo, hi in (("bots_roster", 0, 600), ("bots_online", 0, 550)):
             if key in saved:
                 try:
@@ -709,7 +715,7 @@ def apply_preset(rates, name):
                          ("crowds_field", True), ("crowds_field_parties", 1),
                          ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
-                         ("squad_call_cooldown", 5)):
+                         ("squad_call_cooldown", 5), ("full_bags", True)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
     out["main.MAX_LEVEL"] = rates.get("main.MAX_LEVEL", 75)
@@ -853,8 +859,9 @@ def apply_rates(server_dir, rates):
     # The watchdog kills the map server when one tick takes 2 s. On slower PCs a log in (the bots logging in with you and
     # catching up on their history) can take longer; that's fine offline, so allow 15 s before it counts as a hang.
     wanted["main.lua"].append(("INACTIVITY_WATCHDOG_PERIOD", 15000, "int"))
-    # Bags start full size (80): the Gobbiebag quests give Crystal Boy items here instead of bag space (crystalboy_quests.lua)
-    wanted["main.lua"].append(("START_INVENTORY", 80, "int"))
+    # Full bags (default): new characters start at 80 and crystalboy_quests.lua opens every other bag at 80 on log in.
+    # Off = the usual Phoenix bags: 30 slots, the Gobbiebag quests add space (and still give the Crystal Boy items)
+    wanted["main.lua"].append(("START_INVENTORY", 80 if rates.get("full_bags", True) else 30, "int"))
 
     for filename, entries in wanted.items():
         default_path = os.path.join(settings_dir, "default", filename)

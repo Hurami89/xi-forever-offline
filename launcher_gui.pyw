@@ -1534,6 +1534,12 @@ class RatesTab(tk.Frame):
                            "Used at your next PLAY, then this switch goes away.",
                            variable=self.bots_head_start, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                            wraplength=520, justify="left").grid(row=n + 17, column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        self.full_bags = tk.BooleanVar(value=rates.get("full_bags", True))
+        tk.Checkbutton(inner, text="Full bags from the start: inventory, Mog Safe, Mog Satchel, Mog Sack, Mog Case and every "
+                       "Mog Wardrobe open at 80. Off = the classic way: 30 slots, and the Gobbiebag quests (and Phoenix's "
+                       "wardrobe rewards) add space. Bags never shrink.",
+                       variable=self.full_bags, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                       wraplength=520, justify="left").grid(row=n + 18, column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.show_world(rates)
 
     def show_world(self, rates):
@@ -1599,6 +1605,7 @@ class RatesTab(tk.Frame):
                 rates[key] = default
         rates["squad_chat"] = bool(self.squad_chat.get())
         rates["squad_call_cooldown"] = core.clean_call_cooldown(self.squad_call_cooldown.get())
+        rates["full_bags"] = bool(self.full_bags.get())
         rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done
         rates["bots_head_start_done"] = self.head_start_done
         rates["claim_shield"] = False
