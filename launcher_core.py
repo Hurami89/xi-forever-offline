@@ -849,6 +849,8 @@ def apply_rates(server_dir, rates):
     # The watchdog kills the map server when one tick takes 2 s. On slower PCs a log in (the bots logging in with you and
     # catching up on their history) can take longer; that's fine offline, so allow 15 s before it counts as a hang.
     wanted["main.lua"].append(("INACTIVITY_WATCHDOG_PERIOD", 15000, "int"))
+    # Bags start full size (80): the Gobbiebag quests give Crystal Boy items here instead of bag space (crystalboy_quests.lua)
+    wanted["main.lua"].append(("START_INVENTORY", 80, "int"))
 
     for filename, entries in wanted.items():
         default_path = os.path.join(settings_dir, "default", filename)
