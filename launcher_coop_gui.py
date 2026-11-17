@@ -31,11 +31,13 @@ INTRO = ("Co-op lets a friend bring their own character into your world, or you 
          "squad mates travel with it, and a copy of each travelling character is saved before every trip.")
 TAILSCALE_STEPS = ("Tailscale is a free program that puts your PC and your friend's on one private network, so nothing "
                    "on your PC is opened to the rest of the internet.\n\n"
-                   "1. Both of you install Tailscale from tailscale.com/download and sign in.\n"
+                   "1. Both of you get Tailscale: GET TAILSCALE below downloads its installer from Tailscale's own site "
+                   "and starts it. Then log in from the Tailscale icon near the clock (the account is free).\n"
                    "2. The host opens the Tailscale admin page (Machines), picks this PC, chooses Share and sends the "
                    "link to the friend, who accepts it.\n"
                    "3. Back here, the host picks 'Over the internet with Tailscale': the address that starts with 100. "
                    "appears by itself. Start hosting and send the invite code.\n\n"
+                   "The visitor keeps Tailscale switched on too. "
                    "The free plan is enough (up to 6 people in one network, and sharing with others).")
 
 
@@ -402,6 +404,70 @@ class CoopTab(tk.Frame):
         self.address_box.configure(values=choices)
         if not (keep and self.address.get() and co.address_kind(self.address.get()) == mode):
             self.address.set(choices[0] if choices else "")
+        if mode == "tailscale" and not choices and not keep:      # just installed, or just logged in? look again
+            self.refresh_addresses()
+
+    def refresh_addresses(self):
+        """Looks at this PC's addresses again and refills the list (Tailscale's appears once it is installed and logged in)."""
+        if getattr(self, "refreshing", False) or not hasattr(self, "address_box"):
+            return
+        self.refreshing = True
+
+        def work():
+            try:
+                return co.local_addresses()
+            except Exception:
+                return None
+
+        def done(found):
+            self.refreshing = False
+            if found is not None and self.winfo_exists():
+                self.addresses = found
+                self.mode_changed(keep=True)
+
+        self.job(work, done)
+
+    def get_tailscale(self, parent=None, why=""):
+        """GET TAILSCALE: downloads Tailscale's own installer, checks that Windows trusts it as Tailscale's, and starts
+        it. When that cannot be done from here the download page opens instead."""
+        if parent is None or not parent.winfo_exists():
+            parent = self
+        if co.tailscale_program() is not None:
+            messagebox.showinfo("Tailscale", "Tailscale is already installed on this PC.\n\nOpen it from its icon near the clock and "
+                                "log in. Once it has an address (it starts with 100.), pick 'Over the internet with Tailscale' "
+                                "here and the address appears by itself.", parent=parent)
+            self.refresh_addresses()
+            return
+        if not messagebox.askyesno("Get Tailscale", why + "This downloads Tailscale's installer from Tailscale's own site "
+                                   "(pkgs.tailscale.com) and starts it.\n\nWindows may ask for permission. Click through the "
+                                   "installer, then log in from the Tailscale icon near the clock: the account is free.\n\nGo on?",
+                                   parent=parent):
+            return
+
+        def work():
+            try:
+                co.install_tailscale(self.kit, log=self.log)
+            except co.CoopError as e:
+                return str(e)
+            return ""
+
+        def done(problem):
+            if problem:
+                self.note(problem)
+                messagebox.showwarning("Get Tailscale", problem + "\n\nThe download page opens instead: get Tailscale there.", parent=self)
+                self.app.open_url(co.TAILSCALE_PAGE)
+                return
+            self.note("Tailscale's installer has started. Log in to Tailscale when it is installed, then come back here.")
+            self.after(30000, self.refresh_addresses)
+
+        self.job(work, done, "Downloading Tailscale's installer...")
+
+    def needs_tailscale(self, invite):
+        """An invite that goes through Tailscale, on a PC that has no Tailscale: offers to get it. True = stop here."""
+        if co.address_kind(invite["address"]) != "tailscale" or co.tailscale_program() is not None:
+            return False
+        self.get_tailscale(why="Your friend's world is reached through Tailscale, and Tailscale is not installed on this PC yet.\n\n")
+        return True
 
     def tailscale_help(self):
         win = tk.Toplevel(self)
@@ -409,11 +475,18 @@ class CoopTab(tk.Frame):
         win.configure(bg=BG)
         win.transient(self.winfo_toplevel())
         tk.Label(win, text=TAILSCALE_STEPS, bg=BG, fg=FG, font=FONT, wraplength=520, justify="left").pack(padx=18, pady=(16, 8))
-        row = tk.Frame(win, bg=BG)
-        row.pack(pady=(0, 14))
-        tk.Button(row, text="Open tailscale.com/download", command=lambda: self.app.open_url(TAILSCALE_URL), bg=ACCENT, fg="white",
-                  relief="flat", padx=12).pack(side="left", padx=4)
-        tk.Button(row, text="Close", command=win.destroy, bg=PANEL, fg=FG, relief="flat", padx=12).pack(side="left", padx=4)
+
+        def close():
+            win.destroy()
+            self.refresh_addresses()                 # (Tailscale may have been installed and logged in meanwhile)
+
+        win.protocol("WM_DELETE_WINDOW", close)
+        self.button(win, "coop_tailscale", lambda: self.get_tailscale(win), "GET TAILSCALE").pack(pady=(2, 4))
+        link = tk.Label(win, text="or get it yourself at tailscale.com/download", bg=BG, fg=ACCENT, cursor="hand2",
+                        font=("Segoe UI", 9, "underline"))
+        link.pack()
+        link.bind("<Button-1>", lambda e: self.app.open_url(TAILSCALE_URL))
+        tk.Button(win, text="Close", command=close, bg=PANEL, fg=FG, relief="flat", padx=12).pack(pady=(10, 14))
 
     def start_service(self):
         """The small service friends' launchers talk to (also started when the launcher opens with visitors still here)."""
@@ -432,9 +505,15 @@ class CoopTab(tk.Frame):
     def start_hosting(self):
         mode, address, name = self.mode.get(), self.address.get().strip(), self.world_name.get().strip()
         if co.address_kind(address) != mode:
-            hint = ("Tailscale is not running on this PC yet (its address starts with 100.). Press How? for the steps."
+            if mode == "tailscale" and co.tailscale_program() is None:
+                self.get_tailscale(why="Tailscale is not installed on this PC yet. (How? next to the choice has all the steps.)\n\n")
+                return
+            hint = ("Tailscale is installed, but it has no address yet (it starts with 100.). Open Tailscale from its icon near "
+                    "the clock and log in, then press START HOSTING again. How? has all the steps."
                     if mode == "tailscale" else "Pick this PC's address on your home network (it usually starts with 192.168.).")
             messagebox.showinfo("Start hosting", hint, parent=self)
+            if mode == "tailscale":
+                self.refresh_addresses()
             return
         if not co.is_local_address(address):
             messagebox.showinfo("Start hosting", f"{address} is not an address of this PC right now. Pick one from the list.", parent=self)
@@ -639,10 +718,17 @@ class CoopTab(tk.Frame):
             self.say_info(str(e))
             return
 
+        if self.needs_tailscale(invite):
+            return
+
         def work():
             results = co.test_connection(invite)
             if not results[0][1]:
-                return "No answer.\n" + results[0][2]
+                text = "No answer.\n" + results[0][2]
+                if co.address_kind(invite["address"]) == "tailscale":
+                    text += ("\n\nThis invite goes through Tailscale. Check that Tailscale is switched on on this PC (its icon "
+                             "near the clock) and that your friend has shared their PC with you: How? on the left has the steps.")
+                return text
             greeting = co.hello(invite)
             clash = co.versions_clash(co.versions(self.kit, self.cfg.get("server_dir")), greeting.get("versions"))
             lines = [f"{greeting['world']['name']} answered. Visitors: {greeting.get('guests', 0)} of {greeting.get('max_guests', '?')}."
@@ -670,6 +756,8 @@ class CoopTab(tk.Frame):
             invite = self.read_code()
         except co.CoopError as e:
             messagebox.showwarning("Visit", str(e), parent=self)
+            return
+        if self.needs_tailscale(invite):
             return
         name = self.character.get()
         if not messagebox.askyesno("Visit", f"{name} travels to {invite['world'] or 'your friend'}.\n\n"

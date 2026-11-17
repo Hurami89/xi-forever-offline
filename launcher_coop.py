@@ -24,6 +24,7 @@ import struct
 import subprocess
 import threading
 import time
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -44,6 +45,10 @@ SERVER_PROGRAMS = ("xi_connect", "xi_map", "xi_search", "xi_profile")
 VISIT_BOOT = "xiforever-coop.ini"
 NO_WINDOW = 0x08000000
 MODES = {"lan": "Same network (LAN / Wi-Fi)", "tailscale": "Over the internet with Tailscale", "direct": "Over the internet, direct (advanced)"}
+TAILSCALE_PAGE = "https://tailscale.com/download"
+# Tailscale's own Windows installer: the address behind the download button on tailscale.com/download/windows
+TAILSCALE_INSTALLER = "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe"
+TAILSCALE_MAX_BYTES = 400 * 1024 * 1024
 SCOPES = {"lan": "LocalSubnet", "tailscale": "100.64.0.0/10", "direct": "Any"}
 
 
@@ -952,10 +957,16 @@ def local_addresses():
     return out
 
 
+def tailscale_program():
+    """Where tailscale.exe is when Tailscale is installed on this PC, else None."""
+    program = shutil.which("tailscale") or os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "Tailscale", "tailscale.exe")
+    return program if os.path.exists(program) else None
+
+
 def tailscale_address(run=subprocess.run):
     """This PC's Tailscale address (100.x.y.z) when Tailscale is installed and running, else None."""
-    program = shutil.which("tailscale") or os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "Tailscale", "tailscale.exe")
-    if not os.path.exists(program):
+    program = tailscale_program()
+    if program is None:
         return None
     try:
         result = run([program, "ip", "-4"], capture_output=True, text=True, timeout=8, creationflags=NO_WINDOW if os.name == "nt" else 0)
@@ -963,6 +974,102 @@ def tailscale_address(run=subprocess.run):
         return found.group(0) if found else None
     except Exception:
         return None
+
+
+def tailscale_state(run=subprocess.run):
+    """"missing": not installed. "off": installed, but it has no address (not signed in yet, or switched off). "ready"."""
+    if tailscale_program() is None:
+        return "missing"
+    return "ready" if tailscale_address(run) else "off"
+
+
+def _tailscale_site(url):
+    """An https address at tailscale.com? (The installer comes from pkgs.tailscale.com, which may hand over to another
+    of Tailscale's own servers.)"""
+    parts = urllib.parse.urlparse(str(url or ""))
+    host = (parts.hostname or "").lower()
+    return parts.scheme == "https" and (host == "tailscale.com" or host.endswith(".tailscale.com"))
+
+
+def download_tailscale(kit, log=print, opener=None):
+    """Fetches Tailscale's Windows installer from Tailscale's own site into <kit>\\coop\\downloads. Returns its path.
+    Nothing is started here. CoopError says why when it could not be fetched."""
+    folder = os.path.join(kit, "coop", "downloads")
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, "tailscale-setup.exe")
+    part = path + ".part"
+
+    def tidy():
+        try:
+            os.remove(part)
+        except OSError:
+            pass
+
+    request = urllib.request.Request(TAILSCALE_INSTALLER, headers={"User-Agent": "XI-Forever-Offline-launcher"})
+    size, first = 0, b""
+    try:
+        with (opener or urllib.request.urlopen)(request, timeout=30) as response:
+            if not _tailscale_site(response.geturl()):
+                raise CoopError("The download was passed on to a site that is not Tailscale's, so it was stopped.")
+            with open(part, "wb") as handle:
+                while True:
+                    chunk = response.read(256 * 1024)
+                    if not chunk:
+                        break
+                    first = first or chunk[:2]
+                    size += len(chunk)
+                    if size > TAILSCALE_MAX_BYTES:
+                        raise CoopError("The download is far too big to be Tailscale's installer, so it was stopped.")
+                    handle.write(chunk)
+    except CoopError:
+        tidy()
+        raise
+    except (OSError, ValueError) as e:              # no internet, the site is down, the address has moved...
+        tidy()
+        raise CoopError(f"Tailscale's installer could not be downloaded ({getattr(e, 'reason', None) or e}).")
+    if size < 1024 * 1024 or first != b"MZ":        # an error page, not a Windows program
+        tidy()
+        raise CoopError("What came back is not Tailscale's installer.")
+    os.replace(part, path)
+    log(f"Tailscale's installer is downloaded ({size // (1024 * 1024)} MB).")
+    return path
+
+
+def signed_by_tailscale(path, run=subprocess.run):
+    """(ok, detail): does Windows vouch that this file was signed by Tailscale Inc. and has not been changed since?
+    (PowerShell's Get-AuthenticodeSignature; the file's path travels in an environment variable, not in the command.)"""
+    script = ("$s = Get-AuthenticodeSignature -LiteralPath $env:XIFO_CHECK_FILE; Write-Output ([string]$s.Status); "
+              "if ($s.SignerCertificate) { Write-Output $s.SignerCertificate.Subject }")
+    try:
+        result = run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
+                     capture_output=True, text=True, creationflags=NO_WINDOW, timeout=60, env=dict(os.environ, XIFO_CHECK_FILE=path))
+    except Exception as e:
+        return False, f"its signature could not be checked ({type(e).__name__})"
+    lines = [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
+    status, signer = (lines[0] if lines else ""), (lines[1] if len(lines) > 1 else "")
+    if status == "Valid" and re.search(r'(?:^|,\s*)(?:CN|O)="?Tailscale Inc\.?"?\s*(?:,|$)', signer):
+        return True, signer
+    return False, f"signature: {status or 'none'}" + (f", signed by {signer}" if signer else "")
+
+
+def install_tailscale(kit, log=print, run=subprocess.run, opener=None, start=None):
+    """The GET TAILSCALE button: downloads Tailscale's installer, makes sure Windows trusts it as Tailscale's own, and
+    starts it (the player clicks through it and signs in). Returns the installer's path. CoopError when a step fails:
+    then nothing was started."""
+    path = download_tailscale(kit, log, opener)
+    ok, detail = signed_by_tailscale(path, run)
+    if not ok:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        raise CoopError(f"The downloaded file does not carry Tailscale's signature ({detail}), so it was not started.")
+    try:
+        (start or os.startfile)(path)
+    except OSError as e:
+        raise CoopError(f"The installer could not be started ({e}). It is here if you want to start it yourself: {path}")
+    log("Tailscale's installer has started.")
+    return path
 
 
 def is_local_address(address):

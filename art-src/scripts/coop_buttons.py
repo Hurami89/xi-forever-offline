@@ -34,6 +34,7 @@ BUTTONS = {
     'coop_file':     ((176, H),  'LOAD FILE',       [('red-mage', (0.0, 0.0, 0.62, 0.45))],         BROWN),
     'coop_save':     ((226, H),  'SAVE CHARACTER',  [('shantotto', (0.1, 0.02, 0.85, 0.5))],        BROWN),
     'coop_load':     ((160, H),  'RESTORE',         [('thief', (0.2, 0.0, 0.85, 0.42))],            BROWN),
+    'coop_tailscale': ((226, H), 'GET TAILSCALE',   [('ca-mithra', (0.0, 0.0, 1.0, 0.5))],          TEAL),
 }
 ANCHOR = {'coop': 0.5, 'coop_on': 0.5, 'coop_play': 0.55, 'coop_stop': 0.6}
 HEADERS = {'coop_head_host': 'HOST MY WORLD', 'coop_head_visit': 'VISIT A FRIEND'}

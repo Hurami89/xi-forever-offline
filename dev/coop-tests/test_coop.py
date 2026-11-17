@@ -152,6 +152,119 @@ class Plain(unittest.TestCase):
         self.assertTrue(co.firewall_open("C:\\s", 54100, "lan", run=lambda *a, **k: Done("5\n"))[0])
         self.assertFalse(co.firewall_open("C:\\s", 54100, "lan", run=lambda *a, **k: Done("Access denied"))[0])
 
+    def test_get_tailscale(self):
+        kit = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, kit, True)
+        folder = os.path.join(kit, "coop", "downloads")
+        installer = b"MZ" + b"\0" * (2 * 1024 * 1024)
+
+        class Answer:
+            def __init__(self, body, url="https://dl.tailscale.com/stable/tailscale-setup-1.99.0.exe"):
+                self.body, self.url = body, url
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+            def geturl(self):
+                return self.url
+            def read(self, n):
+                piece, self.body = self.body[:n], self.body[n:]
+                return piece
+
+        asked = []
+        def opener(body=installer, **kw):
+            def go(request, timeout=None):
+                asked.append(request.full_url)
+                return Answer(body, **kw)
+            return go
+        # only Tailscale's own site counts
+        for url, ok in (("https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe", True), ("https://dl.tailscale.com/x.exe", True),
+                        ("https://tailscale.com/download", True), ("http://pkgs.tailscale.com/x.exe", False),
+                        ("https://tailscale.com.example.org/x.exe", False), ("https://nottailscale.com/x.exe", False), ("", False)):
+            self.assertEqual(co._tailscale_site(url), ok, url)
+        self.assertTrue(co._tailscale_site(co.TAILSCALE_INSTALLER) and co._tailscale_site(co.TAILSCALE_PAGE))
+
+        said = []
+        path = co.download_tailscale(kit, said.append, opener())
+        self.assertEqual((path, asked), (os.path.join(folder, "tailscale-setup.exe"), [co.TAILSCALE_INSTALLER]))
+        self.assertEqual(open(path, "rb").read(), installer)
+        self.assertEqual(os.listdir(folder), ["tailscale-setup.exe"])
+        self.assertIn("2 MB", said[-1])
+        os.remove(path)
+        # what must not be kept: an error page, a hand-over to another site, a download that never ends, no internet
+        def no_internet(request, timeout=None):
+            raise OSError("no route to host")
+        for bad in (opener(b"<html>not found</html>"), opener(b"<!" + b"x" * (2 * 1024 * 1024)), opener(url="https://example.org/tailscale-setup.exe"),
+                    no_internet):
+            with self.assertRaises(co.CoopError):
+                co.download_tailscale(kit, said.append, bad)
+            self.assertEqual(os.listdir(folder), [])
+        limit, co.TAILSCALE_MAX_BYTES = co.TAILSCALE_MAX_BYTES, 1024 * 1024
+        try:
+            with self.assertRaises(co.CoopError):
+                co.download_tailscale(kit, said.append, opener())
+        finally:
+            co.TAILSCALE_MAX_BYTES = limit
+        self.assertEqual(os.listdir(folder), [])
+
+        # Windows has to vouch for the file: a valid signature, and Tailscale's
+        class Checked:
+            returncode, stderr = 0, ""
+            def __init__(self, out):
+                self.stdout = out
+        calls = []
+        def windows(out):
+            def run(args, **kw):
+                calls.append((args, kw))
+                return Checked(out)
+            return run
+        theirs = "Valid\nCN=Tailscale Inc., O=Tailscale Inc., L=Toronto, S=Ontario, C=CA\n"
+        self.assertEqual(co.signed_by_tailscale(r"C:\kit\x y.exe", windows(theirs))[0], True)
+        args, kw = calls[-1]
+        self.assertEqual(kw["env"]["XIFO_CHECK_FILE"], r"C:\kit\x y.exe")
+        self.assertNotIn("x y.exe", " ".join(args))                       # the path is never part of the command text
+        self.assertIn("Get-AuthenticodeSignature", " ".join(args))
+        for out in ("Valid\nCN=Somebody Else, O=Somebody Else, C=US\n", "NotSigned\n", "HashMismatch\nCN=Tailscale Inc., O=Tailscale Inc., C=CA\n",
+                    "Valid\nCN=Tailscale Inc. Fans, O=Others, C=US\n", "Valid\n", ""):
+            ok, detail = co.signed_by_tailscale("x.exe", windows(out))
+            self.assertFalse(ok, out)
+            self.assertIn("signature", detail)
+        def broken(args, **kw):
+            raise FileNotFoundError("powershell")
+        self.assertFalse(co.signed_by_tailscale("x.exe", broken)[0])
+
+        # the button: download, check, start. Nothing is started unless the check passed, and a refused file is removed.
+        started = []
+        self.assertEqual(co.install_tailscale(kit, said.append, windows(theirs), opener(), started.append), path)
+        self.assertEqual(started, [path])
+        self.assertTrue(os.path.exists(path))
+        started.clear()
+        with self.assertRaises(co.CoopError) as refused:
+            co.install_tailscale(kit, said.append, windows("NotSigned\n"), opener(), started.append)
+        self.assertIn("signature", str(refused.exception))
+        self.assertEqual((started, os.listdir(folder)), ([], []))
+        with self.assertRaises(co.CoopError):
+            co.install_tailscale(kit, said.append, windows(theirs), no_internet, started.append)
+        self.assertEqual(started, [])
+        def declined(p):
+            raise OSError("The operation was canceled by the user")
+        with self.assertRaises(co.CoopError) as told:
+            co.install_tailscale(kit, said.append, windows(theirs), opener(), declined)
+        self.assertIn(path, str(told.exception))                           # ...and says where the installer is
+
+        # installed or not, logged in or not
+        program, address = co.tailscale_program, co.tailscale_address
+        try:
+            co.tailscale_program = lambda: None
+            self.assertEqual(co.tailscale_state(), "missing")
+            co.tailscale_program = lambda: r"C:\Program Files\Tailscale\tailscale.exe"
+            co.tailscale_address = lambda run=None: None
+            self.assertEqual(co.tailscale_state(), "off")
+            co.tailscale_address = lambda run=None: "100.101.102.103"
+            self.assertEqual(co.tailscale_state(), "ready")
+        finally:
+            co.tailscale_program, co.tailscale_address = program, address
+
     def test_settings_and_take_back_rule(self):
         kit = tempfile.mkdtemp()
         try:
