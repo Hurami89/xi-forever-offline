@@ -3830,12 +3830,59 @@ class SetupWizard(tk.Tk):
         self.after(200, self.pump)
 
 
+_LAUNCHER_MUTEX = None
+
+def one_launcher_only():
+    """Only one launcher at a time. A second one (an old window hidden behind the game, or a double click) used to
+    start the servers again next to the first one's, and players got FFXI-3001 or the game closing right away.
+    Returns True when this launcher may go on."""
+    global _LAUNCHER_MUTEX
+    try:
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        for _ in range(15):                # (a launcher that restarts itself after an update: the old one is still closing)
+            _LAUNCHER_MUTEX = k32.CreateMutexW(None, False, "XIForeverOfflineLauncher")
+            if k32.GetLastError() != 183:  # ERROR_ALREADY_EXISTS
+                return True
+            k32.CloseHandle(_LAUNCHER_MUTEX)
+            _LAUNCHER_MUTEX = None
+            time.sleep(1)
+        _LAUNCHER_MUTEX = k32.CreateMutexW(None, False, "XIForeverOfflineLauncher")
+    except Exception:
+        return True
+    try:
+        close_other = messagebox.askyesno(
+            "XI: Forever Offline",
+            "The launcher is already open (it may be behind other windows, or still closing).\n\n"
+            "Yes = close the other one and its servers, and open this one.\nNo = keep the other one.")
+    except Exception:
+        close_other = False
+    if not close_other:
+        return False
+    me, parent = os.getpid(), os.getppid()    # (the packaged exe runs as two processes: its starter and us)
+    script = ("Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne %d -and $_.ProcessId -ne %d -and "
+              "(($_.Name -like 'XI*Forever*Offline*.exe' -and $_.CommandLine -notlike '*--run*') -or "
+              "(($_.Name -eq 'pythonw.exe' -or $_.Name -eq 'python.exe') -and $_.CommandLine -like '*launcher_gui.pyw*')) } | "
+              "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }") % (me, parent)
+    try:
+        core._run(["powershell", "-NoProfile", "-Command", script])
+        for n in core.SERVERS + ["xiloader"]:
+            core.kill(n)
+        core.kill_squad_chat()
+    except Exception:
+        pass
+    time.sleep(2)
+    return True
+
+
 def main():
     if len(sys.argv) > 2 and sys.argv[1] == "--run":     # the packaged exe running one of the kit's scripts (see core.py_cmd)
         core.run_script_main(sys.argv[2:])
         return
     if os.name == "nt" and not is_admin():
         elevate_and_exit()
+    if os.name == "nt" and not one_launcher_only():
+        return
     try:
         if not os.path.exists(os.path.join(HERE, "config.json")):     # first run on a new PC: set everything up first
             wizard = SetupWizard()
