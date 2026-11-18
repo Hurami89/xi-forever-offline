@@ -1,8 +1,8 @@
 # Audit: Vana'diel Living World dialogue pack v1.0.0
 
-Date: 2026-11-17. The pack in `packs/living_world/dialogue.json` is byte-for-byte the one from `C:\ffxi dialogue\data\dialogue.json`. The second version of the day added a `squad` section (93 lines, 6 scenes); its 1,020 main entries are unchanged. Nothing in it was edited. Every decision below is recorded in `voice/living_world/*.txt`, one line per distinct template, and `build_dialogue.py` refuses to build if any template is missing a decision.
+Date: 2026-11-17. The pack in `packs/living_world/dialogue.json` is byte-for-byte the one from `C:\ffxi dialogue\data\dialogue.json`. The second version of the day added a `squad` section (93 lines, 6 scenes), and the third a `crowd` section (482 lines, 70 pairs), written from our brief (`C:\ffxi dialogue\docs\CROWD_PACK_BRIEF.md`). The 1,020 main entries and the squad section are unchanged. Nothing in it was edited. Every decision below is recorded in `voice/living_world/*.txt`, one line per distinct template, and `build_dialogue.py` refuses to build if any template is missing a decision.
 
-The pack's own validator passes: `OK: 1020 entries, 52 categories, 39 personalities, 35 scenarios, 93 squad lines, 6 squad scenes, 12 templates`, with one warning (`npc_guard` has 7 lines, the guideline is 8).
+The pack's own validator passes: `OK: 1020 entries, 52 categories, 39 personalities, 35 scenarios, 93 squad lines, 6 squad scenes, 482 crowd lines, 70 crowd pairs, 12 templates`, with one warning (`npc_guard` has 7 lines, the guideline is 8).
 
 ## Result
 
@@ -84,3 +84,34 @@ The 93 lines are in a steady companion voice that already fits squad mates (who 
   - Sometimes a word after the fight, with a reply from another mate.
   - Idle talk in town or in the field every 5-10 minutes (or nothing).
 - **The squad chat AI:** with Ollama on, two pack lines that fit the moment and the mate's role go into its fight and idle instructions as examples of the feel.
+
+## Crowd chatter (the pack's crowd section)
+
+Written to our brief, and it shows: casual 2006 typing, our fill-ins (`{job}`, `{camp}`, `{item}`, `{price}`...) instead of made-up values, levels and jobs on each line, place flavor, and a polite version of the conversational lines. Decisions are in `voice/living_world/crowd.txt`.
+
+**Used: 451 lines and 55 pairs.** Left out: 31 lines and 15 pairs.
+- **Camp talk in town pairs (12 pairs):** two-line exchanges are only said in town, so "is that mob claimed", "u pulling?" and "how much mp u got" are out of place there.
+- **Outpost lines the player can see are false (14):** "i died, someone raise me" from someone standing right there, and "train incoming, run" or "inc, 3 on the way" with nothing coming. Calm camp talk stays.
+- **Wrong prices (4):** the price is a crafted item's price, so "{price} for a stack of crystals" would be wrong.
+- **Other claims (7):** a bard playing, a bazaar by the fountain, someone just levelled, and two "need a pt?" lines from crowd characters who cannot join a party.
+- **Fill-in mix-ups (5):** a line using `{item}` twice gets the same item twice, crafted items "farmed", "guild in {nation}", and "{nation} consulate" said in its own city.
+- **Wrong directions (2 pairs):** "north, past the bridge", "the one past the bridge".
+- **Odd in its place (1 pair):** bats in town.
+
+**Fixed (not left out):**
+- **Pair openings:** 68 of the 70 pairs started with "u", so about half now open differently ("heading to {camp}?", "got a map?", "still lfp?").
+- **Geography:** San d'Oria's gate leads to Ronfaure, not La Theine.
+- **Place:** the Upper Jeuno music line plays only in Upper Jeuno, the Signet lines only in the nation cities, and the ferry and boat lines only where there is one (Selbina, Mhaura, Nashmau, Whitegate). "going to Jeuno after" and "cheaper in Jeuno" are never said in Jeuno.
+- **Time of day:** "night all" plays only at night and "evening" only in the evening.
+- **Levels and jobs:** "just unlocked my subjob" is now for levels 18-30, "no sub yet" for 10-17, and "tank or dd" / "pull or tank" for WAR, PLD and NIN only.
+- **Wording:** "whispers open" (another game's word) became "/t for a spot".
+
+**Checked and correct:** the healer shouts name spells at the right levels (WHM Cure III 21, Raise 25, Haste 40, Cure IV 41, Raise II 56; RDM Refresh 41 and Convert 40).
+
+**How they are used** (`crowds_pack.lua`, through `crowds_chat.lua`, for the crowds and for the bot players standing in town):
+- **Share:** 70% of the lines that are not from the AI pool come from the pack: town small talk, outpost camp talk, two-line exchanges, greetings, replies when you target someone, and every kind of shout. The old templates fill the other 30%.
+- **No AI:** the "misc" shouts (directions, a crafter, a hello to the town) come from the pack instead of turning into another looking-for-party shout.
+- **Fit:** a line only plays where its place, level, job and time fit.
+- **Personality:** each speaker has its pack personality (from its name, the same one it has in tells), so polite speakers type the polite version and the very short typists drop capitals and full stops.
+- **Repeats:** a line does not come back until about half of the lines that fit have been used.
+- **AI on:** the crowd AI pool now gets crowd pack lines as style examples for its small talk, camp talk, replies, pairs and shouts.

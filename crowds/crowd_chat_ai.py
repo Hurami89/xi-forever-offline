@@ -78,13 +78,23 @@ def load_seeds():
             data = json.load(f)
     except (OSError, ValueError):
         return {}
-    seeds = {"ls": [], "pairs": []}
+    seeds = {"ls": [], "pairs": [], "say": [], "outpost": [], "react": [], "shout": []}
     for line in data.get("lines", []):
         tags = line.get("tags", [])
         if "ls" in tags and "{" not in line.get("casual", ""):
             seeds["ls"].append(line["casual"])
         if "pair" in tags and line.get("answer"):
             seeds["pairs"].append(line["casual"] + " / " + line["answer"])
+    # the crowd section (town chatter): same categories as this pool
+    crowd = data.get("crowd") or {}
+    to_pool = {"say_town": "say", "outpost": "outpost", "react": "react", "shout_misc": "shout"}
+    for line in crowd.get("lines", []):
+        cat = to_pool.get(line.get("cat"))
+        if cat and "{" not in line.get("casual", ""):
+            seeds[cat].append(line["casual"])
+    for pair in crowd.get("pairs", []):
+        if "{" not in pair.get("a", "") + pair.get("b", ""):
+            seeds["pairs"].append(pair["a"] + " / " + pair["b"])
     return {k: v for k, v in seeds.items() if v}
 
 

@@ -1,0 +1,560 @@
+# Crowd chatter (the pack's crowd section): where each line is used, or why it is left out.
+# Cnnn|ok                                  used as written
+# Cnnn|ok|opts|casual override|polite override   opts (comma separated): place=, lvl=a-b, jobs=A/B, when=night|evening|morning
+#   places: any jeuno upper_jeuno notjeuno sandoria bastok windurst nation whitegate small_town ferry outpost
+# Cnnn|x|why                               left out
+# Pnn|ok|opts|A casual override|B casual override   (pairs; said by two background players in town)
+
+C001|ok
+C002|ok
+C003|ok
+C004|ok
+C005|ok
+C006|ok
+C007|ok
+C008|ok
+C009|ok
+C010|ok
+C011|ok
+C012|ok
+C013|ok
+C014|ok|place=nation
+C015|ok
+C016|ok
+C017|ok
+C018|ok
+C019|ok
+C020|ok
+C021|ok
+C022|ok|place=upper_jeuno
+C023|x|price is an item's price, not a stack of crystals
+C024|ok
+C025|ok
+C026|ok
+C027|ok
+C028|ok
+C029|ok
+C030|ok||is the ronfaure gate this way|Am I right that this path leads to the Ronfaure gate?
+C031|ok
+C032|x|claims a bazaar near the fountain
+C033|ok
+C034|ok
+C035|ok
+C036|ok
+C037|ok
+C038|ok
+C039|ok
+C040|ok
+C041|ok
+C042|ok
+C043|ok
+C044|ok
+C045|ok
+C046|ok
+C047|ok
+C048|ok
+C049|ok
+C050|ok
+C051|ok
+C052|ok
+C053|ok
+C054|ok
+C055|ok
+C056|ok
+C057|ok
+C058|ok
+C059|ok
+C060|x|price is an item's price, not a stack
+C061|ok
+C062|ok
+C063|ok
+C064|ok
+C065|ok|place=ferry
+C066|ok
+C067|ok|place=ferry
+C068|ok
+C069|ok
+C070|ok
+C071|ok
+C072|ok
+C073|ok
+C074|ok
+C075|ok
+C076|ok
+C077|ok
+C078|ok
+C079|ok
+C080|ok
+C081|ok
+C082|ok
+C083|ok|lvl=18-30
+C084|ok
+C085|ok
+C086|ok
+C087|ok
+C088|ok
+C089|ok
+C090|ok
+C091|ok
+C092|ok
+C093|ok
+C094|ok
+C095|ok
+C096|ok
+C097|ok
+C098|ok
+C099|ok
+C100|ok
+C101|ok
+C102|ok
+C103|ok
+C104|ok
+C105|ok
+C106|ok
+C107|x|claims someone just levelled
+C108|ok
+C109|ok
+C110|ok
+C111|ok
+C112|ok
+C113|x|{item} is any crafted item: 'saving for my first Bronze Ingot' reads oddly
+C114|ok
+C115|ok
+C116|ok
+C117|ok
+C118|ok
+C119|ok|lvl=5-30
+C120|ok
+C121|ok
+C122|ok
+C123|ok
+C124|ok
+C125|ok
+C126|ok
+C127|ok
+C128|ok
+C129|ok
+C130|ok
+C131|ok
+C132|ok
+C133|ok
+C134|ok
+C135|ok
+C136|ok
+C137|ok
+C138|ok
+C139|ok
+C140|ok
+C141|ok
+C142|ok
+C143|ok
+C144|x|claims a bard is playing
+C145|ok
+C146|ok|place=nation
+C147|ok
+C148|ok
+C149|ok
+C150|ok
+C151|ok
+C152|ok
+C153|ok|when=night
+C154|ok
+C155|ok
+C156|ok
+C157|ok
+C158|ok
+C159|ok
+C160|ok
+C161|ok
+C162|x|calls a link that is not there (the player looks around)
+C163|ok
+C164|ok
+C165|ok
+C166|ok
+C167|ok
+C168|ok
+C169|x|calls monsters that are not coming
+C170|x|calls an add that is not there
+C171|x|calls a train that is not there
+C172|ok
+C173|ok
+C174|ok
+C175|ok
+C176|ok
+C177|ok
+C178|ok
+C179|ok
+C180|ok
+C181|ok
+C182|ok
+C183|ok
+C184|ok
+C185|ok
+C186|ok
+C187|ok
+C188|ok
+C189|ok
+C190|ok
+C191|x|low HP call from someone not fighting
+C192|x|low HP call from someone not fighting
+C193|ok
+C194|x|claims to be dead while standing there
+C195|x|a raise for nobody
+C196|ok
+C197|x|claims being raised while alive
+C198|x|thanks for a raise that did not happen
+C199|ok
+C200|ok
+C201|ok
+C202|ok
+C203|ok
+C204|ok
+C205|ok
+C206|ok
+C207|ok
+C208|ok
+C209|x|claims someone levelled
+C210|ok
+C211|ok
+C212|ok
+C213|ok
+C214|x|claims a goblin popped
+C215|x|claims a spawn behind them
+C216|ok
+C217|x|calls monsters that are not coming
+C218|ok
+C219|ok
+C220|ok
+C221|ok
+C222|ok
+C223|ok
+C224|ok
+C225|ok
+C226|ok
+C227|ok
+C228|ok
+C229|ok
+C230|ok
+C231|ok
+C232|ok
+C233|ok
+C234|ok
+C235|ok
+C236|ok
+C237|ok
+C238|ok
+C239|ok
+C240|ok
+C241|ok
+C242|ok
+C243|ok
+C244|ok
+C245|ok
+C246|x|crowd characters cannot join a party
+C247|ok
+C248|ok
+C249|ok
+C250|ok
+C251|ok
+C252|ok
+C253|ok
+C254|ok
+C255|ok
+C256|x|offers a raise to a player who is alive
+C257|ok
+C258|ok
+C259|ok
+C260|ok
+C261|ok
+C262|ok
+C263|ok
+C264|ok
+C265|ok
+C266|ok
+C267|ok
+C268|ok
+C269|ok|||Hi there.
+C270|ok
+C271|ok
+C272|ok|when=evening
+C273|ok
+C274|ok
+C275|ok
+C276|ok
+C277|ok
+C278|ok
+C279|ok
+C280|ok
+C281|ok
+C282|ok
+C283|ok
+C284|ok
+C285|ok
+C286|ok
+C287|ok
+C288|ok
+C289|x|crowd characters cannot join a party
+C290|ok
+C291|ok
+C292|ok
+C293|ok
+C294|ok|jobs=WAR/PLD/NIN
+C295|ok
+C296|ok
+C297|ok
+C298|ok
+C299|ok
+C300|ok
+C301|ok|lvl=10-17,jobs=WAR/MNK/THF
+C302|ok|jobs=RDM
+C303|ok
+C304|ok
+C305|ok
+C306|ok
+C307|ok
+C308|ok
+C309|ok
+C310|ok|jobs=WAR/PLD/NIN
+C311|ok
+C312|ok
+C313|ok
+C314|ok
+C315|ok
+C316|ok
+C317|ok
+C318|ok
+C319|ok
+C320|ok
+C321|ok
+C322|ok
+C323|ok
+C324|ok
+C325|ok
+C326|ok
+C327|ok
+C328|ok
+C329|ok
+C330|ok
+C331|ok
+C332|ok
+C333|ok
+C334|ok
+C335|ok
+C336|ok
+C337|ok
+C338|ok
+C339|ok
+C340|ok
+C341|ok
+C342|ok
+C343|ok
+C344|ok
+C345|ok
+C346|ok
+C347|ok
+C348|ok
+C349|ok
+C350|ok
+C351|ok
+C352|ok
+C353|ok
+C354|ok
+C355|ok
+C356|ok
+C357|ok
+C358|ok
+C359|ok
+C360|ok
+C361|ok
+C362|ok
+C363|ok
+C364|ok
+C365|ok
+C366|ok
+C367|ok
+C368|ok
+C369|ok
+C370|ok
+C371|ok
+C372|ok
+C373|x|both {item} fill with the same item
+C374|ok
+C375|x|crystals with an item's price
+C376|ok
+C377|ok
+C378|ok
+C379|ok
+C380|ok
+C381|ok
+C382|x|'guild in {nation}' reads oddly
+C383|ok
+C384|ok
+C385|ok
+C386|ok
+C387|ok
+C388|ok
+C389|ok
+C390|ok
+C391|ok
+C392|ok
+C393|ok
+C394|ok
+C395|ok
+C396|x|crystals with an item's price
+C397|ok
+C398|ok
+C399|ok
+C400|x|'guild in {nation}' reads oddly
+C401|ok
+C402|ok
+C403|ok
+C404|ok
+C405|ok
+C406|ok
+C407|ok
+C408|ok
+C409|ok
+C410|ok
+C411|ok
+C412|ok
+C413|ok
+C414|ok
+C415|ok
+C416|ok
+C417|ok
+C418|ok
+C419|ok
+C420|ok
+C421|ok
+C422|ok
+C423|ok
+C424|ok
+C425|ok
+C426|ok
+C427|ok
+C428|ok
+C429|ok
+C430|ok
+C431|ok
+C432|ok
+C433|ok
+C434|ok
+C435|ok
+C436|ok
+C437|ok
+C438|ok
+C439|ok
+C440|ok
+C441|ok
+C442|ok
+C443|ok
+C444|ok
+C445|ok
+C446|ok
+C447|ok
+C448|ok
+C449|ok
+C450|ok
+C451|ok||{endgame} at 9, /t for a spot
+C452|ok
+C453|ok
+C454|ok
+C455|ok
+C456|ok
+C457|ok
+C458|x|a nation's consulate in its own city (or Jeuno)
+C459|ok
+C460|ok
+C461|ok
+C462|ok
+C463|ok
+C464|ok
+C465|ok
+C466|ok
+C467|ok
+C468|ok
+C469|ok
+C470|ok
+C471|ok
+C472|ok
+C473|x|{item} is a crafted item, not something farmed
+C474|x|{item} is a crafted item, not something farmed
+C475|ok
+C476|ok
+C477|ok
+C478|ok
+C479|ok
+C480|ok
+C481|ok
+C482|ok
+
+P01|ok||heading to {camp}?
+P02|ok||how long you been here
+P03|ok||still need a {need}?
+P04|x|names a direction that is wrong in most zones
+P05|ok
+P06|ok||you got a chocobo?
+P07|ok|place=notjeuno
+P08|x|camp talk (pairs are only said in town)
+P09|ok
+P10|x|camp talk in town
+P11|ok||you new here?
+P12|ok
+P13|ok
+P14|ok||need signet?
+P15|ok|||{lvl}, you?
+P16|ok||doing missions?
+P17|ok
+P18|ok||see the ah price on {item}?
+P19|ok
+P20|ok||how long till you log
+P21|ok||you in a ls?
+P22|x|camp talk in town
+P23|x|camp talk in town
+P24|x|camp talk in town
+P25|ok||got any spare food
+P26|ok||coming to the guild?
+P27|ok
+P28|ok||want this {item}?
+P29|ok||did you die lol
+P30|ok
+P31|ok||still lfp?
+P32|x|names a place that is wrong in most zones
+P33|ok||in a hurry?
+P34|ok||mind if i tag along
+P35|ok||done for the night?
+P36|ok|place=notjeuno
+P37|ok||going to the bcnm?
+P38|ok||got a map?
+P39|ok|place=ferry|waiting on the boat too?
+P40|ok|place=ferry|know when it leaves?
+P41|ok||got a pearl for me?
+P42|x|camp talk in town
+P43|x|camp talk in town
+P44|ok
+P45|x|camp talk in town
+P46|x|camp talk in town
+P47|ok||got the key yet?
+P48|ok||finish the quest?
+P49|ok||know where i turn this in?
+P50|ok
+P51|ok||selling your old gear?
+P52|ok
+P53|ok||using food?
+P54|ok||got a spare {item}?
+P55|ok||leveling your sub too?
+P56|x|camp talk in town
+P57|x|camp talk in town
+P58|ok
+P59|ok||camping the nm?
+P60|ok||know the pop time?
+P61|x|camp talk in town
+P62|ok||leaving already?
+P63|ok||on tomorrow?
+P64|ok
+P65|ok
+P66|ok||know a crafter?
+P67|ok
+P68|ok|place=notjeuno
+P69|ok|place=ferry
+P70|x|bats in town

@@ -46,9 +46,22 @@ SQUAD_TAGS = {"s.recruit", "s.ack_pull", "s.ack_follow", "s.ack_hold", "s.battle
               "s.bench", "s.reunion", "s.race", "s.gender", "s.scene_first", "s.scene_lowhp", "s.scene_wipe", "s.scene_rest",
               "s.scene_return"}
 SQUAD_SLOTS = {"name"}
+# crowd chatter (a pack's "crowd" section, voice file crowd.txt): the fields crowds_chat.lua fills
+CROWD_SLOTS = {"job", "lvl", "sub", "sublvl", "camp", "range", "need", "item", "price", "ls", "nation", "mission", "endgame",
+               "self", "name"}
+CROWD_FILL = {"job": "PUP", "lvl": "75", "sub": "NIN", "sublvl": "37", "camp": "Sea Serpent Grotto", "range": "71-75",
+              "need": "DD and healer", "item": "Wyvern Scales Corselet", "price": "15,000g", "ls": "WanderingMandragoras",
+              "nation": "San d'Oria", "mission": "my rank 5 mission", "endgame": "Dynamis-Bastok", "self": "Abcdefghijklmno",
+              "name": "Abcdefghijklmno"}
+CROWD_CATS = {"say_town", "outpost", "react", "greet", "shout_lfp", "shout_lfp_heal", "shout_lfm", "shout_selling",
+              "shout_buying", "shout_ls", "shout_help", "shout_endgame", "shout_misc"}
+CROWD_PLACES = {"any", "jeuno", "upper_jeuno", "notjeuno", "sandoria", "bastok", "windurst", "nation", "whitegate",
+                "small_town", "ferry", "outpost"}
+CROWD_WHEN = {"night", "evening", "morning"}
 ERA_DENY = re.compile(r"\b(trusts?(?! me)|abyssea|adoulin|wings of the goddess|wotg|seekers|level 99|lvl 99|job points?|"
                       r"unity|geomancer|rune fencer|ambuscade|omen|reives?|guild points?|dancer|scholar|campaign)\b", re.I)
 JOBS_RE = r"\b(WAR|MNK|WHM|BLM|RDM|THF|PLD|DRK|BST|BRD|RNG|SAM|NIN|DRG|SMN|BLU|COR|PUP)\b"
+JOB_SET = {"WAR", "MNK", "WHM", "BLM", "RDM", "THF", "PLD", "DRK", "BST", "BRD", "RNG", "SAM", "NIN", "DRG", "SMN", "BLU", "COR", "PUP"}
 
 # How each personality types: polite = the pack's own wording, casual = our casual line, terse = casual, lower case,
 # no full stop. Personalities a pack adds later default to casual.
@@ -136,7 +149,7 @@ def templates(pack):
 
 def read_voice(b, vdir, name):
     voice, new_lines, scene_recs = {}, [], []
-    files = sorted(f for f in os.listdir(vdir) if f.endswith(".txt") and f not in ("scenes.txt", "README.txt", "squad.txt"))
+    files = sorted(f for f in os.listdir(vdir) if f.endswith(".txt") and f not in ("scenes.txt", "README.txt", "squad.txt", "crowd.txt"))
     for part in files:
         for ln, raw in enumerate(open(os.path.join(vdir, part), encoding="utf-8"), 1):
             raw = raw.rstrip("\n")
@@ -276,6 +289,7 @@ def build_pack(b, name, pack, vdir):
             b.err(f"{name}: scene {sid} has no record")
 
     squad = build_squad(b, name, pack, vdir)
+    crowd = build_crowd(b, name, pack, vdir)
 
     personas = []
     for p in pack.get("personalities", []):
@@ -284,7 +298,116 @@ def build_pack(b, name, pack, vdir):
                          "avoid": p.get("avoid", []), "register": reg, "leader": p["id"] in LEADERS,
                          "rival": p["id"] in RIVALS})
     return {"lines": lines, "scenes": scenes, "npc": npc, "emotes": emotes, "dropped": dropped,
-            "scenes_dropped": scenes_dropped, "personas": personas, "squad": squad}
+            "scenes_dropped": scenes_dropped, "personas": personas, "squad": squad, "crowd": crowd}
+
+
+def build_crowd(b, name, pack, vdir):
+    """A pack's crowd section: town and outpost chatter, shouts, pairs (crowd.txt: each line used, fixed or left out)."""
+    cr = pack.get("crowd")
+    out = {"lines": [], "pairs": [], "dropped": []}
+    if not cr:
+        return out
+    path = os.path.join(vdir, "crowd.txt")
+    if not os.path.exists(path):
+        b.err(f"{name}: the pack has crowd lines but voice/{name}/crowd.txt is missing")
+        return out
+    recs = {}
+    for ln, raw in enumerate(open(path, encoding="utf-8"), 1):
+        raw = raw.rstrip("\n")
+        if not raw.strip() or raw.startswith("#"):
+            continue
+        f = raw.split("|")
+        if f[0] in recs:
+            b.err(f"{name}/crowd.txt:{ln}: {f[0]} has two records")
+        recs[f[0]] = (f[1:], f"{name}/crowd.txt:{ln}")
+
+    def opts_of(text, where):
+        o = {}
+        for item in filter(None, (text or "").split(",")):
+            k, _, v = item.partition("=")
+            if k == "place" and v not in CROWD_PLACES:
+                b.err(f"{where}: unknown place {v}")
+            elif k == "when" and v not in CROWD_WHEN:
+                b.err(f"{where}: unknown when {v}")
+            elif k == "lvl" and not re.fullmatch(r"\d+-\d+", v):
+                b.err(f"{where}: lvl must be a-b")
+            elif k == "jobs" and not set(v.split("/")) <= JOB_SET:
+                b.err(f"{where}: unknown job in {v}")
+            elif k not in ("place", "when", "lvl", "jobs"):
+                b.err(f"{where}: unknown option {k}")
+            o[k] = v
+        return o
+
+    def check(text, where, cat):
+        if not text:
+            b.err(f"{where}: empty line")
+            return
+        for slot in re.findall(r"{(\w+)}", text):
+            if slot not in CROWD_SLOTS:
+                b.err(f"{where}: crowd lines cannot use {{{slot}}}: {text}")
+            if slot == "name" and cat not in ("react", "greet"):
+                b.err(f"{where}: {{name}} only in react/greet: {text}")
+        filled = re.sub(r"{(\w+)}", lambda m: CROWD_FILL.get(m.group(1), "x"), text)
+        limit = 80 if cat.startswith("shout") else 90
+        if len(filled) > limit + 10:
+            b.err(f"{where}: {len(filled)} chars once filled (max {limit}): {text}")
+        elif len(filled) > limit:
+            b.warn(f"{where}: {len(filled)} chars once filled (max {limit}): {text}")
+        if any(ord(c) > 126 or ord(c) < 32 for c in text) or "*" in text or "|" in text:
+            b.err(f"{where}: non-ASCII, '*' or '|' in: {text}")
+        if ERA_DENY.search(text):
+            b.err(f"{where}: out-of-era word in: {text}")
+
+    for i, e in enumerate(cr.get("entries", []), 1):
+        key = f"C{i:03d}"
+        if key not in recs:
+            b.err(f"{name}: crowd line {key} ({e.get('casual', '')[:50]}) has no record in crowd.txt")
+            continue
+        f, where = recs.pop(key)
+        if f[0] == "x":
+            out["dropped"].append({"pack": name, "key": key, "id": e["id"], "text": e.get("casual"), "why": f[1] if len(f) > 1 else ""})
+            continue
+        if f[0] != "ok":
+            b.err(f"{where}: expected ok or x")
+            continue
+        if e.get("category") not in CROWD_CATS:
+            b.err(f"{where}: unknown crowd category {e.get('category')}")
+            continue
+        o = opts_of(f[1] if len(f) > 1 else "", where)
+        casual = (f[2] if len(f) > 2 and f[2] else e["casual"])
+        polite = (f[3] if len(f) > 3 and f[3] else e.get("polite"))
+        lo, hi = (int(x) for x in o["lvl"].split("-")) if "lvl" in o else (e.get("min_level", 1), e.get("max_level", 75))
+        jobs = o["jobs"].split("/") if "jobs" in o else [j for j in e.get("jobs", ["any"]) if j != "any"]
+        place = o.get("place") or e.get("place", "any")
+        check(casual, where, e["category"])
+        if polite:
+            check(polite, where, e["category"])
+            if set(re.findall(r"{(\w+)}", polite)) != set(re.findall(r"{(\w+)}", casual)):
+                b.err(f"{where}: polite and casual lines need the same fields")
+        out["lines"].append({"id": e["id"], "cat": e["category"], "place": place, "lo": lo, "hi": hi, "jobs": jobs,
+                             "when": o.get("when", ""), "casual": casual, "polite": polite or ""})
+    for i, p in enumerate(cr.get("pairs", []), 1):
+        key = f"P{i:02d}"
+        if key not in recs:
+            b.err(f"{name}: crowd pair {key} has no record in crowd.txt")
+            continue
+        f, where = recs.pop(key)
+        if f[0] == "x":
+            out["dropped"].append({"pack": name, "key": key, "id": p["id"], "text": p["a"]["casual"] + " / " + p["b"]["casual"],
+                                   "why": f[1] if len(f) > 1 else ""})
+            continue
+        o = opts_of(f[1] if len(f) > 1 else "", where)
+        a = f[2] if len(f) > 2 and f[2] else p["a"]["casual"]
+        bb = f[3] if len(f) > 3 and f[3] else p["b"]["casual"]
+        for t in (a, bb, p["a"].get("polite", ""), p["b"].get("polite", "")):
+            if t:
+                check(t, where, "say_town")
+        out["pairs"].append({"id": p["id"], "place": o.get("place") or p.get("place", "any"),
+                             "lo": p.get("min_level", 1), "hi": p.get("max_level", 75), "a": a, "b": bb,
+                             "ap": p["a"].get("polite", ""), "bp": p["b"].get("polite", "")})
+    for key, (_, where) in recs.items():
+        b.err(f"{where}: {key} is not in the pack's crowd section")
+    return out
 
 
 def build_squad(b, name, pack, vdir):
@@ -405,6 +528,19 @@ def write_lua(out, path, stamp):
                     f"roles = {lua_list(sc['roles'])}, l = {{ {ls} }} }},")
     rows.append("        },")
     rows.append("    },")
+    rows.append("    crowd = {")
+    rows.append("        lines = {")
+    for l in out["crowd"]["lines"]:
+        rows.append(f"            {{ id = {lua_str(l['id'])}, cat = {lua_str(l['cat'])}, place = {lua_str(l['place'])}, lo = {l['lo']}, "
+                    f"hi = {l['hi']}, jobs = {lua_list(l['jobs'])}, when = {lua_str(l['when'])}, ca = {lua_str(l['casual'])}, "
+                    f"po = {lua_str(l['polite'])} }},")
+    rows.append("        },")
+    rows.append("        pairs = {")
+    for p in out["crowd"]["pairs"]:
+        rows.append(f"            {{ id = {lua_str(p['id'])}, place = {lua_str(p['place'])}, lo = {p['lo']}, hi = {p['hi']}, "
+                    f"a = {lua_str(p['a'])}, b = {lua_str(p['b'])}, ap = {lua_str(p['ap'])}, bp = {lua_str(p['bp'])} }},")
+    rows.append("        },")
+    rows.append("    },")
     rows.append("}")
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="ascii", newline="\n") as f:
@@ -432,7 +568,8 @@ def main():
 
     b = Build()
     merged = {"lines": [], "scenes": [], "npc": [], "emotes": [], "dropped": [], "scenes_dropped": [], "personas": [],
-              "squad": {"lines": [], "scenes": [], "dropped": [], "scenes_dropped": []}}
+              "squad": {"lines": [], "scenes": [], "dropped": [], "scenes_dropped": []},
+              "crowd": {"lines": [], "pairs": [], "dropped": []}}
     packs = []
     for name in sorted(os.listdir(args.packs)):
         pfile = os.path.join(args.packs, name, "dialogue.json")
@@ -449,9 +586,9 @@ def main():
             if k == "personas":
                 have = {p["id"] for p in merged["personas"]}
                 merged["personas"] += [p for p in part["personas"] if p["id"] not in have]
-            elif k == "squad":
-                for sk in merged["squad"]:
-                    merged["squad"][sk] += part["squad"][sk]
+            elif k in ("squad", "crowd"):
+                for sk in merged[k]:
+                    merged[k][sk] += part[k][sk]
             else:
                 merged[k] += part[k]
     ids = collections.Counter(l["id"] for l in merged["lines"])
@@ -476,7 +613,8 @@ def main():
                f"left out: {len(merged['dropped'])} templates ({sum(len(d['ids']) for d in merged['dropped'])} pack entries), "
                f"{len(merged['scenes_dropped'])} scenes; squad: {len(merged['squad']['lines'])} lines, "
                f"{len(merged['squad']['scenes'])} scenes (left out {len(merged['squad']['dropped'])} lines, "
-               f"{len(merged['squad']['scenes_dropped'])} scenes)")
+               f"{len(merged['squad']['scenes_dropped'])} scenes); crowd: {len(merged['crowd']['lines'])} lines, "
+               f"{len(merged['crowd']['pairs'])} pairs (left out {len(merged['crowd']['dropped'])})")
     if b.errors:
         print(f"FAILED: {len(b.errors)} error(s). Nothing written.")
         return 1

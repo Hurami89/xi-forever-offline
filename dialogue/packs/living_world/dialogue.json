@@ -18464,5 +18464,6514 @@
         ]
       }
     ]
+  },
+  "crowd": {
+    "version": "1.0.0",
+    "entries": [
+      {
+        "id": "crowd_say_town_001",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone know where the guild is? been walking in circles",
+        "polite": "Does anyone know where the guild is? I have been walking in circles.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_002",
+        "category": "say_town",
+        "place": "any",
+        "casual": "brb food, dont wait up",
+        "polite": "I am going to eat. Please do not wait for me.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_003",
+        "category": "say_town",
+        "place": "any",
+        "casual": "inventory full again, where do i even put this",
+        "polite": "My inventory is full again, and I have nowhere to put this.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_004",
+        "category": "say_town",
+        "place": "any",
+        "casual": "so laggy tonight, my chocobo is moonwalking",
+        "polite": "The lag is awful tonight. My chocobo slides instead of walking.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_005",
+        "category": "say_town",
+        "place": "any",
+        "casual": "waiting on a friend, he is always late",
+        "polite": "I am waiting for a friend, who is always late.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_006",
+        "category": "say_town",
+        "place": "any",
+        "casual": "cant decide what to level next",
+        "polite": "I cannot decide which job to level next.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_007",
+        "category": "say_town",
+        "place": "any",
+        "casual": "one more quest then bed",
+        "polite": "One more quest, and then I am going to bed.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_008",
+        "category": "say_town",
+        "place": "any",
+        "casual": "my ls is dead tonight, everyone afk",
+        "polite": "My linkshell is quiet tonight. Everyone seems to be away.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_009",
+        "category": "say_town",
+        "place": "any",
+        "casual": "how do i get to the auction house from here",
+        "polite": "How do I reach the auction house from here?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_010",
+        "category": "say_town",
+        "place": "any",
+        "casual": "back, kettle went off mid fight",
+        "polite": "I am back. The kettle went off in the middle of the fight.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_011",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone else just standing around waiting for a pt",
+        "polite": "Is anyone else standing around waiting for a party?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_012",
+        "category": "say_town",
+        "place": "any",
+        "casual": "took me 20 min to find this npc",
+        "polite": "It took me twenty minutes to find this NPC.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_013",
+        "category": "say_town",
+        "place": "any",
+        "casual": "does anyone know when the guild closes",
+        "polite": "Does anyone know what time the guild closes?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_014",
+        "category": "say_town",
+        "place": "any",
+        "casual": "need to grab signet before i head out",
+        "polite": "I need to get Signet before I leave.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_015",
+        "category": "say_town",
+        "place": "any",
+        "casual": "first time here, this city is a maze",
+        "polite": "This is my first time here, and this city is a maze.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_016",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "how long till the next airship",
+        "polite": "How long is it until the next airship?",
+        "min_level": 25,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_017",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "the docks are always so crowded",
+        "polite": "The docks are always crowded, are they not?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_018",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "which gate goes to qufim again",
+        "polite": "Which gate leads to Qufim again?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_019",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "anyone know a quiet corner to afk in",
+        "polite": "Does anyone know a quiet corner where I can wait?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_020",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "port ah or lower ah, which is cheaper",
+        "polite": "Which auction house do you use, Port or Lower Jeuno?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_021",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "just got in from windurst, long trip",
+        "polite": "I just arrived from Windurst. It was a long trip.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_022",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "the music in upper jeuno never gets old",
+        "polite": "This music in Upper Jeuno is still wonderful after all this time.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_023",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "{price} for a stack of crystals? no thanks",
+        "polite": "Crystals at {price} a stack? No thank you.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_024",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "waiting on my airship, anyone else",
+        "polite": "I am waiting for my airship as well. Are you?",
+        "min_level": 25,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_025",
+        "category": "say_town",
+        "place": "jeuno",
+        "casual": "where do i start the airship pass quest",
+        "polite": "Where do I begin the airship pass quest?",
+        "min_level": 20,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_026",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "i always get lost in the cathedral",
+        "polite": "I always get lost inside the cathedral.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_027",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "which way to the chateau from the gate",
+        "polite": "Could you point me toward the Chateau from the gate?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_028",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "the knights here are so formal, i like it",
+        "polite": "The knights here are very formal. I like it.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_029",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "any good fishing spots near the city",
+        "polite": "Are there any good fishing spots near the city?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_030",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "is the la theine gate this way",
+        "polite": "Am I right that this path leads to the La Theine gate?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_031",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "the walk out to the dunes is so long",
+        "polite": "The walk out to the dunes is very long.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_032",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "someone has a bazaar near the fountain",
+        "polite": "Someone has a bazaar open near the fountain.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_033",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "this city feels like a castle",
+        "polite": "This city feels more like a castle than a town.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_034",
+        "category": "say_town",
+        "place": "sandoria",
+        "casual": "where can i buy a decent sword here",
+        "polite": "Do you know a shop that sells a decent sword?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_035",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "where is the metalworks from here",
+        "polite": "How do I get to the Metalworks from here?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_036",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "mines ah or port ah for ore",
+        "polite": "For ore, do you use the Mines or Port auction house?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_037",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "the walk up to the metalworks is brutal",
+        "polite": "The climb up to the Metalworks is brutal.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_038",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "where is the smithing guild again",
+        "polite": "I have forgotten where the smithing guild is. Can you remind me?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_039",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "cant find the gustaberg exit",
+        "polite": "I cannot find the exit to Gustaberg.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_040",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "the forge noise gives me a headache",
+        "polite": "The noise from the forges gives me a headache.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_041",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "just made my first bronze ingot",
+        "polite": "I just made my first bronze ingot.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_042",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "everyone here walks so fast",
+        "polite": "Everyone in this city seems to walk so quickly.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_043",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "is the guild by the fountain or the bridge",
+        "polite": "Is the guild near the fountain, or over by the bridge?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_044",
+        "category": "say_town",
+        "place": "bastok",
+        "casual": "i like the heat, dont judge me",
+        "polite": "I like the heat here. Do not judge me.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_045",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "which way to the heavens tower",
+        "polite": "Which way is the Heavens Tower?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_046",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "the walkways here go everywhere",
+        "polite": "The walkways here go everywhere at once.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_047",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "where do i turn in this quest",
+        "polite": "Who do I speak to in order to turn in this quest?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_048",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "port ah is closer, right?",
+        "polite": "The Port auction house is closer, is it not?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_049",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "i keep falling off the walkways",
+        "polite": "I have fallen off these walkways three times already.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_050",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "this place is so green, i love it",
+        "polite": "Everything here is so green. I love this place.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_051",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "cant find the exit to east sarutabaruta",
+        "polite": "I cannot find the exit to East Sarutabaruta.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_052",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "where is the cooking guild",
+        "polite": "Could you tell me where the cooking guild is?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_053",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "i got lost for an hour in the residential area",
+        "polite": "I was lost in the residential area for an hour.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_054",
+        "category": "say_town",
+        "place": "windurst",
+        "casual": "the consulate is near the gate, right?",
+        "polite": "The consulate is near the gate, is it not?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_055",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "where do i sign up for assault",
+        "polite": "Where does one sign up for Assault?",
+        "min_level": 50,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_056",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "anyone doing besieged later",
+        "polite": "Is anyone doing Besieged later?",
+        "min_level": 50,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_057",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "where is the assault counter in whitegate",
+        "polite": "I am looking for the Assault counter. Is it nearby?",
+        "min_level": 50,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_058",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "first time in whitegate, its massive",
+        "polite": "This is my first time in Whitegate. It is massive.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_059",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "how do i get to nashmau from here",
+        "polite": "How do I reach Nashmau from here?",
+        "min_level": 50,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_060",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "{price} for a single stack, thats robbery",
+        "polite": "A single stack at {price} is robbery.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_061",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "waiting for the boat, again",
+        "polite": "The boat is late again, it seems.",
+        "min_level": 50,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_062",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "the bazaar here is wild",
+        "polite": "The bazaars here are wild.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_063",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "where can i change my home point",
+        "polite": "Where can I set my home point?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_064",
+        "category": "say_town",
+        "place": "whitegate",
+        "casual": "imperial standing is so slow to farm",
+        "polite": "Imperial standing takes so long to earn.",
+        "min_level": 50,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_065",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "waiting for the ferry, again",
+        "polite": "The ferry is late again, as usual.",
+        "min_level": 20,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_066",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "the inn here is cheap at least",
+        "polite": "At least the inn here is cheap.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_067",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "anyone know when the next boat leaves",
+        "polite": "Does anyone know when the next boat leaves?",
+        "min_level": 20,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_068",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "nothing to do here tonight",
+        "polite": "There is nothing to do here tonight.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_069",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "is the guild open this late",
+        "polite": "Is the guild still open at this hour?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_070",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "just passing through on my way out",
+        "polite": "I am only passing through on my way out.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_071",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "anyone else waiting on a party here",
+        "polite": "Is anyone else waiting for a party here?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_072",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "the npc by the gate gives a decent quest",
+        "polite": "The NPC at the gate has a quest worth doing.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_073",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "cant find the zoneline, this map is useless",
+        "polite": "I cannot find the zone line. This map is useless.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_074",
+        "category": "say_town",
+        "place": "small_town",
+        "casual": "took the long way here, dont ask",
+        "polite": "I took the long way here. Do not ask.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_075",
+        "category": "say_town",
+        "place": "any",
+        "casual": "saw {item} at {price}, is that normal now",
+        "polite": "I saw {item} listed at {price}. Is that normal now?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_076",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i have 3 stacks of junk in my mog house",
+        "polite": "I have three stacks of junk in my Mog House.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_077",
+        "category": "say_town",
+        "place": "any",
+        "casual": "sorting my mog house is my whole evening",
+        "polite": "Sorting out my Mog House is my entire evening.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_078",
+        "category": "say_town",
+        "place": "any",
+        "casual": "my chocobo keeps stopping to eat",
+        "polite": "My chocobo stops to eat every few minutes.",
+        "min_level": 20,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_079",
+        "category": "say_town",
+        "place": "any",
+        "casual": "chocobo license took me forever",
+        "polite": "The chocobo license took me forever.",
+        "min_level": 20,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_080",
+        "category": "say_town",
+        "place": "any",
+        "casual": "where do i rent a chocobo around here",
+        "polite": "Where can I rent a chocobo around here?",
+        "min_level": 20,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_081",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone know a good spot to skill up",
+        "polite": "Does anyone know a good place to skill up?",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_082",
+        "category": "say_town",
+        "place": "any",
+        "casual": "skill ups are killing me",
+        "polite": "The skill ups are killing me.",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_083",
+        "category": "say_town",
+        "place": "any",
+        "casual": "just unlocked my subjob, big day",
+        "polite": "I just unlocked my subjob. Big day.",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_084",
+        "category": "say_town",
+        "place": "any",
+        "casual": "what subjob should i use for {job}",
+        "polite": "Which subjob should I use for {job}?",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_085",
+        "category": "say_town",
+        "place": "any",
+        "casual": "AF feels so far away at this level",
+        "polite": "Artifact gear feels so far away at this level.",
+        "min_level": 40,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_086",
+        "category": "say_town",
+        "place": "any",
+        "casual": "still hunting my coffer key",
+        "polite": "I am still hunting for my coffer key.",
+        "min_level": 45,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_087",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone else hate the walk back after a wipe",
+        "polite": "Does anyone else hate the walk back after a wipe?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_088",
+        "category": "say_town",
+        "place": "any",
+        "casual": "died twice before i even zoned in",
+        "polite": "I died twice before I even zoned in.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_089",
+        "category": "say_town",
+        "place": "any",
+        "casual": "the run back from home point is the worst",
+        "polite": "The run back from the home point is the worst.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_090",
+        "category": "say_town",
+        "place": "any",
+        "casual": "we wiped at 1 percent, i am fine",
+        "polite": "We wiped at one percent. I am fine.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_091",
+        "category": "say_town",
+        "place": "any",
+        "casual": "my party has no healer, wish me luck",
+        "polite": "We have no healer in the party. Wish me luck.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_092",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i only have an hour before i log",
+        "polite": "I only have an hour before I log out.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_093",
+        "category": "say_town",
+        "place": "any",
+        "casual": "logging in just to check the ah then out",
+        "polite": "I am logging in only to check the auction house, then out.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_094",
+        "category": "say_town",
+        "place": "any",
+        "casual": "playing on a trackpad is rough",
+        "polite": "Playing with a trackpad is not easy.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_095",
+        "category": "say_town",
+        "place": "any",
+        "casual": "making tea, one sec",
+        "polite": "I am making tea. One moment.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_096",
+        "category": "say_town",
+        "place": "any",
+        "casual": "crafting is just watching a bar fill",
+        "polite": "Crafting is mostly watching a bar fill up.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_097",
+        "category": "say_town",
+        "place": "any",
+        "casual": "failed 4 synths in a row",
+        "polite": "I failed four synths in a row.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_098",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone know where to get crystals cheap",
+        "polite": "Does anyone know where to buy crystals cheaply?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_099",
+        "category": "say_town",
+        "place": "any",
+        "casual": "fishing is the most relaxing thing in this game",
+        "polite": "I find fishing the most relaxing thing here.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_100",
+        "category": "say_town",
+        "place": "any",
+        "casual": "caught nothing but rusty buckets",
+        "polite": "I caught nothing but rusty buckets.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_101",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i fell asleep on the boat",
+        "polite": "I dozed off during the boat ride.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_102",
+        "category": "say_town",
+        "place": "any",
+        "casual": "just hit {lvl}, finally",
+        "polite": "I just reached {lvl}, finally.",
+        "min_level": 2,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_103",
+        "category": "say_town",
+        "place": "any",
+        "casual": "heading to {camp} in a bit",
+        "polite": "I am heading to {camp} in a bit.",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_104",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone want to duo in {camp}",
+        "polite": "Would anyone like to duo in {camp}?",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_105",
+        "category": "say_town",
+        "place": "any",
+        "casual": "my linkshell is planning something for later",
+        "polite": "My linkshell has something planned for later tonight.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_106",
+        "category": "say_town",
+        "place": "any",
+        "casual": "our ls leader is late again",
+        "polite": "Our linkshell leader is late again.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_107",
+        "category": "say_town",
+        "place": "any",
+        "casual": "grats to whoever just dinged",
+        "polite": "Congratulations to whoever just leveled.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_108",
+        "category": "say_town",
+        "place": "any",
+        "casual": "who is tanking tonight",
+        "polite": "Who will be tanking for us tonight?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_109",
+        "category": "say_town",
+        "place": "any",
+        "casual": "does anyone have a spare ls pearl",
+        "polite": "Does anyone have a spare linkshell pearl?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_110",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i need a social ls, mine fell apart",
+        "polite": "I need a social linkshell. Mine fell apart.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_111",
+        "category": "say_town",
+        "place": "any",
+        "casual": "back after a month away, everything changed",
+        "polite": "I am back after a month away. Everything changed.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_112",
+        "category": "say_town",
+        "place": "any",
+        "casual": "what did i miss this week",
+        "polite": "Has anything happened this week that I should know about?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_113",
+        "category": "say_town",
+        "place": "any",
+        "casual": "still saving for my first {item}",
+        "polite": "I am still saving for my first {item}.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_114",
+        "category": "say_town",
+        "place": "any",
+        "casual": "the ah tax hurts",
+        "polite": "The auction house tax hurts.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_115",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i always forget the guild is closed at night",
+        "polite": "I always forget that the guild closes at night.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_116",
+        "category": "say_town",
+        "place": "any",
+        "casual": "waiting for my food buff to run out",
+        "polite": "I am waiting for my food effect to run out.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_117",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone know a good camp for {range}",
+        "polite": "Does anyone know a good camp for {range}?",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_118",
+        "category": "say_town",
+        "place": "any",
+        "casual": "how do people afford gear at this level",
+        "polite": "How does anyone afford gear at this level?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_119",
+        "category": "say_town",
+        "place": "any",
+        "casual": "my gear is all level 10 junk",
+        "polite": "My gear is all level ten junk.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_120",
+        "category": "say_town",
+        "place": "any",
+        "casual": "just bought a new sword, feels good",
+        "polite": "I just bought a new sword. It feels good.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_121",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone else lagging or just me",
+        "polite": "Is anyone else lagging, or is it just me?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_122",
+        "category": "say_town",
+        "place": "any",
+        "casual": "my screen froze mid pull",
+        "polite": "My screen froze in the middle of a pull.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_123",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i keep pressing the wrong macro",
+        "polite": "I keep hitting the wrong macro by mistake.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_124",
+        "category": "say_town",
+        "place": "any",
+        "casual": "macro space is never enough",
+        "polite": "There is never enough macro space.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_125",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone else only use 2 macros",
+        "polite": "Does anyone else only use two macros?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_126",
+        "category": "say_town",
+        "place": "any",
+        "casual": "the chat log moves so fast here",
+        "polite": "The chat log moves very fast here.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_127",
+        "category": "say_town",
+        "place": "any",
+        "casual": "can someone explain the conquest thing",
+        "polite": "Can someone explain how conquest works?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_128",
+        "category": "say_town",
+        "place": "any",
+        "casual": "who is winning conquest this week",
+        "polite": "Do you know who is ahead in conquest this week?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_129",
+        "category": "say_town",
+        "place": "any",
+        "casual": "signet expires so fast",
+        "polite": "Signet expires so quickly.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_130",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i need to stop shopping and go exp",
+        "polite": "I need to stop shopping and go earn some experience.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_131",
+        "category": "say_town",
+        "place": "any",
+        "casual": "trying to save for a chocobo",
+        "polite": "I am trying to save up for a chocobo.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_132",
+        "category": "say_town",
+        "place": "any",
+        "casual": "does anyone actually use the bazaar",
+        "polite": "Do people really buy from bazaars?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_133",
+        "category": "say_town",
+        "place": "any",
+        "casual": "{item} is up at {price}, someone talked me into it",
+        "polite": "{item} is listed at {price}, and someone talked me into buying it.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_134",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i miss my old static",
+        "polite": "I miss my old static party.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_135",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i can come as {job} if you need one",
+        "polite": "I would be glad to come as {job} if you need one.",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_136",
+        "category": "say_town",
+        "place": "any",
+        "casual": "where do i get food for the party",
+        "polite": "Where do I buy food for the party?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_137",
+        "category": "say_town",
+        "place": "any",
+        "casual": "cooking my own food saves so much",
+        "polite": "Cooking for myself saves me a great deal of gil.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_138",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i burned my last stack of ingredients",
+        "polite": "I burned through my last stack of ingredients.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_139",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone else hoard stuff they never use",
+        "polite": "Does anyone else hoard things they never use?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_140",
+        "category": "say_town",
+        "place": "any",
+        "casual": "my mog safe is full of junk",
+        "polite": "My Mog Safe is cluttered with things I never use.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_141",
+        "category": "say_town",
+        "place": "any",
+        "casual": "just cleaned my mog house, feels great",
+        "polite": "I just cleaned my Mog House. It feels great.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_142",
+        "category": "say_town",
+        "place": "any",
+        "casual": "the residential area is so quiet",
+        "polite": "It is very peaceful in the residential area.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_143",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i like standing by the gate watching people",
+        "polite": "I like standing by the gate and watching people go by.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_144",
+        "category": "say_town",
+        "place": "any",
+        "casual": "a bard is playing by the fountain",
+        "polite": "There is a bard performing by the fountain.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_145",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i always forget which npc sells what",
+        "polite": "I can never remember which NPC sells which item.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_146",
+        "category": "say_town",
+        "place": "any",
+        "casual": "where is the signet npc",
+        "polite": "Could you point me to the Signet NPC?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_147",
+        "category": "say_town",
+        "place": "any",
+        "casual": "trying to finish my rank missions",
+        "polite": "I am trying to finish my rank missions.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_148",
+        "category": "say_town",
+        "place": "any",
+        "casual": "mission 5 is a wall",
+        "polite": "Mission five is a wall.",
+        "min_level": 50,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_149",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone else stuck on the same mission for weeks",
+        "polite": "Is anyone else stuck on the same mission for weeks?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_150",
+        "category": "say_town",
+        "place": "any",
+        "casual": "i need a break, been on all day",
+        "polite": "I need a break. I have been on all day.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_151",
+        "category": "say_town",
+        "place": "any",
+        "casual": "one more synth then i sleep",
+        "polite": "One more synth, and then I sleep.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_152",
+        "category": "say_town",
+        "place": "any",
+        "casual": "good luck out there everyone",
+        "polite": "Best of luck to all of you out there.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_153",
+        "category": "say_town",
+        "place": "any",
+        "casual": "night all, see you tomorrow",
+        "polite": "Good night, all. See you tomorrow.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_154",
+        "category": "say_town",
+        "place": "any",
+        "casual": "anyone know a good place to buy food",
+        "polite": "Could you recommend a place to buy food?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_155",
+        "category": "say_town",
+        "place": "any",
+        "casual": "cant find my party anywhere",
+        "polite": "I cannot find my party anywhere.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_156",
+        "category": "say_town",
+        "place": "any",
+        "casual": "took a wrong turn and ended up here",
+        "polite": "I took a wrong turn and ended up here.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_157",
+        "category": "say_town",
+        "place": "any",
+        "casual": "waiting for the ah to cool off",
+        "polite": "I am waiting for auction prices to settle down.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_158",
+        "category": "say_town",
+        "place": "any",
+        "casual": "just here for the music honestly",
+        "polite": "Honestly, I am only here for the music.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_159",
+        "category": "say_town",
+        "place": "any",
+        "casual": "my bag is full of crystals again",
+        "polite": "I have filled my bag with crystals once again.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_say_town_160",
+        "category": "say_town",
+        "place": "any",
+        "casual": "someone tell me where to go next",
+        "polite": "Would someone suggest where I should go next?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_001",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "pulling in 10, get ready",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_002",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "wait, link, two of them",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_003",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "mp check before pull",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_004",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "im at 30 mp, give me a sec",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_005",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "resting, dont pull yet",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_006",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "sit and heal, im oom",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_007",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "who has the pull",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_008",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "no puller yet, i can do it",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_009",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "inc, 3 on the way",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_010",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "add came from the left",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_011",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "train incoming, run",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_012",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "that was a train, sorry",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_013",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "we lost the camp to another pt",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_014",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "camp is taken, moving on",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_015",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "any spot left at this camp",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_016",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "waiting on rep, 5 min",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_017",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "we need {need} to start",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_018",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "lf {need} for camp, /t",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_019",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "brb, food",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_020",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "back, where are we",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_021",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "tp is at 100, ready",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_022",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "hold tp for the skillchain",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_023",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "skillchain on this one",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_024",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "no sc, just burn it",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_025",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "im out of food, dps drops",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_026",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "food wore off, still fine",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_027",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "this mob hits hard for its level",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_028",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "why is it hitting me",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_029",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "im tanking now, adjust",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_030",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "healer is out of mp, slow down",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_031",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "cure please, im low",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_032",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "im at 20 hp, help",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_033",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "that was close",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_034",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "i died, someone raise me",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_035",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "raise incoming, hold on",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_036",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "who can raise",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_037",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "getting raised, brb",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_038",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "thanks for the raise",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_039",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "home point is far from here",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_040",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "long walk back, sorry",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_041",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "wait at the zone, i need to rest",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_042",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "someones pulling the wrong mob",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_043",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "stop pulling, let me rest",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_044",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "the exp here is decent",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_045",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "this camp is slow tonight",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_046",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "we have been here an hour",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_047",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "how many more till i level",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_048",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "one more and i ding",
+        "min_level": 2,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_049",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "grats on the level",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_050",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "nice, that was fast",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_051",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "that monster looked ridiculous",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_052",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "did you see that thing chase me",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_053",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "it followed me across the zone",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_054",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "the goblin popped right on me",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_055",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "spawn is right behind us",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_056",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "watch the wanderer",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_057",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "incoming from the north",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_058",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "someone grabbed our mob",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_059",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "claim it faster next time",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_060",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "we are sharing the camp, be nice",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_061",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "i need to leave after this pull",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_062",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "last pull for me",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_063",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "thanks for the party all",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_064",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "good pt, would join again",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_065",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "sorry, had to go",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_066",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "rep is coming, 2 min",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_067",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "my linkshell needs me, sorry",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_068",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "anyone have a spare {item}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_069",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "drink break, one min",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_outpost_070",
+        "category": "outpost",
+        "place": "outpost",
+        "casual": "im lagging so bad at this camp",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_001",
+        "category": "react",
+        "place": "any",
+        "casual": "hm?",
+        "polite": "Hm? Did you need something?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_002",
+        "category": "react",
+        "place": "any",
+        "casual": "sup",
+        "polite": "Hello. Can I help you?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_003",
+        "category": "react",
+        "place": "any",
+        "casual": "can i help u",
+        "polite": "Can I help you with something?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_004",
+        "category": "react",
+        "place": "any",
+        "casual": "ya? need something",
+        "polite": "Yes? Do you need something?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_005",
+        "category": "react",
+        "place": "any",
+        "casual": "afk sorry, back now",
+        "polite": "Sorry, I was away. I am back now.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_006",
+        "category": "react",
+        "place": "any",
+        "casual": "one sec, mid fight",
+        "polite": "One moment, please. I am in a fight.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_007",
+        "category": "react",
+        "place": "any",
+        "casual": "whats up {name}",
+        "polite": "What can I do for you, {name}?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_008",
+        "category": "react",
+        "place": "any",
+        "casual": "hi {name}, need anything?",
+        "polite": "Hello {name}. Is there something you need?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_009",
+        "category": "react",
+        "place": "any",
+        "casual": "busy rn, can it wait",
+        "polite": "I am busy right now. Can it wait?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_010",
+        "category": "react",
+        "place": "any",
+        "casual": "yeah? oh, hi",
+        "polite": "Yes? Oh, hello.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_011",
+        "category": "react",
+        "place": "any",
+        "casual": "sorry, was reading",
+        "polite": "Sorry, I was reading something.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_012",
+        "category": "react",
+        "place": "any",
+        "casual": "im here, whats up",
+        "polite": "I am here. What do you need?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_013",
+        "category": "react",
+        "place": "any",
+        "casual": "did you need me for something",
+        "polite": "Was there something you wanted from me?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_014",
+        "category": "react",
+        "place": "any",
+        "casual": "hello? you targeted me lol",
+        "polite": "Hello? You seem to have targeted me.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_015",
+        "category": "react",
+        "place": "any",
+        "casual": "no thanks, im good",
+        "polite": "No thank you, I am fine.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_016",
+        "category": "react",
+        "place": "any",
+        "casual": "if its about a pt, im free",
+        "polite": "If this is about a party, I am free.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_017",
+        "category": "react",
+        "place": "any",
+        "casual": "sure, ask away",
+        "polite": "Of course. Ask away.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_018",
+        "category": "react",
+        "place": "any",
+        "casual": "im kinda lost myself tbh",
+        "polite": "I am a little lost myself, honestly.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_019",
+        "category": "react",
+        "place": "any",
+        "casual": "oh, hey {name}",
+        "polite": "Oh, hello {name}.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_020",
+        "category": "react",
+        "place": "any",
+        "casual": "what do you need",
+        "polite": "What is it that you need?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_021",
+        "category": "react",
+        "place": "any",
+        "casual": "hey, im on my way out",
+        "polite": "Hello. I am on my way out.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_022",
+        "category": "react",
+        "place": "any",
+        "casual": "sorry, eating",
+        "polite": "Sorry, I am eating right now.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_023",
+        "category": "react",
+        "place": "any",
+        "casual": "yes? can i help",
+        "polite": "Yes? Can I help you?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_024",
+        "category": "react",
+        "place": "any",
+        "casual": "not now, sorry",
+        "polite": "Not right now, sorry.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_025",
+        "category": "react",
+        "place": "any",
+        "casual": "hmm? oh hi",
+        "polite": "Hm? Oh, hello.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_026",
+        "category": "react",
+        "place": "any",
+        "casual": "you need a raise?",
+        "polite": "Do you need a raise?",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_027",
+        "category": "react",
+        "place": "any",
+        "casual": "im just waiting on a pt",
+        "polite": "I am only waiting for a party.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_028",
+        "category": "react",
+        "place": "any",
+        "casual": "ask me anything but prices",
+        "polite": "Ask me anything except prices.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_029",
+        "category": "react",
+        "place": "any",
+        "casual": "sure thing, whats the question",
+        "polite": "Of course. What is your question?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_030",
+        "category": "react",
+        "place": "any",
+        "casual": "sorry, thought you were someone else",
+        "polite": "Sorry. I thought you were someone else.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_031",
+        "category": "react",
+        "place": "any",
+        "casual": "hi {name}, you ok?",
+        "polite": "Hello {name}. Are you all right?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_032",
+        "category": "react",
+        "place": "any",
+        "casual": "yep, still here",
+        "polite": "Yes, I am still here.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_033",
+        "category": "react",
+        "place": "any",
+        "casual": "give me a min, crafting",
+        "polite": "Give me a minute. I am crafting.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_034",
+        "category": "react",
+        "place": "any",
+        "casual": "yo, need a hand?",
+        "polite": "Hello. Do you need a hand?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_react_035",
+        "category": "react",
+        "place": "any",
+        "casual": "im broke, if thats what you want",
+        "polite": "I am broke, if that is what you are asking.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_001",
+        "category": "greet",
+        "place": "any",
+        "casual": "o/",
+        "polite": "Hello! Good to see you.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_002",
+        "category": "greet",
+        "place": "any",
+        "casual": "hi there",
+        "polite": "Hello there, how are you?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_003",
+        "category": "greet",
+        "place": "any",
+        "casual": "hey, need something?",
+        "polite": "Hello, do you need something?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_004",
+        "category": "greet",
+        "place": "any",
+        "casual": "yo",
+        "polite": "Good evening.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_005",
+        "category": "greet",
+        "place": "any",
+        "casual": "hello",
+        "polite": "Hello. How are you today?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_006",
+        "category": "greet",
+        "place": "any",
+        "casual": "hi {name}",
+        "polite": "Hello, {name}.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_007",
+        "category": "greet",
+        "place": "any",
+        "casual": "evening",
+        "polite": "Good evening to you.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_008",
+        "category": "greet",
+        "place": "any",
+        "casual": "oh hey",
+        "polite": "Oh, hello.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_009",
+        "category": "greet",
+        "place": "any",
+        "casual": "hey {name}, how goes it",
+        "polite": "Hello {name}, how are things?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_010",
+        "category": "greet",
+        "place": "any",
+        "casual": "hello friend",
+        "polite": "Hello, my friend.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_011",
+        "category": "greet",
+        "place": "any",
+        "casual": "hiya",
+        "polite": "Hello there.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_012",
+        "category": "greet",
+        "place": "any",
+        "casual": "greetings",
+        "polite": "Greetings to you.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_013",
+        "category": "greet",
+        "place": "any",
+        "casual": "ah, hello",
+        "polite": "Ah, hello there.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_014",
+        "category": "greet",
+        "place": "any",
+        "casual": "hey there, everything ok?",
+        "polite": "Hello there. Is everything all right?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_015",
+        "category": "greet",
+        "place": "any",
+        "casual": "hi {name}, need a hand?",
+        "polite": "Hello {name}. Do you need a hand with anything?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_016",
+        "category": "greet",
+        "place": "any",
+        "casual": "well met",
+        "polite": "Well met, friend.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_017",
+        "category": "greet",
+        "place": "any",
+        "casual": "hey, passing through?",
+        "polite": "Hello. Are you just passing through?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_018",
+        "category": "greet",
+        "place": "any",
+        "casual": "nice to see a new face",
+        "polite": "It is nice to see a new face.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_019",
+        "category": "greet",
+        "place": "any",
+        "casual": "hi, need directions?",
+        "polite": "Hello. Do you need directions?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_020",
+        "category": "greet",
+        "place": "any",
+        "casual": "yo {name}",
+        "polite": "Hello, {name}. Good to see you.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_021",
+        "category": "greet",
+        "place": "any",
+        "casual": "hi, busy?",
+        "polite": "Hello. Are you busy at the moment?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_022",
+        "category": "greet",
+        "place": "any",
+        "casual": "hey",
+        "polite": "Hello there, friend.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_023",
+        "category": "greet",
+        "place": "any",
+        "casual": "hey, whats up",
+        "polite": "Hello. What are you up to?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_024",
+        "category": "greet",
+        "place": "any",
+        "casual": "need a pt?",
+        "polite": "Do you need a party?",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_greet_025",
+        "category": "greet",
+        "place": "any",
+        "casual": "o/ hi",
+        "polite": "Hello and welcome.",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_001",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "{job}{lvl}/{sub}{sublvl} lfp, can go anywhere, /t me",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_002",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp {job}{lvl}, own food and gear",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_003",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "{job}{lvl} looking for exp pt, any camp",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_004",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, tank or dd, take your pick",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_005",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "{job}{lvl}/{sub}{sublvl} lfp for {camp}",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_006",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp {job} {lvl}, been waiting an hour",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_007",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "{job}{lvl} lfp, will travel",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_008",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp right now, any level range",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_009",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "{job}{lvl} lfp, pst with camp",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_010",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp as {job}, {lvl}, can bring {sub} sub",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_011",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "dd lfp, {job}{lvl}, no sub yet",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_012",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp {job}{lvl}, can main heal or dd",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_013",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "looking for a pt around {range}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_014",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, will take any spot, bored",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_015",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "{job}{lvl} lfp, tell me the camp and i go",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_016",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp for the night, {job}{lvl}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_017",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "any pt need a {job}? {lvl} lfp",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_018",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, fresh 75, need merits",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_019",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp {job}{lvl}, no gil for gear but i try",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_020",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, can pull or tank",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_021",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp {job}{lvl}/{sub}{sublvl}, food ready",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_022",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "exp pt anyone? {lvl} {job} lfp",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_023",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, i have a chocobo and patience",
+        "min_level": 20,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_024",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "solo is boring, {job}{lvl} lfp",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_025",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp {job}{lvl}, can go as {sub} main if needed",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_026",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, will do {camp} or anything close",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_027",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, just want exp, dont care where",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_028",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp {lvl} {job}, pst",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_029",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp for a {range} party",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_030",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, can start a pt if others are lfp too",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_031",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, {job}{lvl}, been stood here 40 min",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_032",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp tonight only, {job}{lvl}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_033",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp {job}{lvl}, will bring oils and powders",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_034",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, someone take me out of this city",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_035",
+        "category": "shout_lfp",
+        "place": "any",
+        "casual": "lfp, {job}{lvl}, can sub {sub}",
+        "min_level": 18,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_001",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "whm{lvl} lfp, raise or cure, {range}",
+        "min_level": 25,
+        "max_level": 75,
+        "jobs": [
+          "WHM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_002",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "{job}{lvl} lfp, can raise and main heal",
+        "min_level": 25,
+        "max_level": 75,
+        "jobs": [
+          "WHM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_003",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "whm{lvl} lfp, cure iv ready, any camp",
+        "min_level": 41,
+        "max_level": 75,
+        "jobs": [
+          "WHM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_004",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "rdm{lvl} lfp, refresh and backup heal",
+        "min_level": 41,
+        "max_level": 75,
+        "jobs": [
+          "RDM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_005",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "rdm{lvl} lfp, refresh for the pt",
+        "min_level": 41,
+        "max_level": 75,
+        "jobs": [
+          "RDM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_006",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "whm{lvl} lfp, raise ii if you need it",
+        "min_level": 56,
+        "max_level": 75,
+        "jobs": [
+          "WHM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_007",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "whm{lvl} lfp, cure iii and raise, pst",
+        "min_level": 25,
+        "max_level": 75,
+        "jobs": [
+          "WHM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_008",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "rdm{lvl} lfp, dispel and refresh",
+        "min_level": 41,
+        "max_level": 75,
+        "jobs": [
+          "RDM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_009",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "whm{lvl} lfp, haste and cures",
+        "min_level": 40,
+        "max_level": 75,
+        "jobs": [
+          "WHM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_010",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "rdm{lvl} lfp, convert up, ready to go",
+        "min_level": 40,
+        "max_level": 75,
+        "jobs": [
+          "RDM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_011",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "whm{lvl}/{sub}{sublvl} lfp, raise ready, any camp",
+        "min_level": 25,
+        "max_level": 75,
+        "jobs": [
+          "WHM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfp_heal_012",
+        "category": "shout_lfp_heal",
+        "place": "any",
+        "casual": "whm{lvl} lfp, cure iii main heal, {camp}",
+        "min_level": 21,
+        "max_level": 75,
+        "jobs": [
+          "WHM"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_001",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm {range} {camp} need {need}, pst",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_002",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "pt forming at {camp}, need {need}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_003",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm for exp, {range}, tank and healer sorted",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_004",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "need {need} for {camp}, we are waiting",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_005",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm {camp}, 2 spots, pst",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_006",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "party at {camp} needs {need} and dd",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_007",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "{range} pt lfm, {camp}, tell me job and level",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_008",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm for {camp}, only need one more",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_009",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "making a pt for {range}, need {need}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_010",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "need healer for {camp}, we have the rest",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_011",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm, {camp} camp, bring food",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_012",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "we need {need}, otherwise ready to go",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_013",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm {range}, fresh camp, pst fast",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_014",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "2 slots open, {camp}, {range}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_015",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm for the night, {camp}, no drama",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_016",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "need a puller for {camp}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_017",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "party lfm at {camp}, dd welcome",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_018",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm {range} exp, need {need}, food provided",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_019",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "we have 4, need {need} and one dd",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_020",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm, {camp}, {range}, pst with job",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_021",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "need support for {camp}, any job",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_022",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm, rep needed, {camp}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_023",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "{camp} pt needs {need}, tell me level",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_024",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm {range}, will take anyone with food",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_025",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "forming at {camp}, need {need}, 3 slots",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_026",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm, slow pace, {camp}, {range}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_027",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "we lost our healer, lfm {camp}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_028",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm {camp}, someone who knows the camp",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_029",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "need {need} to finish the pt, {camp}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_lfm_030",
+        "category": "shout_lfm",
+        "place": "any",
+        "casual": "lfm, {range}, pick camp once we have {need}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_001",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price} obo",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_002",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item}, {price}, pst",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_003",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts 2 stacks {item} {price}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_004",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "selling {item} {price}, no lowballs",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_005",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} cheap, {price} takes it",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_006",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, will trade for {item}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_007",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts old gear, {item} {price}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_008",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts crystals, {price} a stack",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_009",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price} each, 3 left",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_010",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "clearing my mule, wts {item} {price}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_011",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item}, {price} or best offer",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_012",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, meet at ah",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_013",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, /t only",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_014",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, need the space",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_015",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, guild in {nation}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_016",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, no haggling",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_017",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, last one",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_018",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, pst when free",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_019",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, cheap because i need gil",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_selling_020",
+        "category": "shout_selling",
+        "place": "any",
+        "casual": "wts {item} {price}, bazaar in {nation}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_001",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item}, paying {price}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_002",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item} {price}, pst",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_003",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "buying {item}, {price} is my max",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_004",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item}, anyone selling",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_005",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb 2 {item}, {price} each",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_006",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "looking to buy {item} for {price}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_007",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item}, can pay {price} tonight",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_008",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item} {price}, need it for a synth",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_009",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "buying crystals, {price} a stack",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_010",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item}, will pay {price} if its HQ",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_011",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item}, {price}, tell me",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_012",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "need {item}, paying {price}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_013",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item} {price}, guild in {nation}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_014",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "wtb {item}, {price} or close",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_buying_015",
+        "category": "shout_buying",
+        "place": "any",
+        "casual": "someone sell me {item} for {price}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_001",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "new ls recruiting, social and exp, pst",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_002",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "{ls} is recruiting, all levels welcome",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_003",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "social ls looking for members, /t me",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_004",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "ls with events looking for a few more",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_005",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "starting a new ls, anyone want in",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_006",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "{ls} recruiting, we do missions and exp",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_007",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "small ls looking for active people",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_008",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "ls recruiting, no drama, pst",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_009",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "{ls} has room for a few more",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_010",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "looking for a ls to join, mine died",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_011",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "any ls recruiting tonight",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_012",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "casual ls looking for people who talk",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_013",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "{ls} recruiting for endgame, 75 only",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_014",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "ls recruiting, any level, any job",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_ls_015",
+        "category": "shout_ls",
+        "place": "any",
+        "casual": "we need members for our ls, pst",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_001",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "need help with {mission}, anyone free",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_002",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "can someone help me with {mission}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_003",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "lf help for {mission}, pst",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_004",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "anyone up for {mission} in a bit",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_005",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "{mission} help please, i have the items",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_006",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "need one more for {mission}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_007",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "help with {mission}, i know the route",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_008",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "stuck on {mission}, any advice",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_009",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "looking for a group for {mission}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_010",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "{mission} tonight, need 2 more",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_011",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "can anyone help kill something for {mission}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_012",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "need a hand with {mission}, 75 not needed",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_013",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "anyone know how to start {mission}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_014",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "shout for {mission}, meet at the gate",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_015",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "help me get through {mission} please",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_016",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "{mission} run, all welcome",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_017",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "need help zoning to {camp}, keep dying",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_018",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "anyone free to help with {mission} for a bit",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_019",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "trying {mission} again, need bodies",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_help_020",
+        "category": "shout_help",
+        "place": "any",
+        "casual": "help with {mission}, i will bring food",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_001",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "dynamis tonight, need {need}, pst",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_002",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "{endgame} run forming, 75 only",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_003",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "lfm for {endgame}, need {need}",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_004",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "merit party forming, need {need}",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_005",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "sky run tonight, need members",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_006",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "limbus at 8, pst for a spot",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_007",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "salvage group needs {need}, 75 only",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_008",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "anyone doing {endgame} later",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_009",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "merits lfm, {camp} camp",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_010",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "endgame ls needs a {need} for tonight",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_011",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "nyzul isle run, need 2, pst",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_012",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "assault static needs one more",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_013",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "meripo lfm, bring food",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_014",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "{endgame} at 9, whispers open",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_015",
+        "category": "shout_endgame",
+        "place": "whitegate",
+        "casual": "besieged then merits after, anyone",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_016",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "merit pt lfm, need {need}, 75 only",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_017",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "dynamis ls recruiting, 75 only, pst",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_018",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "need one more for {endgame} tonight",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_019",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "lv 75 merit pt lfm, pst",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_endgame_020",
+        "category": "shout_endgame",
+        "place": "any",
+        "casual": "any {endgame} groups need a {job}",
+        "min_level": 75,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_001",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone know where the {nation} consulate is",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_002",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "where do i find a crafter for {item}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_003",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "looking for someone to synth {item}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_004",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone sell {item} in their bazaar",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_005",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "how do i get to {camp} from here",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_006",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone want to go to {camp} with me",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_007",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "hello {nation}! anyone up for something",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_008",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "where is the npc for {mission}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_009",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "does anyone know a good {job} guide",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_010",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone have the map for this zone",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_011",
+        "category": "shout_misc",
+        "place": "jeuno",
+        "casual": "which way to the airship dock",
+        "min_level": 25,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_012",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone else new to {nation}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_013",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "looking for a linkshell, any type",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_014",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone know where the guild is in {nation}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_015",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "who is up for a bcnm tonight",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_016",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone want to farm {item}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_017",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "where can i farm {item} around here",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_018",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone know a good fishing spot",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_019",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone up for a walk to {camp}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_020",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "can someone tell me where the ah is",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_021",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone know how to get the chocobo quest",
+        "min_level": 20,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_022",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "looking for a party for {mission}",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_023",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "where do i buy {item} in this city",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_024",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone selling {item} cheap",
+        "min_level": 1,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      },
+      {
+        "id": "crowd_shout_misc_025",
+        "category": "shout_misc",
+        "place": "any",
+        "casual": "anyone up for some exp in {camp}",
+        "min_level": 10,
+        "max_level": 75,
+        "jobs": [
+          "any"
+        ]
+      }
+    ],
+    "pairs": [
+      {
+        "id": "crowd_pair_001",
+        "place": "any",
+        "a": {
+          "casual": "u heading to {camp}?",
+          "polite": "Are you heading to {camp}?"
+        },
+        "b": {
+          "casual": "ya after i eat",
+          "polite": "Yes, after I eat."
+        },
+        "min_level": 10,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_002",
+        "place": "any",
+        "a": {
+          "casual": "how long u been here",
+          "polite": "How long have you been here?"
+        },
+        "b": {
+          "casual": "like an hour, slow",
+          "polite": "About an hour. It has been slow."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_003",
+        "place": "any",
+        "a": {
+          "casual": "u still need a {need}",
+          "polite": "Do you still need a {need}?"
+        },
+        "b": {
+          "casual": "ya, we got a spot",
+          "polite": "Yes, we have a spot open."
+        },
+        "min_level": 10,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_004",
+        "place": "any",
+        "a": {
+          "casual": "wheres the zoneline",
+          "polite": "Where is the zone line?"
+        },
+        "b": {
+          "casual": "north, past the bridge",
+          "polite": "Head north and cross the bridge."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_005",
+        "place": "any",
+        "a": {
+          "casual": "did u get the drop",
+          "polite": "Did you get the drop?"
+        },
+        "b": {
+          "casual": "no, 4 tries now",
+          "polite": "No. That is four attempts now."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_006",
+        "place": "any",
+        "a": {
+          "casual": "u have a chocobo?",
+          "polite": "Do you have a chocobo?"
+        },
+        "b": {
+          "casual": "license only lol",
+          "polite": "Only the license, unfortunately."
+        },
+        "min_level": 20,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_007",
+        "place": "any",
+        "a": {
+          "casual": "is the ah cheaper in jeuno",
+          "polite": "Is the auction house cheaper in Jeuno?"
+        },
+        "b": {
+          "casual": "usually, not tonight",
+          "polite": "Usually, but not tonight."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_008",
+        "place": "any",
+        "a": {
+          "casual": "how much mp u got",
+          "polite": "How much MP do you have?"
+        },
+        "b": {
+          "casual": "like 40, give me a sec",
+          "polite": "About forty. Give me a moment."
+        },
+        "min_level": 10,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_009",
+        "place": "any",
+        "a": {
+          "casual": "want to duo later",
+          "polite": "Would you like to duo later?"
+        },
+        "b": {
+          "casual": "sure, after this",
+          "polite": "Certainly, once I have finished this."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_010",
+        "place": "any",
+        "a": {
+          "casual": "who is pulling",
+          "polite": "Who will be pulling for us?"
+        },
+        "b": {
+          "casual": "me, unless u want it",
+          "polite": "I am, unless you would like to."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_011",
+        "place": "any",
+        "a": {
+          "casual": "u new here?",
+          "polite": "Are you new here?"
+        },
+        "b": {
+          "casual": "ya, first time in this zone",
+          "polite": "Yes. It is my first time in this zone."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_012",
+        "place": "any",
+        "a": {
+          "casual": "can i join your pt",
+          "polite": "May I join your party?"
+        },
+        "b": {
+          "casual": "we are full, sorry",
+          "polite": "I am sorry, but the party is full."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_013",
+        "place": "any",
+        "a": {
+          "casual": "how far is the camp",
+          "polite": "How far away is the camp?"
+        },
+        "b": {
+          "casual": "two zones, bring food",
+          "polite": "Two zones away. Bring food."
+        },
+        "min_level": 10,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_014",
+        "place": "any",
+        "a": {
+          "casual": "u need signet?",
+          "polite": "Do you need Signet?"
+        },
+        "b": {
+          "casual": "got it, thanks",
+          "polite": "I have it, thank you."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_015",
+        "place": "any",
+        "a": {
+          "casual": "what level are u",
+          "polite": "What level are you?"
+        },
+        "b": {
+          "casual": "{lvl}, close to yours",
+          "polite": "I am {lvl}, so we are close in level."
+        },
+        "min_level": 2,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_016",
+        "place": "any",
+        "a": {
+          "casual": "u doing missions?",
+          "polite": "Are you working on missions?"
+        },
+        "b": {
+          "casual": "rank 3, stuck",
+          "polite": "Rank three, and stuck."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_017",
+        "place": "any",
+        "a": {
+          "casual": "wanna trade {item} for {price}",
+          "polite": "Would you trade {item} for {price}?"
+        },
+        "b": {
+          "casual": "no thanks, keeping it",
+          "polite": "No thank you. I am keeping it."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_018",
+        "place": "any",
+        "a": {
+          "casual": "u see the ah price on {item}",
+          "polite": "Did you see the auction price on {item}?"
+        },
+        "b": {
+          "casual": "ya, {price}, insane",
+          "polite": "Yes, {price}. That is insane."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_019",
+        "place": "any",
+        "a": {
+          "casual": "any party slots open",
+          "polite": "Are there any party slots open?"
+        },
+        "b": {
+          "casual": "one dd slot",
+          "polite": "One damage slot."
+        },
+        "min_level": 10,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_020",
+        "place": "any",
+        "a": {
+          "casual": "how long till u log",
+          "polite": "How long until you log out?"
+        },
+        "b": {
+          "casual": "maybe an hour",
+          "polite": "Perhaps an hour, I think."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_021",
+        "place": "any",
+        "a": {
+          "casual": "u got a ls?",
+          "polite": "Do you have a linkshell?"
+        },
+        "b": {
+          "casual": "ya but its dead",
+          "polite": "Yes, but it is dead."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_022",
+        "place": "any",
+        "a": {
+          "casual": "u mind if i rest here",
+          "polite": "Do you mind if I rest here?"
+        },
+        "b": {
+          "casual": "go ahead, camp is free",
+          "polite": "Go ahead. The camp is free."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_023",
+        "place": "any",
+        "a": {
+          "casual": "is that mob claimed",
+          "polite": "Is that monster claimed?"
+        },
+        "b": {
+          "casual": "not yet, take it",
+          "polite": "It is unclaimed. Go ahead."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_024",
+        "place": "any",
+        "a": {
+          "casual": "u pulling?",
+          "polite": "Are you pulling?"
+        },
+        "b": {
+          "casual": "in a sec, buffing",
+          "polite": "In a moment. I am buffing."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_025",
+        "place": "any",
+        "a": {
+          "casual": "u have any food spare",
+          "polite": "Do you have any spare food?"
+        },
+        "b": {
+          "casual": "one stack, take some",
+          "polite": "I have a stack. Help yourself."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_026",
+        "place": "any",
+        "a": {
+          "casual": "u coming to the guild",
+          "polite": "Are you coming to the guild?"
+        },
+        "b": {
+          "casual": "in a bit, waiting on a tell",
+          "polite": "In a bit. I am waiting on a tell."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_027",
+        "place": "any",
+        "a": {
+          "casual": "u seen my pt",
+          "polite": "Have you seen my party?"
+        },
+        "b": {
+          "casual": "they went toward the gate",
+          "polite": "I saw them head for the gate."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_028",
+        "place": "any",
+        "a": {
+          "casual": "u want this {item}",
+          "polite": "Do you want this {item}?"
+        },
+        "b": {
+          "casual": "sure, how much",
+          "polite": "Certainly. What price did you have in mind?"
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_029",
+        "place": "any",
+        "a": {
+          "casual": "did u die",
+          "polite": "Did you die?"
+        },
+        "b": {
+          "casual": "ya, right at the end",
+          "polite": "Yes, right at the end."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_030",
+        "place": "any",
+        "a": {
+          "casual": "u get your raise",
+          "polite": "Did you get your raise?"
+        },
+        "b": {
+          "casual": "took forever but ya",
+          "polite": "It took forever, but yes."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_031",
+        "place": "any",
+        "a": {
+          "casual": "u still lfp",
+          "polite": "Are you still looking for a party?"
+        },
+        "b": {
+          "casual": "ya, no luck tonight",
+          "polite": "Yes. No luck tonight."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_032",
+        "place": "any",
+        "a": {
+          "casual": "u know a good camp for {range}",
+          "polite": "Do you know a good camp for {range}?"
+        },
+        "b": {
+          "casual": "try the one past the bridge",
+          "polite": "I would try the camp beyond the bridge."
+        },
+        "min_level": 10,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_033",
+        "place": "any",
+        "a": {
+          "casual": "u in a hurry",
+          "polite": "Are you in a hurry?"
+        },
+        "b": {
+          "casual": "not really, why",
+          "polite": "Not especially. Why do you ask?"
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_034",
+        "place": "any",
+        "a": {
+          "casual": "u mind a tag along",
+          "polite": "Do you mind if I tag along?"
+        },
+        "b": {
+          "casual": "not at all, come on",
+          "polite": "Not at all. Come along."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_035",
+        "place": "any",
+        "a": {
+          "casual": "u done for the night",
+          "polite": "Are you done for the night?"
+        },
+        "b": {
+          "casual": "one more then bed",
+          "polite": "One more, and then I am off to bed."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_036",
+        "place": "any",
+        "a": {
+          "casual": "why is it so quiet",
+          "polite": "Why is it so quiet here tonight?"
+        },
+        "b": {
+          "casual": "everyone is in jeuno",
+          "polite": "I believe everyone has gone to Jeuno."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_037",
+        "place": "any",
+        "a": {
+          "casual": "u going to the bcnm",
+          "polite": "Are you going to the BCNM?"
+        },
+        "b": {
+          "casual": "if we find one more",
+          "polite": "If we find one more person."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_038",
+        "place": "any",
+        "a": {
+          "casual": "u have a map",
+          "polite": "Any chance you have a map?"
+        },
+        "b": {
+          "casual": "no, i just wander",
+          "polite": "No. I simply wander and hope for the best."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_039",
+        "place": "any",
+        "a": {
+          "casual": "u waiting on the boat too",
+          "polite": "Are you waiting for the boat as well?"
+        },
+        "b": {
+          "casual": "ya, twenty min",
+          "polite": "Yes. Twenty minutes."
+        },
+        "min_level": 20,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_040",
+        "place": "any",
+        "a": {
+          "casual": "u know when it leaves",
+          "polite": "Do you know when it leaves?"
+        },
+        "b": {
+          "casual": "soon, i think",
+          "polite": "I believe it leaves soon."
+        },
+        "min_level": 20,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_041",
+        "place": "any",
+        "a": {
+          "casual": "u got a pearl for me",
+          "polite": "Could you spare a pearl for me?"
+        },
+        "b": {
+          "casual": "ask the leader, not me",
+          "polite": "You would have to ask the leader about that."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_042",
+        "place": "any",
+        "a": {
+          "casual": "u want to switch camps",
+          "polite": "Would you like to switch camps?"
+        },
+        "b": {
+          "casual": "this one is fine",
+          "polite": "I am happy to stay at this one."
+        },
+        "min_level": 10,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_043",
+        "place": "any",
+        "a": {
+          "casual": "u pulling the goblin",
+          "polite": "Are you pulling the goblin?"
+        },
+        "b": {
+          "casual": "no, leave it",
+          "polite": "No. Please leave it alone."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_044",
+        "place": "any",
+        "a": {
+          "casual": "u see that train",
+          "polite": "Did you see that train?"
+        },
+        "b": {
+          "casual": "ya, i ran",
+          "polite": "Yes. I ran."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_045",
+        "place": "any",
+        "a": {
+          "casual": "u ok",
+          "polite": "Are you all right?"
+        },
+        "b": {
+          "casual": "fine, just low mp",
+          "polite": "Fine. Just low on MP."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_046",
+        "place": "any",
+        "a": {
+          "casual": "u need a cure",
+          "polite": "Do you need a cure?"
+        },
+        "b": {
+          "casual": "im good, save your mp",
+          "polite": "I am fine. Save your MP."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_047",
+        "place": "any",
+        "a": {
+          "casual": "u got the key yet",
+          "polite": "Do you have the key yet?"
+        },
+        "b": {
+          "casual": "third coffer, no key",
+          "polite": "Third coffer, still no key."
+        },
+        "min_level": 45,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_048",
+        "place": "any",
+        "a": {
+          "casual": "u finish the quest",
+          "polite": "Did you finish the quest?"
+        },
+        "b": {
+          "casual": "not yet, need one item",
+          "polite": "Not yet. I need one item."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_049",
+        "place": "any",
+        "a": {
+          "casual": "u know where i turn this in",
+          "polite": "Do you know where I turn this in?"
+        },
+        "b": {
+          "casual": "the npc by the gate",
+          "polite": "The one by the gate, I believe."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_050",
+        "place": "any",
+        "a": {
+          "casual": "u coming back",
+          "polite": "Are you coming back?"
+        },
+        "b": {
+          "casual": "after i sell some stuff",
+          "polite": "After I sell some things."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_051",
+        "place": "any",
+        "a": {
+          "casual": "u sell your old gear",
+          "polite": "Are you selling your old gear?"
+        },
+        "b": {
+          "casual": "bazaar, cheap",
+          "polite": "In my bazaar, cheaply."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_052",
+        "place": "any",
+        "a": {
+          "casual": "u buy from the bazaar",
+          "polite": "Do you buy from bazaars?"
+        },
+        "b": {
+          "casual": "only if its cheap",
+          "polite": "Only if it is cheap."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_053",
+        "place": "any",
+        "a": {
+          "casual": "u using food",
+          "polite": "Are you using food?"
+        },
+        "b": {
+          "casual": "always, its worth it",
+          "polite": "Always. It is worth it."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_054",
+        "place": "any",
+        "a": {
+          "casual": "u have a spare {item}",
+          "polite": "Do you have a spare {item}?"
+        },
+        "b": {
+          "casual": "i might, check my bazaar",
+          "polite": "I may have one. Take a look at my bazaar."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_055",
+        "place": "any",
+        "a": {
+          "casual": "u leveling sub too",
+          "polite": "Are you leveling a subjob too?"
+        },
+        "b": {
+          "casual": "ya, its painful",
+          "polite": "Yes. It is painful."
+        },
+        "min_level": 18,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_056",
+        "place": "any",
+        "a": {
+          "casual": "u want to skillchain",
+          "polite": "Would you like to skillchain?"
+        },
+        "b": {
+          "casual": "sure, i have tp",
+          "polite": "Certainly. My TP is ready."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_057",
+        "place": "any",
+        "a": {
+          "casual": "u ready to pull",
+          "polite": "Are you ready to pull?"
+        },
+        "b": {
+          "casual": "buffing, ten sec",
+          "polite": "Buffing. Ten seconds."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_058",
+        "place": "any",
+        "a": {
+          "casual": "u see the nm pop",
+          "polite": "Did you see the NM pop?"
+        },
+        "b": {
+          "casual": "no, we missed it",
+          "polite": "No. It was gone before we arrived."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_059",
+        "place": "any",
+        "a": {
+          "casual": "u camping the nm",
+          "polite": "Are you camping the NM?"
+        },
+        "b": {
+          "casual": "not tonight, too crowded",
+          "polite": "Not tonight. It is far too crowded."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_060",
+        "place": "any",
+        "a": {
+          "casual": "u know the pop time",
+          "polite": "Do you know the pop time?"
+        },
+        "b": {
+          "casual": "no idea, ask around",
+          "polite": "I have no idea. Someone else may know."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_061",
+        "place": "any",
+        "a": {
+          "casual": "u mind if i take this camp",
+          "polite": "Do you mind if I take this camp?"
+        },
+        "b": {
+          "casual": "all yours, we are leaving",
+          "polite": "It is all yours. We were just leaving."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_062",
+        "place": "any",
+        "a": {
+          "casual": "u leaving already",
+          "polite": "Are you leaving already?"
+        },
+        "b": {
+          "casual": "work in the morning",
+          "polite": "I have work in the morning."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_063",
+        "place": "any",
+        "a": {
+          "casual": "u on tomorrow",
+          "polite": "Will you be on tomorrow?"
+        },
+        "b": {
+          "casual": "probably, same time",
+          "polite": "Probably, at the same time."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_064",
+        "place": "any",
+        "a": {
+          "casual": "u want to add each other",
+          "polite": "Would you like to add each other?"
+        },
+        "b": {
+          "casual": "sure, send a tell",
+          "polite": "Sure. Send me a tell."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_065",
+        "place": "any",
+        "a": {
+          "casual": "u in the same ls as me",
+          "polite": "Are you in the same linkshell as me?"
+        },
+        "b": {
+          "casual": "not yet, thinking about it",
+          "polite": "Not yet. I am thinking about it."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_066",
+        "place": "any",
+        "a": {
+          "casual": "u know a crafter",
+          "polite": "Do you know a crafter?"
+        },
+        "b": {
+          "casual": "ya, my friend does synths",
+          "polite": "Yes. My friend does synths."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_067",
+        "place": "any",
+        "a": {
+          "casual": "u need anything from town",
+          "polite": "Do you need anything from town?"
+        },
+        "b": {
+          "casual": "some food if you have room",
+          "polite": "Some food, if you have the room to carry it."
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_068",
+        "place": "any",
+        "a": {
+          "casual": "u going to jeuno after",
+          "polite": "Are you going to Jeuno after this?"
+        },
+        "b": {
+          "casual": "ya, want me to grab something",
+          "polite": "Yes. Would you like me to pick something up?"
+        },
+        "min_level": 1,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_069",
+        "place": "any",
+        "a": {
+          "casual": "u have gil for the ferry",
+          "polite": "Do you have gil for the ferry?"
+        },
+        "b": {
+          "casual": "barely, its fine",
+          "polite": "Barely, but it is fine."
+        },
+        "min_level": 20,
+        "max_level": 75
+      },
+      {
+        "id": "crowd_pair_070",
+        "place": "any",
+        "a": {
+          "casual": "u see anyone else here",
+          "polite": "Do you see anyone else here?"
+        },
+        "b": {
+          "casual": "just us and the bats",
+          "polite": "Only us, and the bats."
+        },
+        "min_level": 1,
+        "max_level": 75
+      }
+    ]
   }
 }

@@ -30,3 +30,12 @@ squad.txt (the pack's squad section, used by squad_pack.lua):
         s.idle_field s.banter s.bond s.jobchange s.jobchange_whm s.bench s.reunion s.race s.gender
         scenes: s.scene_first s.scene_lowhp s.scene_wipe s.scene_rest s.scene_return
   Who may say a line (role, race, gender, familiarity) comes from the pack's own tags. Only {name} may be used.
+
+crowd.txt (the pack's crowd section, used by crowds_pack.lua through crowds_chat.lua):
+  Cnnn|ok                                        used as written
+  Cnnn|ok|opts|casual override|polite override   opts: place=..., lvl=a-b, jobs=A/B, when=night|evening|morning
+     places: any jeuno upper_jeuno notjeuno sandoria bastok windurst nation whitegate small_town ferry outpost
+  Cnnn|x|why                                     left out
+  Pnn|ok|opts|A override|B override   /   Pnn|x|why        (two-line exchanges, said in town)
+  Fields: {job} {lvl} {sub} {sublvl} {camp} {range} {need} {item} {price} {ls} {nation} {mission} {endgame} {self}
+          and {name} (the player, react/greet only).
