@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.17';
+addon.version = '1.18';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -2207,7 +2207,7 @@ local function renderSheet()
                 newLine();
             end
 
-            gearPicker(slot);
+            gearPicker(S.sheetSlot);   -- (1.18: was `slot`, which is not set in this function, so the picker never showed)
 
             if has('Separator') then imgui.Separator(); end
             wrappedColored(C.faint, 'The stats are read from your squad mate while they are out, so they already include their gear. '
