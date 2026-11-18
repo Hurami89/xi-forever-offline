@@ -1405,6 +1405,7 @@ class ImageButton(tk.Canvas):
 
 class RatesTab(tk.Frame):
     """Experience, drop, gil and skill-up rates, the level cap and a few switches. Read when PLAY is pressed."""
+    FAST_TRAVEL = ("main.HOMEPOINT_TELEPORT", "main.ENABLE_SURVIVAL_GUIDE")   # one "Fast travel" checkbox for both
 
     def __init__(self, parent, rates, player=False):
         super().__init__(parent, bg=BG)
@@ -1449,7 +1450,7 @@ class RatesTab(tk.Frame):
             hidden = player and field[0] in core.PLAYER_HIDDEN_RATES
             var = tk.StringVar(value=str(field[4] if hidden else rates.get(field[0], field[4])))
             self.vars[field[0]] = var
-            if hidden:
+            if hidden or field[0] in self.FAST_TRAVEL:   # (fast travel: one checkbox below sets both)
                 continue
             tk.Label(inner, text=field[3], bg=BG, fg=FG, anchor="w", width=38).grid(row=row, column=0, sticky="w", padx=6, pady=2)
             ttk.Spinbox(inner, from_=field[5], to=field[6], increment=1 if field[7] == "int" else 0.25,
@@ -1540,6 +1541,13 @@ class RatesTab(tk.Frame):
                        "wardrobe rewards) add space. Bags never shrink.",
                        variable=self.full_bags, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=n + 18, column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        on = all(str(self.vars[k].get()).strip() not in ("0", "0.0") for k in self.FAST_TRAVEL)
+        self.fast_travel = tk.BooleanVar(value=on)
+        tk.Checkbutton(inner, text="Fast travel: Home Point and Survival Guide teleports (touch one once, then teleport to it "
+                       "for a fee). Off = classic travel: walk, chocobos, airships and Teleport spells.",
+                       variable=self.fast_travel, command=self.set_fast_travel, bg=BG, fg=FG, selectcolor=PANEL,
+                       activebackground=BG, activeforeground=FG, wraplength=520, justify="left").grid(
+                       row=n + 20, column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.spell_scrolls = tk.BooleanVar(value=rates.get("spell_scrolls", False))
         tk.Checkbutton(inner, text="Squad mates learn spells from scrolls: spells of level 18 and up must be bought and given "
                        "to your squad once (trade the scroll to a mate, or !squad give). Blue magic from 18 is learned "
@@ -1581,6 +1589,12 @@ class RatesTab(tk.Frame):
         for fid, var in self.vars.items():
             var.set(str(values.get(fid)))
         self.era_exp.set(bool(values.get("era_exp", True)))
+        self.fast_travel.set(all(str(values.get(k, 1)) not in ("0", "0.0") for k in self.FAST_TRAVEL))
+
+    def set_fast_travel(self):
+        value = "1" if self.fast_travel.get() else "0"
+        for key in self.FAST_TRAVEL:
+            self.vars[key].set(value)
 
     def collect(self):
         rates = dict(core.RATE_DEFAULTS)
