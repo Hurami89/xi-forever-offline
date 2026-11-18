@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.16';
+addon.version = '1.17';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -324,6 +324,16 @@ local function onLine(payload)
     end
     local camp = parseCamp(payload);
     if camp then S.incomingCamp = camp; return; end
+    -- (squad.lua for servermenu 1.17) campbots|<bot players in your party, comma list or ->|<the bot pulling or ->
+    local cbNames, cbPuller = payload:match('^campbots|([^|]*)|([^|]*)$');
+    if cbNames then
+        if S.incomingCamp then
+            S.incomingCamp.bots = {};
+            if cbNames ~= '-' then for n in cbNames:gmatch('[^,]+') do S.incomingCamp.bots[#S.incomingCamp.bots + 1] = n; end end
+            S.incomingCamp.botPuller = cbPuller ~= '-' and cbPuller or nil;
+        end
+        return;
+    end
     -- (squad.lua for servermenu 1.10) engage|<1 first> and opt|<slot>|<size 0-3>|<ws TP, 0 chain>|<WS or ->|<range 0-3>|<usable WS or ->
     local engage = payload:match('^engage|([01])$');
     if engage then S.incomingEngage = engage == '1' and 'first' or 'normal'; return; end
@@ -806,25 +816,35 @@ local function campRow()
     imgui.SameLine(0, 14);
     dimText('Puller'); imgui.SameLine(0, 8);
     local names, current = { 'You' }, 'You';
+    local tips = { You = 'You pull: bring monsters back to camp and the squad joins in' };
     for _, mate in ipairs(S.mates) do
         if mate.out then
             names[#names + 1] = mate.name;
             if mate.slot == camp.puller then current = mate.name; end
         end
     end
-    local pick = combo('camppuller', current, names, 110,
-        { You = 'You pull: bring monsters back to camp and the squad joins in' });
+    -- (1.17) the bot players in your party hold the camp too, and one of them can pull
+    local botSet = {};
+    for _, b in ipairs(camp.bots or {}) do
+        names[#names + 1] = b; botSet[b] = true;
+        tips[b] = b .. ' (bot player) pulls';
+        if camp.botPuller == b then current = b; end
+    end
+    local pick = combo('camppuller', current, names, 110, tips);
     if pick then
         if pick == 'You' then
-            campCommand('pull me'); camp.puller = 0;
+            campCommand('pull me'); camp.puller = 0; camp.botPuller = nil;
+        elseif botSet[pick] then
+            campCommand('pull ' .. pick); camp.puller = 0; camp.botPuller = pick;
         else
             for _, mate in ipairs(S.mates) do
-                if mate.name == pick then campCommand('pull ' .. mate.slot); camp.puller = mate.slot; end
+                if mate.name == pick then campCommand('pull ' .. mate.slot); camp.puller = mate.slot; camp.botPuller = nil; end
             end
         end
         camp.on = true;
     end
-    if camp.on and camp.puller ~= 0 then
+    local someonePulls = camp.puller ~= 0 or camp.botPuller ~= nil;
+    if camp.on and someonePulls then
         imgui.SameLine(0, 6);
         if button(camp.paused and 'Resume' or 'Pause', 'camppause', 72, 0, camp.paused and 'selected' or nil) then
             campCommand(camp.paused and 'camp resume' or 'camp pause'); camp.paused = not camp.paused;
@@ -836,7 +856,7 @@ local function campRow()
         dimText(camp.pulls == 1 and '1 pull' or (tostring(camp.pulls or 0) .. ' pulls'));
     end
     -- what the mate pulls: any number of kinds of monster around the camp, each one toggles
-    if camp.on and camp.puller ~= 0 and camp.kinds then
+    if camp.on and someonePulls and camp.kinds then
         dimText('Pull'); imgui.SameLine(0, 8);
         local wants = camp.wants or {};
         local any = true;
