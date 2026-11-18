@@ -34,7 +34,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.13';
+addon.version = '1.14';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -281,6 +281,22 @@ end
 local queueDuo -- (the second window's command batch, defined further down)
 
 local function onLine(payload)
+    -- (1.14) gear picker answers: gl|<mate slot>|<equip slot>|<item id>|<level>|<name> ... gle|<mate slot>|<equip slot>|<count>
+    local gs, ge, gid, glv, gname = payload:match('^gl|(%d+)|(%d+)|(%d+)|(%d+)|(.+)$');
+    if gs then
+        local g = S.gear;
+        if g and g.slot == tonumber(gs) and g.eq == tonumber(ge) then
+            g.items[#g.items + 1] = { id = tonumber(gid), level = tonumber(glv), name = gname };
+        end
+        return;
+    end
+    local es, ee, ecount = payload:match('^gle|(%d+)|(%-?%d+)|(%d+)$');
+    if es then
+        local g = S.gear;
+        if g and g.slot == tonumber(es) and g.eq == tonumber(ee) then g.done, g.total = true, tonumber(ecount); end
+        S.waitUntil = 0;
+        return;
+    end
     if payload == 'end' then
         S.mates = S.incoming or {};
         S.incoming = nil;
@@ -319,6 +335,12 @@ local function onLine(payload)
     if cslot then
         S.incomingReady = S.incomingReady or {};
         S.incomingReady[tonumber(cslot)] = os.time() + tonumber(csecs);
+        return;
+    end
+    -- (squad.lua for servermenu 1.14) plvl|<low>|<high>|<1 = your own window>: camp pull levels against yours
+    local plo, phi, pown = payload:match('^plvl|(%-?%d+)|(%-?%d+)|([01])$');
+    if plo then
+        if S.incomingAdv then S.incomingAdv.pull = { low = tonumber(plo), high = tonumber(phi), own = pown == '1' }; end
         return;
     end
     local dslot, dsecs = payload:match('^delay|(%d+)|(%d+)$');
@@ -916,7 +938,7 @@ end
 
 local function advancedPanel()
     local adv = S.adv;
-    local open, began = beginChild('##sm_advanced', 0, 92, true, true);
+    local open, began = beginChild('##sm_advanced', 0, adv.pull and 118 or 92, true, true);
     if open then
         dimText('Follow'); imgui.SameLine(0, 8);
         local follow = combo('advfollow', FOLLOW_OF[adv.follow] or 'normal', FOLLOWS, 100, FOLLOW_HELP);
@@ -932,6 +954,31 @@ local function advancedPanel()
             ask(1.5);
         end
         tooltip('With a camp set, mates sit and rest between fights while the pull is out');
+
+        if adv.pull then                         -- (1.14) the monster levels the camp puller goes for, against yours
+            gap(2);
+            dimText('Pull levels'); imgui.SameLine(0, 8);
+            local lowItems, highItems = {}, {};
+            for v = -30, 0 do lowItems[#lowItems + 1] = string.format('%+d', v); end
+            for v = -10, 10 do highItems[#highItems + 1] = string.format('%+d', v); end
+            local low = combo('advplow', string.format('%+d', adv.pull.low), lowItems, 60);
+            imgui.SameLine(0, 6); dimText('to'); imgui.SameLine(0, 6);
+            local high = combo('advphigh', string.format('%+d', adv.pull.high), highItems, 60);
+            if low or high then
+                local l, h = tonumber(low or adv.pull.low), tonumber(high or adv.pull.high);
+                if l > h then if low then h = l; else l = h; end end
+                enqueue(string.format('/say !squad camp levels %d %d', l, h));
+                adv.pull.low, adv.pull.high, adv.pull.own = l, h, true;
+                ask(1.5);
+            end
+            tooltip('Levels below / above yours the camp puller brings back (default -6 to +2)');
+            imgui.SameLine(0, 10);
+            if adv.pull.own and button('Default', 'advplreset', 64, 0) then
+                enqueue('/say !squad camp levels reset');
+                adv.pull.low, adv.pull.high, adv.pull.own = -6, 2, false;
+                ask(1.5);
+            end
+        end
 
         gap(2);
         dimText('Call order'); imgui.SameLine(0, 8);
@@ -1820,6 +1867,52 @@ local function drawGear(slot, name, itemId, textMax)
     imgui.EndGroup();
 end
 
+-- (1.14) Change gear: pick a slot, see the given gear this mate can wear there (from the server), click to put it on.
+-- Works at home and in a friend's world (it only uses !squad commands).
+local SLOT_KEY = { [0] = 'main', 'sub', 'range', 'ammo', 'head', 'body', 'hands', 'legs', 'feet', 'neck', 'waist', 'ear1', 'ear2', 'ring1', 'ring2', 'back' };
+local function gearPicker(slot)
+    if slot == nil then return; end
+    if has('Separator') then imgui.Separator(); end
+    colorText(C.gold, 'Change gear');
+    gap(2);
+    local g = S.gear;
+    if g == nil or g.slot ~= slot then g = { slot = slot, eq = nil, items = {}, done = false }; S.gear = g; end
+    for i = 0, 15 do
+        if i > 0 and i ~= 8 then imgui.SameLine(0, 3); end
+        if button(SLOT_LABEL[i + 1], 'gp' .. slot .. '_' .. i, 0, 0, g.eq == i and 'selected' or nil) then
+            g.eq, g.items, g.done, g.total = i, {}, false, nil;
+            enqueue(string.format('/say !squad gearlist %d %d', slot, i));
+            S.waitUntil = now() + 5;
+        end
+    end
+    if g.eq == nil then
+        dimText('Pick a slot to see the gear your squad has for it.');
+        return;
+    end
+    gap(2);
+    if not g.done then dimText('Looking...'); return; end
+    if button('Take off', 'gpoff' .. slot, 80, 0) then
+        enqueue(string.format('/say !squad unequip %d %s', slot, SLOT_KEY[g.eq]));
+        askSheet(2);
+    end
+    tooltip('Leave this slot empty');
+    if #g.items == 0 then
+        imgui.SameLine(0, 10);
+        dimText('Nothing for this slot yet: trade a piece to a mate (or !squad give) first.');
+        return;
+    end
+    for k, item in ipairs(g.items) do
+        if k > 1 and (k - 1) % 2 ~= 0 then imgui.SameLine(0, 6); end
+        local label = string.format('Lv%d %s', item.level, itemDisplayName(item.id, item.name));
+        if button(label, 'gpi' .. slot .. '_' .. item.id .. '_' .. k, 0, 0) then
+            enqueue(string.format('/say !squad equip %d %d %s', slot, item.id, SLOT_KEY[g.eq]));
+            askSheet(2);
+        end
+        tooltip('Put it on (call the mate again to see it on them)');
+    end
+    if (g.total or 0) > #g.items then dimText(string.format('(%d more not shown)', g.total - #g.items)); end
+end
+
 local function drawHeader(h)
     local role = string.lower(tostring(h.role or 'auto'));
     local rgba = ROLE_COLORS[role] or ROLE_COLORS.auto;
@@ -2058,6 +2151,8 @@ local function renderSheet()
                 drawGear(SHEET_RIGHT[i], eq[SHEET_RIGHT[i]], d.eqId and d.eqId[SHEET_RIGHT[i]], textMax);
                 newLine();
             end
+
+            gearPicker(slot);
 
             if has('Separator') then imgui.Separator(); end
             wrappedColored(C.faint, 'The stats are read from your squad mate while they are out, so they already include their gear. '

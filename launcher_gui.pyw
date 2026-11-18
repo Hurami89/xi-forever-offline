@@ -3024,6 +3024,13 @@ class App(tk.Tk):
         core.kill_stray_helpers()              # helpers an earlier launcher left running
         time.sleep(2)
         self.check()
+        try:                                   # Ashita's target offset to match this game's version (target bar, XIUI)
+            import launcher_game as lg_offsets
+            got = lg_offsets.match_target_offset(cfg.get("ashita_dir", ""), cfg.get("ffxi_client_dir", ""))
+            if got == "old":
+                self.say("Game is older than the November 2026 update: using its target offset in Ashita.")
+        except Exception as e:
+            self.say(f"Could not check Ashita's target offset ({e}).")
 
         if cfg.get("mariadb_dir"):            # a player install: the kit's own MariaDB, started here (no Windows service)
             import launcher_setup

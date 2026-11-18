@@ -456,6 +456,8 @@ RATE_FIELDS = [
     ("main.ENABLE_DAILY_TALLY",         "main.lua", "ENABLE_DAILY_TALLY",          "Gobbie Mystery Box (1 = on)", 0, 0, 1, "int"),
     ("main.HALLOWEEN_2005",             "main.lua", "HALLOWEEN_2005",              "Harvest Festival (Oct 20-Nov 1, 1=on)", 1,   0,   1,     "int"),
     ("main.NEW_CHARACTER_CUTSCENE",     "main.lua", "NEW_CHARACTER_CUTSCENE",      "New-character cutscenes (1 = on)", 1, 0, 1, "int"),
+    ("main.HOMEPOINT_TELEPORT",         "main.lua", "HOMEPOINT_TELEPORT",          "Home Point teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
+    ("main.ENABLE_SURVIVAL_GUIDE",      "main.lua", "ENABLE_SURVIVAL_GUIDE",       "Survival Guide teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("map.BASE_SPEED",                  "map.lua",  "BASE_SPEED",                  "Run speed (50 = retail)",               50,  40,  120,   "int"),
     ("map.MOUNT_SPEED",                 "map.lua",  "MOUNT_SPEED",                 "Chocobo and mount speed (80 = retail)", 80,  50,  150,   "int"),
 ]

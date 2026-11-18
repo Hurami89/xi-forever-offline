@@ -425,6 +425,43 @@ def retail_install(kit, cfg, reg=None):
     return None
 
 
+TARGET_OFFSET_NOV = (2026, 11, 1)   # FFXiMain built from here on: the November 2026 game update (Ashita main a807426)
+_OFFSET_BEGIN = "; >>> XI: Forever Offline: target offset for this game version (written at PLAY)"
+_OFFSET_END = "; <<< XI: Forever Offline"
+
+
+def match_target_offset(ashita_dir, ffxi_dir):
+    """Ashita's offsets follow the newest game (November 2026: [target.target] offset1 = 0x02F0). On a September or
+    October game that reads the target in the wrong place: the target bar is gone and addons that read it (XIUI,
+    tparty, mobdb, distance) crash in d3d_present. For an older game this writes the old value (0x02F4) into Ashita's
+    custom.offsets.ini (overrides, never replaced by updates); for the November game or newer it removes it.
+    Returns 'old', 'new' or None (nothing done)."""
+    build = game_build(ffxi_dir)
+    path = os.path.join(ashita_dir, "config", "ashita", "custom.offsets.ini")
+    if not build or not os.path.isdir(os.path.dirname(path)):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8-sig", errors="replace") as handle:
+            text = handle.read()
+    except OSError:
+        text = ""
+    begin, end = text.find(_OFFSET_BEGIN), text.find(_OFFSET_END)
+    if begin >= 0 and end > begin:
+        text = text[:begin].rstrip("\n") + "\n" + text[end + len(_OFFSET_END):].lstrip("\n")
+    old = tuple(build) < TARGET_OFFSET_NOV
+    if old:
+        block = f"{_OFFSET_BEGIN}\n[target.target]\noffset1 = 0x02F4 ; the game before the November 2026 update\n{_OFFSET_END}\n"
+        marker = "; Fin!"
+        at = text.rfind(marker)
+        text = (text[:at] + block + "\n" + text[at:]) if at >= 0 else (text.rstrip("\n") + "\n\n" + block)
+    try:
+        with open(path, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+    except OSError:
+        return None
+    return "old" if old else "new"
+
+
 def game_check(kit, cfg, reg=None):
     """What PLAY should say about the game's version: {build, too_old, copy, retail, retail_build, retail_ok}."""
     build = game_build(cfg.get("ffxi_client_dir", ""))
