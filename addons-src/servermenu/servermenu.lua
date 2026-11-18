@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.19';
+addon.version = '1.20';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1912,6 +1912,30 @@ local function itemDisplayName(itemId, name)
     return text;
 end
 
+-- (1.20, Bob) an item's stats for a tooltip: name, level and the game's own description text (the stats). From
+-- Ashita's resources, so it shows whatever the game shows in its item help.
+local statsCache = {};
+local function itemStatsText(itemId, fallback)
+    local id = tonumber(itemId);
+    if id == nil or id <= 0 then return nil; end
+    if statsCache[id] ~= nil then return statsCache[id] or nil; end
+    local text = false;
+    if AshitaCore and type(AshitaCore.GetResourceManager) == 'function' then
+        local ok, item = pcall(function () return AshitaCore:GetResourceManager():GetItemById(id); end);
+        if ok and item then
+            local name = (item.Name and item.Name[1] and item.Name[1] ~= '') and tostring(item.Name[1]) or tostring(fallback or '');
+            local lines = { name };
+            local lv = tonumber(item.Level or 0) or 0;
+            if lv > 0 then lines[#lines + 1] = 'Lv' .. lv; end
+            local desc = item.Description and item.Description[1];
+            if desc and desc ~= '' then lines[#lines + 1] = tostring(desc); end
+            text = table.concat(lines, '\n');
+        end
+    end
+    statsCache[id] = text;
+    return text or nil;
+end
+
 local function drawGear(slot, name, itemId, textMax)
     local empty = emptySlot(name);
     local display = itemDisplayName(itemId, name);
@@ -1939,6 +1963,10 @@ local function drawGear(slot, name, itemId, textMax)
         tint(C.text, fit(display, textMax));
     end
     imgui.EndGroup();
+    if not empty then
+        local stats = itemStatsText(itemId, display);
+        if stats then tooltip(stats); end
+    end
 end
 
 -- (1.19) Blue magic: a Blue Mage mate's set spells, like the Set Spells menu. Automatic until you click a spell;
@@ -2027,7 +2055,8 @@ local function gearPicker(slot)
             enqueue(string.format('/say !squad equip %d %d %s', slot, item.id, SLOT_KEY[g.eq]));
             askSheet(2);
         end
-        tooltip('Put it on (call the mate again to see it on them)');
+        local stats = itemStatsText(item.id, item.name);
+        tooltip((stats and (stats .. '\n\n') or '') .. 'Click to put it on (call the mate again to see it on them)');
     end
     if (g.total or 0) > #g.items then dimText(string.format('(%d more not shown)', g.total - #g.items)); end
 end

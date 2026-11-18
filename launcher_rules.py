@@ -12,7 +12,8 @@ import json
 import os
 import re
 
-JOB_ORDER = ["WAR", "MNK", "WHM", "BLM", "RDM", "THF", "PLD", "DRK", "BST", "BRD", "RNG", "SAM", "NIN", "DRG", "SMN"]
+JOB_ORDER = ["WAR", "MNK", "WHM", "BLM", "RDM", "THF", "PLD", "DRK", "BST", "BRD", "RNG", "SAM", "NIN", "DRG", "SMN",
+             "BLU", "COR", "PUP"]   # (BLU/COR/PUP: the Aht Urhgan jobs, 2026-11-17)
 PARTS = ["ja", "magic"]
 PART_LABELS = {"ja": "Job abilities", "magic": "Spells and ranged attacks"}
 MARKER = "-- Written by the XI: Forever Offline launcher (Squad tab > Edit job rules). It is rewritten when you save there."
