@@ -30,7 +30,8 @@ except Exception:  # (no bot players installed)
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
 
-TARGET = {"say": 160, "pairs": 80, "outpost": 80, "react": 40, "shout": 60}
+TARGET = {"say": 160, "pairs": 80, "outpost": 80, "react": 40, "shout": 60, "ls": 120}
+BOTS_ONLY = ("ls",)         # with the crowds off (--bots-only): only the bots' linkshell chatter is kept filled
 BATCH = 12
 PAUSE = 40                 # seconds between requests while filling
 FULL_PAUSE = 15 * 60       # once full: swap a few lines this often
@@ -63,7 +64,31 @@ CATEGORY_PROMPTS = {
     "react": "short replies a player gives when a stranger walks up and targets them in town (friendly, curious, a bit busy)",
     "shout": "short /shout lines in a town that are not party or sales requests: asking where to find a monster or NPC, "
              "looking for a crafter, asking for directions, a friendly hello to everyone",
+    "ls": "short things a player types in their linkshell chat to the friends in it, between other things: small talk, "
+          "plans for later, a joke, asking for advice, grumbling about inventory space or travel time. Never claim a "
+          "specific drop, level up, win or price, and never name anyone",
 }
+
+# Example lines from the dialogue packs (C:\FFXISOLO\dialogue\dialogue_lines.json): the model writes new lines in their
+# style. Without the file the prompts work as before.
+def load_seeds():
+    path = os.path.join(KIT, "dialogue", "dialogue_lines.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    seeds = {"ls": [], "pairs": []}
+    for line in data.get("lines", []):
+        tags = line.get("tags", [])
+        if "ls" in tags and "{" not in line.get("casual", ""):
+            seeds["ls"].append(line["casual"])
+        if "pair" in tags and line.get("answer"):
+            seeds["pairs"].append(line["casual"] + " / " + line["answer"])
+    return {k: v for k, v in seeds.items() if v}
+
+
+SEEDS = load_seeds()
 
 SYSTEM = (
     "You write lines of in-game chat for background players in Final Fantasy XI as it was in 2006-2007, the level 75 era: the "
@@ -212,7 +237,10 @@ def parse(category, content):
 def ask_model(cfg, category, avoid):
     shape = ('{"lines": [{"a": "...", "b": "..."}, ...]}' if category == "pairs" else '{"lines": ["...", "..."]}')
     sample = "; ".join(random.sample(avoid, min(5, len(avoid)))) if avoid else ""
+    seeds = SEEDS.get(category) or []
+    style = "; ".join(random.sample(seeds, min(6, len(seeds)))) if seeds else ""
     user = (f"Write {BATCH} different {CATEGORY_PROMPTS[category]}. Answer with JSON only, shaped like {shape}."
+            + (f" Lines in this spirit (examples only: write new ones, never copy them): {style}." if style else "")
             + (f" Do not repeat these: {sample}" if sample else ""))
     payload = {
         "model": cfg["model"], "stream": False, "format": "json", "keep_alive": "30m",
@@ -303,18 +331,20 @@ STUB = {
     "outpost": ["pulling", "resting, low mp", "one more"],
     "react": ["hi?", "need something?"],
     "shout": ["anyone know where to buy Echo Drops?", "hello everyone o/"],
+    "ls": ["anyone up for something later?", "inventory full again lol", "brb food"],
 }
 
 
-def one_round(cfg, server, pool, stub=False):
-    need = {k: max(0, TARGET[k] - len(pool[k])) for k in TARGET}
+def one_round(cfg, server, pool, stub=False, cats=None):
+    cats = list(cats or TARGET)
+    need = {k: max(0, TARGET[k] - len(pool[k])) for k in cats}
     full = sum(need.values()) == 0
     if full:
-        category = random.choice(list(TARGET))
+        category = random.choice(cats)
     else:
         # the emptier a category, the likelier it is asked for (so one that keeps failing never blocks the others)
         roll = random.random() * sum(need.values())
-        for category in TARGET:
+        for category in cats:
             roll -= need[category]
             if roll <= 0 and need[category] > 0:
                 break
@@ -357,8 +387,13 @@ def main():
         wait = PAUSE
         cfg = squad_config()  # (picks up a model pulled meanwhile, or a changed config.json)
         try:
-            if args.bots_only:
-                wait = 60  # (no crowd pool to fill: just the bots' chat)
+            if args.bots_only and not args.stub and squad_busy():
+                log("squad chat is busy - waiting")
+                wait = 30
+            elif args.bots_only:
+                # no crowds: only the bots' linkshell chatter pool (and their tells, below)
+                full = one_round(cfg, server, pool, stub=args.stub, cats=BOTS_ONLY)
+                wait = FULL_PAUSE if full else PAUSE * 2
             elif not args.stub and squad_busy():
                 log("squad chat is busy - waiting")
                 wait = 30

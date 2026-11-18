@@ -1,0 +1,104 @@
+# Squad mates (the pack's "squad" section): where each line is used, or why it is left out.
+# Qnn|tags|text override (optional: default is the pack's wording, which already fits squad mates' companion voice)
+# Qnn|x|why          QSn|tags  or  QSn|x|why  (scenes)
+# Squad mates talk in your party chat. They get these on top of their own voice lines (squad_dialogue.lua and the
+# launcher's Squad tab), which still come first most of the time.
+Q01|s.recruit
+Q02|s.recruit
+Q03|s.recruit
+Q04|s.recruit
+Q05|s.recruit
+Q06|s.recruit
+Q07|s.recruit
+Q08|s.recruit
+Q09|s.ack_pull
+Q10|s.ack_follow
+Q11|s.ack_hold
+Q12|s.ack_hold
+Q13|s.ack_follow
+Q14|x|claims two monsters are coming (nothing counts them)
+Q15|s.battle
+Q16|x|needs the moment a mate starts pulling (the puller's run is in the core trust controller)
+Q17|s.battle
+Q18|s.lowmp
+Q19|s.battle
+Q20|s.battle
+Q21|x|odd as a call at every fight start
+Q22|s.lowhp
+Q23|s.lowhp
+Q24|s.lowhp
+Q25|s.after
+Q26|s.after
+Q27|s.after
+Q28|s.after
+Q29|s.after
+Q30|s.down|I am down. Keep going without me.
+Q31|x|squad mates cannot be raised (a mate who is knocked out leaves the party)
+Q32|x|squad mates cannot be raised
+Q33|s.wipe
+Q34|s.wipe
+Q35|s.wipe
+Q36|x|squad mates cannot be raised
+Q37|x|squad mates cannot be raised
+Q38|x|squad mates cannot be raised (and claims it happened twice)
+Q39|s.idle_town
+Q40|s.idle_town
+Q41|s.idle_town
+Q42|s.idle_town
+Q43|s.idle_town
+Q44|s.idle_town
+Q45|s.idle_field
+Q46|s.idle_field|Want me to scout ahead a little?
+Q47|s.idle_field|Something moved over there. Probably nothing.
+Q48|s.idle_field
+Q49|s.idle_field
+Q50|s.idle_field
+Q51|s.banter
+Q52|x|claims who took which monster
+Q53|s.after
+Q54|s.reply
+Q55|s.banter
+Q56|x|odd without a disagreement to answer
+Q57|s.bond
+Q58|s.bond
+Q59|s.bond
+Q60|s.bond
+Q61|s.bond|We have been through a lot together. I remember that.
+Q62|s.bond
+Q63|x|needs a gear change event
+Q64|s.jobchange
+Q65|x|needs an appearance change event
+Q66|s.jobchange_whm
+Q67|s.jobchange
+Q68|x|needs a weapon change event (and claims it was heard from the gate)
+Q69|s.bench
+Q70|x|claims training while benched (the pack's own rule: benched mates do nothing)
+Q71|s.bench
+Q72|s.bench
+Q73|s.bench
+Q74|s.reunion
+Q75|s.reunion
+Q76|x|claims something done while you were away
+Q77|s.reunion
+Q78|s.race
+Q79|s.race
+Q80|s.race
+Q81|s.race
+Q82|s.race
+Q83|s.race
+Q84|s.race
+Q85|s.race
+Q86|s.race
+Q87|s.race
+Q88|s.gender
+Q89|x|unprompted remark about the ledger; reads oddly in party chat
+Q90|x|claims a nickname you never used
+Q91|s.gender
+Q92|x|unprompted remark about the ledger; reads oddly in party chat
+Q93|x|claims a nickname you never used
+QS1|s.scene_first
+QS2|s.scene_lowhp
+QS3|s.scene_wipe
+QS4|s.scene_rest
+QS5|x|nothing tells which mate is being benched for whom
+QS6|s.scene_return

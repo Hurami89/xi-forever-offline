@@ -1526,10 +1526,38 @@ def maybe_idle() -> None:
             return
 
     zone = CONTEXT.get("zone", "Vana'diel")
-    respond(name, "narrator", "", event=f"The party is in {zone}. Nothing is happening right now. Say one short line in character.")
+    town = any(word in str(zone).lower() for word in PACK_TOWNS)
+    respond(name, "narrator", "", event=f"The party is in {zone}. Nothing is happening right now. Say one short line in character."
+            + pack_hint("s.idle_town" if town else "s.idle_field", name))
 
 
 HEALERS = {"WHM", "RDM", "SCH", "BRD", "PLD"}
+
+# The dialogue packs (C:\FFXISOLO\dialogue\dialogue_lines.json, the squad section): two lines that fit the moment and
+# the mate's role go into the instruction as examples of the feel, never to copy. Without the file nothing changes.
+PACK_FILE = BASE.parent / "dialogue" / "dialogue_lines.json"
+PACK_ROLE = {"PLD": "tank", "NIN": "tank", "WHM": "healer", "RDM": "hybrid", "BRD": "support", "COR": "support"}
+PACK_TOWNS = ("san d'oria", "bastok", "windurst", "jeuno", "selbina", "mhaura", "kazham", "norg", "rabao", "tavnazian",
+              "whitegate", "al zahbi", "nashmau")
+_PACK: dict | None = None
+
+
+def pack_hint(tag: str, name: str | None = None, n: int = 2) -> str:
+    global _PACK
+    if _PACK is None:
+        _PACK = {}
+        try:
+            data = json.loads(PACK_FILE.read_text(encoding="utf-8"))
+            for line in (data.get("squad") or {}).get("lines", []):
+                for t in line.get("tags", []):
+                    _PACK.setdefault(t, []).append(line)
+        except (OSError, ValueError):
+            pass
+    role = PACK_ROLE.get(str(PROFILES.get(name or "", {}).get("job", "")).upper(), "damage")
+    pool = [l["text"].replace("{name}", name or "") for l in _PACK.get(tag, [])
+            if (not l.get("roles") or role in l["roles"]) and not l.get("races") and not l.get("genders")]
+    random.shuffle(pool)
+    return (" Lines in this spirit (only the feel; never copy them): " + " | ".join(pool[:n])) if pool else ""
 
 
 def fight_event(kind: str, who: str, target: str, damage: str = "") -> None:
@@ -1570,6 +1598,8 @@ def fight_event(kind: str, who: str, target: str, damage: str = "") -> None:
     else:
         return
 
+    event += pack_hint({"lowmp": "s.lowmp", "pull": "s.battle", "won": "s.after"}.get(kind) or
+                       ("s.lowhp" if kind == "hurt" and who == speaker else ""), speaker)
     LAST_FIGHT_LINE = now
     log(f"fight {kind} {who} -> {speaker}")
     # (a callout about HP or MP is only worth anything now: it skips the chatter budget)

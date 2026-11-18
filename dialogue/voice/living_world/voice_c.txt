@@ -1,0 +1,273 @@
+# Casual voice layer, part C (templates 466-675) and new lines (+id) for gaps the pack does not cover.
+466|emote:wave|wave
+467|emote:nod|nod
+468|x|no matching game emote (checks a map)
+469|x|no matching game emote
+470|emote:stretch|stretch
+471|emote:sit|sit
+472|emote:nod|nod
+473|x|no matching game emote
+474|x|no matching game emote
+475|emote:salute|salute
+476|x|claims to remember what the player said last time
+477|x|stitched filler, wrong-city claim
+478|x|stitched filler
+479|ls|a few of us might go to {camp} later|A few of us may go to {camp} later.
+480|x|location claim with a hard-coded town
+481|r.newbie|if you're still learning job abilities I can go over it when I'm free
+482|x|broken grammar ('helping with helping a new member')
+483|r.no|I'd join you but I gotta finish something first
+484|x|stitched filler, hard-coded town
+485|x|stitched filler
+486|x|hard-coded town
+487|x|duplicate of 135 (r.where)
+488|r.newbie|if you're still learning mission prereqs I can go over it when I'm free
+489|x|broken grammar
+490|x|stitched filler
+491|x|claims to remember the player's subjob
+492|x|stitched filler
+493|x|stitched filler
+494|x|broken zone name ('Lower ...')
+495|r.newbie|if you're still learning outpost travel I can show you when I'm free
+496|x|broken grammar
+497|x|stitched filler
+498|x|claims to remember the player's mission
+499|x|stitched filler
+500|x|stitched filler
+501|x|broken zone name
+502|x|hard-coded town
+503|r.newbie|if you're still figuring out subjobs I can go over it sometime
+504|x|broken grammar
+505|x|stitched filler
+506|x|claims to remember the player's crafting skill
+507|x|stitched filler
+508|x|broken zone name
+509|x|hard-coded town
+510|x|hard-coded town
+511|r.newbie|if you're still learning party roles I can go over it when I'm free
+512|x|broken grammar
+513|x|stitched filler
+514|x|claims to remember the player's gear
+515|x|broken zone name
+516|x|stitched filler
+517|x|hard-coded town
+518|x|hard-coded town
+519|r.newbie|if you're still learning the way to camp I can show you when I'm free
+520|x|claims to remember the player's mission
+521|x|stitched filler
+522|x|stitched filler
+523|x|hard-coded town
+524|x|claims to remember the player's weapon skill
+525|x|stitched filler
+526|x|stitched filler
+527|x|claims to remember the player's party setup
+528|x|stitched filler
+529|x|stitched filler
+530|x|stitched filler
+531|x|stitched filler
+532|x|stitched filler
+533|x|broken zone name
+534|x|broken zone name
+535|x|stitched filler
+536|x|stitched filler
+537|x|stitched filler
+538|x|stitched filler
+539|x|stitched filler
+540|x|stitched filler
+541|x|stitched filler
+542|x|stitched filler
+543|x|stitched filler
+544|x|stitched filler
+545|x|broken zone name
+546|x|broken zone name
+547|x|stitched filler
+548|x|invents a conversation that happened while the player was away
+549|x|invents plans made while the player was away
+550|x|invents a conversation
+551|x|design rule written as dialogue
+552|ls|a few of us are free later this week, could make a night of it
+553|x|invents plans made while the player was away
+554|x|invents a conversation while the player was away
+555|x|design rule written as dialogue
+556|e.lfp|could use a few levels, but rather find a steady group than rush 3 camps
+557|e.lfp|anyone up for a short exp session? we can pick the camp once we know jobs
+558|party|let's check everyone's level range before picking a spot
+559|r.yes|happy to come as long as we have a plan for pulls
+560|ls|good night for skillchains if we can get the right weapons together
+561|r.maybe|got time for a couple camps, not an all-nighter. that ok?
+562|party|before we leave, everyone have food, tools and a way back?
+563|ls|even pt beats a crowded one
+564|r.help|which mission are you on? rather check than send you to the wrong place
+565|r.help|I can help with the trip, but check you have the prereqs first
+566|r.help|that mission has a few steps, make sure everyone's on the same one
+567|r.help|if you need a hand, say where you're at in the story
+568|r.help|it's easier with company. details are fuzzy though, so let's double check
+569|r.help|happy to come, but don't ask me where every key item is lol
+570|r.help|no spoilers for anyone who hasn't seen the next scene
+571|r.help|your mission, you set the pace
+572|x|design rule as dialogue ('the battle record confirms it')
+573|e.loot_react|gz on the drop! earned it the hard way
+574|e.loot_react,party|nice haul, let's lot like we agreed
+575|e.win|long fight, nice job keeping everyone up
+576|e.loot_react|finally! may the next one be less stubborn
+577|x|design rule as dialogue ('wait for the actual loot record')
+578|x|design rule as dialogue ('verified result')
+579|e.loot_react|worth celebrating. don't forget who helped tho
+580|r.unsure|heard like 3 versions of that already, anyone got a real source?
+581|r.unsure|what did someone actually see vs what are they guessing?
+582|x|design rule as dialogue ('server record')
+583|r.unsure|could be true, could be tavern talk
+584|r.unsure|anyone actually tested that or is it from an old guide?
+585|r.unsure|sounds plausible, but plausible isn't confirmed
+586|x|design rule as dialogue
+587|r.unsure|rather say idk than send you into the wrong cave
+588|x|announces an expedition that is not happening
+589|e.lfp,@leader|anyone wanting to pt tonight, post your level range and role
+590|x|announces an outing that is not happening
+591|x|announces a roster that does not exist
+592|x|announces a confirmed plan that does not exist
+593|x|announces an event that does not exist
+594|e.win,@leader|good work everyone, thank whoever set it up|Good work on the expedition, everyone. Please thank the people who organized it.
+595|x|announces a future plan that does not exist
+596|ls|careful, one wrong map away from the 'north is optional' debate again
+597|ls|not saying the chocobo navigates better than you, but I'm not ruling it out
+598|x|meta ('you know which phrase')
+599|ls|some stories become legends. others become reminders to bring more silent oil
+600|ls|ah yes, the classic strat: confidence first, directions second
+601|x|meta about the joke itself
+602|x|meta about the joke itself
+603|x|design rule as dialogue ('not a fact about today's adventure')
+604|r.alt|I'd go with the safer camp, we can move out later if it's fine
+605|r.alt|travel time might cost more than the extra exp is worth
+606|r.alt|both work, let's go with what fits the pt we've got
+607|r.alt|rather go somewhere familiar tonight
+608|r.alt|cool area but we need a plan for links and getting out
+609|x|meta ('before the loudest voice chooses')
+610|r.alt|ok compromise: closer camp first, then we see
+611|r.calm|no hard feelings, we just disagree on where to go
+612|e.party_end|good run, we stuck together and made the most of it
+613|e.party_end|doesn't need a rare drop to be a good night
+614|x|meta checklist ('clear invitations, a sensible pace')
+615|e.party_end|next time a bit more prep at the start would save us a detour
+616|e.win|ty to whoever led, made it way easier
+617|e.party_end|changed plans twice but everyone stayed chill, I call that a win
+618|e.wipe|let's not blame one bad pull, we learn and move on
+619|e.logout|night all, may tomorrow be kinder to our inventory
+620|r.maybe|might be free later, but don't count me in yet
+621|r.maybe|can join for a bit, but find someone else too if it's a long one
+622|r.no|busy atm, hope the trip goes well
+623|r.no|don't wait on me, start without me
+624|r.maybe|can help with the first part, might have to leave before the end
+625|r.maybe|sounds fun, lemme check my plans first
+626|r.no|here in spirit, can't join right now
+627|r.no|thanks for asking tho, really
+628|e.join|we've got our old stories but there's room for new ones, glad you found us
+629|e.join|ask whatever, nobody knows every corner of vana'diel
+630|e.join|if it gets too chatty in here just say so lol
+631|e.join|you don't need perfect gear to say hi or tag along
+632|r.newbie|we all started somewhere, enjoy the ride
+633|e.join|want a quick rundown of how we usually do things?
+634|e.join|feel free to lurk a bit first, no test at the door
+635|e.join|welcome! hope it makes your adventures a bit less lonely
+636|x|claims a shared past party
+637|x|claims the player offered help
+638|e.wb_long|been a while since we teamed up, would be nice to again
+639|x|claims to remember the player's tastes
+640|x|claims a shared past story
+641|e.wb|good to see you again, familiar names make the ls feel like home
+642|x|meta about memory
+643|e.wb_long|schedules change, no need to explain. good to have you back
+644|r.calm|let's pause before this gets personal
+645|r.calm|I might've misunderstood, can you explain again?
+646|x|loot-rule dispute, nothing triggers it
+647|x|meta
+648|x|meta
+649|r.calm|everyone take a sec, nobody needs to win this
+650|r.calm|we can reset and make things clearer next time
+651|r.calm|point is to have fun together, this can wait
+652|ls|just hanging in ls while I sort my bags
+653|ls,@night|quiet night in vana'diel, kinda what I needed
+654|ls|listening while I finish an errand, carry on
+655|ls|not every night needs a big expedition
+656|ls,say,@town|the music here never gets old
+657|ls|no plans, if anyone needs a hand just ask
+658|ls,@field|enjoying the view a sec before heading back
+659|ls|may your travels be peaceful and your inventory organized
+660|x|event scheduling for events that do not exist
+661|x|event scheduling
+662|x|event scheduling
+663|x|event scheduling
+664|x|event scheduling
+665|x|event scheduling
+666|x|event scheduling
+667|x|event scheduling
+668|e.wb_long|wb! no explanation needed, real life first
+669|e.wb_long|good to see your name again, we kept the lantern lit :)
+670|e.wb_long|stuff kept going while you were gone, happy to catch you up
+671|e.wb_long|hope the break was nice! want the short version of what's been going on?
+672|x|awkward wording
+673|e.wb_long|missed having you around, glad you took the time you needed
+674|e.wb_long|welcome home! jump back in whenever
+675|e.wb_long|some friendships survive long breaks. this one did
+# ---- new lines (Forever Offline), only where the pack has nothing for a real event or reply ----
++ctx_town_01|ls,@town|restocking meds before I head out|I am restocking medicines before I head out.
++ctx_town_02|ls,@town|in town sorting stuff, then probably {camp}
++ctx_field_01|ls,@hunt|out in {here} getting some exp|I am out in {here} gaining some experience.
++ctx_field_02|ls,@hunt|{here} is busy tonight, everyone's out
++ctx_craft_01|ls,@craft|doing some synths, ask if you need anything made
++ctx_party_01|ls,@party|in a pt at the moment, slow to answer
++ctx_job_01|ls|might level {sub} a bit after this
++lvl_01|e.levelup|ding {lvl}!|Level {lvl} at last.
++lvl_02|e.levelup|{lvl} on {job} finally|Finally reached {lvl} on {job}.
++lvl_03|e.levelup|just hit {lvl} :)
++lvl_04|e.levelup|ding! {job}{lvl}
++lvlr_01|e.levelup_react|gz!|Congratulations!
++lvlr_02|e.levelup_react|gz {member}!|Congratulations, {member}.
++lvlr_03|e.levelup_react|grats on {lvl}!
++lvlr_04|e.levelup_react|gz gz
++lvlr_05|e.levelup_react|nice, gz!
++dead_r_01|e.death_react|ouch
++dead_r_02|e.death_react|rip :(
++dead_r_03|e.death_react|uh oh, you ok?|Oh no. Are you all right?
++win_01|e.win|we won!|We won!
++win_02|e.win|cleared it, gg all
++win_r_01|e.win_react|gz!!
++win_r_02|e.win_react|nice, gz all
++gear_01|e.gear|got some new gear from the ah :)|I picked up new gear from the auction house.
++rank_01|e.rankup|rank up! finally|I finally ranked up.
++rank_r_01|e.rankup_react|gz on the rank!|Congratulations on the rank.
++job_01|e.jobchange|switched to {job} for a bit|I switched to {job} for a while.
++greet_01|r.greet|hey!
++greet_02|r.greet|o/
++greet_03|r.greet|hi {player}|Hello, {player}.
++greet_04|r.greet|heya, what's up?
++bye_01|r.bye|cya!
++bye_02|r.bye|later o/
++bye_03|r.bye|take care!
++ty_01|r.yw|np!
++ty_02|r.yw|anytime :)
++yes_01|r.yes|sure, send an invite|Sure, send me an invite.
++yes_02|r.yes|ok, invite me
++no_01|r.no|can't right now sorry, I'm {doing}|Sorry, I cannot right now. I am {doing}.
++no_02|r.no|maybe later? busy atm
++doing_01|r.doing|{doing} :)|Mostly {doing}.
++doing_02|r.doing|just {doing}, you?
++doing_03|r.doing|{doing}. you?
++job_r_01|r.job|{job} {lvl}|{job}, level {lvl}.
++job_r_02|r.job|lv{lvl} {job} atm
++job_r_03|r.job|{job}{lvl}/{sub}
++huh_01|r.unsure|hmm not sure
++huh_02|r.unsure|no idea sorry
++huh_03|r.unsure|good question lol
++misc_01|r.misc|lol
++misc_02|r.misc|heh
++misc_03|r.misc|yeah
++misc_04|r.misc|sorry, was afk a sec
++misc_05|r.misc|true
++misc_06|r.misc|haha nice
++wb_01|e.wb|o/ {player}|Hello, {player}.
++wb_02|e.wb|hey {player}!
++wb_03|e.wb|wb!
++login_01|e.login|o/ ls|Hello, everyone.
++login_02|e.login|hey all
++logout_01|e.logout|gotta go, cya all

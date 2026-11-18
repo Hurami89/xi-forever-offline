@@ -1,0 +1,219 @@
+# Casual voice layer for the Vana'diel Living World pack, part A (templates 001-215).
+# num|tags|casual|polite override (optional)
+# num|x|why dropped        num|npc (kept as written, NPC phase)
+# tags: where a line may be used (ls, say, party, r.<reply intent>, e.<real event>) and @conditions
+001|e.login|evening all, how's everyone doing?|Evening, everyone. How has Vana'diel treated you today?
+002|e.wb|wb! anyone find a decent pt tonight or is it dead?|Welcome back! Has anyone found a decent party tonight?
+003|e.wb|hey {player}! how've you been?|Good to see you, {player}. How have things been?
+004|e.login|hey all, on for a bit before I gotta head out
+005|e.login,@morning|morning ls, anyone out already?|Morning, Linkshell. Anyone already out adventuring?
+006|r.back|glad you made it back in one piece lol
+007|e.login,@busy|oh nice, whole crew's on tonight
+008|e.join|welcome in! make yourself at home
+009|e.lfp|anyone got room for one more?
+010|ls,r.bye|good hunting to whoever's heading out
+011|e.lfp|anyone up for an exp pt at {camp}?|Anyone interested in an experience party around {camp}?
+012|e.lfp|looking for a group around {camp}, can come as {job}|I am looking for a group around {camp}. I can come as {job}.
+013|e.lfm|we've got a spot open for a healer if anyone's free
+014|e.lfp|anyone wanna make a small pt for a couple hours?
+015|e.lfp|seeing who's around before I put a pt together
+016|e.lfm|we could use one more dd, any takers?
+017|ls|anyone working on a sub tonight?
+018|e.lfp|I'm in {here}, can travel if a pt forms|I am in {here} and ready to travel if a group forms.
+019|e.lfp|anyone up for a lower level pt? I'm {job}{lvl}|Would a lower-level party interest anyone? I am {job} {lvl}.
+020|r.yes,r.help|I can switch jobs if the pt needs something else
+021|e.party_end|camp was dead for ages then everything showed up at once lol
+022|e.death|forgot how long the walk back is after a wipe...
+023|ls,@field|might be changing zones soon, still on ls though
+024|party,@field|those tunnels are way easier when everyone knows the way out
+025|e.lfp|found a decent camp but it's no good without a puller
+026|ls|travel time is half the game, like it or not
+027|party|taking a quick break, then back to it
+028|party|nice chain, let's keep it going
+029|party|call it if you need to rest, no rush
+030|party|anyone checked if the camp's taken?
+031|e.quest|which gate was it for this mission again...
+032|e.quest|that cutscene was worth the trip
+033|r.maybe|one more errand then I can join
+034|ls|anyone remember where the next part of that quest starts?
+035|r.help|I can help with the mission if our times line up
+036|e.rankup|finally got my nation mission done, rank up!|I finally made progress on my nation missions.
+037|r.help,party|don't forget the key item, it's way too easy to forget
+038|e.quest|putting a small group together for a mission, anyone?
+039|e.win|took way longer than I thought but we got it done
+040|ls|should finish this quest before I forget where I left off
+041|ls,@hunt|been watching the spot but nothing yet
+042|ls|anyone wanna check a few spawn points with me?
+043|e.party_end,@hunt|no drop again... there's always next time
+044|party|call it before you engage pls, don't want anyone caught off guard
+045|ls|think I saw something near the usual spot, might be worth a look. might be nothing
+046|e.win|that went way smoother with everyone prepared
+047|r.help,party|bring sneak and invis, the route's kinda annoying
+048|ls|not saying it's up, just scouting
+049|e.loot_react|gz on the drop! lucky
+050|r.sympathy|we can try again another day, no need to camp all night
+051|e.craft|short a few crystals, anyone got spares?
+052|e.craft|guild was sold out so I might just gather mats myself
+053|e.craft|that synth was way too close lol
+054|e.craft,@night|doing a few skillups before bed
+055|e.craft|anyone know a quiet spot to gather?
+056|ls|been saving these mats for a rainy day
+057|r.help|check the recipe before you buy a whole stack, seriously
+058|e.craft|guild's packed, gonna come back later
+059|r.help,@craft|I can make that if you bring the mats
+060|e.craft|few more synths and I can try the next recipe
+061|e.death|well that went badly. brb, homepoint
+062|e.raised|ty for the raise, owe you one
+063|e.death|thought I was out of range. I was not.
+064|e.wipe|everyone ok? let's regroup before we try again
+065|e.death|expensive lesson in watching the patrols...
+066|e.death|gonna wait here instead of running back into that
+067|e.wipe|sorry about that pull, misjudged it
+068|e.wipe,r.sympathy|well at least we know where not to stand now
+069|e.wipe|nice recovery all, could've been way worse
+070|e.death|taking a sec to catch my breath|I am taking a moment to catch my breath.
+071|ls|inventory full AGAIN. some things never change
+072|ls|went out for one item, came back with a full bag somehow
+073|ls|vana'diel is great at turning a 5 min errand into an hour
+074|ls,@night|was gonna log off 10 min ago. that was an hour ago
+075|ls|one day I'll remember to bring enough tools. today was not that day
+076|ls|chocobo ride was nice until I remembered what I forgot to buy
+077|ls|I have a plan. it's not a good plan, but it's a plan
+078|r.laugh|that's going in the stories we tell new members
+079|party|I'll pretend that pull was on purpose
+080|ls|at least the view was nice while we were lost
+081|e.bcnm_start|post your job/sub before we set the pt pls
+082|e.bcnm_start|gather up first, then we'll go over the plan and items
+083|ls,@endgame|if you're running late just send a tell so we can adjust
+084|e.win|thanks everyone who came tonight, good work
+085|e.bcnm_start|need one more support job before we start
+086|e.bcnm_start|bring meds and the right gear pls
+087|e.bcnm_start|any questions before the first try?
+088|e.wipe,@endgame|ok that try told us something. adjust and go again
+089|ls,@endgame|I'll post the next time once it's settled
+090|r.no,ls|no pressure if you can't make it, real life first
+091|e.logout|heading out for the night, take care all
+092|e.logout|good hunting to those staying on, cya
+093|e.logout|thanks for the company, fun night
+094|e.logout,@night|need sleep, catch you all later
+095|e.logout|night ls, may your next coffer be kind|Good night, Linkshell. May your next treasure coffer be kind.
+096|e.logout|logging before I find another reason to stay lol
+097|e.logout|be safe out there
+098|e.logout|later all, take care of each other
+099|pair|you heading out or staying in town a while?|>staying a bit, waiting on my ls
+100|pair|was gonna check the guild but I can come along if you want|>sure, I'd like the company
+101|pair|that camp was packed earlier, maybe try a different route|>yeah good call
+102|pair|heard a pt might be forming, you check the ls?|>not yet, I'll look
+103|pair|I can wait if you're still getting ready|>almost done, sec
+104|pair|make any progress on your mission?|>a little, still stuck on the next part
+105|pair|been meaning to go see that area, maybe tomorrow|>let me know, I'll come
+106|pair|we should compare notes before we head out|>sure, what've you got?
+107|pair|I'll watch the entrance while you sort your bags|>ty, almost done
+108|pair|good to see you, it's been quiet around here|>yeah dead tonight huh
+109|npc
+110|npc
+111|npc
+112|npc
+113|npc
+114|npc
+115|npc
+116|npc
+117|npc
+118|npc
+119|npc
+120|npc
+121|npc
+122|npc
+123|npc
+124|npc
+125|npc
+126|npc
+127|npc
+128|npc
+129|npc
+130|npc
+131|npc
+132|npc
+133|npc
+134|ls|anyone else passing through {camp} tonight?|Is anyone else passing through {camp} tonight?
+135|r.where|I'm over in {here}|I am in {here} at the moment.
+136|ls|anyone found a good camp around {camp} lately?|Has anyone found a good camp around {camp} lately?
+137|ls,@town|might head to {camp} after I'm done in town|I may head toward {camp} after I finish in town.
+138|ls|been to {camp} a million times and I still forget to restock|I know the road to {camp} well by now, but I still check my supplies.
+139|ls|if anyone's heading to {camp}, let me know|If anyone is traveling to {camp}, let me know.
+140|r.congrats|nice! that took some work
+141|r.congrats|gz, you earned that one
+142|r.yw|np, happy to help
+143|r.yw|anytime, that's what the ls is for
+144|r.encourage|keep at it, progress is progress
+145|r.encourage|you'll get there, no rush
+146|r.sympathy|ugh that's rough, better luck next time
+147|r.sympathy|bad runs happen, don't let it ruin your night
+148|r.agree|sounds good to me
+149|r.agree|was thinking the same thing
+150|r.no|can't this time, but ty for asking
+151|r.no|got other plans tonight, another day?
+152|r.yes|should be free for a bit
+153|r.yes|gimme a sec to change jobs and I'll come
+154|r.unsure|not 100% sure, lemme check first
+155|r.unsure|don't wanna tell you wrong
+156|ls|anyone seen {member}? owe them something before I log|Has anyone seen {member}? I promised to return something before I log off.
+157|ls,@town|been sorting my inventory in town for way too long
+158|ls|nice change of pace tonight, needed a break from hard camps
+159|ls|anyone else taking a break or is everyone out?
+160|ls|found some old gear in my mog safe, no idea why I kept it|I found an old piece of gear in my Mog Safe and cannot remember why I kept it.
+161|party,r.yes|I can do one more run then I gotta go
+162|ls,@craft|someone remind me to put my tools away before I change jobs
+163|ls|was only gonna check the AH. that didn't go as planned
+164|ls|good company makes long trips go faster
+165|e.login|been meaning to catch up with everyone, busy week
+166|r.agree|sounds like a plan, I'll bring what I can
+167|ls|I'm around, just quiet while I finish this errand
+168|say|did you hear that? nvm, probably the wind
+169|ls,@town|should restock before I head out again and forget|I should restock before I forget and head out again.
+170|ls|lemme check my delivery box before we decide where to go
+171|ls|one more thing off my list
+172|party,r.yes|don't mind waiting if someone needs a few min
+173|ls|anyone know a good spot to kill an hour?
+174|r.maybe|got time for something short, not a huge trip
+175|ls|that reminds me, still owe someone a visit
+176|e.lfp|anyone want a steady pt instead of a quick run?
+177|r.yes|I can pull if needed, but I'd rather know the camp first
+178|party|everyone got food before we start?
+179|r.yes|happy to travel, just tell me which outpost or gate
+180|party|do we have someone with -na spells?|Do we have someone who can handle status cures?
+181|r.yes|I can bring a different job if the setup needs it
+182|party|chain got broken by a wanderer, we can recover
+183|party|let's rest a sec and get mp back
+184|party,ls|rather take a safe camp than spend the night running back
+185|ls|is the pt still looking or did everyone find a group?
+186|r.maybe,@craft|I can join after this synth
+187|party|who's got the map for this place? don't wanna walk us in circles
+188|party|let's pick the camp before we spend time traveling
+189|party,r.help|got extra food and meds if anyone forgot theirs
+190|party|can someone mark the route from the entrance? easy to miss
+191|party|that pull was a bit ambitious, let's slow down
+192|ls|anyone need a few more levels for their sub?
+193|e.lfp|free for a couple hours if we can get a group going
+194|party|say when you're ready, don't wanna leave anyone behind
+195|party|we can rotate camps if this one gets crowded
+196|e.jobchange|trying a different sub tonight, gonna take some getting used to
+197|e.gear|finally replaced that old armor, huge difference
+198|ls|need to work on my weapon skill before next time
+199|ls|anyone got tips for {job} around {lvl}?|Does anyone have advice for {job} around level {lvl}?
+200|ls|saving up for a better weapon so no fun purchases for me
+201|ls|keep forgetting to change gear after switching jobs lol
+202|ls,@mage|love that spell but it eats my mp
+203|ls,@town|gotta go to my mog house and sort my gear first
+204|ls|still learning when to use that ability right
+205|ls|anyone tried {job}/{sub} for small pts?|Has anyone tried {job}/{sub} for a small group?
+206|r.help|might have a spare piece in storage, I'll check
+207|r.no,@endgame|not really geared for that yet, being honest
+208|e.craft|skillups are slow tonight but at least the company's good
+209|ls|gotta remember bigger numbers aren't always better
+210|party|that ws looked awesome, I should practice mine
+211|e.jobchange|switching to a support job for the next run
+212|r.newbie|don't worry about perfect gear for a casual pt
+213|ls|been comparing gear and the cheap one's probably fine for now
+214|party,ls|gotta check my macros before we leave town
+215|ls,@endgame|good reminder to keep a resist set handy

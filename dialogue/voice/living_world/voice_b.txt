@@ -1,0 +1,251 @@
+# Casual voice layer, part B (templates 216-465).
+216|e.quest|got the key item, next step should be easier
+217|e.lfp|waiting by the gate if anyone's making the same trip
+218|ls|this mission has way more walking than I remembered
+219|r.help|I can help with the fight but I haven't seen that cutscene yet
+220|party|let's make sure everyone's on the same mission step first
+221|ls|wanna go back to that area when I have time to explore
+222|party|route's clear from here but watch the map
+223|ls,@town|gotta stop at the airship dock first
+224|ls|finally found the entrance. walked right past it twice
+225|r.unsure|not sure which nation has the next lead, I'll check first
+226|e.win|that was a fun trip, glad we went together
+227|party|I can wait while you finish the cutscene
+228|r.unsure|anyone know if this needs the whole group?
+229|ls|packed enough tools this time, for once
+230|ls,@town|heading back to town to restock before the next part
+231|ls|nothing confirmed yet, so don't make the trip just on my guess
+232|ls,@hunt|area's quiet atm, I'll keep watching a bit
+233|e.win|clean fight, everyone knew their job
+234|r.help|I can help scout even if I can't stay the whole camp
+235|ls|leave room for people who've been waiting their turn
+236|ls|rather check the spawn than spread a rumor
+237|r.sympathy|it's a nice drop but don't camp all night for it
+238|ls|we can take turns watching if a few people want it
+239|r.yes|got supplies ready if we decide to try
+240|e.party_end,r.sympathy|nothing this time. at least the chat was good
+241|ls,@hunt|saw another group nearby, let's be nice about the camp
+242|party|agree on who engages before anyone starts
+243|party|that thing hits way harder than it looks
+244|e.win|nice job keeping everyone up through that special
+245|r.unsure|I can tell you where, but I haven't checked if it's still there
+246|e.craft|comparing mat costs vs the finished item before I commit
+247|ls,@craft|anyone know if the guild restocked today?
+248|e.craft|got some extra mats from gathering, might put them up later
+249|e.craft|trying not to blow all my gil on one skillup session
+250|ls,@craft|that recipe's nice when the mats are easy to get
+251|ls|rather gather mats myself than pay what the AH wants today
+252|ls|pls don't buy out the whole stock just cause it's rare
+253|r.maybe,@craft|got a small order to finish before I can join
+254|e.craft|synth result was meh but the skillup helped
+255|e.craft|keeping my crystals separate so I don't grab the wrong stack
+256|ls,@craft|anyone seen a fair price for these mats lately?
+257|r.help,@craft|I can make it but no promises on HQ
+258|e.craft|taking a break from crafting before I start rushing synths
+259|x|era check: Guild Points may be later than the era cutoff, left out until checked on the Phoenix wiki
+260|ls,@craft|found a gathering route that dodges most of the trouble
+261|r.help|leave room in your bags for the finished item
+262|e.craft|saving the rare mats for a recipe closer to my skill
+263|r.agree|good deal if they've got the full stack
+264|e.craft,@night|got mats for a few tries then I'm done for tonight
+265|ls,@craft|anyone in the ls need these before I sell them?
+266|e.bcnm_start|before we set a time, let's see who can actually come
+267|r.maybe|can help prep even if I can't stay the whole thing
+268|e.bcnm_start|bring what the organizer listed pls, saves time later
+269|e.bcnm_start|let's explain the plan for anyone who hasn't done this
+270|e.bcnm_start|wanna go over the route before we gather
+271|e.bcnm_start|first try, let's keep it calm and learn the fight
+272|ls,@endgame|if we're short a job we can just push it back
+273|e.bcnm_start|ty for waiting while we sorted the lineup
+274|r.help|I can bring food and meds for anyone who needs them
+275|e.join,@endgame|make sure the new people know where to meet
+276|e.win|strat worked way better once we stopped rushing the start
+277|ls,@endgame|let everyone speak up before we change the plan
+278|r.maybe|can do setup but might have to leave before the last run
+279|e.wipe,@endgame|don't count a practice run as a fail, we learned stuff
+280|ls,@endgame|I'll confirm the time once the leader checks who's free
+281|npc
+282|npc
+283|npc
+284|npc
+285|npc
+286|npc
+287|npc
+288|npc
+289|npc
+290|npc
+291|npc
+292|npc
+293|npc
+294|npc
+295|npc
+296|npc
+297|npc
+298|npc
+299|npc
+300|npc
+301|npc
+302|npc
+303|npc
+304|npc
+305|npc
+306|npc
+307|npc
+308|npc
+309|npc
+310|npc
+311|r.question|still working on that goal or onto something new?
+312|r.yes|can tag along for a bit if you don't mind a quiet travel buddy
+313|ls|thinking about changing jobs for next time
+314|r.question|explore somewhere new or go back to a camp we know?
+315|ls,@gossip|heard some people had a good run, hope they tell us about it
+316|ls,@town|waiting till the roads calm down before I head out
+317|r.help|you eat yet? got food if you forgot to stock up
+318|ls,@town|no plan yet, sometimes it's nice to decide after leaving town
+319|r.question|oh interesting, tell me more when you get a sec
+320|r.yes|I'll be around if the pt needs another pair of hands
+321|ls|done with my errands, could use a little adventure
+322|party|let's not rush, we've got time to get there safe
+323|ls,@town|should go check my gear at the mog house
+324|r.greet|glad we ran into each other, it's been a slow day
+325|r.maybe|maybe ask the ls before we pick where to go?
+326|x|stitched filler (activity x time phrase), rebuilt as ctx_ lines
+327|x|stitched filler, broken grammar
+328|x|stitched filler, rebuilt as ctx_ lines
+329|x|stitched filler, rebuilt as ctx_ lines
+330|ls|if anyone's heading to {camp}, I'd take the company|If anyone is heading to {camp}, I would be glad of the company.
+331|ls|anyone got advice for {job} in a small pt?|Does anyone have advice for playing {job} in a small group?
+332|ls|anyone else helping a friend tonight?
+333|x|stitched filler, duplicate of 137
+334|x|stitched filler
+335|x|nonsense: 'after the airship arrives' stitched onto field zones
+336|x|stitched filler
+337|x|stitched filler, rebuilt as ctx_ lines
+338|ls,@craft|anyone else checking the guild tonight?
+339|x|stitched filler
+340|x|stitched filler, broken grammar
+341|x|stitched filler
+342|x|stitched filler, broken grammar ('finishing a mission once I finish this errand')
+343|ls|anyone else doing missions tonight?
+344|x|stitched filler
+345|x|broken grammar ('Has anyone been near X once I finish this errand?')
+346|x|stitched filler
+347|x|stitched filler, rebuilt as ctx_ lines
+348|ls|anyone else scouting routes tonight?
+349|x|nonsense airship filler
+350|x|stitched filler, broken grammar
+351|x|stitched filler
+352|x|nonsense airship filler
+353|x|duplicate of 017
+354|x|stitched filler, rebuilt as ctx_ lines
+355|ls|anyone else practicing weapon skills tonight?
+356|x|stitched filler
+357|x|stitched filler, rebuilt as ctx_ lines
+358|ls,@craft|anyone else gathering mats tonight?
+359|x|broken grammar
+360|x|stitched filler, rebuilt as ctx_ lines
+361|ls|anyone else waiting on a pt tonight?
+362|x|nonsense airship filler
+363|x|stitched filler
+364|x|stitched filler
+365|x|nonsense airship filler
+366|ls,@town|anyone else restocking meds tonight?
+367|x|stitched filler
+368|x|stitched filler
+369|x|stitched filler
+370|x|stitched filler
+371|x|nonsense airship filler
+372|ls|anyone else looking for an exp camp tonight?
+373|x|stitched filler
+374|x|stitched filler
+375|x|nonsense airship filler
+376|x|stitched filler
+377|x|stitched filler
+378|x|stitched filler
+379|x|stitched filler
+380|r.question|how'd that turn out in the end?
+381|r.question|did you find what you were looking for?
+382|r.encourage|let us know how it goes
+383|r.help|I can lend a hand if you still need help
+384|r.maybe|might be able to help after I finish here
+385|r.bye|gotta get moving, good talking with you
+386|r.bye|I'll leave you to it, gl with the rest
+387|r.question|which area are we meeting in?
+388|r.question|you need help with the fight or just directions?
+389|r.calm|no worries, we can sort it out
+390|r.calm|let's keep it friendly, everyone take a sec
+391|r.yes|I'll wait at the meeting spot
+392|party|send a tell when the last person shows up
+393|party|make sure nobody gets left behind
+394|r.thanks|ty for explaining that
+395|r.thanks|appreciate the help, saved me a trip
+396|e.wb,r.greet|good to see you again! we should do another trip soon
+397|x|claims to remember the player's quest (only the AI's real memory may say this)
+398|r.help|if you need a hand later just send me a tell
+399|e.wb_long|haven't seen you in a while, how've things been?
+400|x|claims a party slot was saved
+401|x|invents a shared past trip
+402|e.wb|glad you made it, more fun with familiar faces around
+403|r.yes|let me know when you're ready, I can wait
+404|x|claims the player helped with a mission
+405|ls|we should bring the newer people next time
+406|e.levelup_react,@rival|pfft, guess I have to catch up now
+407|e.levelup_react,@rival|you beat me there this time, enjoy it while it lasts
+408|e.win,@rival|good run. next time I pick the camp
+409|party|ok I'll admit, that was a clever pull
+410|e.levelup_react,@rival|don't get comfy, I'm still coming for you
+411|e.win_react,r.congrats|well played, can't even complain about that
+412|r.laugh|not saying I was right, but not saying I was wrong either
+413|e.win_react,@rival|fine, you win this round
+414|e.gear_react|nice gear. might have to get one myself
+415|ls,@rival|friendly competition keeps it fun
+416|r.newbie|everyone starts somewhere, just ask if you're unsure
+417|r.unsure|depends on your job and level really
+418|r.newbie|don't worry if you don't know the way yet, we can show you
+419|r.newbie|take your time learning your abilities, no rush
+420|r.newbie|want me to explain what the pt is looking for before we go?
+421|r.newbie|keep your map open and ask if you get lost
+422|r.newbie|first few pts are hectic, it gets easier
+423|r.newbie|you don't need expensive gear to learn your job
+424|e.join|welcome aboard! happy to have you
+425|r.newbie|ask the ls before buying anything pricey, someone might have tips
+426|ls,@leader|keep recruiting questions in ls so everyone can see
+427|e.join,@leader|got room for new people, just say hi so we can meet you
+428|r.calm|if there's a disagreement, take a breath and sort it out
+429|ls,@leader,@endgame|I'll post details once the time and lineup are set
+430|ls,@leader|nobody has to come to everything, join when it works for you
+431|ls,@leader|let someone know if you can't make it
+432|ls,@leader|make sure the quieter folks get a word in too
+433|x|claims helpers were out with new members tonight
+434|ls,@leader|keep the ls friendly, whether you're 10 or 75
+435|ls,@leader|got an idea for an event? bring it up and we'll plan it
+436|ls,@craft|usually hit the guild before I head out, saves a trip
+437|e.login|gonna check my gear then decide where to go
+438|ls|I skip the busy camps when I'm solo
+439|ls,@town|got a few errands in town before I meet the others
+440|e.craft|quiet day, gathering and sorting storage
+441|ls|might go to the outpost and see if anyone needs help
+442|ls,@town|like hanging in town a bit before picking somewhere to go
+443|e.jobchange|heading to my mog house to change jobs
+444|ls|no plan today, just gonna follow the road and see who I meet
+445|e.logout|usually log after one last thing. there's always one more thing
+446|npc
+447|x|NPC claims to remember the player with a group
+448|npc
+449|x|NPC claims the player's companions passed by
+450|npc
+451|x|NPC claims a merchant asked about the player
+452|npc
+453|x|NPC claims news about the player's group
+454|npc
+455|x|NPC claims friends are waiting at the gate
+456|ls,@night|long day. gonna enjoy the quiet for a bit
+457|ls,@town|sometimes a night in town beats another trip out
+458|ls,@morning|forgot how peaceful it is before the crowds show up
+459|e.party_end|happy with what we got done even if we didn't finish
+460|ls|always another goal. nice to stop now and then
+461|e.death|think I'll do something less dangerous tomorrow lol
+462|e.party_end|good night, glad I didn't just sit in my mog house
+463|ls|learned to enjoy the small wins
+464|ls|might go visit somewhere I haven't been in ages
+465|e.logout|rest well all, we can plan more tomorrow

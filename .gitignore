@@ -106,6 +106,9 @@
 !/crowds/
 /crowds/bots/chat_memory/
 
+# ---- written dialogue for the bots and squad mates (dialogue packs, our voice layer, the builder, the built lines) ----
+!/dialogue/
+
 # ---- squad chat (AI) ----
 !/squad-chat/
 /squad-chat/*

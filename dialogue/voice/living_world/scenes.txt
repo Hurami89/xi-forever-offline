@@ -1,0 +1,108 @@
+# Scenes: Sxx|trigger (our real event or ambient)   then lines: role|casual|polite override (optional)
+# Same role number = same speaker. Roles are filled with different online members of the shell.
+# Dropped scenes: Sxx|x|why
+S01|e.wb
+1|hey wb!
+2|hey. hope your day was ok
+3|if you want a pt later let us know
+S02|e.join
+1|welcome to the ls! make yourself at home
+2|if you've got questions about jobs or missions or finding a pt, just ask
+S03|e.lfp
+1|got a pt coming together, what jobs can everyone bring?
+2|I can ask around and see who's free
+3|I can come once I'm done in town
+1|ok cool, we'll pick the camp once we know the lineup
+S04|x|needs a loot event (bots have none yet)
+S05|e.wipe
+1|ok let's regroup and figure out what went wrong before we try again
+2|I vote we don't stand in that exact spot next time
+3|I'll wait here, take your time
+S06|e.craft
+1|trying to get a few more skillups before I quit for tonight
+2|got any tips for picking recipes at my level?
+3|check the recipe range and mat costs first, a little planning saves a lot of gil
+S07|e.logout
+1|gotta call it a night, early start tomorrow
+2|rest well, see you next time!
+3|night, take care
+S08|ls,@town
+1|think I'll head out and see what the next area's like
+2|safe travels, let us know when you get there
+S09|x|claims two members partied together before
+S10|e.levelup,@rival
+1|I see someone's been busy. guess I gotta catch up
+2|not everything has to be a competition lol
+1|no promises, keeps it interesting
+S11|r.newbie
+1|tell us your level and what you wanna do, we can point you the right way
+2|and welcome btw, no rush
+S12|x|event signup for an event that does not exist
+S13|ls,@town
+1|think I'll leave town and take the long road today
+2|check your supplies first, you know the way but it's still a trip
+S14|x|NPC claims the player's companions asked about the road
+S15|e.party_end
+1|good job everyone, take a sec to recover before you head out again
+2|camp was good once we got into a rhythm
+3|ty for the pt
+S16|ls,@craft
+1|I keep picking recipes that cost way more than I expected
+2|check mat costs and the recipe range before you start. small batches while you're learning
+1|makes sense, I'll do a few at a time
+S17|ls
+1|heard a report but haven't confirmed anything yet
+2|then it's a rumor till someone checks
+3|yeah, no need to send people across the map on a guess
+S18|ls,@night
+1|so peaceful around town right now
+2|good time to sort gear
+3|or just sit a while and watch the road
+S19|x|nothing tells the server the player declined a bot's invite
+S20|e.join
+1|everyone say hi to our new member!
+2|if you need help finding your feet, ask in ls
+3|o/ welcome!|Welcome!
+S21|x|announces an expedition that does not exist
+S22|ls,@lowlevel
+1|can someone help with my next mission? not sure what I need first
+2|sure, what step are you on? we'll check what you need
+3|I can come if the timing works
+1|ty, I'll check my mission log first
+S23|x|needs a loot event (bots have none yet)
+S24|ls,@exp
+1|I vote the farther camp, better exp and better stories
+2|closer camp suits the pt we have better imo
+3|start close and decide after we see how it goes?
+2|fair, we'll check after the first round
+1|deal. my grand expedition can wait
+S25|x|meta (rules about nicknames)
+S26|e.win
+1|thanks for coming everyone! how'd it feel from your side?
+2|meeting spot worked well, could've shared the supply list earlier though
+3|agreed, good pace and nobody got left behind
+1|I'll post the supply list earlier next time, ty
+S27|x|needs a 'first group event' the server does not track
+S28|x|missed event that does not exist
+S29|ls
+1|heard there's a new shortcut to the camp, is that true?
+2|haven't checked it, I'd look it up before trusting it
+3|till then let's stick to the way we know
+1|fair enough
+S30|ls,@quiet
+1|peaceful night. anyone have a little adventure planned?
+2|not tonight, happy just hanging in ls
+1|I'll keep it quiet then, enjoy :)
+S31|e.bcnm_start
+1|before we go, let's agree how drops get handled
+2|clear rules now saves awkward stuff later
+1|ok, I'll say the rules before the first pull
+S32|e.wb_long
+1|wb! not much you need to catch up on all at once
+2|good to have you back, we can fill you in whenever
+S33|x|nothing detects an argument in chat
+S34|x|roster changes for an event that does not exist
+S35|e.wb_long
+1|been a while since we went out together
+2|no need to explain the gap, we can pick up whenever
+1|a chill outing sometime soon would be nice

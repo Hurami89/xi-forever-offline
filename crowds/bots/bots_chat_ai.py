@@ -9,6 +9,7 @@ Each bot keeps a short memory of what it said with each player in crowds/bots/ch
 """
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -65,6 +66,65 @@ def log(msg):
 def server_paths(server):
     lua = os.path.join(server, "modules", "custom", "lua")
     return os.path.join(lua, "bots_chat_in.txt"), os.path.join(lua, "bots_chat_out.txt"), os.path.join(lua, "bots_chat_state.json")
+
+
+# The dialogue packs (C:\FFXISOLO\dialogue\dialogue_lines.json, built by dialogue/build_dialogue.py): each bot's
+# personality (the same one its written lines use in game) and a few lines in its voice, as examples of the feel.
+DIALOGUE_FILE = os.path.join(KIT, "dialogue", "dialogue_lines.json")
+_dialogue = None
+REPLY_KINDS = [
+    ("r.yes", r"\b(party|pt|join|inv)"), ("r.doing", r"what (are|r) (you|u) (doing|up to)|\bwyd\b|what'?s up|\bsup\b"),
+    ("r.job", r"\b(level|lvl|what job|which job)"), ("r.yw", r"\b(thanks?|ty|thx|tyvm)\b"), ("r.thanks", r"\b(gz|grats|congrat)"),
+    ("r.bye", r"\b(bye|cya|see ya|good night|gn|gotta go)\b"), ("r.greet", r"^\s*(hi|hey|hello|heya|yo)\b|o/"),
+    ("r.newbie", r"new to|first time|how do i|where do i|what should i|any tips|advice"), ("r.help", r"\bhelp\b"),
+    ("r.sympathy", r"\b(died|wiped|no drop|failed|ugh|sigh)\b"), ("r.laugh", r"\b(lol|haha|lmao|heh)\b"), ("r.question", r"\?"),
+]
+
+
+def dialogue_data():
+    global _dialogue
+    if _dialogue is None:
+        _dialogue = {"personas": {}, "by_tag": {}}
+        try:
+            with open(DIALOGUE_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            _dialogue["personas"] = {p["id"]: p for p in data.get("personas", [])}
+            for line in data.get("lines", []):
+                for tag in line.get("tags", []):
+                    _dialogue["by_tag"].setdefault(tag, []).append(line)
+        except (OSError, ValueError, KeyError) as exc:
+            log(f"no dialogue pack lines ({exc}): answers work without them")
+    return _dialogue
+
+
+def persona_text(persona_id):
+    p = dialogue_data()["personas"].get(persona_id or "")
+    if not p:
+        return "", None
+    text = f"personality: {p['name']}, {p.get('voice', '')}"
+    if p.get("habits"):
+        text += "; habits: " + ", ".join(p["habits"])
+    if p.get("avoid"):
+        text += "; never: " + ", ".join(p["avoid"])
+    return text, p
+
+
+def examples_for(text, kind, persona, n=4):
+    """A few written lines that fit what was said, in this bot's register (polite personalities: the pack's wording)."""
+    d = dialogue_data()
+    if not d["by_tag"]:
+        return []
+    lower = (text or "").lower()
+    want = next((k for k, pat in REPLY_KINDS if re.search(pat, lower)), "r.misc")
+    tags = [want, "ls" if kind == "ls" else "party" if kind == "party" else "r.question"]
+    polite = bool(persona and persona.get("register") == "polite")
+    out = []
+    for tag in tags:
+        pool = [l for l in d["by_tag"].get(tag, []) if "{" not in l.get("casual", "")]
+        random.shuffle(pool)
+        for line in pool[: max(1, n // len(tags))]:
+            out.append(line["polite"] if polite else line["casual"])
+    return out[:n]
 
 
 def describe(info):
@@ -249,6 +309,9 @@ def answer_lines(cfg, req, stub=False):
     mem = load_memory(bot)
     prof = profile_of(cfg, bot, info, mem, stub)
     person = "; ".join(f"{k}: {prof[k]}" for k in ("player", "style", "likes", "dislikes", "story", "quirk") if prof.get(k))
+    ptext, persona = persona_text(info.get("persona"))
+    if ptext:
+        person += "; " + ptext
     diary = merge_diary(mem, info.get("recent"))
     history = mem.get(to, [])[-KEEP:]
     if stub:
@@ -266,6 +329,10 @@ def answer_lines(cfg, req, stub=False):
     about_text = f"What you know about {to}: {about}\n" if about else f"You do not know {to} well yet.\n"
     gossip = as_list(info.get("gossip"))[:3]
     world_text = ("Talk around the server lately (other players): " + "; ".join(gossip) + ".\n") if gossip else ""
+    examples = examples_for(text, req.get("kind"), persona)
+    if examples:
+        world_text += ("How you and the people around you type (only the feel, never copy these): "
+                       + " | ".join(examples) + "\n")
     messages = [{"role": "system", "content": SYSTEM.format(name=bot, facts=describe(info), person=person, mood=mood_of(bot), where=where,
                                                             diary=diary_text, about=about_text, world=world_text)}]
     for h in history:
