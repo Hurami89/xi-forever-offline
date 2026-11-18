@@ -2707,6 +2707,11 @@ class App(tk.Tk):
             if item.get("apply") == "era_dats" and installed:
                 tk.Button(self.dl_rows, text="Apply to the game", relief="flat", bg=PANEL, fg=FG, padx=10,
                           command=self.apply_era_dats).grid(row=row * 2 + 1, column=2, sticky="w")
+            if item.get("polplugin") and installed and self.boot_ini and os.path.exists(self.boot_ini):
+                on = core.polplugin_on(self.boot_ini, item["polplugin"])
+                tk.Button(self.dl_rows, text=("On - turn off" if on else "Off - turn on"), relief="flat",
+                          bg=PANEL, fg=GREEN if on else FG, padx=10,
+                          command=lambda i=item, v=not on: self.toggle_polplugin(i, v)).grid(row=row * 2 + 1, column=2, sticky="w")
             if item.get("patch") and installed:
                 tk.Button(self.dl_rows, text="Apply era edits", relief="flat", bg=PANEL, fg=FG, padx=10,
                           command=lambda i=item: self.apply_download_patch(i)).grid(row=row * 2 + 1, column=2, sticky="w")
@@ -2716,6 +2721,16 @@ class App(tk.Tk):
             info = f"by {item['author']} - license: {item['license']}" + (f" - {item['note']}" if item.get("note") else "")
             tk.Label(self.dl_rows, text=info, bg=BG, fg=DIM, font=("Segoe UI", 9), anchor="w", wraplength=760,
                      justify="left").grid(row=row * 2 + 1, column=0, columnspan=4, sticky="w")
+
+    def toggle_polplugin(self, item, on):
+        try:
+            core.set_polplugin(self.boot_ini, item["polplugin"], on)
+            if on and item["polplugin"] == "pivot" and self.ashita:
+                core.pivot_first_config(self.ashita)
+            self.say(f"{item['name']} is now {'on' if on else 'off'} (from the next PLAY).")
+        except Exception as e:
+            self.say(f"Could not change {item['name']} ({e}).")
+        self.show_downloads()
 
     def open_url(self, url):
         import webbrowser
@@ -3628,7 +3643,8 @@ class SetupWizard(tk.Tk):
     """First run (no config.json yet): find FFXI, install Ashita and the add-ons, set up the database and the account.
     The work itself is launcher_setup.run_setup; this window only asks the questions and shows the progress."""
 
-    EXTRAS = (("mobdb", "mobdb: monster info on your target", True), ("nameplate", "Nameplate: clearer name plates", True),
+    EXTRAS = (("mobdb", "mobdb: monster info on your target", True), ("nameplate", "Nameplate: clearer name plates (may not load on the current Ashita)", False),
+              ("xipivot", "XIPivot: load DAT mods without changing game files", False),
               ("gambatte", "Mini game player", True),
               ("chains", "Chains: skillchain helper", False), ("autobot", "AutoBot: for a second (dualbox) character", False))
 

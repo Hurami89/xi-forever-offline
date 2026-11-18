@@ -215,7 +215,39 @@
           "docs/"
         ]
       ],
-      "check": "plugins/Nameplate.dll"
+      "check": "plugins/Nameplate.dll",
+      "note": "The public release (v0.5.1.0d) was made for an older Ashita; the current Ashita may refuse to load it (harmless: name plates stay as they are)."
+    },
+    {
+      "id": "xipivot",
+      "name": "XIPivot",
+      "author": "Renee Koecher (HealsCodes)",
+      "license": "BSD-3-Clause",
+      "homepage": "https://github.com/HealsCodes/XIPivot",
+      "into": "ashita",
+      "source": {
+        "type": "github_release",
+        "repo": "HealsCodes/XIPivot",
+        "tag": "v4.3.001",
+        "asset": "^XIPivot_Ashita_v4_[0-9.]+\\.zip$"
+      },
+      "files": [
+        [
+          "polplugins/",
+          "polplugins/"
+        ],
+        [
+          "config/",
+          "config/"
+        ],
+        [
+          "docs/",
+          "docs/"
+        ]
+      ],
+      "polplugin": "pivot",
+      "note": "Loads DAT mods (UI, textures, music) from Ashita/polplugins/DATs without changing your game files. Off until you turn it on here; the change applies at the next PLAY.",
+      "check": "polplugins/pivot.dll"
     },
     {
       "id": "gambatte",

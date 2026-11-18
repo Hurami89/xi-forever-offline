@@ -562,6 +562,14 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
     log(write_network_settings(server, keys["port"], keys["xi"]))
     log("8/9 Ashita boot file and script...")
     log(write_boot(ashita, choices["login"], choices["password"]))
+    if "xipivot" in choices.get("extras", []):          # chosen at setup: XIPivot (a PlayOnline-stage plugin) on
+        try:
+            import launcher_core
+            launcher_core.set_polplugin(os.path.join(ashita, "config", "boot", BOOT_NAME), "pivot", True)
+            launcher_core.pivot_first_config(ashita)
+            log("XIPivot turned on in the boot file.")
+        except Exception as e:
+            log(f"Could not turn XIPivot on ({e}).")
     addons = list(STOCK_ADDONS) + list(START_ADDONS) + [a for a in ("mobdb", "chains") if a in choices.get("extras", [])]
     plugins = list(STOCK_PLUGINS) + (["Nameplate"] if "nameplate" in choices.get("extras", []) else [])
     log(write_script(ashita, choices.get("interface"), addons, plugins))

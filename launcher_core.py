@@ -1554,3 +1554,47 @@ def gfx_fix_search_paths(target):
         if not gfx_ini_add_paths(target, effect_paths, texture_paths):
             raise RuntimeError("There is no ReShade.ini in the loader folder.")
     return [p.rstrip("\\*") for p in effect_paths + texture_paths]
+
+
+def polplugin_on(boot_ini, name):
+    """True when Ashita's boot file loads the PlayOnline-stage plugin `name` ([ashita.polplugins] name = 1)."""
+    try:
+        with open(boot_ini, encoding="utf-8-sig", errors="replace") as handle:
+            text = handle.read()
+    except OSError:
+        return False
+    section = re.search(r"(?ms)^\[ashita\.polplugins\]\s*$(.*?)(?=^\[|\Z)", text)
+    if not section:
+        return False
+    m = re.search(r"(?mi)^\s*" + re.escape(name) + r"\s*=\s*(\S+)", section.group(1))
+    return bool(m) and m.group(1) not in ("0", "false", "False")
+
+
+def set_polplugin(boot_ini, name, on):
+    """Turns a PlayOnline-stage plugin (XIPivot = 'pivot') on or off in Ashita's boot file. Other lines untouched."""
+    with open(boot_ini, encoding="utf-8-sig", errors="replace") as handle:
+        text = handle.read()
+    value = "1" if on else "0"
+    section = re.search(r"(?ms)^\[ashita\.polplugins\]\s*$(.*?)(?=^\[|\Z)", text)
+    if not section:
+        text = text.rstrip("\n") + f"\n\n[ashita.polplugins]\n{name} = {value}\n"
+    else:
+        body = section.group(1)
+        pattern = r"(?mi)^(\s*" + re.escape(name) + r"\s*=\s*)\S*"
+        if re.search(pattern, body):
+            body = re.sub(pattern, lambda m: m.group(1) + value, body, count=1)
+        else:
+            body = f"\n{name} = {value}" + body if not body.startswith("\n") else f"\n{name} = {value}" + body
+        text = text[:section.start(1)] + body + text[section.end(1):]
+    with open(boot_ini, "w", encoding="utf-8", newline="\r\n") as handle:
+        handle.write(text)
+
+
+def pivot_first_config(ashita_dir):
+    """XIPivot's README: the first time, config/pivot/pivot.sample.ini becomes pivot.ini. Never replaces a pivot.ini."""
+    folder = os.path.join(ashita_dir, "config", "pivot")
+    target, sample = os.path.join(folder, "pivot.ini"), os.path.join(folder, "pivot.sample.ini")
+    if os.path.exists(sample) and not os.path.exists(target):
+        shutil.copyfile(sample, target)
+        return True
+    return False

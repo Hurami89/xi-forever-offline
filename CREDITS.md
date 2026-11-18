@@ -29,6 +29,7 @@ Each comes from its official release page and keeps its own license.
 | Journal ([Nexus Mods, FFXI mod 44](https://www.nexusmods.com/finalfantasy11/mods/44)) | Kxteel | MIT |
 | [Chains](https://github.com/NerfOnline/Chains) | Sippius, Ivaar and NerfOnline | see its release page |
 | [Nameplate](https://github.com/Shirk/Nameplate) | Shirk | GPL v3 |
+| [XIPivot](https://github.com/HealsCodes/XIPivot) | Renee Koecher (HealsCodes) | BSD 3-Clause |
 | [xiloader (Phoenix)](https://github.com/phoenixffxi/xiloader) | Phoenix / LandSandBoat | GPL v3 |
 | Gambatte (libretro core, used by Crystal Boy) | the Gambatte and libretro authors | GPL v2 |
 | dgVoodoo | Dege | see its site |
