@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.18';
+addon.version = '1.19';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -282,6 +282,26 @@ end
 local queueDuo -- (the second window's command batch, defined further down)
 
 local function onLine(payload)
+    -- (1.19) a Blue Mage mate's set blue magic: blu|slot|slots|points|used|auto, blus|slot|id|name|level|points|set, blue|slot
+    local bs, bsl, bpt, bused, bauto = payload:match('^blu|(%d+)|(%d+)|(%d+)|(%d+)|(%d+)$');
+    if bs then
+        S.blu = { slot = tonumber(bs), slots = tonumber(bsl), points = tonumber(bpt), used = tonumber(bused), auto = bauto == '1', list = {}, done = false };
+        return;
+    end
+    local ks, kid, kname, klv, kpt, kset = payload:match('^blus|(%d+)|(%d+)|([^|]+)|(%d+)|(%d+)|(%d+)$');
+    if ks then
+        local b = S.blu;
+        if b and b.slot == tonumber(ks) then
+            b.list[#b.list + 1] = { id = tonumber(kid), name = kname:gsub('_', ' '), level = tonumber(klv), points = tonumber(kpt), set = kset == '1' };
+        end
+        return;
+    end
+    local es2 = payload:match('^blue|(%d+)$');
+    if es2 then
+        if S.blu and S.blu.slot == tonumber(es2) then S.blu.done = true; end
+        S.waitUntil = 0;
+        return;
+    end
     -- (1.14) gear picker answers: gl|<mate slot>|<equip slot>|<item id>|<level>|<name> ... gle|<mate slot>|<equip slot>|<count>
     local gs, ge, gid, glv, gname = payload:match('^gl|(%d+)|(%d+)|(%d+)|(%d+)|(.+)$');
     if gs then
@@ -1921,6 +1941,51 @@ local function drawGear(slot, name, itemId, textMax)
     imgui.EndGroup();
 end
 
+-- (1.19) Blue magic: a Blue Mage mate's set spells, like the Set Spells menu. Automatic until you click a spell;
+-- "Fill automatically" hands it back. Changes apply when the mate is called again (Apply now).
+local function askBlue(slot, delay)
+    enqueue(string.format('/say !squad blu %d', slot), delay or 0);
+    S.waitUntil = now() + (delay or 0) + 5;
+end
+
+local function bluePicker(slot, h)
+    if slot == nil or h == nil or (h.job ~= 'BLU' and h.sub ~= 'BLU') then return; end
+    if has('Separator') then imgui.Separator(); end
+    colorText(C.gold, 'Blue magic');
+    local b = S.blu;
+    if b == nil or b.slot ~= slot then
+        imgui.SameLine(0, 10);
+        if button('Show', 'blushow' .. slot, 70, 0) then askBlue(slot); S.blu = { slot = slot, list = {}, done = false }; end
+        tooltip('List the blue magic this mate knows and what is set (the mate has to be out)');
+        return;
+    end
+    if not b.done then dimText('Looking... (the mate has to be out)'); return; end
+    local setCount = 0;
+    for _, k in ipairs(b.list) do if k.set then setCount = setCount + 1; end end
+    dimText(string.format('%s  -  slots %d/%d, points %d/%d', b.auto and 'Automatic' or 'Your set', setCount, b.slots or 0, b.used or 0, b.points or 0));
+    imgui.SameLine(0, 10);
+    if button('Fill automatically', 'bluauto' .. slot, 0, 0, b.auto and 'selected' or nil) then
+        enqueue(string.format('/say !squad blu %d auto', slot));
+        S.pendingApply = true;
+        askBlue(slot, 2);
+        b.done = false;
+    end
+    tooltip('Let the mate pick its own set again');
+    for k, item in ipairs(b.list) do
+        if k > 1 and (k - 1) % 3 ~= 0 then imgui.SameLine(0, 6); end
+        local label = string.format('%s (%d)', item.name, item.points);
+        if button(label, 'blu' .. slot .. '_' .. item.id, px(150), 0, item.set and 'on' or nil) then
+            enqueue(string.format('/say !squad blu %d %s %d', slot, item.set and 'unset' or 'set', item.id));
+            S.pendingApply = true;
+            askBlue(slot, 2);
+            b.done = false;
+        end
+        tooltip(string.format('Lv%d, %d set points. Click to %s.', item.level, item.points, item.set and 'unset it' or 'set it'));
+    end
+    if #b.list == 0 then dimText('No blue magic known yet.'); end
+    dimText('Changes apply when the mate is called again (Apply now).');
+end
+
 -- (1.14) Change gear: pick a slot, see the given gear this mate can wear there (from the server), click to put it on.
 -- Works at home and in a friend's world (it only uses !squad commands).
 local SLOT_KEY = { [0] = 'main', 'sub', 'range', 'ammo', 'head', 'body', 'hands', 'legs', 'feet', 'neck', 'waist', 'ear1', 'ear2', 'ring1', 'ring2', 'back' };
@@ -2208,6 +2273,7 @@ local function renderSheet()
             end
 
             gearPicker(S.sheetSlot);   -- (1.18: was `slot`, which is not set in this function, so the picker never showed)
+            bluePicker(S.sheetSlot, d.hdr);
 
             if has('Separator') then imgui.Separator(); end
             wrappedColored(C.faint, 'The stats are read from your squad mate while they are out, so they already include their gear. '
