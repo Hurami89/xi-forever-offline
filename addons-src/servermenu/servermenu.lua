@@ -14,6 +14,7 @@ One menu for XI: Forever Offline, opened from a small Squads button on the scree
   The Squads button     click: open or close the menu. Drag it to move it. Right-click: lock it in place, or hide it.
   /menu              open or close the menu (also /smenu)
   /menu button       show the button again after hiding it      /menu resetbutton   put it back in its first place
+  /menu scale <n>    size of our windows (0.75-3, 1 = normal; for 4K screens)
   /sq                open the menu on the Squad tab              /sq refresh         ask the server again
   /sq sheet [slot]   open a mate's profile window (also the Profile button on their row)
   /menu gambits      open the menu on Dualbox with its Gambits section showing
@@ -34,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.15';
+addon.version = '1.16';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -151,7 +152,7 @@ local S = {
     -- diagnostics
     spell = { 'Dia' },
     -- the button
-    cfg = { button_x = '18', button_y = '240', button_locked = 'false', button_hidden = 'false', button_wide = 'false', tab = 'Squad', spell = 'Dia' },
+    cfg = { button_x = '18', button_y = '240', button_locked = 'false', button_hidden = 'false', button_wide = 'false', tab = 'Squad', spell = 'Dia', scale = '1' },
     cfgDirty = false, cfgSavedAt = -1000, buttonPos = nil, dragging = false, dragFrom = nil, dragMoved = false,
 };
 
@@ -662,11 +663,24 @@ local function has(name) return imgui ~= nil and type(imgui[name]) == 'function'
 
 -- Sizes are laid out for the usual 13 px font. With a bigger game font (Ashita font scale, high-DPI setups) every fixed width
 -- and height grows with it, so labels and card rows are not cut off (1.12).
+-- (1.16) /menu scale <0.75-3>: our windows (the Squads button, the menu, the mate sheets) drawn bigger or smaller,
+-- for 4K screens where the window and menu resolutions must match (Senna). Only our windows; XIUI has its own.
+local function userScale()
+    local v = tonumber(S.cfg.scale or '1') or 1;
+    return math.max(0.75, math.min(3, v));
+end
+
 local function px(n)
     if type(n) ~= 'number' or n <= 0 then return n; end
+    local us = userScale();
     local size = has('GetFontSize') and imgui.GetFontSize() or 13;
+    if S.scaledNow and type(size) == 'number' then size = size / us; end   -- (inside our window the font is scaled already)
     local scale = (type(size) == 'number' and size > 0) and math.max(1, math.min(3, size / 13)) or 1;
-    return math.floor(n * scale + 0.5);
+    return math.floor(n * scale * us + 0.5);
+end
+
+local function scaleWindow()
+    if has('SetWindowFontScale') then imgui.SetWindowFontScale(userScale()); S.scaledNow = true; end
 end
 local function G(name) return rawget(_G, name); end
 
@@ -1598,6 +1612,7 @@ local function menuWindow()
                                 { 'ImGuiCol_Text', C.text } });
     local flags = (G('ImGuiWindowFlags_NoTitleBar') or 0) + (G('ImGuiWindowFlags_NoCollapse') or 0);
     if imgui.Begin('XI: Forever Offline##servermenu', S.open, flags) then
+        scaleWindow();
         colorText(C.gold, 'SQUADS');
         imgui.SameLine(0, 8);
         dimText('XI: Forever Offline');
@@ -1619,6 +1634,7 @@ local function menuWindow()
         local draw = TAB_DRAW[S.tab] or squadTab;
         draw();
     end
+    S.scaledNow = false;
     imgui.End();
     if colors > 0 then imgui.PopStyleColor(colors); end
     if vars > 0 then imgui.PopStyleVar(vars); end
@@ -1646,6 +1662,7 @@ local function buttonWindow()
     end
     if S.cfg.button_locked == 'true' then flags = flags + (G('ImGuiWindowFlags_NoMove') or 0); end
     if imgui.Begin('##servermenu_button', { true }, flags) then
+        scaleWindow();
         local clicked = imgui.Button('Squads##sm_open', { px(76), px(30) });
         -- dragging the button moves it (unless locked); a drag is not a click
         if S.cfg.button_locked ~= 'true' and has('IsItemActive') and has('IsMouseDragging') and has('GetMouseDragDelta') then
@@ -1688,6 +1705,7 @@ local function buttonWindow()
             end
         end
     end
+    S.scaledNow = false;
     imgui.End();
     if colors > 0 then imgui.PopStyleColor(colors); end
     if vars > 0 then imgui.PopStyleVar(vars); end
@@ -2077,6 +2095,7 @@ local function renderSheet()
     });
     local flags = (G('ImGuiWindowFlags_NoCollapse') or 0);
     if imgui.Begin(title, S.sheetOpen, flags) then
+        scaleWindow();
         if d == nil or d.hdr == nil then
             dimText(now() < (S.sheetWaitUntil or 0) and 'Asking the server...' or 'No answer from the server. Press Sheet again.');
         else
@@ -2177,6 +2196,7 @@ local function renderSheet()
             tint(C.faint, 'servermenu ' .. tostring(addon.version));
         end
     end
+    S.scaledNow = false;
     imgui.End();
     if colors > 0 then imgui.PopStyleColor(colors); end
     if vars > 0 then imgui.PopStyleVar(vars); end
@@ -2272,6 +2292,15 @@ ashita.events.register('command', 'servermenu_command', function (e)
         setCfg('button_x', 18); setCfg('button_y', 240); setCfg('button_hidden', 'false'); setCfg('button_locked', 'false');
         S.placeButton = true;
         say('the FFXI button is back in its first place.');
+    elseif sub == 'scale' then
+        local v = tonumber(args[3] or '');
+        if v then
+            v = math.max(0.75, math.min(3, v));
+            setCfg('scale', v);
+            say(string.format('menu size is now %.2f (1 = normal). /menu scale 1 to go back.', v));
+        else
+            say(string.format('/menu scale <0.75-3>   size of the Squads button, menu and mate sheets. Now: %.2f', userScale()));
+        end
     elseif sub == 'gambits' then
         setTab('Dualbox');
         S.duoGambits = true;
@@ -2280,7 +2309,7 @@ ashita.events.register('command', 'servermenu_command', function (e)
         setTab(sub:sub(1, 1):upper() .. sub:sub(2));
         setOpen(true);
     elseif sub == 'help' then
-        say('/menu  open or close  |  /menu squad|dualbox  |  /menu gambits (dualbox)  |  /menu button  |  /menu resetbutton  |  /sq');
+        say('/menu  open or close  |  /menu squad|dualbox  |  /menu gambits (dualbox)  |  /menu button  |  /menu resetbutton  |  /menu scale <0.75-3>  |  /sq');
     else
         setOpen(not S.open[1]);
     end
