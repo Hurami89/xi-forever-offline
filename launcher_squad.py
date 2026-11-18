@@ -316,7 +316,8 @@ def set_equip(conn, mate_id, job, slot, item_id):
 
 
 def unlocked_count(conn, charid):
-    return int(_all(conn, "SELECT COUNT(*) FROM squad_unlock WHERE charid = ?", (charid,))[0][0])
+    # (itemid 60000+ = spells the squad learned from scrolls, not gear)
+    return int(_all(conn, "SELECT COUNT(*) FROM squad_unlock WHERE charid = ? AND itemid < 60000", (charid,))[0][0])
 
 
 def search_items(conn, slot, job, max_level, text, charid=None, require_unlock=False, limit=300):

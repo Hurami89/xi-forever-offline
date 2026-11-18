@@ -470,6 +470,7 @@ RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # fiel
 RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
 RATE_DEFAULTS.update({"bots_growth": "realistic"})
 RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False})   # one-time bot head start (bots_growth.lua)
+RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
 RATE_DEFAULTS.update({"full_bags": True})   # every bag (inventory, Mog Safe, Satchel, Sack, Case, Wardrobes) at 80 from the start (crystalboy_quests.lua)
 RATE_DEFAULTS.update({"squad_call_cooldown": 5})   # minutes before a squad mate can be called again (squad.lua)   # bots grow while you are away (bots_growth.lua)
 RATE_DEFAULTS.update({"squad_chat": True})   # squad mates answer in party chat with the local AI (squad-chat/squad_chat.py)
@@ -638,7 +639,8 @@ def write_crowds_config(server_dir, rates):
             max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth, "true" if head_start else "false"))
     with open(os.path.join(module_dir, "squad_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
-        f.write("return { call_cooldown_min = %d }\n" % clean_call_cooldown(rates.get("squad_call_cooldown", 5)))
+        f.write("return { call_cooldown_min = %d, spell_scrolls = %s }\n" % (clean_call_cooldown(rates.get("squad_call_cooldown", 5)),
+                                                                      "true" if rates.get("spell_scrolls", False) else "false"))
     with open(os.path.join(module_dir, "storage_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         f.write("return { full_bags = %s }\n" % ("true" if rates.get("full_bags", True) else "false"))
@@ -724,6 +726,8 @@ def load_rates(here):
             rates["squad_call_cooldown"] = clean_call_cooldown(saved["squad_call_cooldown"])
         if "full_bags" in saved:
             rates["full_bags"] = bool(saved["full_bags"])
+        if "spell_scrolls" in saved:
+            rates["spell_scrolls"] = bool(saved["spell_scrolls"])
         for key, lo, hi in (("bots_roster", 0, 600), ("bots_online", 0, 550)):
             if key in saved:
                 try:
@@ -749,7 +753,7 @@ def apply_preset(rates, name):
                          ("crowds_field", True), ("crowds_field_parties", 1),
                          ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
-                         ("squad_call_cooldown", 5), ("full_bags", True)):
+                         ("squad_call_cooldown", 5), ("full_bags", True), ("spell_scrolls", False)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
     out["main.MAX_LEVEL"] = rates.get("main.MAX_LEVEL", 75)

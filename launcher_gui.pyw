@@ -1540,6 +1540,12 @@ class RatesTab(tk.Frame):
                        "wardrobe rewards) add space. Bags never shrink.",
                        variable=self.full_bags, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=n + 18, column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        self.spell_scrolls = tk.BooleanVar(value=rates.get("spell_scrolls", False))
+        tk.Checkbutton(inner, text="Squad mates learn spells from scrolls: spells of level 18 and up must be bought and given "
+                       "to your squad once (trade the scroll to a mate, or !squad give). Blue magic from 18 is learned "
+                       "from monsters you defeat with a squad Blue Mage out. Below 18 everything stays automatic.",
+                       variable=self.spell_scrolls, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                       wraplength=520, justify="left").grid(row=n + 19, column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.show_world(rates)
 
     def show_world(self, rates):
@@ -1606,6 +1612,7 @@ class RatesTab(tk.Frame):
         rates["squad_chat"] = bool(self.squad_chat.get())
         rates["squad_call_cooldown"] = core.clean_call_cooldown(self.squad_call_cooldown.get())
         rates["full_bags"] = bool(self.full_bags.get())
+        rates["spell_scrolls"] = bool(self.spell_scrolls.get())
         rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done
         rates["bots_head_start_done"] = self.head_start_done
         rates["claim_shield"] = False
