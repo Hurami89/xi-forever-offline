@@ -172,6 +172,73 @@
       "check": "addons/mobdb/mobdb.lua"
     },
     {
+      "id": "cadence",
+      "name": "Cadence",
+      "author": "KiplingFFXI",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/KiplingFFXI/cadence",
+      "into": "ashita",
+      "note": "Auto-attack and resting timers. Made for Phoenix; installed switched off (ADDONS > Addons to load it).",
+      "source": {
+        "type": "github_release",
+        "repo": "KiplingFFXI/cadence",
+        "tag": "v1.4.3",
+        "asset": "^cadence-[0-9.]+\\.zip$"
+      },
+      "files": [
+        [
+          "cadence/",
+          "addons/cadence/"
+        ]
+      ],
+      "check": "addons/cadence/cadence.lua"
+    },
+    {
+      "id": "checkmate",
+      "name": "Checkmate",
+      "author": "KiplingFFXI",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/KiplingFFXI/checkmate",
+      "into": "ashita",
+      "note": "Advanced monster check (/check details on screen). Made for Phoenix; installed switched off (ADDONS > Addons to load it).",
+      "source": {
+        "type": "github_release",
+        "repo": "KiplingFFXI/checkmate",
+        "tag": "v1.14.16",
+        "asset": "^checkmate-[0-9.]+\\.zip$"
+      },
+      "files": [
+        [
+          "checkmate/",
+          "addons/checkmate/"
+        ]
+      ],
+      "check": "addons/checkmate/checkmate.lua"
+    },
+    {
+      "id": "momentum",
+      "name": "Momentum",
+      "author": "KiplingFFXI",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/KiplingFFXI/momentum",
+      "into": "ashita",
+      "note": "EXP, merit and Dynamis tracking bar. Made for Phoenix; installed switched off (ADDONS > Addons to load it).",
+      "source": {
+        "type": "github_release",
+        "repo": "KiplingFFXI/momentum",
+        "tag": "v1.6.4",
+        "asset": "^momentum-[0-9.]+\\.zip$",
+        "sha256sums": "momentum-1.6.4.sha256"
+      },
+      "files": [
+        [
+          "momentum/",
+          "addons/momentum/"
+        ]
+      ],
+      "check": "addons/momentum/momentum.lua"
+    },
+    {
       "id": "chains",
       "name": "Chains",
       "author": "Sippius, Ivaar and NerfOnline",

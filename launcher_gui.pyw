@@ -3646,7 +3646,10 @@ class SetupWizard(tk.Tk):
     EXTRAS = (("mobdb", "mobdb: monster info on your target", True), ("nameplate", "Nameplate: clearer name plates", True),
               ("xipivot", "XIPivot: load DAT mods without changing game files", False),
               ("gambatte", "Mini game player", True),
-              ("chains", "Chains: skillchain helper", False), ("autobot", "AutoBot: for a second (dualbox) character", False))
+              ("chains", "Chains: skillchain helper", False),
+              ("cadence", "Cadence: auto-attack and resting timers (loads switched off)", False),
+              ("checkmate", "Checkmate: detailed monster check (loads switched off)", False),
+              ("momentum", "Momentum: EXP and merit tracking (loads switched off)", False), ("autobot", "AutoBot: for a second (dualbox) character", False))
 
     def __init__(self):
         super().__init__()

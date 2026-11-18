@@ -34,7 +34,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.14';
+addon.version = '1.15';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -304,6 +304,8 @@ local function onLine(payload)
         S.incomingCamp = nil;
         S.engage = S.incomingEngage;            -- (nil from an older server: the engage button and the Style row stay hidden)
         S.incomingEngage = nil;
+        S.autoEquip = S.incomingAuto;           -- (1.15; nil from an older server: the Auto-equip button stays hidden)
+        S.incomingAuto = nil;
         S.opts = S.incomingOpts or {};
         S.incomingOpts = nil;
         S.adv = S.incomingAdv;                  -- (nil from an older server: the Advanced button stays hidden)
@@ -324,6 +326,9 @@ local function onLine(payload)
     -- (squad.lua for servermenu 1.10) engage|<1 first> and opt|<slot>|<size 0-3>|<ws TP, 0 chain>|<WS or ->|<range 0-3>|<usable WS or ->
     local engage = payload:match('^engage|([01])$');
     if engage then S.incomingEngage = engage == '1' and 'first' or 'normal'; return; end
+    -- (squad.lua for servermenu 1.15) auto|<1 on> : auto-equip
+    local auto = payload:match('^auto|([01])$');
+    if auto then S.incomingAuto = auto == '1'; return; end
     -- (squad.lua for servermenu 1.11) adv|<follow 0-2>|<camp rest 1/0>|<order digits or -> and delay|<slot>|<seconds>
     local afollow, arest, aorder = payload:match('^adv|(%d)|([01])|([%d-]+)$');
     if afollow then
@@ -1029,6 +1034,17 @@ local function squadTab()
         end
         tooltip(first and 'Your mates attack a monster as soon as you or any of them is fighting it (click: wait for you)'
             or 'Your mates attack when you do (click: they may start the fight before you swing)');
+    end
+    if S.autoEquip ~= nil then
+        imgui.SameLine(0, 6);
+        local on = S.autoEquip == true;
+        if button(on and 'Auto-equip: on' or 'Auto-equip: off', 'autoequip', 128, 26, on and 'on' or nil) then
+            enqueue('/say !squad autoequip ' .. (on and 'off' or 'on'));
+            S.autoEquip = not on;
+            ask(1.5);
+        end
+        tooltip(on and 'Your mates wear the best gear you gave the squad, picked again each time they are called (click: choose by hand)'
+            or 'Click: every mate puts on the best gear you gave the squad for its job and level. Turn it off again to fine-tune by hand.');
     end
     if S.adv then
         imgui.SameLine(0, 6);
