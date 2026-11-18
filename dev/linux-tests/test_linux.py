@@ -389,6 +389,38 @@ class Database(unittest.TestCase):
                     proc.wait(timeout=30)
 
 
+class OldLibraries(unittest.TestCase):
+    """MariaDB's generic package can need libraries a newer Linux dropped: only the missing ones are added."""
+
+    def test_fill_missing_libs(self):
+        cc = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
+        if not cc:
+            self.skipTest("no C compiler")
+        with tempfile.TemporaryDirectory() as tmp:
+            def build(name, code, *args):
+                src = os.path.join(tmp, name + ".c")
+                with open(src, "w") as handle:
+                    handle.write(code)
+                subprocess.run([cc, src, *args], check=True, cwd=tmp)
+            os.makedirs(os.path.join(tmp, "compat"))
+            os.makedirs(os.path.join(tmp, "mdb", "bin"))
+            build("chain", "int chain(void){return 2;}\n", "-shared", "-fPIC", "-o", "compat/libxifochain.so.1",
+                  "-Wl,-soname,libxifochain.so.1")
+            build("aio", "int chain(void); int aio(void){return chain()+1;}\n", "-shared", "-fPIC",
+                  "-o", "compat/libxifoaio.so.1", "-Wl,-soname,libxifoaio.so.1", "compat/libxifochain.so.1")
+            build("main", "int aio(void); int main(void){return aio()==3?0:1;}\n", "-o", "mdb/bin/mariadbd",
+                  "compat/libxifoaio.so.1", "-Wl,--allow-shlib-undefined")
+            mdb = os.path.join(tmp, "mdb")
+            self.assertEqual(ls.missing_libs(mdb), ["libxifoaio.so.1"])
+            self.assertEqual(ls.fill_missing_libs(mdb, os.path.join(tmp, "compat"), log=lambda m: None), [])
+            self.assertEqual(sorted(os.listdir(os.path.join(mdb, "lib"))), ["libxifoaio.so.1", "libxifochain.so.1"])
+            self.assertEqual(subprocess.run([ls.mariadb_exe(mdb, "mariadbd")], env=ls.mariadb_env(mdb)).returncode, 0)
+            os.remove(os.path.join(mdb, "lib", "libxifochain.so.1"))
+            os.remove(os.path.join(tmp, "compat", "libxifochain.so.1"))
+            self.assertEqual(ls.fill_missing_libs(mdb, os.path.join(tmp, "compat"), log=lambda m: None),
+                             ["libxifochain.so.1"])
+
+
 class Downloads(unittest.TestCase):
     MANIFEST = [{"id": "a", "source": {"type": "url", "url": "x"}},
                 {"id": "w", "platforms": ["windows"], "source": {"type": "url", "url": "x"}},

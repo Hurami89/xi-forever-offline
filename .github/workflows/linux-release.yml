@@ -27,7 +27,29 @@ permissions:
   contents: write
 
 jobs:
+  mariadb-compat:
+    # Old libraries MariaDB's generic Linux package needs that newer systems dropped (libaio.so.1 on Ubuntu 24.04,
+    # libcrypt.so.1 and ncurses 5 on Arch / SteamOS), from Ubuntu 22.04. They go in the kit's lib/mariadb-compat; the
+    # launcher copies only the ones a player's Linux lacks into its mariadb/lib.
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Collect the libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libcrypt1 libncurses5 libtinfo5 libncurses6 libtinfo6
+          mkdir -p mariadb-compat
+          for so in libaio.so.1 libcrypt.so.1 libncurses.so.5 libtinfo.so.5 libncurses.so.6 libncursesw.so.6 libtinfo.so.6; do
+            path=$(ldconfig -p | awk -v n="$so" '$1 == n && /x86-64/ {print $NF; exit}')
+            if [ -n "$path" ]; then cp -L "$path" "mariadb-compat/$so"; else echo "not found: $so"; fi
+          done
+          ls -l mariadb-compat
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mariadb-compat
+          path: mariadb-compat
+
   launcher:
+    needs: mariadb-compat
     runs-on: ubuntu-22.04
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
@@ -66,6 +88,11 @@ jobs:
           if grep -qi "Traceback\|Error" window.log; then exit 1; fi
           if [ -f logs/launcher-error.log ]; then cat logs/launcher-error.log; exit 1; fi
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: mariadb-compat
+          path: lib/mariadb-compat
+
       - name: Pack the player download
         run: python package_kit.py "$TAG" --platform linux
 
@@ -90,14 +117,20 @@ jobs:
 
   mariadb-on-arch:
     # MariaDB's Linux package with the launcher's own setup code, on Arch Linux (SteamOS is built from Arch):
-    # download, unpack, create the database, start, the account, a query, stop. Fails if a library is missing.
+    # download, unpack, the kit's old libraries where needed, create the database, start, the account, a query, stop.
+    # Fails if a library is still missing.
+    needs: mariadb-compat
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: mariadb-compat
+          path: lib/mariadb-compat
       - name: Python
-        run: pacman -Sy --noconfirm python
+        run: pacman -Syu --noconfirm python
       - name: MariaDB's package with launcher_setup.py
         run: python dev/linux-tests/check_mariadb_package.py

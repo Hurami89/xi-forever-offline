@@ -3,9 +3,9 @@ find the newest long-term-support package, download it (checksum checked), unpac
 start the server, give root its password, make the game's database and user, run a query, stop.
 Run on a clean Linux (the GitHub workflow uses Arch Linux, what SteamOS is built from):
     python3 dev/linux-tests/check_mariadb_package.py [work folder]
-Needs the internet. Exits non-zero (with the reason) on any failure; prints any library the programs can't find."""
+Needs the internet. Exits non-zero (with the reason) on any failure; prints the libraries this Linux lacks and which of
+them the kit's lib/mariadb-compat (old libraries from Ubuntu 22.04, added by the release workflow) fills in."""
 import os
-import subprocess
 import sys
 import tempfile
 
@@ -22,13 +22,12 @@ def main(argv):
     print(f"MariaDB {found['version']}: {found['name']}")
     path = tp.download_file(found["url"], os.path.join(work, "downloads", found["name"]), sha256=found.get("sha256"))
     ls.unpack_package(path, mdb)
-    missing = []
-    for name in ("mariadbd", "mariadb", "mariadb-admin", "mariadb-dump"):
-        exe = ls.mariadb_exe(mdb, name)
-        out = subprocess.run(["ldd", exe], capture_output=True, text=True, env=ls.mariadb_env(mdb)).stdout
-        missing += [f"{name}: {line.strip()}" for line in out.splitlines() if "not found" in line]
+    compat = os.path.join(KIT, *ls.COMPAT_LIBS)
+    print("Missing on this Linux before the kit's old libraries: " + (", ".join(ls.missing_libs(mdb)) or "nothing"))
+    print("The kit's old libraries: " + (", ".join(sorted(os.listdir(compat))) if os.path.isdir(compat) else "none"))
+    missing = ls.fill_missing_libs(mdb, compat)
     if missing:
-        print("Missing libraries:\n  " + "\n  ".join(missing))
+        print("Still missing: " + ", ".join(missing))
         return 1
     port = ls.free_port(3306)
     print(ls.init_mariadb(mdb, "root-pw", port))

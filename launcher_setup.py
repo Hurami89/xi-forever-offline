@@ -210,6 +210,56 @@ def mariadb_env(mariadb_dir):
     return env
 
 
+# Linux: MariaDB's generic package is built on an older Linux and wants a few old libraries that newer systems dropped
+# (libaio.so.1 on Ubuntu 24.04, libcrypt.so.1 and old ncurses on Arch / SteamOS). The release build copies them from
+# Ubuntu 22.04 into the kit's lib/mariadb-compat; only the ones this system lacks go into mariadb/lib.
+COMPAT_LIBS = ("lib", "mariadb-compat")
+MARIADB_PROGRAMS = ("mariadbd", "mariadb", "mariadb-admin", "mariadb-dump", "my_print_defaults")
+
+
+def missing_libs(mariadb_dir):
+    """Linux: the libraries MariaDB's programs need that this system can't find (ldd's "not found"), in order."""
+    if IS_WINDOWS:
+        return []
+    missing = []
+    for name in MARIADB_PROGRAMS:
+        exe = mariadb_exe(mariadb_dir, name)
+        if not os.path.isfile(exe):
+            continue
+        try:
+            out = subprocess.run(["ldd", exe], capture_output=True, text=True, env=mariadb_env(mariadb_dir),
+                                 timeout=60).stdout
+        except (OSError, subprocess.SubprocessError):
+            return []                                  # no ldd: MariaDB itself says what is wrong when it starts
+        for line in out.splitlines():
+            if "=> not found" in line:
+                lib = line.split("=>")[0].strip()
+                if lib and lib not in missing:
+                    missing.append(lib)
+    return missing
+
+
+def fill_missing_libs(mariadb_dir, compat_dir, log=print):
+    """Linux: copy the old libraries this system lacks from compat_dir into mariadb/lib (only those, so the system's
+    own newer libraries are never replaced). Repeats because a copied library can need another one (libncurses.so.5
+    needs libtinfo.so.5). Returns the libraries still missing."""
+    if IS_WINDOWS:
+        return []
+    lib = os.path.join(mariadb_dir, "lib")
+    missing = missing_libs(mariadb_dir)
+    for _ in range(4):
+        fixable = [name for name in missing if os.path.isfile(os.path.join(compat_dir, name))
+                   and not os.path.exists(os.path.join(lib, name))]
+        if not fixable:
+            break
+        os.makedirs(lib, exist_ok=True)
+        for name in fixable:
+            shutil.copy2(os.path.join(compat_dir, name), os.path.join(lib, name))
+        log("MariaDB: added " + ", ".join(fixable) + " (old libraries this Linux doesn't have).")
+        missing = missing_libs(mariadb_dir)
+    return missing
+
+
 def socket_path(mariadb_dir, port):
     """Linux: the server's local socket inside the mariadb folder (short enough), else in /tmp."""
     path = os.path.join(mariadb_dir, "mariadb.sock")
@@ -679,6 +729,11 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         else:                                          # Linux: a bigger package, streamed to disk (resumable)
             tp.download_file(found["url"], path, log=log, sha256=found.get("sha256"), fetch=fetch)
         unpack_package(path, mdb)
+    if not IS_WINDOWS:
+        still = fill_missing_libs(mdb, os.path.join(kit, *COMPAT_LIBS), log=log)
+        if still:
+            raise RuntimeError("MariaDB can't run on this Linux: it is missing " + ", ".join(still) + ". Please post "
+                               "this message in #linux-bugs on our Discord (with your Linux and its version).")
     secrets_file = os.path.join(mdb, "xiforever-db.json")       # the database passwords of this install (git-ignored)
     if os.path.exists(secrets_file):
         with open(secrets_file, encoding="utf-8") as handle:

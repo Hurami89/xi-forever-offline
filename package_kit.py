@@ -34,6 +34,16 @@ def tracked():
     return [f for f in out.stdout.split("\0") if f]
 
 
+def linux_extras():
+    """Linux: lib/mariadb-compat (old libraries for MariaDB's generic package, copied from Ubuntu 22.04 by the release
+    workflow; not in git). The launcher only uses the ones a player's Linux lacks."""
+    compat = os.path.join(HERE, "lib", "mariadb-compat")
+    names = sorted(os.listdir(compat)) if os.path.isdir(compat) else []
+    if not names:
+        print("WARNING: lib/mariadb-compat is empty: MariaDB may miss old libraries on newer Linux (Arch, SteamOS).")
+    return ["lib/mariadb-compat/" + name for name in names if os.path.isfile(os.path.join(compat, name))]
+
+
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("version")
@@ -42,6 +52,8 @@ def main(argv):
     parser.add_argument("--platform", choices=("windows", "linux"), default="windows" if os.name == "nt" else "linux")
     args = parser.parse_args(argv)
     files = [f for f in tracked() if os.path.isfile(os.path.join(HERE, *f.split("/")))]
+    if args.platform == "linux":
+        files += [f for f in linux_extras() if f not in files]
     exe_name = EXE if args.platform == "windows" else LINUX_EXE
     exe = os.path.join(HERE, exe_name)
     if not os.path.isfile(exe):
