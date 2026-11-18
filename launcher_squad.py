@@ -5,6 +5,7 @@ Works with any DB-API connection that uses '?' placeholders (the `mariadb` packa
 
 import json
 import os
+import re
 
 RACES = ["Hume M", "Hume F", "Elvaan M", "Elvaan F", "Tarutaru M", "Tarutaru F", "Mithra", "Galka"]  # ids 1-8
 JOBS = ["WAR", "MNK", "WHM", "BLM", "RDM", "THF", "PLD", "DRK", "BST", "BRD", "RNG", "SAM", "NIN", "DRG", "SMN",
@@ -318,6 +319,67 @@ def set_equip(conn, mate_id, job, slot, item_id):
 def unlocked_count(conn, charid):
     # (itemid 60000+ = spells the squad learned from scrolls, not gear)
     return int(_all(conn, "SELECT COUNT(*) FROM squad_unlock WHERE charid = ? AND itemid < 60000", (charid,))[0][0])
+
+
+# ----- item stats (Bob's suggestion, 2026-11-18): what a piece of gear gives, from the game database -----
+# The modifier ids are named in the server's scripts/enum/mod.codegen.lua (DEF = 1, HP = 2, ... STR = 8 ...).
+MOD_LABELS = {
+    "DEF": "DEF", "HP": "HP", "MP": "MP", "STR": "STR", "DEX": "DEX", "VIT": "VIT", "AGI": "AGI", "INT": "INT",
+    "MND": "MND", "CHR": "CHR", "ATT": "Attack", "RATT": "Ranged Attack", "ACC": "Accuracy", "RACC": "Ranged Accuracy",
+    "EVA": "Evasion", "MATT": "Magic Atk. Bonus", "MACC": "Magic Accuracy", "MDEF": "Magic Def. Bonus",
+    "MEVA": "Magic Evasion", "ENMITY": "Enmity", "HPP": "HP%", "MPP": "MP%", "STORETP": "Store TP",
+    "DOUBLE_ATTACK": "Double Attack", "CRITHITRATE": "Critical hit rate", "REGEN": "Regen", "REFRESH": "Refresh",
+    "FASTCAST": "Fast Cast", "CURE_POTENCY": "Cure potency", "HASTE_GEAR": "Haste", "SUBTLE_BLOW": "Subtle Blow",
+}
+PERCENT_HUNDREDTHS = {"HASTE_GEAR"}   # stored in 1/100 %
+_mod_names = {}
+
+
+def load_mod_names(server_dir):
+    """{mod id: 'NAME'} from the server's mod enum (read once per server folder)."""
+    if server_dir in _mod_names:
+        return _mod_names[server_dir]
+    names = {}
+    path = os.path.join(server_dir or "", "scripts", "enum", "mod.codegen.lua")
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                m = re.match(r"\s*([A-Z0-9_]+)\s*=\s*(-?\d+)\s*,", line)
+                if m:
+                    names.setdefault(int(m.group(2)), m.group(1))
+    except OSError:
+        pass
+    _mod_names[server_dir] = names
+    return names
+
+
+def item_stats(conn, item_id, server_dir=""):
+    """Lines describing an item: level and jobs, weapon damage and delay, and its stats (DEF:12, STR+2, Haste+3% ...)."""
+    lines = []
+    eq = _all(conn, "SELECT level, jobs FROM item_equipment WHERE itemId = ?", (item_id,))
+    if eq:
+        level, jobs = int(eq[0][0]), int(eq[0][1])
+        names = [JOBS[i] for i in range(len(JOBS)) if (jobs >> i) & 1]
+        job_text = "All jobs" if len(names) >= 15 else " ".join(names)
+        lines.append(f"Lv{level}  {job_text}".rstrip())
+    wpn = _all(conn, "SELECT dmg, delay FROM item_weapon WHERE itemId = ?", (item_id,))
+    if wpn and int(wpn[0][0]) > 0:
+        lines.append(f"DMG:{int(wpn[0][0])}  Delay:{int(wpn[0][1])}")
+    names = load_mod_names(server_dir)
+    stats = []
+    for mod_id, value in _all(conn, "SELECT modId, value FROM item_mods WHERE itemId = ? ORDER BY modId", (item_id,)):
+        name = names.get(int(mod_id), f"mod {mod_id}")
+        label = MOD_LABELS.get(name, name.replace("_", " ").title())
+        value = int(value)
+        if name in PERCENT_HUNDREDTHS:
+            stats.append(f"{label}{'+' if value >= 0 else ''}{value / 100:g}%")
+        elif name == "DEF":
+            stats.append(f"DEF:{value}")
+        else:
+            stats.append(f"{label}{'+' if value >= 0 else ''}{value}")
+    if stats:
+        lines.append(" ".join(stats))
+    return lines
 
 
 def search_items(conn, slot, job, max_level, text, charid=None, require_unlock=False, limit=300):

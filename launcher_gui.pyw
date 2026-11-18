@@ -388,6 +388,9 @@ class ItemPicker(tk.Toplevel):
         self.preview_name = tk.Label(preview, text="Select an item to see its icon.", bg=BG, fg=DIM, anchor="w")
         self.preview_name.pack(side="left", padx=8)
 
+        self.stats = tk.Label(self, text="", bg=BG, fg=FG, wraplength=400, justify="left")
+        self.stats.pack(anchor="w", padx=10)
+        self.server_dir = getattr(parent, "cfg", {}).get("server_dir", "")
         self.info = tk.Label(self, text="", bg=BG, fg=DIM, wraplength=400, justify="left")
         self.info.pack(anchor="w", padx=10, pady=4)
         self.listbox = tk.Listbox(self, bg=PANEL, fg=FG, selectbackground=ACCENT, relief="flat", exportselection=False, font=(UI_FONT, 10))
@@ -419,6 +422,7 @@ class ItemPicker(tk.Toplevel):
         else:
             self.info.configure(text=f"{len(self.rows)} item(s)" + (" (showing the first 300)" if len(self.rows) >= 300 else ""))
         self.preview_item_id = None
+        self.stats.configure(text="")
         self.preview_name.configure(text="Select an item to see its icon.", fg=DIM)
         self.preview_icon.delete("all")
 
@@ -429,6 +433,10 @@ class ItemPicker(tk.Toplevel):
         item_id, name, level = self.rows[sel[0]]
         self.preview_item_id = item_id
         self.preview_name.configure(text=f"{sq.pretty(name)}   (Lv {level})", fg=FG)
+        try:
+            self.stats.configure(text="\n".join(sq.item_stats(self.conn, item_id, self.server_dir)))
+        except Exception:
+            self.stats.configure(text="")
         self.preview_icon.delete("all")
         if self.icon_loader is None:
             return
@@ -719,6 +727,35 @@ class RulesEditor(tk.Toplevel):
         self.destroy()
 
 
+class HoverTip:
+    """A small text box that follows the pointer while it is over a widget. text_fn() gives the text (None = nothing)."""
+
+    def __init__(self, widget, text_fn):
+        self.widget, self.text_fn, self.tip = widget, text_fn, None
+        widget.bind("<Enter>", self.show, add="+")
+        widget.bind("<Leave>", self.hide, add="+")
+
+    def show(self, event=None):
+        try:
+            text = self.text_fn()
+        except Exception:
+            text = None
+        if not text:
+            return
+        self.hide()
+        self.tip = tk.Toplevel(self.widget)
+        self.tip.wm_overrideredirect(True)
+        x, y = self.widget.winfo_rootx() + 20, self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+        self.tip.wm_geometry(f"+{x}+{y}")
+        tk.Label(self.tip, text=text, bg=PANEL2, fg=FG, relief="solid", bd=1, justify="left", wraplength=360,
+                 padx=8, pady=4).pack()
+
+    def hide(self, event=None):
+        if self.tip is not None:
+            self.tip.destroy()
+            self.tip = None
+
+
 # Squad faces: the game's face numbers 0-15 are 1A, 1B, 2A ... 8B (char_entity.h CharFace)
 FACE_LABELS = [f"{i // 2 + 1}{'AB'[i % 2]}  ({i + 1})" for i in range(16)]
 FACE_FILES = {1: "Hm", 2: "Hf", 3: "Em", 4: "Ef", 5: "Tm", 6: "Tf", 7: "M", 8: "G"}  # race id -> assets\faces prefix
@@ -886,7 +923,9 @@ class SquadTab(tk.Frame):
             self.gear_icons[slot] = icon
             var = tk.StringVar(value="-")
             self.gear_vars[slot] = var
-            tk.Label(grid, textvariable=var, bg=BG, fg=FG, width=26, anchor="w").grid(row=r, column=2)
+            name_label = tk.Label(grid, textvariable=var, bg=BG, fg=FG, width=26, anchor="w")
+            name_label.grid(row=r, column=2)
+            HoverTip(name_label, lambda s=slot: self.gear_stats(s))   # (its stats when the pointer is on the name)
             tk.Button(grid, text="Change", command=lambda s=slot, l=label: self.pick_item(s, l), bg=PANEL, fg=FG, relief="flat", padx=6).grid(row=r, column=3, padx=2)
             tk.Button(grid, text="Clear", command=lambda s=slot: self.clear_item(s), bg=PANEL, fg=FG, relief="flat", padx=6).grid(row=r, column=4)
         tk.Label(page, text="Gear is saved per job. Items must fit the slot, the job and the mate's level.",
@@ -1252,6 +1291,13 @@ class SquadTab(tk.Frame):
             var.set(sq.pretty(item[1]) if item and item[1] else (f"item #{item[0]}" if item else "-"))
             self.gear_items[slot] = item[0] if item else 0
             self._show_gear_icon(slot)
+
+    def gear_stats(self, slot):
+        item_id = self.gear_items.get(slot, 0)
+        if not item_id or self.conn is None:
+            return None
+        lines = sq.item_stats(self.conn, item_id, self.cfg.get("server_dir", ""))
+        return "\n".join([self.gear_vars[slot].get()] + lines) if lines else None
 
     def _show_gear_icon(self, slot):
         canvas = self.gear_icons.get(slot)
