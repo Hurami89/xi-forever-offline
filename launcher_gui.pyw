@@ -2911,8 +2911,10 @@ class App(tk.Tk):
             link.grid(row=row * 2, column=3, sticky="w", padx=10, pady=(6, 0))
             link.bind("<Button-1>", lambda e, url=item["homepage"]: self.open_url(url))
             info = f"by {item['author']} - license: {item['license']}" + (f" - {item['note']}" if item.get("note") else "")
-            tk.Label(self.dl_rows, text=info, bg=BG, fg=DIM, font=(UI_FONT, 9), anchor="w", wraplength=760,
-                     justify="left").grid(row=row * 2 + 1, column=0, columnspan=4, sticky="w")
+            # (the description spans the name and status columns only: across all four it was drawn over the
+            #  buttons in column 2 of this row, e.g. XIPivot's on/off switch, sparkiie 2026-11-17)
+            tk.Label(self.dl_rows, text=info, bg=BG, fg=DIM, font=(UI_FONT, 9), anchor="w", wraplength=520,
+                     justify="left").grid(row=row * 2 + 1, column=0, columnspan=2, sticky="w")
 
     def toggle_polplugin(self, item, on):
         try:
