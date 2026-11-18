@@ -487,6 +487,7 @@ RATE_FIELDS = [
     ("map.DROP_RATE_MULTIPLIER",        "map.lua",  "DROP_RATE_MULTIPLIER",        "Monster item drop rate",                1.0, 0.0, 100.0, "float"),
     ("map.MOB_GIL_MULTIPLIER",          "map.lua",  "MOB_GIL_MULTIPLIER",          "Gil dropped by monsters",               1.0, 0.0, 100.0, "float"),
     ("main.GIL_RATE",                   "main.lua", "GIL_RATE",                    "Gil from quests",                       1.0, 0.0, 100.0, "float"),
+    ("main.FAME_RATE",                  "main.lua", "FAME_RATE",                   "Fame from quests (1 = retail)",         1.0, 0.1, 20.0, "float"),
     ("main.TABS_RATE",                  "main.lua", "TABS_RATE",                   "Tabs from Fields of Valor",             1.0, 0.0, 100.0, "float"),
     ("main.SPARKS_RATE",                "main.lua", "SPARKS_RATE",                 "Sparks from Records of Eminence",       1.0, 0.0, 100.0, "float"),
     ("main.CASKET_DROP_RATE",           "main.lua", "CASKET_DROP_RATE",            "Treasure casket chance (0.1 = 10%)",    0.1, 0.0, 1.0,   "float"),
