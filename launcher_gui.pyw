@@ -719,6 +719,27 @@ class RulesEditor(tk.Toplevel):
         self.destroy()
 
 
+# Squad faces: the game's face numbers 0-15 are 1A, 1B, 2A ... 8B (char_entity.h CharFace)
+FACE_LABELS = [f"{i // 2 + 1}{'AB'[i % 2]}  ({i + 1})" for i in range(16)]
+FACE_FILES = {1: "Hm", 2: "Hf", 3: "Em", 4: "Ef", 5: "Tm", 6: "Tf", 7: "M", 8: "G"}  # race id -> assets\faces prefix
+_face_cache = {}
+
+
+def face_photo(race, face, w, h):
+    """The picture assets/faces/<race><n><a|b>.jpg as a Tk picture (None without Pillow or the file)."""
+    key = (race, face, w, h)
+    if key not in _face_cache:
+        photo = None
+        path = os.path.join(ASSETS, "faces", f"{FACE_FILES.get(race, 'Hm')}{face // 2 + 1}{'ab'[face % 2]}.jpg")
+        try:
+            from PIL import Image, ImageTk
+            photo = ImageTk.PhotoImage(Image.open(path).convert("RGB").resize((w, h)))
+        except Exception:
+            photo = None
+        _face_cache[key] = photo
+    return _face_cache[key]
+
+
 class SquadTab(tk.Frame):
     """Create squad mates, set their look, jobs, job levels and gear. Changes are saved to the database right away
     and apply the next time a mate is called in game."""
@@ -796,10 +817,18 @@ class SquadTab(tk.Frame):
         self.race_box = ttk.Combobox(f, values=sq.RACES, state="readonly", width=18)
         self.race_box.pack(side="left")
         f = self.row(page, "Face")
-        self.face_box = ttk.Combobox(f, values=[str(i) for i in range(1, 17)], state="readonly", width=6)
+        self.face_box = ttk.Combobox(f, values=FACE_LABELS, state="readonly", width=10)
         self.face_box.pack(side="left")
         self.look_button = tk.Button(f, text="Apply look", command=self.apply_look, bg=PANEL, fg=FG, relief="flat", padx=8)
         self.look_button.pack(side="left", padx=6)
+        self.faces_button = tk.Button(f, text="See all faces", command=self.show_faces, bg=PANEL, fg=FG, relief="flat", padx=8)
+        self.faces_button.pack(side="left")
+        # a picture of the chosen race and face (assets\faces, the character creation pictures)
+        self.face_picture = tk.Label(page, bg=BG)
+        self.face_picture.pack(anchor="w", padx=(96, 10), pady=(2, 2))
+        self.face_photo = None
+        self.race_box.bind("<<ComboboxSelected>>", lambda e: self.show_face_picture())
+        self.face_box.bind("<<ComboboxSelected>>", lambda e: self.show_face_picture())
         if self.player:
             self.look_note = tk.Label(page, text="", bg=BG, fg=DIM, justify="left")
             self.look_note.pack(anchor="w", padx=10)
@@ -1180,10 +1209,12 @@ class SquadTab(tk.Frame):
         self.name_var.set(m["name"])
         self.race_box.current((m["race"] or 1) - 1)  # a mate with no race chosen is a Hume male
         self.face_box.current(min(m["face"], 15))
+        self.show_face_picture()
         if self.player:
             fixed = sq.look_locked(self.conn, self.charid(), m["id"])
             for w in (self.race_box, self.face_box):
                 w.configure(state="disabled" if fixed else "readonly")
+            self.faces_button.configure(state="disabled" if fixed else "normal")
             self.look_button.configure(state="disabled" if fixed else "normal")
             self.look_note.configure(text="This look is set for good." if fixed else
                                      "Pick carefully: a look can be set only once.")
@@ -1312,6 +1343,38 @@ class SquadTab(tk.Frame):
             self.reload()
         if self.mate:
             self.guard(go)
+
+    def show_face_picture(self):
+        """The picture next to the Race/Face boxes: what the chosen look will be."""
+        race = self.race_box.current() + 1
+        face = self.face_box.current()
+        photo = face_photo(race, face, 133, 124)
+        self.face_photo = photo
+        self.face_picture.configure(image=photo if photo else "", text="" if photo else "(no picture)", fg=DIM)
+
+    def show_faces(self):
+        """Every face of the chosen race as a picture grid (A faces on top, B below); a click picks it."""
+        race = self.race_box.current() + 1
+        win = tk.Toplevel(self)
+        win.title(f"Faces - {sq.RACES[race - 1]}")
+        win.configure(bg=BG)
+        win.transient(self.winfo_toplevel())
+        tk.Label(win, text="Click a face to pick it, then press Apply look.", bg=BG, fg=DIM).grid(
+            row=0, column=0, columnspan=8, pady=(8, 4))
+        win.photos = []
+        for face in range(16):
+            photo = face_photo(race, face, 133, 124)
+            win.photos.append(photo)
+            col, row = face // 2, 1 + (face % 2) * 2
+            b = tk.Button(win, image=photo if photo else "", text="" if photo else FACE_LABELS[face], relief="flat",
+                          bg=PANEL, activebackground=ACCENT, bd=0, cursor="hand2",
+                          command=lambda f=face: (self.face_box.current(f), self.show_face_picture(), win.destroy()))
+            if face == self.face_box.current():
+                b.configure(bg=ACCENT)
+            b.grid(row=row, column=col, padx=3, pady=(3, 0))
+            tk.Label(win, text=FACE_LABELS[face], bg=BG, fg=FG).grid(row=row + 1, column=col)
+        tk.Label(win, text="Pictures: FINAL FANTASY XI character creation (\u00a9 SQUARE ENIX)", bg=BG, fg=DIM,
+                 font=(UI_FONT, 8)).grid(row=5, column=0, columnspan=8, pady=(6, 8))
 
     def apply_look(self):
         def go():

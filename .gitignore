@@ -124,6 +124,7 @@
 !/assets/crystalboy/
 !/assets/item-icons/
 !/assets/promo/
+!/assets/faces/
 
 # ---- tests ----
 !/dev/
@@ -163,3 +164,6 @@ Thumbs.db
 /mariadb/
 *.tar.gz
 *.tar.zst
+
+# face reference pictures downloaded from FFXIclopedia (not shipped)
+/art-src/faces/
