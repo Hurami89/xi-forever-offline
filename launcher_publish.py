@@ -19,7 +19,7 @@ UPLOADS = "https://uploads.github.com/repos/"
 # https://github.com/Hurami89/xi-forever-offline/releases/latest/download/XI-Forever-Offline.zip
 ONE_CLICK_NAME = "XI-Forever-Offline.zip"
 ONE_CLICK_URL = f"https://github.com/{KIT_REPO}/releases/latest/download/{ONE_CLICK_NAME}"
-NO_WINDOW = 0x08000000
+NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 
 
 def git(folder, *args, check=True):

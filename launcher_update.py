@@ -19,8 +19,13 @@ import zipfile
 
 KIT_REPO = "Hurami89/xi-forever-offline"
 SERVER_REPO = "Hurami89/xi-forever-offline-server"
-KIT_ASSET = r"^xi-forever-offline-v.+-win64\.zip$"
-SERVER_ASSET = r"^xi-forever-offline-server-v.+-win64\.zip$"
+# XIFO_TEST_PLATFORM=windows: the stand-in tests check the Windows paths on a Linux machine
+IS_WINDOWS = os.name == "nt" or os.environ.get("XIFO_TEST_PLATFORM") == "windows"
+NO_WINDOW = 0x08000000 if IS_WINDOWS else 0
+# each system takes its own files from the same release
+KIT_ASSET = r"^xi-forever-offline-v.+-win64\.zip$" if IS_WINDOWS else r"^xi-forever-offline-v.+-linux-x64\.tar\.gz$"
+SERVER_ASSET = (r"^xi-forever-offline-server-v.+-win64\.zip$" if IS_WINDOWS
+                else r"^xi-forever-offline-server-v.+-linux-x64\.tar\.gz$")
 # from the server's tools/dbtool.py (player_data); read again from the server folder when it is there
 PLAYER_DATA = ("account_ip_record accounts accounts_banned accounts_files accounts_friends accounts_messages accounts_profile "
                "accounts_totp auction_house_items auction_house audit_bazaar audit_chat audit_dbox audit_gm audit_trade audit_vendor "
@@ -71,12 +76,15 @@ def _download(release, pattern, kit, fetch, log, what):
     assets = {a["name"]: a["browser_download_url"] for a in release.get("assets", [])}
     names = [n for n in assets if re.search(pattern, n)]
     if not names:
-        raise RuntimeError(f"The {what} release {release.get('tag_name')} has no download.")
+        raise RuntimeError(f"The {what} release {release.get('tag_name')} has no download" +
+                           ("." if IS_WINDOWS else " for Linux yet (the Linux files are added a while after the "
+                                                    "release: try again later)."))
     name = names[0]
     log(f"Downloading {name}...")
     data = fetch(assets[name], timeout=3600)
-    if "SHA256SUMS.txt" in assets:
-        sums = fetch(assets["SHA256SUMS.txt"]).decode("utf-8", "replace")
+    sums_name = "SHA256SUMS.txt" if IS_WINDOWS else "SHA256SUMS-linux.txt"
+    if sums_name in assets:
+        sums = fetch(assets[sums_name]).decode("utf-8", "replace")
         wanted = next((line.split()[0].lower() for line in sums.splitlines() if line.strip().endswith(name)), None)
         if wanted and hashlib.sha256(data).hexdigest() != wanted:
             raise RuntimeError(f"{name} does not match its published checksum: nothing was changed.")
@@ -88,9 +96,39 @@ def _download(release, pattern, kit, fetch, log, what):
     return path
 
 
+def _unpack_tar(tar_path, dest, keep=(), log=print):
+    """Linux: the .tar.gz's single top folder over dest. Each file is written beside its target and renamed into place,
+    so even the running launcher can be replaced; programs keep their run permission."""
+    import tarfile
+    count = 0
+    with tarfile.open(tar_path, "r:*") as archive:
+        for member in archive:
+            if not member.isfile():
+                continue
+            head, _, rest = member.name.partition("/")
+            if not rest:
+                continue
+            parts = rest.split("/")
+            if ".." in parts or rest.startswith("/"):
+                raise RuntimeError("refusing a path outside the folder: " + member.name)
+            if rest in keep:
+                continue
+            target = os.path.join(dest, *parts)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with archive.extractfile(member) as src, open(target + ".part", "wb") as out:
+                shutil.copyfileobj(src, out)
+            os.chmod(target + ".part", 0o755 if member.mode & 0o111 else 0o644)
+            os.replace(target + ".part", target)
+            count += 1
+    log(f"{count} files updated.")
+    return count
+
+
 def _unpack(zip_path, dest, keep=(), log=print, running_exe=None):
     """Unpacks the zip's single top folder over dest. A file in keep is never replaced. The running exe is renamed
     out of the way first (Windows lets a running program be renamed, not replaced)."""
+    if not zip_path.lower().endswith(".zip"):
+        return _unpack_tar(zip_path, dest, keep=keep, log=log)
     count = 0
     with zipfile.ZipFile(zip_path) as archive:
         for info in archive.infolist():
@@ -215,9 +253,10 @@ def update_server(kit, cfg, release, fetch, log=print, run=None, connect=None):
     os.makedirs(backups, exist_ok=True)
     dump = os.path.join(backups, f"db-before-{release.get('tag_name')}-{time.strftime('%Y%m%d-%H%M%S')}.sql")
     log("Saving your database first...")
-    result = run([setup.mariadb_exe(cfg["mariadb_dir"], "mariadb-dump"), "-h127.0.0.1", f"-P{cfg.get('db_port', 3306)}",
+    result = run(setup.mariadb_cmd(cfg["mariadb_dir"], "mariadb-dump") + ["-h127.0.0.1", f"-P{cfg.get('db_port', 3306)}",
                   f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"], f"--result-file={dump}"],
-                 capture_output=True, text=True, creationflags=0x08000000)
+                 capture_output=True, text=True, creationflags=NO_WINDOW,
+                 **({} if IS_WINDOWS else {"env": setup.mariadb_env(cfg["mariadb_dir"])}))
     if result.returncode != 0:
         raise RuntimeError("Could not save the database, so nothing was changed: " + (result.stderr or "")[-300:])
     _unpack(path, server, keep=("settings/network.lua",), log=log)
@@ -226,7 +265,7 @@ def update_server(kit, cfg, release, fetch, log=print, run=None, connect=None):
 
 # Tools a server release depends on: when the kit pins another version (thirdparty.json "tag"), the installed copy is
 # replaced. xiloader has to match the server (Phoenix's server from 2026-11 refuses any xiloader older than 3.0).
-PINNED_REFRESH = ("xiloader", "ashita")
+PINNED_REFRESH = ("xiloader", "ashita", "proton", "umu")      # (proton and umu: Linux only)
 
 
 def refresh_pinned(kit, cfg, fetch, log=print, ids=PINNED_REFRESH):

@@ -27,6 +27,11 @@
 !/launcher_coop_gui.py
 !/launcher_coop.py
 !/launcher_passport.py
+# Linux / Steam Deck: Proton, the game's own prefix, the menu entry; the Linux build and its GitHub workflow
+!/launcher_linux.py
+!/build_release.sh
+!/README-LINUX.md
+!/.github/
 !/client-patches/
 !/thirdparty.json
 # launcher_classic.pyw and "Classic launcher.bat" (the old look) stay on the dev PC only
@@ -150,3 +155,11 @@ __pycache__/
 config.json
 desktop.ini
 Thumbs.db
+# the Linux launcher (built by build_release.sh) and what a Linux install makes in the kit folder
+/XI-Forever-Offline
+/proton/
+/prefix/
+/ollama/
+/mariadb/
+*.tar.gz
+*.tar.zst

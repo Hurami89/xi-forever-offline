@@ -56,7 +56,14 @@
       "keep": [
         "settings/network.lua"
       ],
-      "check": "xi_map.exe"
+      "check": "xi_map.exe",
+      "linux": {
+        "source": {
+          "asset": "^xi-forever-offline-server-.+-linux-x64\\.tar\\.gz$",
+          "sha256sums": "SHA256SUMS-linux.txt"
+        },
+        "check": "xi_map"
+      }
     },
     {
       "id": "vcredist",
@@ -77,7 +84,10 @@
         ],
         "wait": true
       },
-      "check_system": "%SystemRoot%\\System32\\msvcp140_atomic_wait.dll"
+      "check_system": "%SystemRoot%\\System32\\msvcp140_atomic_wait.dll",
+      "platforms": [
+        "windows"
+      ]
     },
     {
       "id": "xiui",
@@ -394,6 +404,51 @@
       "check": "bootloader/xiloader.exe"
     },
     {
+      "id": "umu",
+      "name": "umu-launcher",
+      "author": "Open Wine Components (GloriousEggroll and others)",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/Open-Wine-Components/umu-launcher",
+      "platforms": [
+        "linux"
+      ],
+      "required": true,
+      "into": "kit",
+      "note": "Starts the game with Proton outside Steam (the standard way, also used by Lutris and Heroic). Its first start downloads Valve's Steam Linux Runtime.",
+      "source": {
+        "type": "github_release",
+        "repo": "Open-Wine-Components/umu-launcher",
+        "tag": "1.4.4",
+        "asset": "^umu-launcher-1\\.4\\.4-zipapp\\.tar$"
+      },
+      "unpack": "tree",
+      "unpack_to": "proton",
+      "check": "proton/umu/umu-run"
+    },
+    {
+      "id": "proton",
+      "name": "GE-Proton",
+      "author": "GloriousEggroll (based on Valve's Proton and Wine)",
+      "license": "BSD-3-Clause / LGPL-2.1 and others",
+      "homepage": "https://github.com/GloriousEggroll/proton-ge-custom",
+      "platforms": [
+        "linux"
+      ],
+      "required": true,
+      "into": "kit",
+      "note": "Runs the Windows game (PlayOnline, FFXI, Ashita) on Linux and the Steam Deck. About 550 MB.",
+      "source": {
+        "type": "github_release",
+        "repo": "GloriousEggroll/proton-ge-custom",
+        "tag": "GE-Proton11-11",
+        "asset": "^GE-Proton11-11-x86_64\\.tar\\.gz$",
+        "sha512sums": "^GE-Proton11-11-x86_64\\.sha512sum$"
+      },
+      "unpack": "tree",
+      "unpack_to": "proton",
+      "check": "proton/GE-Proton11-11/proton"
+    },
+    {
       "id": "eradats",
       "name": "Era-DATs (Phoenix)",
       "author": "Phoenix",
@@ -445,6 +500,19 @@
           "/NORESTART"
         ],
         "wait": true
+      },
+      "linux": {
+        "note": "The local AI for squad and bot chat (about 1.4 GB, unpacked into the install folder's ollama folder). Needs a lot of memory: off by default on the Steam Deck.",
+        "source": {
+          "type": "github_release",
+          "repo": "ollama/ollama",
+          "tag": "latest",
+          "asset": "^ollama-linux-amd64\\.tar\\.zst$",
+          "sha256sums": "sha256sum.txt"
+        },
+        "unpack": "tree",
+        "unpack_to": "ollama",
+        "check": "ollama/bin/ollama"
       }
     },
     {

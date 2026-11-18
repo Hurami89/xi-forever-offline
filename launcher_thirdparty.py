@@ -11,17 +11,42 @@ import json
 import os
 import re
 import shutil
+import sys
+import tarfile
 import time
 import urllib.request
 import zipfile
 
 USER_AGENT = "XI-Forever-Offline-launcher"
 API = "https://api.github.com/repos/"
+# XIFO_TEST_PLATFORM=windows: the stand-in tests check the Windows paths on a Linux machine
+PLATFORM = "windows" if (os.name == "nt" or os.environ.get("XIFO_TEST_PLATFORM") == "windows") else "linux"
+NO_WINDOW = 0x08000000 if PLATFORM == "windows" else 0
 
 
-def load_manifest(kit):
+def for_platform(items, platform=None):
+    """The items for this system: an item with "platforms" only where listed; an item's "<platform>" block (e.g.
+    "linux": {...}) replaces those fields there ("source" is merged key by key)."""
+    platform = platform or PLATFORM
+    out = []
+    for item in items:
+        if item.get("platforms") and platform not in item["platforms"]:
+            continue
+        override = item.get(platform)
+        if isinstance(override, dict):
+            item = dict(item)
+            for key, value in override.items():
+                if key == "source" and isinstance(value, dict):
+                    item["source"] = dict(item.get("source", {}), **value)
+                else:
+                    item[key] = value
+        out.append(item)
+    return out
+
+
+def load_manifest(kit, platform=None):
     with open(os.path.join(kit, "thirdparty.json"), encoding="utf-8-sig") as handle:
-        return json.load(handle)["items"]
+        return for_platform(json.load(handle)["items"], platform)
 
 
 def state_path(kit):
@@ -47,11 +72,21 @@ def target_root(item, kit, ashita, server=None):
     return ashita if into == "ashita" else server if into == "server" else kit
 
 
-def find_ollama():
-    """ollama.exe from PATH or where its installer puts it, or None."""
+def _kit_dir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def find_ollama(kit=None):
+    """ollama(.exe) from PATH or where its installer puts it (Linux: the install folder's ollama/bin), or None."""
     found = shutil.which("ollama")
-    for guess in (os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama.exe"),
-                  os.path.join(os.environ.get("ProgramFiles", ""), "Ollama", "ollama.exe")):
+    if PLATFORM == "linux":
+        guesses = (os.path.join(kit or _kit_dir(), "ollama", "bin", "ollama"),)
+    else:
+        guesses = (os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama.exe"),
+                   os.path.join(os.environ.get("ProgramFiles", ""), "Ollama", "ollama.exe"))
+    for guess in guesses:
         if not found and os.path.isfile(guess):
             found = guess
     return found
@@ -64,7 +99,7 @@ def ollama_models(run=None):
     if not exe:
         return []
     try:
-        out = (run or subprocess.run)([exe, "list"], capture_output=True, text=True, timeout=20, creationflags=0x08000000)
+        out = (run or subprocess.run)([exe, "list"], capture_output=True, text=True, timeout=20, creationflags=NO_WINDOW)
     except Exception:
         return []
     return [line.split()[0] for line in (out.stdout or "").splitlines()[1:] if line.strip()]
@@ -144,16 +179,28 @@ def resolve(item, fetch=_get):
         if not names:
             raise RuntimeError(f"{item['name']}: no file matching {source['asset']} in release {release.get('tag_name')}")
         name = sorted(names)[0]
-        digest = None
+        digest = digest512 = None
         if source.get("sha256sums"):
             sums = fetch(assets[source["sha256sums"]]).decode("utf-8", "replace")
             for line in sums.splitlines():
                 parts = line.split()
-                if len(parts) >= 2 and parts[-1].lstrip("*") == name:
+                if len(parts) >= 2 and os.path.basename(parts[-1].lstrip("*")) == name:
                     digest = parts[0].lower()
             if not digest:
                 raise RuntimeError(f"{item['name']}: {name} is not listed in {source['sha256sums']}")
-        return {"version": release.get("tag_name", tag), "url": assets[name], "name": name, "sha256": digest}
+        if source.get("sha512sums"):                 # GE-Proton: one <name>.sha512sum file per download
+            sums_names = [n for n in assets if re.search(source["sha512sums"], n)]
+            for sums_name in sums_names:
+                for line in fetch(assets[sums_name]).decode("utf-8", "replace").splitlines():
+                    parts = line.split()
+                    if len(parts) >= 2 and os.path.basename(parts[-1].lstrip("*")) == name:
+                        digest512 = parts[0].lower()
+            if not digest512:
+                raise RuntimeError(f"{item['name']}: no SHA-512 checksum published for {name}")
+        found = {"version": release.get("tag_name", tag), "url": assets[name], "name": name, "sha256": digest}
+        if digest512:
+            found["sha512"] = digest512
+        return found
     if kind == "github_archive":
         ref = source["ref"]
         url = f"https://github.com/{source['repo']}/archive/{ref}.zip"
@@ -242,11 +289,12 @@ def pull_model(model, log=print, popen=None):
     exe = find_ollama()
     if not exe:
         raise RuntimeError("Ollama is not installed yet (install it first).")
-    if not ollama_models() and subprocess.run([exe, "list"], capture_output=True, creationflags=0x08000000).returncode != 0:
-        subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000)
+    if not ollama_models() and subprocess.run([exe, "list"], capture_output=True, creationflags=NO_WINDOW).returncode != 0:
+        subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=NO_WINDOW,
+                         **({} if os.name == "nt" else {"start_new_session": True}))
         time.sleep(5)
     proc = (popen or subprocess.Popen)([exe, "pull", model], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                       creationflags=0x08000000)
+                                       creationflags=NO_WINDOW)
     last, buffer = 0.0, b""
     while True:
         chunk = proc.stdout.read(256)
@@ -264,6 +312,90 @@ def pull_model(model, log=print, popen=None):
     log(f"AI model {model} is ready.")
 
 
+def download_file(url, path, log=print, sha256=None, sha512=None, fetch=None, chunk=1 << 20):
+    """A big download straight to disk (resumed if it stopped: <name>.part), then checked against its published
+    checksum; a file that doesn't match is deleted. With a test `fetch` the data comes from it instead."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if fetch is not None and fetch is not _get:
+        with open(path, "wb") as handle:
+            handle.write(fetch(url, timeout=1800))
+    elif not os.path.exists(path):
+        part = path + ".part"
+        have = os.path.getsize(part) if os.path.exists(part) else 0
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        if have:
+            request.add_header("Range", f"bytes={have}-")
+        with urllib.request.urlopen(request, timeout=60, context=ssl_context()) as response:
+            if have and getattr(response, "status", 200) != 206:
+                have = 0
+            total = have + int(response.headers.get("Content-Length") or 0)
+            mark, done = 0, have
+            with open(part, "ab" if have else "wb") as handle:
+                while True:
+                    data = response.read(chunk)
+                    if not data:
+                        break
+                    handle.write(data)
+                    done += len(data)
+                    if total and done * 10 // total > mark:
+                        mark = done * 10 // total
+                        log(f"   {os.path.basename(path)}: {done * 100 // total}% of {total / 2**20:.0f} MB")
+        os.replace(part, path)
+    for want, algo in ((sha256, hashlib.sha256), (sha512, hashlib.sha512)):
+        if want:
+            digest = algo()
+            with open(path, "rb") as handle:
+                for block in iter(lambda: handle.read(1 << 20), b""):
+                    digest.update(block)
+            if digest.hexdigest() != want.lower():
+                os.remove(path)
+                raise RuntimeError(f"{os.path.basename(path)} does not match its published checksum - deleted, not installed.")
+    return path
+
+
+def extract_tree(archive_path, dest):
+    """Unpacks a whole .tar(.gz/.xz) into dest as it is (programs keep their run permission, links stay links).
+    Anything that would land outside dest is refused."""
+    os.makedirs(dest, exist_ok=True)
+    real = os.path.realpath(dest)
+    if archive_path.lower().endswith(".zst"):
+        try:
+            tarfile.open(archive_path, "r:zst").close()       # Python 3.14 reads zstd itself
+        except (tarfile.TarError, ValueError, ImportError, AttributeError):
+            return _extract_with_system_tar(archive_path, dest)
+        mode = "r:zst"
+    else:
+        mode = "r:*"
+    with tarfile.open(archive_path, mode) as archive:
+        members = archive.getmembers()
+        for member in members:
+            target = os.path.realpath(os.path.join(dest, member.name))
+            if member.name.startswith("/") or ".." in member.name.split("/") or not (target == real or target.startswith(real + os.sep)):
+                raise RuntimeError(f"refusing a path outside the folder: {member.name}")
+            if member.issym() or member.islnk():
+                link = os.path.join(os.path.dirname(target), member.linkname) if member.issym() else os.path.join(dest, member.linkname)
+                if member.linkname.startswith("/") or not os.path.realpath(link).startswith(real + os.sep):
+                    raise RuntimeError(f"refusing a link outside the folder: {member.name}")
+        try:
+            archive.extractall(dest, members=members, filter="tar")
+        except TypeError:                                       # Python before 3.12: checked above already
+            archive.extractall(dest, members=members)
+
+
+def _extract_with_system_tar(archive_path, dest):
+    """A .tar.zst with a Python that can't read zstd: the system's tar does it (SteamOS and most distros have zstd)."""
+    import subprocess
+    listing = subprocess.run(["tar", "--zstd", "-tf", archive_path], capture_output=True, text=True)
+    if listing.returncode != 0:
+        raise RuntimeError("This system can't unpack .tar.zst files (install zstd).")
+    for name in listing.stdout.splitlines():
+        if name.startswith("/") or ".." in name.split("/"):
+            raise RuntimeError(f"refusing a path outside the folder: {name}")
+    done = subprocess.run(["tar", "--zstd", "--no-same-owner", "-xf", archive_path, "-C", dest], capture_output=True, text=True)
+    if done.returncode != 0:
+        raise RuntimeError("Unpacking failed: " + (done.stderr or "")[-300:])
+
+
 def install(item, kit, ashita, fetch=_get, log=print, server=None, run=None):
     """Downloads and installs one item. Returns the version installed."""
     if item["source"]["type"] == "ollama_model":
@@ -274,6 +406,25 @@ def install(item, kit, ashita, fetch=_get, log=print, server=None, run=None):
         raise RuntimeError("Set the " + ("server" if item.get("into") == "server" else "Ashita") + " folder first.")
     found = resolve(item, fetch)
     log(f"{item['name']}: downloading {found['name']} ({found['version']})...")
+    if item.get("unpack") == "tree":                # big Linux tools (Proton, umu, Ollama): streamed, unpacked whole
+        path = download_file(found["url"], os.path.join(kit, "downloads", item["id"], found["name"]), log=log,
+                             sha256=found.get("sha256"), sha512=found.get("sha512"),
+                             fetch=None if fetch is _get else fetch)
+        dest = os.path.join(root, *item.get("unpack_to", "").split("/")) if item.get("unpack_to") else root
+        log(f"{item['name']}: unpacking...")
+        extract_tree(path, dest)
+        found["sha256_actual"] = found.get("sha256") or found.get("sha512")
+        if item.get("delete_download", True):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        log(f"{item['name']}: installed.")
+        state = load_state(kit)
+        state[item["id"]] = {"version": found["version"], "file": found["name"], "sha256": found.get("sha256_actual"),
+                             "from": found["url"], "at": time.strftime("%Y-%m-%d %H:%M")}
+        _save_state(kit, state)
+        return found["version"]
     path = download(item, kit, found, fetch)
     if item["source"]["type"] == "installer":
         log(f"{item['name']}: starting its installer.")
@@ -282,13 +433,22 @@ def install(item, kit, ashita, fetch=_get, log=print, server=None, run=None):
             result = (run or subprocess.run)([path] + list(item["source"].get("args", [])))
             if result.returncode not in (0, 1638, 3010):    # 1638 = a newer one is installed, 3010 = done, restart later
                 raise RuntimeError(f"{item['name']}: the installer stopped with code {result.returncode}.")
-        else:
+        elif os.name == "nt":
             os.startfile(path)                     # Windows: the installer asks the player itself
+        else:
+            raise RuntimeError(f"{item['name']} is a Windows installer.")
     else:
+        modes = {}
         if zipfile.is_zipfile(path):
             archive = zipfile.ZipFile(path)
             names = archive.namelist()
             read = archive.read
+        elif tarfile.is_tarfile(path):                     # Linux packages (the server): files keep their run permission
+            archive = tarfile.open(path, "r:*")
+            members = {m.name: m for m in archive.getmembers() if m.isfile()}
+            names = list(members)
+            modes = {name: m.mode for name, m in members.items()}
+            read = lambda name: archive.extractfile(members[name]).read()
         else:
             names = [found["name"]]
             read = lambda _name: open(path, "rb").read()
@@ -313,6 +473,8 @@ def install(item, kit, ashita, fetch=_get, log=print, server=None, run=None):
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             with open(dest, "wb") as handle:
                 handle.write(read(name))
+            if modes.get(name, 0) & 0o111:
+                os.chmod(dest, 0o755)
             written += 1
         log(f"{item['name']}: {written} file(s) installed" + (f", {kept} of your own kept" if kept else "")
             + (f"; replaced files saved in {backup}" if os.path.isdir(backup) else "") + ".")

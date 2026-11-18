@@ -1,0 +1,103 @@
+# XI: Forever Offline: the Linux / Steam Deck launcher for each release.
+#
+# When the Publish button (launcher_publish.py, on the dev PC) pushes a version tag (v0.1.40), this builds the Linux
+# launcher (build_release.sh), packs the player download (package_kit.py --platform linux) and adds it to that tag's
+# GitHub release, next to the Windows files:
+#   xi-forever-offline-<tag>-linux-x64.tar.gz   (what the Linux launcher's update check downloads)
+#   SHA256SUMS-linux.txt
+#   XI-Forever-Offline-Linux.tar.gz             (full releases only: the fixed one-click link
+#                                                .../releases/latest/download/XI-Forever-Offline-Linux.tar.gz)
+# It waits for the release to be published (the Publish button makes it a little after pushing the tag).
+# Built on Ubuntu 22.04 so the launcher runs on SteamOS and on desktop distros from 2022 on (glibc 2.35+).
+# It also checks MariaDB's own Linux package on Arch Linux (what SteamOS is made from) with the launcher's own code.
+# Run it by hand for an existing tag: Actions > Linux release > Run workflow.
+
+name: Linux release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and upload (e.g. v0.1.40)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  launcher:
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: System packages (Tk, the MariaDB client library, a screen for the window test)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tk-dev libmariadb-dev xvfb fonts-noto-core
+
+      - name: Tests (Linux paths, and the Windows paths too)
+        run: |
+          pip install pillow certifi
+          python dev/linux-tests/test_linux.py
+          for t in dev/setup-tests/test_setup.py dev/thirdparty-tests/test_thirdparty.py dev/update-tests/test_update.py dev/game-tests/test_game.py; do
+            XIFO_TEST_PLATFORM=windows python "$t"
+          done
+
+      - name: Build the launcher
+        run: PYTHON=python bash build_release.sh
+
+      - name: The window opens (setup wizard, through the built launcher)
+        run: |
+          Xvfb :99 -screen 0 1280x800x24 &
+          sleep 2
+          DISPLAY=:99 timeout 20 ./XI-Forever-Offline > window.log 2>&1 || true
+          cat window.log
+          if grep -qi "Traceback\|Error" window.log; then exit 1; fi
+          if [ -f logs/launcher-error.log ]; then cat logs/launcher-error.log; exit 1; fi
+
+      - name: Pack the player download
+        run: python package_kit.py "$TAG" --platform linux
+
+      - name: Wait for the release
+        run: |
+          for i in $(seq 1 120); do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft 2>/dev/null | grep -q false; then
+              echo "Release $TAG is published."; exit 0
+            fi
+            sleep 30
+          done
+          echo "No published release for $TAG after an hour."; exit 1
+
+      - name: Upload to the release
+        run: |
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            "dist/kit/xi-forever-offline-$TAG-linux-x64.tar.gz" dist/kit/SHA256SUMS-linux.txt
+          if [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease -q .isPrerelease)" = "false" ]; then
+            cp "dist/kit/xi-forever-offline-$TAG-linux-x64.tar.gz" dist/kit/XI-Forever-Offline-Linux.tar.gz
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber dist/kit/XI-Forever-Offline-Linux.tar.gz
+          fi
+
+  mariadb-on-arch:
+    # MariaDB's Linux package with the launcher's own setup code, on Arch Linux (SteamOS is built from Arch):
+    # download, unpack, create the database, start, the account, a query, stop. Fails if a library is missing.
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - name: Python
+        run: pacman -Sy --noconfirm python
+      - name: MariaDB's package with launcher_setup.py
+        run: python dev/linux-tests/check_mariadb_package.py

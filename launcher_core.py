@@ -1,7 +1,10 @@
 """Logic for the XI: Forever Offline launcher (no GUI code here, so it can be tested on its own)."""
 import json, os, re, shutil, subprocess, sys
 
-NO_WINDOW = 0x08000000          # Windows: start a process without a console window
+# XIFO_TEST_PLATFORM=windows: the stand-in tests check the Windows paths on a Linux machine
+IS_WINDOWS = os.name == "nt" or os.environ.get("XIFO_TEST_PLATFORM") == "windows"
+IS_LINUX = sys.platform.startswith("linux") and not IS_WINDOWS
+NO_WINDOW = 0x08000000 if IS_WINDOWS else 0    # Windows: start a process without a console window (0 elsewhere: Popen refuses it)
 SERVERS = ["xi_connect", "xi_world", "xi_search", "xi_profile", "xi_map"]
 MANAGED_SCRIPT = "xiforever.txt"          # the Ashita script the launcher owns on a new install
 OLD_MANAGED_SCRIPT = "phoenixsolo.txt"    # the same script on installs made before the rename (kept as it is)
@@ -11,6 +14,31 @@ FROZEN = bool(getattr(sys, "frozen", False))
 if FROZEN:   # programs we start from the exe (helpers, the restarted launcher) are new instances, not onefile children:
     os.environ["PYINSTALLER_RESET_ENVIRONMENT"] = "1"   # else "invalid originating onefile parent process" once we exit
 KIT_DIR = os.path.dirname(sys.executable) if FROZEN else os.path.dirname(os.path.abspath(__file__))
+if FROZEN and IS_LINUX:   # programs we start must not see the packaged launcher's own libraries (LD_LIBRARY_PATH)
+    import launcher_linux as _linux
+    _linux.fix_frozen_environment()
+
+
+def ui_fonts():
+    """(text font, fixed-width font) for the launcher's windows: Windows' own, else the best one this Linux has
+    (Tk would otherwise pick something odd for the missing Segoe UI)."""
+    if IS_WINDOWS:
+        return "Segoe UI", "Consolas"
+    families = set()
+    try:
+        out = subprocess.run(["fc-list", ":", "family"], capture_output=True, text=True, timeout=5).stdout
+        for line in out.splitlines():
+            families.update(part.strip() for part in line.split(","))
+    except (OSError, subprocess.SubprocessError):
+        pass
+    text = next((f for f in ("Noto Sans", "Cantarell", "DejaVu Sans", "Liberation Sans", "Ubuntu") if f in families), "Helvetica")
+    mono = next((f for f in ("Noto Sans Mono", "DejaVu Sans Mono", "Liberation Mono", "Hack") if f in families), "Courier")
+    return text, mono
+
+
+def exe_name(name):
+    """A program's file name on this system: xi_map.exe on Windows, xi_map on Linux."""
+    return name + ".exe" if IS_WINDOWS else name
 
 
 def py_cmd(script, *args, unbuffered=False):
@@ -52,20 +80,30 @@ def load_config(path):
         return json.load(f)
 
 
-# ---------- processes (Windows) ----------
+# ---------- processes (Windows; Linux through launcher_linux, which reads /proc) ----------
 def _run(cmd):
     return subprocess.run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW)
 
 def is_running(image_name):
+    if not IS_WINDOWS:
+        import launcher_linux
+        return bool(launcher_linux.pids_named(image_name))
     out = _run(["tasklist", "/FI", f"IMAGENAME eq {image_name}.exe", "/NH"]).stdout.lower()
     return f"{image_name.lower()}.exe" in out
 
 def count_running(image_name):
     """How many copies of a program are running (two game windows = two xiloader)."""
+    if not IS_WINDOWS:
+        import launcher_linux
+        return len(launcher_linux.pids_named(image_name))
     out = _run(["tasklist", "/FI", f"IMAGENAME eq {image_name}.exe", "/NH"]).stdout.lower()
     return out.count(f"{image_name.lower()}.exe")
 
 def kill(image_name):
+    if not IS_WINDOWS:
+        import launcher_linux
+        launcher_linux.stop_pids(launcher_linux.pids_named(image_name), grace=2.0)
+        return
     _run(["taskkill", "/F", "/IM", f"{image_name}.exe"])
 
 def kill_tree(proc):
@@ -82,6 +120,9 @@ def kill_tree(proc):
         return
     if os.name == "nt":
         _run(["taskkill", "/PID", str(proc.pid), "/T", "/F"])
+    elif IS_LINUX:
+        import launcher_linux
+        launcher_linux.kill_tree(proc.pid)
     try:
         if proc.poll() is None:
             proc.terminate()
@@ -92,6 +133,13 @@ def kill_tree(proc):
 def kill_stray_helpers():
     """At PLAY: helpers an earlier launcher left running (packaged exe with --run), except the game-copy helper,
     which puts PlayOnline's settings back when the game closes."""
+    if IS_LINUX:
+        import launcher_linux
+        exe = os.path.basename(sys.executable) if FROZEN else ""
+        launcher_linux.stop_pids(launcher_linux.pids_where(
+            lambda argv: bool(exe) and len(argv) > 1 and os.path.basename(argv[0]) == exe and "--run" in argv
+            and not any("launcher_game" in a for a in argv)))
+        return
     if os.name != "nt":
         return
     script = ("Get-CimInstance Win32_Process -Filter \"name LIKE 'XI%Forever%Offline%.exe'\" | "
@@ -102,12 +150,18 @@ def kill_stray_helpers():
 
 def kill_squad_chat():
     """Stop a squad-chat sidecar left over from an earlier run (two of them would both answer every line)."""
+    if not IS_WINDOWS:
+        import launcher_linux
+        launcher_linux.stop_pids(launcher_linux.pids_where(lambda argv: any(a.endswith("squad_chat.py") for a in argv)))
+        return
     script = ("Get-CimInstance Win32_Process -Filter \"name='pythonw.exe' OR name='python.exe' OR name LIKE 'XI_Forever_Offline.exe'\" | "
               "Where-Object { $_.CommandLine -like '*squad_chat.py*' } | "
               "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
     _run(["powershell", "-NoProfile", "-Command", script])
 
 def ensure_service(name):
+    if not IS_WINDOWS:          # Linux installs always use the kit's own MariaDB (config.json mariadb_dir)
+        return False
     out = _run(["sc", "query", name]).stdout
     if "RUNNING" in out:
         return True
@@ -119,14 +173,15 @@ def ensure_service(name):
 
 # ---------- servers ----------
 def start_server(cfg, name, logs_dir):
-    exe = os.path.join(cfg["server_dir"], name + ".exe")
+    exe = os.path.join(cfg["server_dir"], exe_name(name))
     if not os.path.exists(exe):
         raise FileNotFoundError(f"Missing {exe} - did the build finish?")
     os.makedirs(logs_dir, exist_ok=True)
     log = open(os.path.join(logs_dir, name + ".log"), "wb")
     # stdin stays open (PIPE) so the server's console reader does not see end-of-file and quit
     p = subprocess.Popen([exe], cwd=cfg["server_dir"], stdin=subprocess.PIPE,
-                         stdout=log, stderr=subprocess.STDOUT, creationflags=NO_WINDOW)
+                         stdout=log, stderr=subprocess.STDOUT, creationflags=NO_WINDOW,
+                         **({} if IS_WINDOWS else {"start_new_session": True}))
     return p, log
 
 def map_ready(logs_dir):
@@ -170,7 +225,7 @@ def tail(path, lines=12):
 def sync_loader(cfg):
     """Keep a copy of the built xiloader inside Ashita's bootloader folder (where Ashita expects it)."""
     built = None
-    for root, _dirs, files in os.walk(cfg["xiloader_dir"]):
+    for root, _dirs, files in os.walk(cfg.get("xiloader_dir") or ""):
         if "xiloader.exe" in files:
             built = os.path.join(root, "xiloader.exe")
             break

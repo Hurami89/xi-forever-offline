@@ -198,6 +198,10 @@ def list_commands(cfg):
 
 def db_tool(cfg, name):
     """mysqldump / mysql: from the portable MariaDB in the kit when there is one, else from PATH. Port only when set."""
+    if cfg.get("mariadb_dir") and os.name != "nt":    # Linux: the kit's MariaDB package, its own names, no /etc/my.cnf
+        import launcher_setup
+        new = {"mysqldump": "mariadb-dump", "mysql": "mariadb"}.get(name, name)
+        return launcher_setup.mariadb_cmd(cfg["mariadb_dir"], new) + ([f"-P{cfg['db_port']}"] if cfg.get("db_port") else [])
     exe = os.path.join(cfg["mariadb_dir"], "bin", name + ".exe") if cfg.get("mariadb_dir") else name
     return [exe] + ([f"-P{cfg['db_port']}"] if cfg.get("db_port") else [])
 
@@ -206,7 +210,11 @@ def backup(cfg):
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, "db-manual-" + time.strftime("%Y%m%d-%H%M%S") + ".sql")
     cmd = db_tool(cfg, "mysqldump") + [f"-h{cfg.get('db_host', '127.0.0.1')}", f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"], f"--result-file={path}"]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    env = None
+    if cfg.get("mariadb_dir") and os.name != "nt":
+        import launcher_setup
+        env = launcher_setup.mariadb_env(cfg["mariadb_dir"])
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
     if result.returncode != 0:
         say("The backup FAILED: " + (result.stderr or "").strip()[:200])
         return 1

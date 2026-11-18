@@ -19,7 +19,8 @@ import launcher_passport as pp
 
 BG, PANEL, PANEL2, FG, DIM = "#0a1118", "#101c28", "#162634", "#e9f1f5", "#8aa0ad"
 BORDER, GOLD, GREEN, RED, ACCENT = "#1d3445", "#e6be64", "#3ecf6e", "#e5534b", "#35c4e0"
-FONT, SMALL, BOLD = ("Segoe UI", 10), ("Segoe UI", 9), ("Segoe UI", 10, "bold")
+_UI_FONT = core.ui_fonts()[0]
+FONT, SMALL, BOLD = (_UI_FONT, 10), (_UI_FONT, 9), (_UI_FONT, 10, "bold")
 KEEP_SECONDS = 20                    # how often a visit is looked at (is the host there, time for a fresh copy...)
 GUESTS_SECONDS = 6                   # how often the host's list of visitors is refreshed
 CLOSE_GRACE_SECONDS = 60             # Stop hosting: visitors get this long to log out before they are packed for home
@@ -97,7 +98,7 @@ class CoopTab(tk.Frame):
         image = self.picture("coop_badge_" + name)
         if image:
             return tk.Label(parent, image=image, bg=parent.cget("bg"), bd=0)
-        return tk.Label(parent, text=f" {text} ", bg=PANEL2, fg=GOLD, font=("Segoe UI", 8, "bold"))
+        return tk.Label(parent, text=f" {text} ", bg=PANEL2, fg=GOLD, font=(_UI_FONT, 8, "bold"))
 
     def connect(self):
         return pp.connect(self.cfg)
@@ -168,7 +169,7 @@ class CoopTab(tk.Frame):
             return
         top = tk.Frame(self.body, bg=BG)
         top.pack(fill="x", padx=14, pady=(10, 2))
-        tk.Label(top, text="Co-op", bg=BG, fg=FG, font=("Segoe UI", 14, "bold")).pack(side="left")
+        tk.Label(top, text="Co-op", bg=BG, fg=FG, font=(_UI_FONT, 14, "bold")).pack(side="left")
         self.badge(top, "experimental", "EXPERIMENTAL").pack(side="left", padx=10)
         tk.Label(top, text="Same version on both PCs. Squad mates travel with their character.", bg=BG, fg=DIM, font=SMALL).pack(side="left")
         tk.Button(top, text="Turn co-op off", command=self.turn_off, bg=PANEL, fg=DIM, relief="flat", padx=8, font=SMALL).pack(side="right")
@@ -189,7 +190,7 @@ class CoopTab(tk.Frame):
         box.pack(expand=True)
         row = tk.Frame(box, bg=BG)
         row.pack(pady=(0, 8))
-        tk.Label(row, text="Co-op", bg=BG, fg=FG, font=("Segoe UI", 18, "bold")).pack(side="left")
+        tk.Label(row, text="Co-op", bg=BG, fg=FG, font=(_UI_FONT, 18, "bold")).pack(side="left")
         self.badge(row, "experimental", "EXPERIMENTAL").pack(side="left", padx=12)
         tk.Label(box, text=INTRO, bg=BG, fg=FG, font=FONT, wraplength=640, justify="left").pack(pady=(0, 16))
         self.button(box, "coop_on", self.turn_on, "TURN CO-OP ON").pack()
@@ -200,7 +201,7 @@ class CoopTab(tk.Frame):
         if image:
             tk.Label(parent, image=image, bg=BG, bd=0).pack(pady=(8, 8))
         else:
-            tk.Label(parent, text=text, bg=BG, fg=GOLD, font=("Segoe UI", 13, "bold")).pack(pady=(8, 8))
+            tk.Label(parent, text=text, bg=BG, fg=GOLD, font=(_UI_FONT, 13, "bold")).pack(pady=(8, 8))
 
     def field(self, parent, label, width=15):
         row = tk.Frame(parent, bg=BG)
@@ -230,7 +231,7 @@ class CoopTab(tk.Frame):
             tk.Radiobutton(line, text=co.MODES[value], value=value, variable=self.mode, command=self.mode_changed, bg=BG, fg=FG,
                            selectcolor=PANEL, activebackground=BG, activeforeground=FG, font=FONT, highlightthickness=0, bd=0).pack(side="left")
             if value == "tailscale":
-                how = tk.Label(line, text="How?", bg=BG, fg=ACCENT, cursor="hand2", font=("Segoe UI", 9, "underline"))
+                how = tk.Label(line, text="How?", bg=BG, fg=ACCENT, cursor="hand2", font=(_UI_FONT, 9, "underline"))
                 how.pack(side="left", padx=6)
                 how.bind("<Button-1>", lambda e: self.tailscale_help())
         row = self.field(parent, "My address")
@@ -256,7 +257,7 @@ class CoopTab(tk.Frame):
         self.copy_btn.pack(side="left")
         self.code_btn = self.button(row, "coop_newcode", self.new_code, "NEW CODE")
         self.code_btn.pack(side="left", padx=8)
-        tk.Label(parent, text="VISITORS IN YOUR WORLD", bg=BG, fg=DIM, font=("Segoe UI", 8, "bold"), anchor="w").pack(fill="x", pady=(8, 0))
+        tk.Label(parent, text="VISITORS IN YOUR WORLD", bg=BG, fg=DIM, font=(_UI_FONT, 8, "bold"), anchor="w").pack(fill="x", pady=(8, 0))
         self.guest_box = tk.Frame(parent, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
         self.guest_box.pack(fill="x", pady=2)
         self.guest_pick = tk.StringVar()
@@ -288,10 +289,10 @@ class CoopTab(tk.Frame):
         self.button(row, "coop_test", self.test_connection, "TEST CONNECTION").pack(side="left")
         self.visit_btn = self.button(row, "coop_visit", self.visit, "VISIT")
         self.visit_btn.pack(side="left", padx=8)
-        self.info = tk.Text(parent, height=5, width=62, bg=PANEL, fg=DIM, relief="flat", font=("Segoe UI", 9), wrap="word",
+        self.info = tk.Text(parent, height=5, width=62, bg=PANEL, fg=DIM, relief="flat", font=(_UI_FONT, 9), wrap="word",
                             highlightbackground=BORDER, highlightthickness=1, state="disabled")
         self.info.pack(fill="x", pady=4)
-        tk.Label(parent, text="YOUR CHARACTERS IN OTHER WORLDS", bg=BG, fg=DIM, font=("Segoe UI", 8, "bold"), anchor="w").pack(fill="x", pady=(6, 0))
+        tk.Label(parent, text="YOUR CHARACTERS IN OTHER WORLDS", bg=BG, fg=DIM, font=(_UI_FONT, 8, "bold"), anchor="w").pack(fill="x", pady=(6, 0))
         self.away_box = tk.Frame(parent, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
         self.away_box.pack(fill="x", pady=2)
         self.away_pick = tk.StringVar()
@@ -483,7 +484,7 @@ class CoopTab(tk.Frame):
         win.protocol("WM_DELETE_WINDOW", close)
         self.button(win, "coop_tailscale", lambda: self.get_tailscale(win), "GET TAILSCALE").pack(pady=(2, 4))
         link = tk.Label(win, text="or get it yourself at tailscale.com/download", bg=BG, fg=ACCENT, cursor="hand2",
-                        font=("Segoe UI", 9, "underline"))
+                        font=(_UI_FONT, 9, "underline"))
         link.pack()
         link.bind("<Button-1>", lambda e: self.app.open_url(TAILSCALE_URL))
         tk.Button(win, text="Close", command=close, bg=PANEL, fg=FG, relief="flat", padx=12).pack(pady=(10, 14))

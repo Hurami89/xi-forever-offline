@@ -1,4 +1,6 @@
-"""Makes the prebuilt server package for players: xi-forever-offline-server-<version>-win64.zip + SHA256SUMS.txt.
+"""Makes the prebuilt server package for players: xi-forever-offline-server-<version>-win64.zip + SHA256SUMS.txt
+(Windows), or xi-forever-offline-server-<version>-linux-x64.tar.gz + SHA256SUMS-linux.txt (Linux; built by the
+GitHub workflow .github/workflows/linux-release.yml in the server repo).
 
 Run on the dev PC after building the server (Rebuild server.bat):
     python package_server.py v0.1.0              writes dist\\ in this kit folder
@@ -15,13 +17,53 @@ import argparse
 import hashlib
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
+import tarfile
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROGRAMS = ["xi_connect.exe", "xi_world.exe", "xi_search.exe", "xi_profile.exe", "xi_map.exe"]
 DLLS = ["libcrypto-3-x64.dll", "libluajit_64.dll", "libmariadb64.dll", "libssl-3-x64.dll", "libzmq_64.dll"]
+LINUX_PROGRAMS = [p[:-4] for p in PROGRAMS]
+SUMS = {"windows": "SHA256SUMS.txt", "linux": "SHA256SUMS-linux.txt"}
+# Linux: libraries every system has (glibc and the compiler's runtime). Everything else the programs load is copied
+# into lib/ beside them (they look there first: built with -DXI_PORTABLE_LINUX=ON, RPATH $ORIGIN/lib).
+SYSTEM_LIBS = ("linux-vdso", "ld-linux", "libc.so", "libm.so", "libdl.so", "libpthread.so", "librt.so", "libresolv.so",
+               "libutil.so", "libgcc_s.so", "libstdc++.so", "libz.so")
+
+
+def needed_libs(program):
+    """{name: path} of the shared libraries a Linux program loads (ldd), without the system's own."""
+    out = subprocess.run(["ldd", program], capture_output=True, text=True).stdout
+    found = {}
+    for line in out.splitlines():
+        m = re.match(r"\s*(\S+)\s+=>\s+(\S+)", line)
+        if m and m.group(2).startswith("/") and not m.group(1).startswith(SYSTEM_LIBS):
+            found[m.group(1)] = m.group(2)
+        elif "not found" in line:
+            raise RuntimeError(f"{os.path.basename(program)} needs {line.split()[0]}, which isn't installed here.")
+    return found
+
+
+def bundle_libs(server, lib):
+    """Linux: copies the libraries the five programs need into the folder `lib` (it becomes lib/ in the package; each
+    under the name the programs ask for) and lets each one find the others there (patchelf, when installed). The
+    server folder itself is not changed. Returns the names."""
+    os.makedirs(lib, exist_ok=True)
+    wanted = {}
+    for name in LINUX_PROGRAMS:
+        wanted.update(needed_libs(os.path.join(server, name)))
+    for name, path in sorted(wanted.items()):
+        target = os.path.join(lib, name)
+        if os.path.realpath(path) != os.path.realpath(target):
+            shutil.copyfile(path, target)                # the file itself, never a link
+            os.chmod(target, 0o755)
+        if shutil.which("patchelf"):
+            subprocess.run(["patchelf", "--set-rpath", "$ORIGIN", target], check=True)
+    return sorted(wanted)
 GENERATED_DIRS = ["scripts/enum"]   # build output the map server needs (see file_list)
 TRACKED = ["scripts", "sql", "modules", "data", "res", "ximeshes", "tools/migrations", "tools/dbtool.py"]   # the last two: database updates for players
 ROOT_FILES = ["LICENSE", "README.md"]
@@ -49,15 +91,22 @@ def walk(server, folder):
     return out
 
 
-def file_list(server):
-    """[(path on disk, path in the zip)] and a list of warnings."""
+def file_list(server, platform="windows", lib=None):
+    """[(path on disk, path in the zip)] and a list of warnings. Linux: `lib` is the folder bundle_libs filled."""
     files, warnings = [], []
-    for name in PROGRAMS + DLLS + ROOT_FILES:
+    programs, libs = (PROGRAMS, DLLS) if platform == "windows" else (LINUX_PROGRAMS, [])
+    for name in programs + libs + ROOT_FILES:
         path = os.path.join(server, name)
         if os.path.isfile(path):
             files.append((path, name))
-        elif name in PROGRAMS + DLLS:
+        elif name in programs + libs:
             raise RuntimeError(f"{name} is missing: build the server first.")
+    if platform == "linux":
+        lib = lib or os.path.join(server, "lib")
+        names = sorted(os.listdir(lib)) if os.path.isdir(lib) else []
+        if not names:
+            raise RuntimeError("No libraries to bundle (lib/ is empty).")
+        files += [(os.path.join(lib, n), "lib/" + n) for n in names if os.path.isfile(os.path.join(lib, n))]
     default = os.path.join(server, "settings", "default")
     for name in sorted(os.listdir(default)):
         if name.endswith(".lua"):
@@ -100,12 +149,19 @@ def main(argv):
     parser.add_argument("--server", help="the server folder (default: server_dir in config.json)")
     parser.add_argument("--out", default=os.path.join(HERE, "dist"))
     parser.add_argument("--list", action="store_true", help="only show what would be packaged")
+    parser.add_argument("--platform", choices=("windows", "linux"), default="windows" if os.name == "nt" else "linux")
+    parser.add_argument("--bundle-libs", action="store_true", help="(Linux always bundles the libraries; kept for old scripts)")
     args = parser.parse_args(argv)
     server = args.server
     if not server:
         with open(os.path.join(HERE, "config.json"), encoding="utf-8-sig") as handle:
             server = json.load(handle)["server_dir"]
-    files, warnings = file_list(server)
+    lib = None
+    if args.platform == "linux":
+        import tempfile
+        lib = os.path.join(tempfile.mkdtemp(prefix="xifo-libs-"), "lib")
+        print("Bundled libraries: " + ", ".join(bundle_libs(server, lib)))
+    files, warnings = file_list(server, args.platform, lib)
     size = sum(os.path.getsize(p) for p, _ in files)
     for warning in warnings:
         print("WARNING:", warning)
@@ -118,23 +174,51 @@ def main(argv):
         return 0
     commit = git(server, "rev-parse", "HEAD").strip()
     os.makedirs(args.out, exist_ok=True)
-    name = f"xi-forever-offline-server-{args.version}-win64.zip"
-    target = os.path.join(args.out, name)
     folder = f"xi-forever-offline-server-{args.version}/"
-    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
-        for index, (path, rel) in enumerate(files, 1):
-            archive.write(path, folder + rel)
-            if index % 2000 == 0:
-                print(f"  {index}/{len(files)}")
-        archive.writestr(folder + "VERSION.txt", f"XI: Forever Offline server {args.version}\ncommit {commit}\n")
+    version_text = f"XI: Forever Offline server {args.version}\ncommit {commit}\n"
+    if args.platform == "linux":
+        name = f"xi-forever-offline-server-{args.version}-linux-x64.tar.gz"
+        target = os.path.join(args.out, name)
+        write_tar(target, files, folder, version_text)
+    else:
+        name = f"xi-forever-offline-server-{args.version}-win64.zip"
+        target = os.path.join(args.out, name)
+        with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+            for index, (path, rel) in enumerate(files, 1):
+                archive.write(path, folder + rel)
+                if index % 2000 == 0:
+                    print(f"  {index}/{len(files)}")
+            archive.writestr(folder + "VERSION.txt", version_text)
     digest = hashlib.sha256()
     with open(target, "rb") as handle:
         for block in iter(lambda: handle.read(1 << 20), b""):
             digest.update(block)
-    with open(os.path.join(args.out, "SHA256SUMS.txt"), "w", encoding="utf-8", newline="\n") as handle:
+    sums = SUMS[args.platform]
+    with open(os.path.join(args.out, sums), "w", encoding="utf-8", newline="\n") as handle:
         handle.write(f"{digest.hexdigest()}  {name}\n")
-    print(f"Wrote {target} ({os.path.getsize(target) / 1e6:.0f} MB) and SHA256SUMS.txt (server commit {commit[:10]}).")
+    print(f"Wrote {target} ({os.path.getsize(target) / 1e6:.0f} MB) and {sums} (server commit {commit[:10]}).")
     return 0
+
+
+def write_tar(target, files, folder, version_text):
+    """A .tar.gz with one top folder. Programs and libraries keep their run permission; owner names are left out."""
+    import io
+    import time
+
+    def clean(info):
+        info.uid = info.gid = 0
+        info.uname = info.gname = ""
+        return info
+
+    with tarfile.open(target, "w:gz", compresslevel=6) as archive:
+        for index, (path, rel) in enumerate(files, 1):
+            archive.add(path, folder + rel, recursive=False, filter=clean)
+            if index % 2000 == 0:
+                print(f"  {index}/{len(files)}")
+        data = version_text.encode()
+        info = tarfile.TarInfo(folder + "VERSION.txt")
+        info.size, info.mtime, info.mode = len(data), int(time.time()), 0o644
+        archive.addfile(info, io.BytesIO(data))
 
 
 if __name__ == "__main__":

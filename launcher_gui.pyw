@@ -7,6 +7,12 @@ HERE = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.
 sys.path.insert(0, HERE)
 import launcher_core as core
 
+IS_WINDOWS = os.name == "nt"
+UI_FONT, MONO_FONT = core.ui_fonts()
+linux = None
+if not IS_WINDOWS:          # Linux / Steam Deck: the game runs through Proton (launcher_linux.py)
+    import launcher_linux as linux
+
 try:
     import launcher_squad as sq
 except Exception:  # the Squad tab just won't appear
@@ -196,6 +202,13 @@ def load_image(name, shrink=1):
         return None
 
 
+def linux_look(root):
+    """Linux (X11/Wayland): Tk draws a light focus frame round every flat button, radio button and entry, which
+    Windows doesn't; turn it off so the launcher looks the same on both."""
+    if linux is not None:
+        root.option_add("*highlightThickness", 0)
+
+
 def is_admin():
     try:
         return bool(ctypes.windll.shell32.IsUserAnAdmin())
@@ -315,13 +328,13 @@ class CheckList(tk.Frame):
                            fg=FG, activeforeground=FG, selectcolor=BG).grid(row=0, column=0, rowspan=2, padx=(6, 2), pady=4, sticky="n")
             head = tk.Frame(row, bg=PANEL)
             head.grid(row=0, column=1, sticky="w", pady=(4, 0))
-            tk.Label(head, text=n, bg=PANEL, fg=FG, font=("Segoe UI", 10, "bold")).pack(side="left")
+            tk.Label(head, text=n, bg=PANEL, fg=FG, font=(UI_FONT, 10, "bold")).pack(side="left")
             extra = "  ".join(x for x in ((("v" + info["version"]) if info["version"] else ""), (("by " + info["author"]) if info["author"] else "")) if x)
             if extra:
-                tk.Label(head, text=extra, bg=PANEL, fg=DIM, font=("Segoe UI", 9)).pack(side="left", padx=(8, 0))
-            tk.Label(head, text=origin, bg=PANEL, fg=self.TAG_COLORS.get(origin, DIM), font=("Segoe UI", 8, "bold")).pack(side="left", padx=(10, 0))
+                tk.Label(head, text=extra, bg=PANEL, fg=DIM, font=(UI_FONT, 9)).pack(side="left", padx=(8, 0))
+            tk.Label(head, text=origin, bg=PANEL, fg=self.TAG_COLORS.get(origin, DIM), font=(UI_FONT, 8, "bold")).pack(side="left", padx=(10, 0))
             if info["desc"]:
-                tk.Label(row, text=info["desc"], bg=PANEL, fg=DIM, font=("Segoe UI", 9), wraplength=720, justify="left",
+                tk.Label(row, text=info["desc"], bg=PANEL, fg=DIM, font=(UI_FONT, 9), wraplength=720, justify="left",
                          anchor="w").grid(row=1, column=1, sticky="w", pady=(0, 4))
             row.columnconfigure(1, weight=1)
 
@@ -377,7 +390,7 @@ class ItemPicker(tk.Toplevel):
 
         self.info = tk.Label(self, text="", bg=BG, fg=DIM, wraplength=400, justify="left")
         self.info.pack(anchor="w", padx=10, pady=4)
-        self.listbox = tk.Listbox(self, bg=PANEL, fg=FG, selectbackground=ACCENT, relief="flat", exportselection=False, font=("Segoe UI", 10))
+        self.listbox = tk.Listbox(self, bg=PANEL, fg=FG, selectbackground=ACCENT, relief="flat", exportselection=False, font=(UI_FONT, 10))
         self.listbox.pack(fill="both", expand=True, padx=10, pady=4)
         self.listbox.bind("<<ListboxSelect>>", lambda e: self.show_preview())
         self.listbox.bind("<Double-Button-1>", lambda e: self.choose())
@@ -747,7 +760,7 @@ class SquadTab(tk.Frame):
         left = tk.Frame(body, bg=BG)
         left.pack(side="left", fill="y")
         self.listbox = tk.Listbox(left, height=8, width=26, bg=PANEL, fg=FG, selectbackground=ACCENT, relief="flat",
-                                  exportselection=False, font=("Segoe UI", 10))
+                                  exportselection=False, font=(UI_FONT, 10))
         self.listbox.pack()
         self.listbox.bind("<<ListboxSelect>>", lambda e: self.on_select())
         bar = tk.Frame(left, bg=BG)
@@ -831,7 +844,7 @@ class SquadTab(tk.Frame):
     def build_gear_page(self, pages):
         page = tk.Frame(pages, bg=BG)
         pages.add(page, text=" Gear ")
-        self.gear_title = tk.Label(page, text="", bg=BG, fg=FG, font=("Segoe UI", 10, "bold"))
+        self.gear_title = tk.Label(page, text="", bg=BG, fg=FG, font=(UI_FONT, 10, "bold"))
         self.gear_title.pack(anchor="w", padx=10, pady=(8, 2))
         grid = tk.Frame(page, bg=BG)
         grid.pack(padx=10, anchor="w")
@@ -859,7 +872,7 @@ class SquadTab(tk.Frame):
     def build_behavior_page(self, pages):
         page = tk.Frame(pages, bg=BG)
         pages.add(page, text=" Behavior ")
-        self.beh_title = tk.Label(page, text="", bg=BG, fg=FG, font=("Segoe UI", 10, "bold"))
+        self.beh_title = tk.Label(page, text="", bg=BG, fg=FG, font=(UI_FONT, 10, "bold"))
         self.beh_title.pack(anchor="w", padx=10, pady=(10, 4))
         f = self.row(page, "Role")
         self.role_box = ttk.Combobox(f, values=sq.ROLES, state="readonly", width=12)
@@ -884,7 +897,7 @@ class SquadTab(tk.Frame):
         page = tk.Frame(pages, bg=BG)
         pages.add(page, text=" Greetings ")
         tk.Label(page, text="What this mate says when called, when they level up, when knocked out, and on a weaponskill.",
-                 bg=BG, fg=FG, font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=10, pady=(8, 2))
+                 bg=BG, fg=FG, font=(UI_FONT, 10, "bold")).pack(anchor="w", padx=10, pady=(8, 2))
         tk.Label(page, text=sq.GREETING_HELP, bg=BG, fg=DIM, wraplength=470, justify="left").pack(anchor="w", padx=10)
 
         grid = tk.Frame(page, bg=BG)
@@ -895,7 +908,7 @@ class SquadTab(tk.Frame):
             tk.Label(grid, text=sq.GREETING_LABELS[event], bg=BG, fg=FG, anchor="w").grid(
                 row=index * 2, column=0, sticky="w", pady=(6, 0))
             box = tk.Text(grid, height=3, width=56, bg=PANEL, fg=FG, insertbackground=FG, relief="flat",
-                          wrap="word", font=("Segoe UI", 9))
+                          wrap="word", font=(UI_FONT, 9))
             box.grid(row=index * 2 + 1, column=0, sticky="ew")
             self.greeting_boxes[event] = box
 
@@ -951,7 +964,7 @@ class SquadTab(tk.Frame):
     def build_personality_page(self, pages):
         page = tk.Frame(pages, bg=BG)
         pages.add(page, text=" Personality ")
-        self.pers_title = tk.Label(page, text="Personality", bg=BG, fg=FG, font=("Segoe UI", 10, "bold"))
+        self.pers_title = tk.Label(page, text="Personality", bg=BG, fg=FG, font=(UI_FONT, 10, "bold"))
         self.pers_title.pack(anchor="w", padx=10, pady=(8, 0))
         tk.Label(page, text="Who this mate is when they talk in party chat (squad chat, part of Living world + AI chat). "
                  "Write it yourself, start from an example, or let the AI write one. Name, race and job come from the "
@@ -974,10 +987,10 @@ class SquadTab(tk.Frame):
         for index, (key, label, height) in enumerate(rows):
             tk.Label(grid, text=label, bg=BG, fg=FG, anchor="nw", width=13).grid(row=index, column=0, sticky="nw", pady=2)
             box = tk.Text(grid, height=height, width=48, bg=PANEL, fg=FG, insertbackground=FG, relief="flat",
-                          wrap="word", font=("Segoe UI", 9))
+                          wrap="word", font=(UI_FONT, 9))
             box.grid(row=index, column=1, sticky="ew", pady=2)
             self.pers_fields[key] = box
-        tk.Label(grid, text="(one per line)", bg=BG, fg=DIM, font=("Segoe UI", 8)).grid(row=len(rows), column=1, sticky="w")
+        tk.Label(grid, text="(one per line)", bg=BG, fg=DIM, font=(UI_FONT, 8)).grid(row=len(rows), column=1, sticky="w")
 
         f = tk.Frame(page, bg=BG)
         f.pack(fill="x", padx=10, pady=2)
@@ -1366,7 +1379,7 @@ class ImageButton(tk.Canvas):
         if normal:
             self.item = self.create_image(0, 0, anchor="nw", image=normal)
         else:
-            self.item = self.create_text(width // 2, height // 2, text=fallback_text, fill=FG, font=("Segoe UI", 12, "bold"))
+            self.item = self.create_text(width // 2, height // 2, text=fallback_text, fill=FG, font=(UI_FONT, 12, "bold"))
         self.bind("<Button-1>", self._click)
         self.bind("<Enter>", lambda e: self._set_hover(True))
         self.bind("<Leave>", lambda e: self._set_hover(False))
@@ -1428,11 +1441,11 @@ class RatesTab(tk.Frame):
         self.pop_box = ttk.Combobox(world, values=list(self.pop_names.values()) + ["Custom"], state="readonly", width=30)
         self.pop_box.pack(side="left", padx=6)
         tk.Button(world, text="Fill in", command=self.fill_world, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left")
-        self.world_text = tk.Label(self, text="", bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=720, justify="left")
+        self.world_text = tk.Label(self, text="", bg=BG, fg=DIM, font=(UI_FONT, 9), wraplength=720, justify="left")
         self.world_text.pack(anchor="w", padx=10)
         self.world_box.bind("<<ComboboxSelected>>", lambda e: self.show_world_text())
         tk.Label(self, text="Changes apply the next time you press PLAY. 1 = normal game speed.", bg=BG, fg=DIM,
-                 font=("Segoe UI", 9)).pack(anchor="w", padx=10)
+                 font=(UI_FONT, 9)).pack(anchor="w", padx=10)
 
         box = tk.Frame(self, bg=BG)
         box.pack(fill="both", expand=True, padx=6, pady=4)
@@ -1655,7 +1668,7 @@ class GraphicsTab(tk.Frame):
         self.preset.pack(side="left", padx=6)
         tk.Button(top, text="Fill in preset", command=self.fill_preset, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left")
         tk.Label(self, text="Applied when you press PLAY. Presets only change quality, not your screen size.", bg=BG, fg=DIM,
-                 font=("Segoe UI", 9)).pack(anchor="w", padx=10)
+                 font=(UI_FONT, 9)).pack(anchor="w", padx=10)
 
         grid = tk.Frame(self, bg=BG)
         grid.pack(fill="x", padx=10, pady=6)
@@ -1696,7 +1709,7 @@ class GraphicsTab(tk.Frame):
         tk.Button(bar, text="Restore original settings", command=self.restore, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left")
         tk.Label(self, text="Not listed yet: Map Compression, Maintain Aspect Ratio, 3D LCD Mode and Environment. "
                             "I have not confirmed which values control those, so they are left alone.",
-                 bg=BG, fg=DIM, wraplength=480, justify="left", font=("Segoe UI", 8)).pack(anchor="w", padx=10, pady=(4, 0))
+                 bg=BG, fg=DIM, wraplength=480, justify="left", font=(UI_FONT, 8)).pack(anchor="w", padx=10, pady=(4, 0))
         self.check()
 
     def _reverse(self, table, text):
@@ -1763,10 +1776,10 @@ class GfxModTab(tk.Frame):
         self.status = tk.StringVar(value="")
 
         tk.Label(self, text="Sharper, nicer-looking graphics with dgVoodoo and ReShade.", bg=BG, fg=FG,
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=14, pady=(14, 2))
+                 font=(UI_FONT, 11, "bold")).pack(anchor="w", padx=14, pady=(14, 2))
         tk.Label(self, text="Point this at the files you already use (for example from your Horizon setup). The launcher copies them next to the "
                             "game, keeps a backup of anything of yours it would replace, and can switch them off or remove them again.",
-                 bg=BG, fg=DIM, wraplength=860, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=14)
+                 bg=BG, fg=DIM, wraplength=860, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=14)
 
         grid = tk.Frame(self, bg=BG)
         grid.pack(fill="x", padx=14, pady=(10, 4))
@@ -1774,9 +1787,9 @@ class GfxModTab(tk.Frame):
         self._row(grid, 1, "ReShade folder", self.rs_var, "Has dxgi.dll, ReShade.ini and your preset, and ideally a reshade-shaders folder.")
         self._row(grid, 2, "Loader folder", self.target_var, "Where the files go: the folder with xiloader.exe (Ashita's bootloader). Found automatically.")
 
-        tk.Label(self, textvariable=self.status, bg=BG, fg=ACCENT, font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=14, pady=(8, 0))
+        tk.Label(self, textvariable=self.status, bg=BG, fg=ACCENT, font=(UI_FONT, 11, "bold")).pack(anchor="w", padx=14, pady=(8, 0))
         self.api = tk.StringVar(value="")
-        tk.Label(self, textvariable=self.api, bg=BG, fg=DIM, font=("Segoe UI", 9)).pack(anchor="w", padx=14, pady=(0, 2))
+        tk.Label(self, textvariable=self.api, bg=BG, fg=DIM, font=(UI_FONT, 9)).pack(anchor="w", padx=14, pady=(0, 2))
         bar = tk.Frame(self, bg=BG)
         bar.pack(anchor="w", padx=14, pady=4)
         for text, command in (("Install / update", self.install), ("Turn ON", lambda: self.toggle(True)), ("Turn OFF", lambda: self.toggle(False)),
@@ -1784,12 +1797,12 @@ class GfxModTab(tk.Frame):
             tk.Button(bar, text=text, command=command, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=4,
                       activebackground=BORDER, activeforeground=FG).pack(side="left", padx=(0, 6))
 
-        self.log = tk.Text(self, height=9, bg=PANEL, fg=DIM, relief="flat", font=("Consolas", 9), state="disabled", bd=0, highlightthickness=0)
+        self.log = tk.Text(self, height=9, bg=PANEL, fg=DIM, relief="flat", font=(MONO_FONT, 9), state="disabled", bd=0, highlightthickness=0)
         self.log.pack(fill="both", expand=True, padx=14, pady=(8, 6))
         tk.Label(self, text="Close the game before installing, switching or removing (Windows locks the files while it runs). "
                             "Install / update keeps your current ReShade and dgVoodoo settings; Reset settings replaces them with the source files. "
                             "If another launcher (such as the Horizon launcher) also manages these files, use only one launcher at a time.",
-                 bg=BG, fg=DIM, wraplength=860, justify="left", font=("Segoe UI", 8)).pack(anchor="w", padx=14, pady=(0, 10))
+                 bg=BG, fg=DIM, wraplength=860, justify="left", font=(UI_FONT, 8)).pack(anchor="w", padx=14, pady=(0, 10))
         self.refresh()
 
     def _row(self, grid, row, label, var, hint):
@@ -1797,7 +1810,7 @@ class GfxModTab(tk.Frame):
         tk.Entry(grid, textvariable=var, bg=PANEL2, fg=FG, insertbackground=FG, relief="flat", width=70).grid(row=row * 2, column=1, padx=6, pady=(4, 0))
         tk.Button(grid, text="Browse...", command=lambda: self.browse(var), bg=PANEL2, fg=FG, relief="flat", padx=8,
                   activebackground=BORDER, activeforeground=FG).grid(row=row * 2, column=2)
-        tk.Label(grid, text=hint, bg=BG, fg=DIM, font=("Segoe UI", 8), anchor="w").grid(row=row * 2 + 1, column=1, sticky="w", padx=6)
+        tk.Label(grid, text=hint, bg=BG, fg=DIM, font=(UI_FONT, 8), anchor="w").grid(row=row * 2 + 1, column=1, sticky="w", padx=6)
 
     def browse(self, var):
         chosen = filedialog.askdirectory(initialdir=var.get() or os.path.expanduser("~"))
@@ -1923,11 +1936,11 @@ class UpdatesTab(tk.Frame):
         self.gm_buttons = []
         gm = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
         gm.pack(fill="x", padx=14, pady=(14, 6))
-        tk.Label(gm, text="GM account for testing", bg=PANEL, fg=FG, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        tk.Label(gm, text="GM account for testing", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
         tk.Label(gm, text=("A separate account whose characters are GMs, so your real character is never touched. Set it up once, then press Start GM game. "
                            "The first time, create a character in the lobby: it is a GM from its first login. GM commands can change your world, "
                            "so back up the database first."),
-                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(0, 8))
+                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(0, 8))
         gm_bar = tk.Frame(gm, bg=PANEL)
         gm_bar.pack(anchor="w", padx=12, pady=(0, 12))
         for text, command in (("Set up GM account", lambda: self.run_script("setup_gm.py", ["setup"])), ("Start GM game", app.start_gm),
@@ -1938,15 +1951,17 @@ class UpdatesTab(tk.Frame):
             self.gm_buttons.append(button)
         self.player = bool(app.cfg.get("mariadb_dir"))      # a player install (first-run setup); else this is the dev PC
         self.buttons = []
+        if linux is not None:
+            self.build_linux()
         if self.player:
             self.build_player_updates()
         else:
             self.build_publish()
-            tk.Label(self, text="Keep your server up to date with Phoenix", bg=BG, fg=FG, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=14, pady=(8, 2))
+            tk.Label(self, text="Keep your server up to date with Phoenix", bg=BG, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=14, pady=(8, 2))
             tk.Label(self, text=("Check shows what is new and changes nothing. Update saves your database, then merges the new version in, applies database "
                                  "changes and rebuilds the server. If anything clashes with our own changes it is cancelled and nothing changes. "
                                  "Close the game before updating. Undo goes back to the version from before the last update."),
-                     bg=BG, fg=DIM, wraplength=900, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=14, pady=(0, 8))
+                     bg=BG, fg=DIM, wraplength=900, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=14, pady=(0, 8))
             bar = tk.Frame(self, bg=BG)
             bar.pack(anchor="w", padx=14)
             for text, command in (("Check for updates", self.check), ("Update now", self.update), ("Undo last update", self.undo),
@@ -1956,7 +1971,7 @@ class UpdatesTab(tk.Frame):
                 self.buttons.append(button)
         box = tk.Frame(self, bg=BG)
         box.pack(fill="both", expand=True, padx=14, pady=10)
-        self.output = tk.Text(box, bg=PANEL, fg=FG, font=("Consolas", 9), state="disabled", relief="flat", wrap="word", bd=0, highlightthickness=0)
+        self.output = tk.Text(box, bg=PANEL, fg=FG, font=(MONO_FONT, 9), state="disabled", relief="flat", wrap="word", bd=0, highlightthickness=0)
         scroll = ttk.Scrollbar(box, command=self.output.yview)
         self.output.configure(yscrollcommand=scroll.set)
         scroll.pack(side="right", fill="y")
@@ -1967,26 +1982,77 @@ class UpdatesTab(tk.Frame):
             self.after(1500, lambda: self.player_check(True))       # quietly, on start: only speaks up when there is an update
         self.after(200, self.pump)
 
+    # ----- Linux / Steam Deck: the menu entry and Steam -----
+    def build_linux(self):
+        frame = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+        frame.pack(fill="x", padx=14, pady=6)
+        deck = linux.is_steam_deck()
+        tk.Label(frame, text="Steam Deck" if deck else "Linux", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        tk.Label(frame, text=("Add XI: Forever Offline to your application menu, then to Steam (Steam's Add a Non-Steam Game list shows it), "
+                              "so you can start it from Game Mode with the controller. The game runs through Proton, which the "
+                              "launcher keeps inside its own folder."),
+                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(0, 8))
+        bar = tk.Frame(frame, bg=PANEL)
+        bar.pack(anchor="w", padx=12, pady=(0, 12))
+        tk.Button(bar, text="Add to Steam and the menu", command=self.add_to_steam, bg=ACCENT, fg="white", relief="flat",
+                  padx=14, pady=5).pack(side="left", padx=(0, 8))
+        tk.Button(bar, text="Redo the game's Proton setup", command=self.redo_prefix, bg=PANEL2, fg=FG, relief="flat",
+                  padx=12, pady=5).pack(side="left", padx=(0, 8))
+        self.proton_log = tk.BooleanVar(value=bool(self.app.cfg.get("proton_log", False)))
+        tk.Checkbutton(bar, text="Write Proton logs (for bug reports)", variable=self.proton_log, command=self.save_proton_log,
+                       bg=PANEL, fg=FG, selectcolor=PANEL2, activebackground=PANEL, activeforeground=FG).pack(side="left", padx=(8, 0))
+
+    def add_to_steam(self):
+        try:
+            path = linux.install_desktop_entry(HERE)
+        except Exception as e:
+            messagebox.showerror("Add to Steam", f"Could not add the menu entry: {e}", parent=self)
+            return
+        opened = linux.open_steam_add_game()
+        messagebox.showinfo("Add to Steam", "XI: Forever Offline is in your application menu now" +
+                            (" and on your desktop" if os.path.isdir(os.path.expanduser("~/Desktop")) else "") + ".\n\n" +
+                            ("In Steam's window that opened, tick XI: Forever Offline and press Add Selected Programs."
+                             if opened else "In Steam: Games > Add a Non-Steam Game to My Library, tick XI: Forever Offline, "
+                                            "then Add Selected Programs.") +
+                            "\n\nIn Game Mode, start it from your library like any game.\n\n(" + path + ")", parent=self)
+
+    def redo_prefix(self):
+        if self.app.running:
+            messagebox.showinfo("Proton", "Stop the game and the servers first.", parent=self)
+            return
+        try:
+            os.remove(os.path.join(linux.prefix_path(HERE), linux.PREFIX_STAMP))
+        except OSError:
+            pass
+        self.write("The game's Proton setup is done again at the next PLAY.")
+
+    def save_proton_log(self):
+        self.app.cfg["proton_log"] = bool(self.proton_log.get())
+        try:
+            save_config_value("proton_log", self.app.cfg["proton_log"])
+        except Exception as e:
+            self.write(f"Could not save the setting: {e}")
+
     # ----- dev PC: publish an update for players -----
     def build_publish(self):
         frame = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
         frame.pack(fill="x", padx=14, pady=6)
-        tk.Label(frame, text="Publish an update for players", bg=PANEL, fg=FG, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        tk.Label(frame, text="Publish an update for players", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
         tk.Label(frame, text=("Players only get what you publish: your own changes and Phoenix updates reach them when you publish a new version. "
                               "This builds the launcher and the server and player zips, tags and pushes both repos and creates the GitHub "
                               "releases. It shows everything first and asks before anything is pushed."),
-                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(0, 8))
+                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(0, 8))
         tk.Button(frame, text="Publish update...", command=lambda: PublishDialog(self.app), bg=ACCENT, fg="white", relief="flat",
                   padx=14, pady=5).pack(anchor="w", padx=12, pady=(0, 12))
 
     # ----- player install: updates from the GitHub releases -----
     def build_player_updates(self):
-        tk.Label(self, text="Updates", bg=BG, fg=FG, font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=14, pady=(8, 2))
+        tk.Label(self, text="Updates", bg=BG, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=14, pady=(8, 2))
         import launcher_update as lu
         have = lu.installed_version(HERE) or "self-built"
         tk.Label(self, text=(f"You have {have}. The launcher checks for a new version when it starts. Updating keeps your settings, "
                              "characters and squad mates; your database is saved first."),
-                 bg=BG, fg=DIM, wraplength=900, justify="left", font=("Segoe UI", 9)).pack(anchor="w", padx=14, pady=(0, 6))
+                 bg=BG, fg=DIM, wraplength=900, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=14, pady=(0, 6))
         bar = tk.Frame(self, bg=BG)
         bar.pack(anchor="w", padx=14)
         for text, command in (("Check for updates", lambda: self.player_check(False)), ("Update now", self.player_update)):
@@ -2081,10 +2147,11 @@ class UpdatesTab(tk.Frame):
 
     def restart_launcher(self):
         try:
+            extra = {} if IS_WINDOWS else {"start_new_session": True}
             if getattr(sys, "frozen", False):
-                subprocess.Popen([sys.executable], cwd=HERE)
+                subprocess.Popen([sys.executable], cwd=HERE, **extra)
             else:
-                subprocess.Popen([sys.executable, os.path.join(HERE, "launcher_gui.pyw")], cwd=HERE)
+                subprocess.Popen([sys.executable, os.path.join(HERE, "launcher_gui.pyw")], cwd=HERE, **extra)
         finally:
             self.app.on_close()
 
@@ -2189,22 +2256,22 @@ class PublishDialog(tk.Toplevel):
         tk.Checkbutton(top, text="Test build (only players with 'Get test builds' on get it)", variable=self.prerelease,
                        bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG).pack(side="left", padx=(12, 0))
         tk.Label(self, text="Release notes (players see these). Filled in from your commit messages; edit them as you like.",
-                 bg=BG, fg=DIM, font=("Segoe UI", 9)).pack(anchor="w", padx=14)
-        self.notes = tk.Text(self, height=10, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", wrap="word", font=("Segoe UI", 9))
+                 bg=BG, fg=DIM, font=(UI_FONT, 9)).pack(anchor="w", padx=14)
+        self.notes = tk.Text(self, height=10, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", wrap="word", font=(UI_FONT, 9))
         self.notes.pack(fill="x", padx=14, pady=4)
         lines = ["## What's new", ""] + [f"- {c}" for c in lpub.changes(HERE, last)]
         server_changes = lpub.changes(self.server, lpub.last_tag(self.server))
         if server_changes:
             lines += ["", "Server:"] + [f"- {c}" for c in server_changes]
         self.notes.insert("1.0", "\n".join(lines) + "\n")
-        self.checks = tk.Label(self, text="", bg=BG, fg=FG, wraplength=780, justify="left", font=("Segoe UI", 9))
+        self.checks = tk.Label(self, text="", bg=BG, fg=FG, wraplength=780, justify="left", font=(UI_FONT, 9))
         self.checks.pack(anchor="w", padx=14, pady=4)
         bar = tk.Frame(self, bg=BG)
         bar.pack(anchor="w", padx=14, pady=4)
         tk.Button(bar, text="Check again", command=self.run_checks, bg=PANEL, fg=FG, relief="flat", padx=12).pack(side="left")
         self.go = tk.Button(bar, text="Publish", command=self.publish, bg=ACCENT, fg="white", relief="flat", padx=18)
         self.go.pack(side="left", padx=8)
-        self.log = tk.Text(self, bg=PANEL, fg=FG, relief="flat", font=("Consolas", 9), wrap="word", state="disabled")
+        self.log = tk.Text(self, bg=PANEL, fg=FG, relief="flat", font=(MONO_FONT, 9), wrap="word", state="disabled")
         self.log.pack(fill="both", expand=True, padx=14, pady=(4, 12))
         self.run_checks()
         self.after(200, self.pump)
@@ -2252,9 +2319,44 @@ class PublishDialog(tk.Toplevel):
             self.after(200, self.pump)
 
 
+_LINUX_LOCK = None
+
+
+def one_launcher_only_linux():
+    """Linux: the same rule as one_launcher_only (a lock file in logs/ that goes away with the launcher's process)."""
+    global _LINUX_LOCK
+    for _ in range(15):                    # a launcher restarting itself after an update: the old one is still closing
+        _LINUX_LOCK = linux.take_lock(HERE)
+        if _LINUX_LOCK is not None:
+            return True
+        time.sleep(1)
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        close_other = messagebox.askyesno(
+            "XI: Forever Offline",
+            "The launcher is already open (it may be behind other windows, or still closing).\n\n"
+            "Yes = close the other one and its servers, and open this one.\nNo = keep the other one.", parent=root)
+        root.destroy()
+    except Exception:
+        close_other = False
+    if not close_other:
+        return False
+    other = linux.lock_holder(HERE)
+    if other and other != os.getpid():
+        linux.kill_tree(other)
+    for n in core.SERVERS + ["xiloader"]:
+        core.kill(n)
+    core.kill_squad_chat()
+    time.sleep(2)
+    _LINUX_LOCK = linux.take_lock(HERE)
+    return _LINUX_LOCK is not None
+
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
+        linux_look(self)
         self.title("XI: Forever Offline")
         self.geometry("980x770")
         self.minsize(900, 420)          # the Play page is compact; the other pages set the taller window themselves
@@ -2275,7 +2377,7 @@ class App(tk.Tk):
                 self.db_proc = launcher_setup.start_portable(self.cfg)
             except Exception as e:
                 print(f"Could not start the database: {e}")
-        if self.cfg.get("game_copy"):          # a game copy switch left in place by a crash: put PlayOnline back
+        if IS_WINDOWS and self.cfg.get("game_copy"):   # a game copy switch left in place by a crash: put PlayOnline back
             try:
                 import launcher_game as lg
                 if lg.pending_recovery(HERE) and not core.is_running("xiloader"):
@@ -2328,13 +2430,13 @@ class App(tk.Tk):
         tk.Frame(bar, bg=BORDER, height=1).pack(fill="x")
         inner = tk.Frame(bar, bg=PANEL)
         inner.pack(fill="x", padx=20, pady=7)
-        self.summary_dot = tk.Label(inner, text="\u25cf", bg=PANEL, fg=GREY, font=("Segoe UI", 11))
+        self.summary_dot = tk.Label(inner, text="\u25cf", bg=PANEL, fg=GREY, font=(UI_FONT, 11))
         self.summary_dot.pack(side="left")
         self.summary = tk.StringVar(value="Servers offline")
-        tk.Label(inner, textvariable=self.summary, bg=PANEL, fg=FG, font=("Segoe UI", 9, "bold")).pack(side="left", padx=(4, 18))
+        tk.Label(inner, textvariable=self.summary, bg=PANEL, fg=FG, font=(UI_FONT, 9, "bold")).pack(side="left", padx=(4, 18))
         tk.Label(inner, text="Offline single-player  \u00b7  Level 75 era", bg=PANEL, fg=DIM,
-                 font=("Segoe UI", 9)).pack(side="left")
-        tk.Label(inner, text=f"Launcher v{VERSION}", bg=PANEL, fg=DIM, font=("Segoe UI", 9)).pack(side="right")
+                 font=(UI_FONT, 9)).pack(side="left")
+        tk.Label(inner, text=f"Launcher v{VERSION}", bg=PANEL, fg=DIM, font=(UI_FONT, 9)).pack(side="right")
 
         # the page buttons: along the bottom of every page, just above the status bar (filled in by build_nav once every page exists)
         self.navbar = tk.Frame(self, bg=BG)
@@ -2384,21 +2486,21 @@ class App(tk.Tk):
 
         # the server lights and the activity log: kept out of the way until LOGS is pressed
         self.details = tk.Frame(self.stage, bg=PANEL)
-        tk.Label(self.details, text="GAME SERVERS", bg=PANEL, fg=DIM, font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=14, pady=(10, 0))
+        tk.Label(self.details, text="GAME SERVERS", bg=PANEL, fg=DIM, font=(UI_FONT, 8, "bold")).pack(anchor="w", padx=14, pady=(10, 0))
         row = tk.Frame(self.details, bg=PANEL)
         row.pack(anchor="w", padx=8, pady=(2, 6))
         self.dots = {}
         for n in core.SERVERS:
             f = tk.Frame(row, bg=PANEL)
             f.pack(side="left", padx=9)
-            d = tk.Label(f, text="\u25cf", bg=PANEL, fg=GREY, font=("Segoe UI", 16))
+            d = tk.Label(f, text="\u25cf", bg=PANEL, fg=GREY, font=(UI_FONT, 16))
             d.pack()
-            tk.Label(f, text=n[3:], bg=PANEL, fg=DIM, font=("Segoe UI", 8)).pack()
+            tk.Label(f, text=n[3:], bg=PANEL, fg=DIM, font=(UI_FONT, 8)).pack()
             self.dots[n] = d
-        tk.Label(self.details, text="ACTIVITY", bg=PANEL, fg=DIM, font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=14, pady=(4, 2))
-        self.log = tk.Text(self.details, height=14, width=96, bg=PANEL, fg=DIM, relief="flat", font=("Consolas", 9), state="disabled", bd=0, highlightthickness=0)
+        tk.Label(self.details, text="ACTIVITY", bg=PANEL, fg=DIM, font=(UI_FONT, 8, "bold")).pack(anchor="w", padx=14, pady=(4, 2))
+        self.log = tk.Text(self.details, height=14, width=96, bg=PANEL, fg=DIM, relief="flat", font=(MONO_FONT, 9), state="disabled", bd=0, highlightthickness=0)
         self.log.pack(fill="both", expand=True, padx=12, pady=(0, 4))
-        opener = tk.Label(self.details, text="Open logs folder", bg=PANEL, fg=ACCENT, cursor="hand2", font=("Segoe UI", 9, "underline"))
+        opener = tk.Label(self.details, text="Open logs folder", bg=PANEL, fg=ACCENT, cursor="hand2", font=(UI_FONT, 9, "underline"))
         opener.pack(anchor="w", padx=14, pady=(0, 8))
         opener.bind("<Button-1>", lambda e: self.open_dir(LOGS))
 
@@ -2406,7 +2508,7 @@ class App(tk.Tk):
         strip = tk.Frame(homebox, bg=BG)
         strip.pack(fill="x", padx=2, pady=(10, 6))
         self.status = tk.StringVar(value=PRESS_NOTE or "Ready when you are.")
-        tk.Label(strip, textvariable=self.status, bg=BG, fg=FG, font=("Segoe UI", 11), anchor="w").pack(side="left", fill="x", expand=True)
+        tk.Label(strip, textvariable=self.status, bg=BG, fg=FG, font=(UI_FONT, 11), anchor="w").pack(side="left", fill="x", expand=True)
         self.progress = ttk.Progressbar(strip, mode="indeterminate", length=380, style="Solo.Horizontal.TProgressbar")
         self.progress.pack(side="right")
 
@@ -2454,9 +2556,11 @@ class App(tk.Tk):
         else:
             self.add_note(tabs, "Graphics", "The Graphics tab needs ashita_dir and ashita_boot in config.json to point at your Ashita boot file.")
 
-        # Shaders tab: dgVoodoo + ReShade
-        self.gfx_tab = GfxModTab(tabs, HERE, self.cfg)
-        tabs.add(self.gfx_tab, text="  Shaders  ")
+        # Shaders tab: dgVoodoo + ReShade (Windows; on Linux Proton's own DXVK draws the game)
+        self.gfx_tab = None
+        if IS_WINDOWS:
+            self.gfx_tab = GfxModTab(tabs, HERE, self.cfg)
+            tabs.add(self.gfx_tab, text="  Shaders  ")
 
         # Updates tab: new Phoenix versions
         self.updates_tab = UpdatesTab(tabs, self)
@@ -2491,16 +2595,16 @@ class App(tk.Tk):
             for kind, title, folder in (("addon", "  Addons  ", "addons"), ("plugin", "  Plugins  ", "plugins")):
                 page = tk.Frame(tabs, bg=BG)
                 tabs.add(page, text=title)
-                hint = tk.Label(page, text=LIST_HINT_MAIN, bg=BG, fg=DIM, font=("Segoe UI", 9))
+                hint = tk.Label(page, text=LIST_HINT_MAIN, bg=BG, fg=DIM, font=(UI_FONT, 9))
                 hint.pack(anchor="w", padx=10, pady=(10, 4))
                 self.hints.append(hint)
                 picker = tk.Frame(page, bg=BG)
                 picker.pack(anchor="w", padx=10, pady=(0, 4))
-                tk.Label(picker, text="List for:", bg=BG, fg=DIM, font=("Segoe UI", 9)).pack(side="left")
+                tk.Label(picker, text="List for:", bg=BG, fg=DIM, font=(UI_FONT, 9)).pack(side="left")
                 for value, text in (("main", "Main window"), ("second", "Second window (dualbox)")):
                     tk.Radiobutton(picker, text=text, value=value, variable=self.list_target, command=self.switch_list_target,
                                    bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
-                                   font=("Segoe UI", 10)).pack(side="left", padx=(10, 0))
+                                   font=(UI_FONT, 10)).pack(side="left", padx=(10, 0))
                 if kind == "addon":
                     self.build_interface_row(page)
                 lst = CheckList(page, kind, self.scripts)
@@ -2586,7 +2690,7 @@ class App(tk.Tk):
         """XIUI (an addon, stable) or XIUIplus (a plugin, alpha): the party list, target bar and other windows."""
         row = tk.Frame(page, bg=BG)
         row.pack(anchor="w", padx=10, pady=(0, 4))
-        tk.Label(row, text="Interface:", bg=BG, fg=DIM, font=("Segoe UI", 9)).pack(side="left")
+        tk.Label(row, text="Interface:", bg=BG, fg=DIM, font=(UI_FONT, 9)).pack(side="left")
         try:
             now = core.interface_of(self.scripts)
         except Exception:
@@ -2595,7 +2699,7 @@ class App(tk.Tk):
         for key, text in (("xiui", "XIUI (stable addon)"), ("xiuiplus", "XIUIplus (alpha plugin)"), ("none", "Neither")):
             tk.Radiobutton(row, text=text, value=key, variable=self.interface_var, command=self.set_interface,
                            bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
-                           font=("Segoe UI", 10)).pack(side="left", padx=(10, 0))
+                           font=(UI_FONT, 10)).pack(side="left", padx=(10, 0))
 
     def set_interface(self):
         choice = self.interface_var.get()
@@ -2659,7 +2763,11 @@ class App(tk.Tk):
         """One window size for every page: the Play page has the big picture (LOGS shows the log in its place).
         With the CO-OP button in the bottom bar the window is a little wider, so the bar fits."""
         page = self.tabs.tab(getattr(self, "current_index", 0), "text").strip() if self.tabs.tabs() else ""
-        self.geometry("1100x810" if getattr(self, "coop_tab", None) is not None else "980x810")
+        width, height = (1100 if getattr(self, "coop_tab", None) is not None else 980), 810
+        if linux is not None:     # the Steam Deck's screen is 1280 x 800: never taller (or wider) than the screen
+            width = min(width, self.winfo_screenwidth())
+            height = min(height, self.winfo_screenheight() - (0 if linux.in_game_mode() else 40))
+        self.geometry(f"{width}x{height}")
 
     def show_subnav(self, group, index):
         """The pages of the open group as small buttons at the top of the page (nothing for a group of one page)."""
@@ -2670,7 +2778,7 @@ class App(tk.Tk):
             return
         for name, page in group["members"]:
             on = page == index
-            label = tk.Label(self.subnav, text=name.upper(), bg=PANEL2 if on else PANEL, fg=ACCENT if on else DIM, font=("Segoe UI", 9, "bold"),
+            label = tk.Label(self.subnav, text=name.upper(), bg=PANEL2 if on else PANEL, fg=ACCENT if on else DIM, font=(UI_FONT, 9, "bold"),
                              padx=16, pady=5, cursor="hand2", highlightbackground=ACCENT if on else BORDER, highlightthickness=1)
             label.pack(side="left", padx=(0, 6))
             label.bind("<Button-1>", lambda e, i=page: self.select_tab(i))
@@ -2682,7 +2790,7 @@ class App(tk.Tk):
         tabs.add(page, text="  Other  ")
         tk.Label(page, text="Add-ons and tools made by other people. Each one comes straight from its author's own release page; "
                  "files it replaces are saved in backups\\thirdparty first, and your settings are never overwritten.",
-                 bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=880, justify="left").pack(anchor="w", padx=10, pady=(10, 6))
+                 bg=BG, fg=DIM, font=(UI_FONT, 9), wraplength=880, justify="left").pack(anchor="w", padx=10, pady=(10, 6))
         bar = tk.Frame(page, bg=BG)
         bar.pack(anchor="w", padx=10, pady=(0, 6))
         tk.Button(bar, text="Refresh", command=self.show_downloads, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left")
@@ -2714,7 +2822,7 @@ class App(tk.Tk):
             items = [item for item in items if item.get("into") != "server"]
         for row, item in enumerate(items):
             installed, version = tp.status(item, HERE, self.ashita, state, server=self.cfg.get("server_dir"))
-            tk.Label(self.dl_rows, text=item["name"], bg=BG, fg=FG, font=("Segoe UI", 10, "bold"), anchor="w").grid(
+            tk.Label(self.dl_rows, text=item["name"], bg=BG, fg=FG, font=(UI_FONT, 10, "bold"), anchor="w").grid(
                 row=row * 2, column=0, sticky="w", pady=(6, 0))
             text = ("installed " + version) if installed else "not installed"
             if newer and newer.get(item["id"]) and newer[item["id"]] != version:
@@ -2740,7 +2848,7 @@ class App(tk.Tk):
             link.grid(row=row * 2, column=3, sticky="w", padx=10, pady=(6, 0))
             link.bind("<Button-1>", lambda e, url=item["homepage"]: self.open_url(url))
             info = f"by {item['author']} - license: {item['license']}" + (f" - {item['note']}" if item.get("note") else "")
-            tk.Label(self.dl_rows, text=info, bg=BG, fg=DIM, font=("Segoe UI", 9), anchor="w", wraplength=760,
+            tk.Label(self.dl_rows, text=info, bg=BG, fg=DIM, font=(UI_FONT, 9), anchor="w", wraplength=760,
                      justify="left").grid(row=row * 2 + 1, column=0, columnspan=4, sticky="w")
 
     def toggle_polplugin(self, item, on):
@@ -2830,7 +2938,10 @@ class App(tk.Tk):
 
     def open_dir(self, path):
         os.makedirs(path, exist_ok=True)
-        os.startfile(path)
+        if IS_WINDOWS:
+            os.startfile(path)
+        else:
+            linux.open_path(path)
 
     # ----- the details on the Play page -----
     def refresh_stage(self):
@@ -2967,6 +3078,27 @@ class App(tk.Tk):
         if not info.get("too_old"):
             return False
         have, need = lg.build_text(info["build"]), lg.MONTHS[lg.MIN_GAME_BUILD[1] - 1] + f" {lg.MIN_GAME_BUILD[0]}"
+        if linux is not None:                 # Linux: the game is updated on the Windows PC, then copied over again
+            if not info.get("copy"):
+                messagebox.showinfo("Update FINAL FANTASY XI", f"Your FINAL FANTASY XI is the {have} version, older than "
+                                    f"the {need} update the server needs (older games crash opening Equipment). Update it "
+                                    "on the Windows PC (PlayOnline), copy its SquareEnix folder over this one again, "
+                                    "then press PLAY.", parent=self)
+                return False
+            if messagebox.askyesno("Update your game copy", f"XI: Forever Offline's copy of FINAL FANTASY XI is the {have} "
+                                   f"version, older than the {need} update the server needs (older games crash opening "
+                                   "Equipment and can freeze at some NPCs).\n\nUpdate the game on the Windows PC "
+                                   "(PlayOnline), copy its SquareEnix folder here again, then choose it: only changed files "
+                                   "are copied; your era files stay.\n\nChoose the updated folder now? No = play anyway.",
+                                   parent=self):
+                folder = filedialog.askdirectory(title="The updated SquareEnix folder", parent=self)
+                ffxi, viewer = linux.find_game_parts(folder) if folder else (None, None)
+                if ffxi:
+                    self.refresh_game_copy((ffxi, viewer))
+                    return True
+                if folder:
+                    messagebox.showinfo("Update your game copy", "That folder doesn't have FINAL FANTASY XI in it.", parent=self)
+            return False
         if info.get("retail_ok"):
             if messagebox.askyesno("Update your game copy", f"XI: Forever Offline's copy of FINAL FANTASY XI is the {have} "
                                    f"version, older than the {need} update the server needs (older games crash opening "
@@ -3094,6 +3226,19 @@ class App(tk.Tk):
             svc = cfg.get("mariadb_service", "MariaDB")
             if not core.ensure_service(svc):
                 raise RuntimeError(f"The database service '{svc}' was not found or would not start.")
+
+        if linux is not None and self.ashita:  # Linux: the game's Windows folder in Proton (made/registered once)
+            self.say("Getting Proton ready...")
+            linux.prepare_prefix(HERE, cfg, log=self.say)
+            try:
+                if self.scripts is not None and linux.ensure_wine_plugins(self.scripts):
+                    self.say("Turned on Ashita's winefix plugin (smoother play under Proton).")
+                boot = os.path.join(self.ashita, "config", "boot", cfg.get("ashita_boot", core.DEFAULT_BOOT))
+                if bool(cfg.get("linux_sandbox")) != core.polplugin_on(boot, "sandbox"):
+                    linux.set_sandbox(boot, cfg, bool(cfg.get("linux_sandbox")))
+            except Exception as e:
+                self.say(f"Could not check the Ashita script for Linux ({e}).")
+            self.check()
 
         visit, self.pending_visit = getattr(self, "pending_visit", None), None
         if visit is not None:                 # co-op: play in a friend's world; none of our own servers start
@@ -3227,6 +3372,8 @@ class App(tk.Tk):
         return seconds
 
     def launch_ashita(self):
+        if linux is not None:
+            return self.launch_ashita_linux()
         cfg = self.cfg
         cli = os.path.join(self.ashita, "Ashita-cli.exe")
         if not os.path.exists(cli):
@@ -3261,6 +3408,39 @@ class App(tk.Tk):
         self.say("Game is running in your friend's world." if getattr(self, "visit_mode", False)
                  else "Game is running. Closing it will stop the servers.")
         while core.is_running("xiloader"):
+            self.check()
+            time.sleep(2)
+        self.say("Game closed.")
+
+    def launch_ashita_linux(self):
+        """Linux: Ashita (and through it xiloader and the game) through Proton. Waits until the game has closed."""
+        cfg = self.cfg
+        if self.graphics_tab is not None:
+            try:
+                core.apply_graphics(self.boot_ini, self.graphics)
+                self.say("Applied your graphics settings.")
+            except Exception as e:
+                self.say(f"Could not apply the graphics settings ({e}) - starting with the boot file as it is.")
+        self.say("Starting the game through Ashita and Proton...")
+        alog = open(os.path.join(LOGS, "ashita.log"), "wb")
+        self.logfiles.append(alog)
+        boot = getattr(self, "launch_boot", None) or cfg.get("ashita_boot", core.DEFAULT_BOOT)
+        self.launch_boot = None
+        self.game_proc = linux.start_game(HERE, cfg, self.ashita, boot, alog)
+        start, limit = time.time(), cfg.get("game_start_seconds", 300)     # the first start can download Proton's runtime
+        while not core.is_running("xiloader"):
+            self.check()
+            if self.game_proc.poll() is not None:
+                raise RuntimeError("The game closed before it started (Proton said it was done).\n\nAshita / Proton said:\n"
+                                   + core.tail(os.path.join(LOGS, "ashita.log"))
+                                   + "\n\nTurn on 'Write Proton logs' on the Settings page and send logs/steam-*.log with the report.")
+            if time.time() - start > limit:
+                raise RuntimeError("The game loader never started.\n\nAshita / Proton said:\n" + core.tail(os.path.join(LOGS, "ashita.log")))
+            self.say_status(f"Starting the game... {int(time.time() - start)} seconds")
+            time.sleep(1)
+        self.say("Game is running in your friend's world." if getattr(self, "visit_mode", False)
+                 else "Game is running. Closing it will stop the servers.")
+        while linux.game_running(self.game_proc):
             self.check()
             time.sleep(2)
         self.say("Game closed.")
@@ -3303,6 +3483,9 @@ class App(tk.Tk):
         cli = os.path.join(self.ashita, "Ashita-cli.exe")
         log = open(os.path.join(LOGS, log_name), "wb")
         self.logfiles.append(log)
+        if linux is not None:
+            linux.start_game(HERE, self.cfg, self.ashita, boot, log)
+            return
         subprocess.Popen([cli, boot], cwd=self.ashita, stdout=log, stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
 
     def start_gm(self):
@@ -3389,7 +3572,8 @@ class App(tk.Tk):
         import shutil
         exe = shutil.which("ollama")
         for guess in (os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama.exe"),
-                      os.path.join(os.environ.get("ProgramFiles", ""), "Ollama", "ollama.exe")):
+                      os.path.join(os.environ.get("ProgramFiles", ""), "Ollama", "ollama.exe"),
+                      os.path.join(HERE, "ollama", "bin", "ollama")):
             if not exe and os.path.exists(guess):
                 exe = guess
         if not exe:
@@ -3398,7 +3582,8 @@ class App(tk.Tk):
         try:
             log = open(os.path.join(LOGS, "ollama.log"), "wb")
             self.logfiles.append(log)
-            self.ollama_proc = subprocess.Popen([exe, "serve"], stdout=log, stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
+            self.ollama_proc = subprocess.Popen([exe, "serve"], stdout=log, stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW,
+                                                **({} if IS_WINDOWS else {"start_new_session": True}))
             for _ in range(20):  # up to 10 s for it to answer
                 if running():
                     break
@@ -3485,11 +3670,23 @@ class App(tk.Tk):
                     p.terminate()
             except Exception:
                 pass
+        if linux is not None:      # Linux: wait for them to finish (they save to the database), and leave no zombies
+            for p in self.procs.values():
+                try:
+                    p.wait(timeout=20)
+                except Exception:
+                    try:
+                        p.kill()
+                        p.wait(timeout=5)
+                    except Exception:
+                        pass
         # Only the servers this window started are stopped (above). Killing by image name here would also
         # take down the servers of another launcher window that is still running, which looks like
         # "xi_connect stopped unexpectedly" in that other window.
         if self.stop_requested:
             core.kill("xiloader")
+            if linux is not None:
+                linux.stop_game(HERE)
         if getattr(self, "conquest_ticked", False):
             self.run_conquest("stamp")                         # the session is over: note the time so the tally is not repeated
             self.conquest_ticked = False
@@ -3545,7 +3742,7 @@ class PolUpdateGuide(tk.Toplevel):
         self.configure(bg=BG)
         self.geometry("760x760")
         self.minsize(700, 560)
-        tk.Label(self, text="Update FINAL FANTASY XI once", bg=BG, fg=GOLD, font=("Segoe UI", 15, "bold")).pack(
+        tk.Label(self, text="Update FINAL FANTASY XI once", bg=BG, fg=GOLD, font=(UI_FONT, 15, "bold")).pack(
             anchor="w", padx=18, pady=(14, 2))
         tk.Label(self, text="Square Enix's installer puts in an older version of the game. PlayOnline brings it up to date "
                             "after one login with your Square Enix account. After that you play offline with PLAY.",
@@ -3560,7 +3757,7 @@ class PolUpdateGuide(tk.Toplevel):
             getattr(self, f"draw_{n}")(pic)
             words = tk.Frame(row, bg=PANEL)
             words.pack(side="left", fill="both", expand=True, padx=(4, 10), pady=8)
-            tk.Label(words, text=f"{n}. {title}", bg=PANEL, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w")
+            tk.Label(words, text=f"{n}. {title}", bg=PANEL, fg=FG, font=(UI_FONT, 11, "bold")).pack(anchor="w")
             tk.Label(words, text=text, bg=PANEL, fg=DIM, wraplength=440, justify="left").pack(anchor="w", pady=(2, 0))
             if n == 1:
                 tk.Button(words, text="Open PlayOnline", command=self.open_pol, bg=ACCENT, fg="white", relief="flat",
@@ -3581,11 +3778,11 @@ class PolUpdateGuide(tk.Toplevel):
     def window(self, c, title):
         c.create_rectangle(8, 8, 202, 110, fill="#1b2a3a", outline="#3a5468")
         c.create_rectangle(8, 8, 202, 24, fill="#2c4258", outline="#3a5468")
-        c.create_text(14, 16, text=title, anchor="w", fill="#cfe3ee", font=("Segoe UI", 7))
+        c.create_text(14, 16, text=title, anchor="w", fill="#cfe3ee", font=(UI_FONT, 7))
 
     def draw_1(self, c):
         self.window(c, "PlayOnline Viewer")
-        c.create_text(105, 52, text="Updating PlayOnline...", fill="#e9f1f5", font=("Segoe UI", 9))
+        c.create_text(105, 52, text="Updating PlayOnline...", fill="#e9f1f5", font=(UI_FONT, 9))
         c.create_rectangle(30, 68, 180, 80, outline="#5f7f95")
         c.create_rectangle(31, 69, 120, 79, fill=ACCENT, outline="")
 
@@ -3593,28 +3790,28 @@ class PolUpdateGuide(tk.Toplevel):
         self.window(c, "PlayOnline - Member")
         for i, label in enumerate(("Square Enix ID", "Password", "One-time pass")):
             y = 36 + i * 22
-            c.create_text(16, y, text=label, anchor="w", fill="#9fb6c4", font=("Segoe UI", 7))
+            c.create_text(16, y, text=label, anchor="w", fill="#9fb6c4", font=(UI_FONT, 7))
             c.create_rectangle(96, y - 8, 192, y + 8, fill="#0d1620", outline="#5f7f95")
             c.create_text(101, y, text="your own" if i == 0 else ("********" if i == 1 else "(if used)"), anchor="w",
-                          fill=GOLD, font=("Consolas", 8, "bold"))
+                          fill=GOLD, font=(MONO_FONT, 8, "bold"))
         c.create_rectangle(120, 94, 190, 106, fill="#2c4258", outline=GOLD)
-        c.create_text(155, 100, text="Connect", fill="#e9f1f5", font=("Segoe UI", 7, "bold"))
+        c.create_text(155, 100, text="Connect", fill="#e9f1f5", font=(UI_FONT, 7, "bold"))
 
     def draw_3(self, c):
         self.window(c, "PlayOnline - Version Update")
-        c.create_text(105, 40, text="FINAL FANTASY XI", fill=GOLD, font=("Segoe UI", 8, "bold"))
-        c.create_text(105, 56, text="Downloading update...", fill="#e9f1f5", font=("Segoe UI", 8))
+        c.create_text(105, 40, text="FINAL FANTASY XI", fill=GOLD, font=(UI_FONT, 8, "bold"))
+        c.create_text(105, 56, text="Downloading update...", fill="#e9f1f5", font=(UI_FONT, 8))
         c.create_rectangle(30, 68, 180, 80, outline="#5f7f95")
         c.create_rectangle(31, 69, 95, 79, fill=ACCENT, outline="")
-        c.create_text(105, 98, text="10 - 60 minutes", fill=DIM, font=("Segoe UI", 7))
+        c.create_text(105, 98, text="10 - 60 minutes", fill=DIM, font=(UI_FONT, 7))
 
     def draw_4(self, c):
         self.window(c, "FINAL FANTASY XI")
-        c.create_text(105, 44, text="Select Character", fill="#e9f1f5", font=("Segoe UI", 8))
+        c.create_text(105, 44, text="Select Character", fill="#e9f1f5", font=(UI_FONT, 8))
         c.create_rectangle(40, 56, 170, 68, fill="#22364a", outline="#3a5468")
         c.create_rectangle(40, 72, 170, 84, fill="#3b5a2a", outline=GOLD, width=2)
-        c.create_text(105, 78, text="Exit", fill="#e9f1f5", font=("Segoe UI", 8, "bold"))
-        c.create_text(105, 100, text="then press I'm done", fill=DIM, font=("Segoe UI", 7))
+        c.create_text(105, 78, text="Exit", fill="#e9f1f5", font=(UI_FONT, 8, "bold"))
+        c.create_text(105, 100, text="then press I'm done", fill=DIM, font=(UI_FONT, 7))
 
     # ----- buttons -----
     def open_pol(self):
@@ -3675,6 +3872,7 @@ class SetupWizard(tk.Tk):
 
     def __init__(self):
         super().__init__()
+        linux_look(self)
         import launcher_setup
         self.setup = launcher_setup
         self.title("XI: Forever Offline - first-time setup")
@@ -3692,11 +3890,13 @@ class SetupWizard(tk.Tk):
         layout = launcher_setup.default_layout(HERE)
         self.ffxi = tk.StringVar(value=launcher_setup.find_ffxi() or "")
         # the game files: a separate copy when FFXI is installed, else Square Enix's official installer
-        self.game = tk.StringVar(value="copy" if self.ffxi.get() else "official")
+        # (Linux: always from a folder, copied from a Windows PC)
+        self.game = tk.StringVar(value="copy" if (self.ffxi.get() or linux is not None) else "official")
         self.ashita = tk.StringVar(value=layout["ashita_dir"])
         self.server = tk.StringVar(value=layout["server_dir"])
+        self.deck = linux is not None and linux.is_steam_deck()
         self.world = tk.StringVar(value="living")
-        self.population = tk.StringVar(value="medium")
+        self.population = tk.StringVar(value="small" if self.deck else "medium")
         self.interface = tk.StringVar(value="xiui")
         self.extras = {key: tk.BooleanVar(value=on) for key, _text, on in self.EXTRAS}
         self.era_dats = tk.BooleanVar(value=True)
@@ -3705,7 +3905,7 @@ class SetupWizard(tk.Tk):
         self.mariadb_dir = layout["mariadb_dir"]
 
         tk.Label(self, text="XI: Forever Offline", bg=BG, fg=GOLD, font=("Georgia", 20, "bold")).pack(anchor="w", padx=16, pady=(14, 0))
-        self.step_title = tk.Label(self, text="", bg=BG, fg=FG, font=("Segoe UI", 12, "bold"))
+        self.step_title = tk.Label(self, text="", bg=BG, fg=FG, font=(UI_FONT, 12, "bold"))
         self.step_title.pack(anchor="w", padx=16, pady=(2, 8))
         self.body = tk.Frame(self, bg=BG)
         self.body.pack(fill="both", expand=True, padx=16)
@@ -3734,9 +3934,34 @@ class SetupWizard(tk.Tk):
         tk.Entry(row, textvariable=var, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", width=56).pack(side="left")
         tk.Button(row, text="Browse...", relief="flat", bg=PANEL, fg=FG, padx=8,
                   command=lambda: var.set(filedialog.askdirectory(initialdir=var.get() or HERE) or var.get())).pack(side="left", padx=6)
-        tk.Label(self.body, text=hint, bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=720, justify="left").pack(anchor="w", padx=(4, 0))
+        tk.Label(self.body, text=hint, bg=BG, fg=DIM, font=(UI_FONT, 9), wraplength=720, justify="left").pack(anchor="w", padx=(4, 0))
+
+    def page_folders_linux(self):
+        self.clear("1. Where things are")
+        self.text("This sets up everything here: the game files, the game add-on loader (Ashita), Proton (runs the "
+                  "Windows game on Linux), the game server and a small database. It takes a while and needs an internet "
+                  "connection for the downloads (about 2 GB).")
+        self.text("FINAL FANTASY XI comes from a Windows PC: copy its SquareEnix folder (inside PlayOnline in Program Files, "
+                  "with PlayOnlineViewer and FINAL FANTASY XI in it) to a USB stick or this machine, then choose it below. "
+                  "Update the game on the Windows PC first (PlayOnline, once).", fg=FG)
+        for key, label, about in (
+                ("copy", "Copy the game into XI: Forever Offline's folder (recommended)",
+                 "The folder you choose stays as it is (a USB stick can be unplugged afterwards). Needs about 16 GB free."),
+                ("existing", "Use the game where it is",
+                 "No copy: the era game files (Phoenix Era-DATs) go into that folder; its original files are backed up.")):
+            tk.Radiobutton(self.body, text=label, value=key, variable=self.game, bg=BG, fg=FG, selectcolor=PANEL,
+                           activebackground=BG, activeforeground=FG, font=(UI_FONT, 10, "bold")).pack(anchor="w")
+            tk.Label(self.body, text=about, bg=BG, fg=DIM, font=(UI_FONT, 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
+        self.folder_row("Game folder", self.ffxi, "The SquareEnix folder (or the FINAL FANTASY XI folder next to "
+                        "PlayOnlineViewer).")
+        self.folder_row("Ashita", self.ashita, "A new folder is fine: Ashita is downloaded from its official release.")
+        self.folder_row("Server", self.server, "A new folder is fine: the ready-made Linux server is downloaded.")
+        self.text(f"The database is kept in {self.mariadb_dir}." +
+                  (" Steam Deck found: the world starts small and the game uses the Deck's screen size." if self.deck else ""))
 
     def page_folders(self):
+        if linux is not None:
+            return self.page_folders_linux()
         self.clear("1. Where things are")
         self.text("This sets up everything on this PC: the game files, the game add-on loader (Ashita), the game server and a "
                   "small database. It takes a while and needs an internet connection for the downloads.")
@@ -3755,8 +3980,8 @@ class SetupWizard(tk.Tk):
             if key == "official" and found:
                 continue
             tk.Radiobutton(self.body, text=label, value=key, variable=self.game, bg=BG, fg=FG, selectcolor=PANEL,
-                           activebackground=BG, activeforeground=FG, font=("Segoe UI", 10, "bold")).pack(anchor="w")
-            tk.Label(self.body, text=about, bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
+                           activebackground=BG, activeforeground=FG, font=(UI_FONT, 10, "bold")).pack(anchor="w")
+            tk.Label(self.body, text=about, bg=BG, fg=DIM, font=(UI_FONT, 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
         self.folder_row("Final Fantasy XI", self.ffxi, "Found from PlayOnline's settings when it can be. The folder with FFXiMain.dll "
                         "in it (not needed for the Square Enix download).")
         self.folder_row("Ashita", self.ashita, "A new folder is fine: Ashita is downloaded from its official release.")
@@ -3769,8 +3994,8 @@ class SetupWizard(tk.Tk):
         import launcher_core as lc
         for key, (label, about) in lc.WORLDS.items():
             tk.Radiobutton(self.body, text=label, value=key, variable=self.world, bg=BG, fg=FG, selectcolor=PANEL,
-                           activebackground=BG, activeforeground=FG, font=("Segoe UI", 10, "bold")).pack(anchor="w")
-            tk.Label(self.body, text=about, bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
+                           activebackground=BG, activeforeground=FG, font=(UI_FONT, 10, "bold")).pack(anchor="w")
+            tk.Label(self.body, text=about, bg=BG, fg=DIM, font=(UI_FONT, 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
         row = tk.Frame(self.body, bg=BG)
         row.pack(anchor="w", pady=(10, 2))
         tk.Label(row, text="Population:", bg=BG, fg=FG).pack(side="left")
@@ -3803,7 +4028,7 @@ class SetupWizard(tk.Tk):
 
     def page_install(self):
         self.clear("4. Install")
-        self.log_box = tk.Text(self.body, height=20, bg=PANEL, fg=FG, relief="flat", font=("Consolas", 9), wrap="word")
+        self.log_box = tk.Text(self.body, height=20, bg=PANEL, fg=FG, relief="flat", font=(MONO_FONT, 9), wrap="word")
         self.log_box.pack(fill="both", expand=True)
         self.log_box.insert("end", "Press Install to start.\n")
         self.next_btn.configure(text="Install", command=self.start_install)
@@ -3823,6 +4048,12 @@ class SetupWizard(tk.Tk):
         self.show(self.page + 1)
 
     def check_page(self):
+        if self.page == 0 and linux is not None:
+            ffxi, viewer = linux.find_game_parts(self.ffxi.get())
+            if not ffxi or not viewer:
+                return ("Choose the folder with both FINAL FANTASY XI and PlayOnlineViewer in it (the SquareEnix folder "
+                        "copied from a Windows PC).")
+            return None
         if self.page == 0:
             if self.game.get() != "official" and not self.setup.valid_ffxi(self.ffxi.get()):
                 return "Choose the FINAL FANTASY XI folder (the one with FFXiMain.dll in it), or pick the Square Enix download."
@@ -3845,7 +4076,16 @@ class SetupWizard(tk.Tk):
         def work():
             try:
                 import launcher_thirdparty
-                self.setup.run_setup(HERE, choices, launcher_thirdparty, log=lambda m: self.q.put(("log", m)))
+                cfg = self.setup.run_setup(HERE, choices, launcher_thirdparty, log=lambda m: self.q.put(("log", m)))
+                if self.deck:
+                    try:
+                        boot = os.path.join(cfg["ashita_dir"], "config", "boot", cfg.get("ashita_boot", core.DEFAULT_BOOT))
+                        linux.deck_defaults(HERE, boot)
+                        self.q.put(("log", "Steam Deck: the game is set to the Deck's screen (1280 x 800)."))
+                        linux.install_desktop_entry(HERE)
+                        self.q.put(("log", "Added XI: Forever Offline to the menu: add it to Steam on the launcher's Settings page."))
+                    except Exception as e:
+                        self.q.put(("log", f"Could not set the Steam Deck defaults ({e})."))
                 self.q.put(("done", None))
             except Exception as e:
                 self.q.put(("fail", str(e)))
@@ -3926,6 +4166,8 @@ def main():
     if os.name == "nt" and not is_admin():
         elevate_and_exit()
     if os.name == "nt" and not one_launcher_only():
+        return
+    if linux is not None and not one_launcher_only_linux():
         return
     try:                                          # the launcher copy the last update moved aside (it has closed now)
         import launcher_update

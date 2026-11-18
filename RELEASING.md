@@ -35,3 +35,19 @@ Server release: the server zip + `dist\SHA256SUMS.txt`. Launcher release: `dist\
 server and everything else.
 
 While the repos are private, players cannot download anything.
+
+## Linux / Steam Deck files (automatic)
+Nothing to do on the dev PC: pushing the version tag starts a GitHub workflow in each repo, and each one adds its Linux
+files to the same release once the release is published (about 30-60 minutes after the Publish button, see the Actions
+tab of each repo):
+- kit repo, `.github/workflows/linux-release.yml`: builds the Linux launcher (`build_release.sh`), packs
+  `xi-forever-offline-<v>-linux-x64.tar.gz` + `SHA256SUMS-linux.txt` (`package_kit.py --platform linux`), and for a full
+  release also `XI-Forever-Offline-Linux.tar.gz` (the fixed one-click link
+  `https://github.com/Hurami89/xi-forever-offline/releases/latest/download/XI-Forever-Offline-Linux.tar.gz`).
+  It also checks MariaDB's Linux package on Arch Linux (SteamOS) with the launcher's setup code.
+- server repo, `.github/workflows/xiforever-linux.yml`: builds the five server programs for Linux, packs
+  `xi-forever-offline-server-<v>-linux-x64.tar.gz` + `SHA256SUMS-linux.txt` (`package_server.py --platform linux
+  --bundle-libs`), runs it (database, five servers, map server ready) and checks for missing libraries on Arch Linux.
+If a workflow fails, its Linux files are missing from that release: Linux players' update check then says the Linux
+files aren't there yet, and Windows players are not affected. Run it again by hand: Actions > the workflow > Run workflow
+(type the tag).

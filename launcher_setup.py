@@ -12,10 +12,14 @@ import secrets
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import zipfile
 
-NO_WINDOW = 0x08000000
+# XIFO_TEST_PLATFORM=windows: the stand-in tests check the Windows paths on a Linux machine
+IS_WINDOWS = os.name == "nt" or os.environ.get("XIFO_TEST_PLATFORM") == "windows"
+IS_LINUX = sys.platform.startswith("linux") and not IS_WINDOWS
+NO_WINDOW = 0x08000000 if IS_WINDOWS else 0
 MARIADB_SERIES = "11.4"                                # long-term support series
 MARIADB_API = "https://downloads.mariadb.org/rest-api/mariadb/{series}/latest"
 MARIADB_PAGE = "https://mariadb.org/download/"
@@ -61,7 +65,8 @@ def find_ffxi():
 
 
 def valid_server(path):
-    return bool(path) and os.path.isfile(os.path.join(path, "xi_map.exe")) and os.path.isdir(os.path.join(path, "sql"))
+    program = "xi_map.exe" if IS_WINDOWS else "xi_map"
+    return bool(path) and os.path.isfile(os.path.join(path, program)) and os.path.isdir(os.path.join(path, "sql"))
 
 
 def default_layout(kit):
@@ -89,17 +94,32 @@ def valid_login(name):
 
 
 # ----- portable MariaDB -----
-def resolve_mariadb(fetch):
-    """The newest MariaDB Windows zip in the long-term support series: {"version", "url", "name", "sha256"}."""
+def mariadb_package_wanted(name, linux=None):
+    """Windows: the -winx64.zip. Linux: the x86_64 binary tarball (MariaDB's own build for any distro)."""
+    linux = (not IS_WINDOWS) if linux is None else linux
+    if "debug" in name:
+        return False
+    if linux:
+        return bool(re.search(r"-linux-(systemd-)?x86_64\.tar\.gz$", name))
+    return name.endswith("-winx64.zip")
+
+
+def resolve_mariadb(fetch, linux=None):
+    """The newest MariaDB package for this system in the long-term support series: {"version", "url", "name",
+    "sha256"}. Windows: the zip. Linux: the binary tarball."""
     data = json.loads(fetch(MARIADB_API.format(series=MARIADB_SERIES)))
     releases = data.get("releases") or {}
     for version in sorted(releases, key=lambda v: [int(x) for x in re.findall(r"\d+", v)], reverse=True):
         for item in releases[version].get("files", []):
             name = item.get("file_name", "")
-            if name.endswith("-winx64.zip") and "debug" not in name:
+            if mariadb_package_wanted(name, linux):
                 digest = (item.get("checksum") or {}).get("sha256sum")
-                return {"version": version, "url": item.get("file_download_url"), "name": name, "sha256": digest}
-    raise RuntimeError(f"No MariaDB Windows zip found; download it from {MARIADB_PAGE} and unpack it into the mariadb folder.")
+                url = item.get("file_download_url") or ""
+                if url.startswith("http://") and not IS_WINDOWS:     # (Linux: always https)
+                    url = "https://" + url[len("http://"):]
+                return {"version": version, "url": url, "name": name, "sha256": digest}
+    raise RuntimeError(f"No MariaDB package for this system found; download it from {MARIADB_PAGE} and unpack it "
+                       "into the mariadb folder.")
 
 
 def unpack_single_folder(zip_path, dest):
@@ -118,8 +138,86 @@ def unpack_single_folder(zip_path, dest):
                 shutil.copyfileobj(src, out)
 
 
+def unpack_single_folder_tar(tar_path, dest):
+    """Linux: unpacks a .tar.gz whose files are all inside one top folder, without that folder. Keeps the programs'
+    run permission and the library links inside the package; refuses anything that would land outside dest."""
+    import tarfile
+    real = os.path.realpath(dest)
+    with tarfile.open(tar_path, "r:*") as archive:
+        for member in archive.getmembers():
+            head, _, rest = member.name.partition("/")
+            if not rest:
+                continue
+            parts = rest.split("/")
+            if ".." in parts or rest.startswith("/"):
+                raise RuntimeError("refusing a path outside the folder: " + member.name)
+            target = os.path.join(dest, *parts)
+            if not os.path.realpath(target).startswith(real + os.sep):
+                raise RuntimeError("refusing a path outside the folder: " + member.name)
+            if member.isdir():
+                os.makedirs(target, exist_ok=True)
+            elif member.issym():
+                link = member.linkname
+                if link.startswith("/") or not os.path.realpath(os.path.join(os.path.dirname(target), link)).startswith(real + os.sep):
+                    continue                                 # a link pointing outside the package: left out
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                if os.path.lexists(target):
+                    os.remove(target)
+                os.symlink(link, target)
+            elif member.isfile():
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with archive.extractfile(member) as src, open(target, "wb") as out:
+                    shutil.copyfileobj(src, out)
+                os.chmod(target, member.mode & 0o755 | 0o644)
+
+
+def unpack_package(path, dest):
+    if path.lower().endswith(".zip"):
+        unpack_single_folder(path, dest)
+    else:
+        unpack_single_folder_tar(path, dest)
+
+
 def mariadb_exe(mariadb_dir, name):
-    return os.path.join(mariadb_dir, "bin", name + ".exe")
+    if IS_WINDOWS:
+        return os.path.join(mariadb_dir, "bin", name + ".exe")
+    for folder in ("bin", "scripts"):                       # Linux tarball: mariadb-install-db is in scripts/
+        path = os.path.join(mariadb_dir, folder, name)
+        if os.path.isfile(path):
+            return path
+    return os.path.join(mariadb_dir, "bin", name)
+
+
+def mariadb_cmd(mariadb_dir, name):
+    """A MariaDB program and, on Linux, --no-defaults first (never read a system MariaDB's /etc/my.cnf)."""
+    return [mariadb_exe(mariadb_dir, name)] + ([] if IS_WINDOWS else ["--no-defaults"])
+
+
+def mariadb_env(mariadb_dir):
+    """Linux: the package's own libraries first; the system's otherwise (not the packaged launcher's)."""
+    if IS_WINDOWS:
+        return None
+    env = dict(os.environ)
+    try:
+        import launcher_linux
+        launcher_linux.fix_frozen_environment(env)
+    except ImportError:
+        pass
+    libs = [os.path.join(mariadb_dir, "lib")]
+    if env.get("LD_LIBRARY_PATH"):
+        libs.append(env["LD_LIBRARY_PATH"])
+    env["LD_LIBRARY_PATH"] = os.pathsep.join(libs)
+    return env
+
+
+def socket_path(mariadb_dir, port):
+    """Linux: the server's local socket inside the mariadb folder (short enough), else in /tmp."""
+    path = os.path.join(mariadb_dir, "mariadb.sock")
+    return path if len(path.encode()) < 100 else f"/tmp/xiforever-mariadb-{port}.sock"
+
+
+def _as_root():
+    return not IS_WINDOWS and hasattr(os, "geteuid") and os.geteuid() == 0
 
 
 def init_mariadb(mariadb_dir, root_password, port, run=subprocess.run):
@@ -127,11 +225,31 @@ def init_mariadb(mariadb_dir, root_password, port, run=subprocess.run):
     data = os.path.join(mariadb_dir, "data")
     if os.path.isdir(os.path.join(data, "mysql")):
         return "The database folder already exists."
-    result = run([mariadb_exe(mariadb_dir, "mariadb-install-db"), f"--datadir={data}", f"--password={root_password}",
-                  f"--port={port}"], capture_output=True, text=True, creationflags=NO_WINDOW)
+    if IS_WINDOWS:
+        cmd = [mariadb_exe(mariadb_dir, "mariadb-install-db"), f"--datadir={data}", f"--password={root_password}",
+               f"--port={port}"]
+    else:   # Linux: root starts with no password; set_root_password() gives it one once the server runs
+        cmd = mariadb_cmd(mariadb_dir, "mariadb-install-db") + [
+            f"--basedir={mariadb_dir}", f"--datadir={data}", "--auth-root-authentication-method=normal",
+            "--skip-test-db"] + (["--user=root"] if _as_root() else [])
+    result = run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW,
+                 **({} if IS_WINDOWS else {"env": mariadb_env(mariadb_dir), "cwd": mariadb_dir}))
     if result.returncode != 0:
         raise RuntimeError("mariadb-install-db failed: " + (result.stderr or result.stdout)[-400:])
     return "Database folder created."
+
+
+def set_root_password(mariadb_dir, port, root_password, run=subprocess.run):
+    """Linux: a new database's root accounts have no password yet; give every one of them this install's.
+    Returns False when root already needed a password (done before)."""
+    try:
+        hosts = sql(mariadb_dir, port, "root", "", "SELECT host FROM mysql.user WHERE user = 'root'", run=run).split()
+    except RuntimeError:
+        return False
+    statements = " ".join(f"ALTER USER 'root'@{quote(host)} IDENTIFIED BY {quote(root_password)};" for host in hosts)
+    if statements:
+        sql(mariadb_dir, port, "root", "", statements + " FLUSH PRIVILEGES;", run=run)
+    return True
 
 
 def aria_logs_broken(mariadb_dir):
@@ -176,12 +294,18 @@ def start_mariadb(mariadb_dir, port, popen=subprocess.Popen, wait=30, _retry=Tru
         s.settimeout(0.3)
         if s.connect_ex(("127.0.0.1", int(port))) == 0:
             return None
-    proc = popen([mariadb_exe(mariadb_dir, "mariadbd"), f"--datadir={os.path.join(mariadb_dir, 'data')}", f"--port={port}",
+    data = os.path.join(mariadb_dir, "data")
+    linux = [] if IS_WINDOWS else [f"--basedir={mariadb_dir}", f"--socket={socket_path(mariadb_dir, port)}",
+                                   f"--pid-file={os.path.join(data, 'mariadb.pid')}",
+                                   f"--log-error={os.path.join(data, 'mariadb.err')}"] + (["--user=root"] if _as_root() else [])
+    proc = popen(mariadb_cmd(mariadb_dir, "mariadbd") + linux + [
+                  f"--datadir={data}", f"--port={port}",
                   "--bind-address=127.0.0.1",
                   # write the log to disk once a second instead of after every statement: the map server waits on each
                   # database write, and a slow disk then made its watchdog stop it (seen 2026-11-11 with 500 bots)
                   "--innodb-flush-log-at-trx-commit=2"], cwd=mariadb_dir, creationflags=NO_WINDOW,
-                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                 **({} if IS_WINDOWS else {"env": mariadb_env(mariadb_dir), "start_new_session": True}))
     for _ in range(wait * 2):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(0.3)
@@ -192,21 +316,22 @@ def start_mariadb(mariadb_dir, port, popen=subprocess.Popen, wait=30, _retry=Tru
         time.sleep(0.5)
     if _retry and aria_logs_broken(mariadb_dir) and set_aria_logs_aside(mariadb_dir):
         return start_mariadb(mariadb_dir, port, popen, wait, _retry=False)
-    raise RuntimeError("The database did not start (see mariadb\\data\\*.err).")
+    raise RuntimeError("The database did not start (see " + os.path.join("mariadb", "data", "*.err") + ").")
 
 
 def stop_mariadb(mariadb_dir, port, root_password, run=subprocess.run):
-    run([mariadb_exe(mariadb_dir, "mariadb-admin"), "-h127.0.0.1", f"-P{port}", "-uroot", f"-p{root_password}", "shutdown"],
-        capture_output=True, creationflags=NO_WINDOW)
+    run(mariadb_cmd(mariadb_dir, "mariadb-admin") + ["-h127.0.0.1", f"-P{port}", "-uroot", f"-p{root_password}", "shutdown"],
+        capture_output=True, creationflags=NO_WINDOW, **({} if IS_WINDOWS else {"env": mariadb_env(mariadb_dir)}))
 
 
 def sql(mariadb_dir, port, user, password, statement, database=None, run=subprocess.run):
     """Runs SQL with the MariaDB command-line client that came in the zip (no Python database driver needed)."""
-    cmd = [mariadb_exe(mariadb_dir, "mariadb"), "-h127.0.0.1", f"-P{port}", f"-u{user}", f"-p{password}", "--batch",
-           "--skip-column-names", "-e", statement]
+    cmd = mariadb_cmd(mariadb_dir, "mariadb") + ["-h127.0.0.1", f"-P{port}", f"-u{user}"] + \
+        ([f"-p{password}"] if password or IS_WINDOWS else []) + ["--batch", "--skip-column-names", "-e", statement]
     if database:
         cmd.insert(-2, database)
-    result = run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW)
+    result = run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW,
+                 **({} if IS_WINDOWS else {"env": mariadb_env(mariadb_dir)}))
     if result.returncode != 0:
         raise RuntimeError((result.stderr or "").strip()[-500:] or "SQL failed")
     return result.stdout
@@ -217,8 +342,10 @@ def quote(value):
 
 
 def create_database(mariadb_dir, port, root_password, db_password, run=subprocess.run):
+    # Linux: utf8mb4 from the start (the server warns about latin1, MariaDB's own default; Windows installs unchanged)
+    charset = "" if IS_WINDOWS else " CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"
     sql(mariadb_dir, port, "root", root_password,
-        f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}`; "
+        f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}`{charset}; "
         f"CREATE USER IF NOT EXISTS {quote(DB_USER)}@'localhost' IDENTIFIED BY {quote(db_password)}; "
         f"CREATE USER IF NOT EXISTS {quote(DB_USER)}@'127.0.0.1' IDENTIFIED BY {quote(db_password)}; "
         f"GRANT ALL PRIVILEGES ON `{DB_NAME}`.* TO {quote(DB_USER)}@'localhost'; "
@@ -447,6 +574,20 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
     log("1/9 Final Fantasy XI...")
     game = choices.get("game", "existing")      # copy | existing | official (launcher_game.py)
     extra_cfg = {}
+    if not IS_WINDOWS:                          # Linux: the game comes from a folder (copied from a Windows PC)
+        import launcher_game as lg
+        import launcher_linux as ll
+        ffxi, viewer = ll.find_game_parts(choices.get("ffxi_dir"))
+        if not ffxi or not viewer:
+            raise RuntimeError("That folder doesn't have both FINAL FANTASY XI and PlayOnlineViewer in it. Choose the "
+                               "SquareEnix folder copied from a Windows PC (it has both).")
+        lang = ll.detect_lang(viewer)
+        if game == "copy":
+            paths = lg.copy_install(ffxi, viewer, os.path.join(kit, "Game"), log=log)
+            ffxi, viewer = paths["ffxi"], paths["viewer"]
+        choices["ffxi_dir"] = ffxi
+        extra_cfg.update({"game_copy": game == "copy", "pol_dir": viewer, "pol_lang": lang})
+        game = "linux"
     if game == "official" and not valid_ffxi(choices.get("ffxi_dir")):
         import launcher_game as lg
         found = find_ffxi()
@@ -479,12 +620,17 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         except Exception as problem:
             raise RuntimeError(f"The server files could not be downloaded ({problem}). Check the internet connection, "
                                "or choose a folder with a built server.")
-    if not tp.status(items["vcredist"], kit, ashita)[0]:
+    if "vcredist" in items and not tp.status(items["vcredist"], kit, ashita)[0]:      # (Windows only)
         tp.install(items["vcredist"], kit, ashita, fetch=fetch, log=log, run=run)
     log("   Ashita and xiloader...")
     for iid in ("ashita", "xiloader"):
         if not tp.status(items[iid], kit, ashita)[0]:
             tp.install(items[iid], kit, ashita, fetch=fetch, log=log)
+    if not IS_WINDOWS:
+        log("   Proton (runs the game on Linux, about 550 MB)...")
+        for iid in ("umu", "proton"):
+            if iid in items and not tp.status(items[iid], kit, ashita)[0]:
+                tp.install(items[iid], kit, ashita, fetch=fetch, log=log)
     log("3/9 Add-ons...")
     wanted = [choices["interface"]] if choices.get("interface") in ("xiui", "xiuiplus") else []
     for iid in wanted + list(choices.get("extras", [])):
@@ -522,14 +668,17 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         folder = os.path.join(kit, "downloads", "mariadb")
         os.makedirs(folder, exist_ok=True)
         path = os.path.join(folder, found["name"])
-        data = fetch(found["url"], timeout=1800)
-        if found.get("sha256"):
-            import hashlib
-            if hashlib.sha256(data).hexdigest() != found["sha256"].lower():
-                raise RuntimeError("The MariaDB download does not match its published checksum.")
-        with open(path, "wb") as handle:
-            handle.write(data)
-        unpack_single_folder(path, mdb)
+        if IS_WINDOWS:
+            data = fetch(found["url"], timeout=1800)
+            if found.get("sha256"):
+                import hashlib
+                if hashlib.sha256(data).hexdigest() != found["sha256"].lower():
+                    raise RuntimeError("The MariaDB download does not match its published checksum.")
+            with open(path, "wb") as handle:
+                handle.write(data)
+        else:                                          # Linux: a bigger package, streamed to disk (resumable)
+            tp.download_file(found["url"], path, log=log, sha256=found.get("sha256"), fetch=fetch)
+        unpack_package(path, mdb)
     secrets_file = os.path.join(mdb, "xiforever-db.json")       # the database passwords of this install (git-ignored)
     if os.path.exists(secrets_file):
         with open(secrets_file, encoding="utf-8") as handle:
@@ -541,6 +690,8 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
     log(init_mariadb(mdb, keys["root"], keys["port"], run=run))
     proc = start_mariadb(mdb, keys["port"], popen=popen)
     try:
+        if not IS_WINDOWS:
+            set_root_password(mdb, keys["port"], keys["root"], run=run)
         log("5/9 Database and tables (a few minutes)...")
         create_database(mdb, keys["port"], keys["root"], keys["xi"], run=run)
         tables = sql(mdb, keys["port"], DB_USER, keys["xi"], "SHOW TABLES LIKE 'accounts'", database=DB_NAME, run=run).strip()
@@ -572,6 +723,9 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
             log(f"Could not turn XIPivot on ({e}).")
     addons = list(STOCK_ADDONS) + list(START_ADDONS) + [a for a in ("mobdb", "chains") if a in choices.get("extras", [])]
     plugins = list(STOCK_PLUGINS) + (["Nameplate"] if "nameplate" in choices.get("extras", []) else [])
+    if not IS_WINDOWS:                                   # Ashita's own fix for Wine (Proton)
+        import launcher_linux as ll
+        plugins += [line.split()[-1] for line in ll.wine_plugin_lines(ashita)]
     log(write_script(ashita, choices.get("interface"), addons, plugins))
 
     log("9/9 Your settings...")
@@ -583,6 +737,12 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         "db_name": DB_NAME, "db_user": DB_USER, "db_pass": keys["xi"], "db_port": keys["port"],
         "game_user": choices["login"], "game_pass": choices["password"],
         "mariadb_dir": mdb, "mariadb_service": "", "world": choices["world"], **extra_cfg})
+    if not IS_WINDOWS:                                    # the game's own Windows folder in Proton (PLAY tries again)
+        import launcher_linux as ll
+        try:
+            ll.prepare_prefix(kit, cfg, log=log)
+        except Exception as problem:
+            log(f"Proton isn't ready yet ({problem}). PLAY tries again; send logs/proton-setup.log if it keeps failing.")
     if extra_cfg.get("game_update_needed"):
         log("One more step before your first PLAY: log in to PlayOnline once with your Square Enix account (a free "
             "trial works) so it can update the game. The launcher shows you how when it opens.")
@@ -608,6 +768,24 @@ def stop_portable(cfg, run=subprocess.run):
         pass
 
 
+def existing_case(base, rel):
+    """The path of rel under base with the letter case already on disk (Linux: a game folder copied from Windows may
+    say rom2 where the Era-DATs say ROM2; Wine treats both as one name, so writing a second one would be ambiguous)."""
+    if IS_WINDOWS:
+        return os.path.join(base, rel)
+    path = base
+    for part in rel.replace("\\", "/").split("/"):
+        candidate = os.path.join(path, part)
+        if not os.path.exists(candidate):
+            try:
+                low = part.lower()
+                candidate = next((os.path.join(path, n) for n in os.listdir(path) if n.lower() == low), candidate)
+            except OSError:
+                pass
+        path = candidate
+    return path
+
+
 # ----- Phoenix's Era-DATs (the same steps and backup layout as install-era-dats.ps1 / restore-original-dats.ps1) -----
 def install_era_dats(kit, ffxi_dir, era_dir=None, log=print):
     """Copies Era-DATs\\ROM..ROM4 into the game folder. Every file it replaces is saved in <kit>\\dat-backup first and the
@@ -626,7 +804,7 @@ def install_era_dats(kit, ffxi_dir, era_dir=None, log=print):
         raise RuntimeError("The Era-DATs are not downloaded yet.")
     new = []
     for index, rel in enumerate(files, 1):
-        dest = os.path.join(ffxi_dir, rel)
+        dest = existing_case(ffxi_dir, rel)
         if os.path.exists(dest):
             os.makedirs(os.path.dirname(os.path.join(backup, rel)), exist_ok=True)
             shutil.copy2(dest, os.path.join(backup, rel))

@@ -43,7 +43,7 @@ GAME_PORTS = (("log in", 54231), ("lobby", 54230), ("lobby view", 54001), ("sear
 FIREWALL_RULE = "XI Forever Offline co-op"
 SERVER_PROGRAMS = ("xi_connect", "xi_map", "xi_search", "xi_profile")
 VISIT_BOOT = "xiforever-coop.ini"
-NO_WINDOW = 0x08000000
+NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 MODES = {"lan": "Same network (LAN / Wi-Fi)", "tailscale": "Over the internet with Tailscale", "direct": "Over the internet, direct (advanced)"}
 TAILSCALE_PAGE = "https://tailscale.com/download"
 # Tailscale's own Windows installer: the address behind the download button on tailscale.com/download/windows
@@ -959,6 +959,8 @@ def local_addresses():
 
 def tailscale_program():
     """Where tailscale.exe is when Tailscale is installed on this PC, else None."""
+    if os.name != "nt":                          # Linux: Tailscale from the system's own packages
+        return shutil.which("tailscale")
     program = shutil.which("tailscale") or os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "Tailscale", "tailscale.exe")
     return program if os.path.exists(program) else None
 
@@ -1056,6 +1058,10 @@ def install_tailscale(kit, log=print, run=subprocess.run, opener=None, start=Non
     """The GET TAILSCALE button: downloads Tailscale's installer, makes sure Windows trusts it as Tailscale's own, and
     starts it (the player clicks through it and signs in). Returns the installer's path. CoopError when a step fails:
     then nothing was started."""
+    if os.name != "nt":
+        raise CoopError("On Linux, Tailscale is installed from tailscale.com/download/linux (it needs administrator "
+                        "rights, so the launcher can't do it; on a Steam Deck, look up Tailscale's Steam Deck guide). "
+                        "Playing together on the same network works without it.")
     path = download_tailscale(kit, log, opener)
     ok, detail = signed_by_tailscale(path, run)
     if not ok:
@@ -1223,6 +1229,9 @@ def firewall_script(server_dir, port, mode):
 
 def firewall_open(server_dir, port, mode, run=subprocess.run):
     """Adds the rules (the launcher already runs as administrator). Returns (ok, text)."""
+    if os.name != "nt":                          # Linux: most desktops (and SteamOS) have no firewall switched on
+        ports = ", ".join(str(p) for _name, p in GAME_PORTS)
+        return True, f"Linux: if this PC has a firewall switched on, let in TCP ports {ports} and {int(port)}, and UDP 54230."
     try:
         result = run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", firewall_script(server_dir, port, mode)],
                      capture_output=True, text=True, creationflags=NO_WINDOW, timeout=60)
@@ -1235,6 +1244,8 @@ def firewall_open(server_dir, port, mode, run=subprocess.run):
 
 
 def firewall_close(run=subprocess.run):
+    if os.name != "nt":
+        return True
     try:
         run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
              f"Get-NetFirewallRule -DisplayName '{FIREWALL_RULE}' -ErrorAction SilentlyContinue | Remove-NetFirewallRule"],
@@ -1292,14 +1303,20 @@ def full_backup(cfg, kit, log=print, run=subprocess.run):
     backups = os.path.join(kit, "backups")
     os.makedirs(backups, exist_ok=True)
     path = os.path.join(backups, f"db-before-coop-{time.strftime('%Y%m%d-%H%M%S')}.sql")
-    if cfg.get("mariadb_dir"):
-        tool = os.path.join(cfg["mariadb_dir"], "bin", "mariadb-dump.exe")
+    env = None
+    if cfg.get("mariadb_dir") and os.name != "nt":       # Linux: the kit's MariaDB package (and never /etc/my.cnf)
+        import launcher_setup
+        tool = launcher_setup.mariadb_cmd(cfg["mariadb_dir"], "mariadb-dump")
+        env = launcher_setup.mariadb_env(cfg["mariadb_dir"])
+    elif cfg.get("mariadb_dir"):
+        tool = [os.path.join(cfg["mariadb_dir"], "bin", "mariadb-dump.exe")]
     else:
-        tool = shutil.which("mariadb-dump") or shutil.which("mysqldump") or "mysqldump"
-    command = [tool, f"--host={cfg.get('db_host', '127.0.0.1')}", f"--port={int(cfg.get('db_port', 3306))}", f"--user={cfg['db_user']}",
+        tool = [shutil.which("mariadb-dump") or shutil.which("mysqldump") or "mysqldump"]
+    command = tool + [f"--host={cfg.get('db_host', '127.0.0.1')}", f"--port={int(cfg.get('db_port', 3306))}", f"--user={cfg['db_user']}",
                f"--password={cfg['db_pass']}", "--single-transaction", f"--result-file={path}", cfg["db_name"]]
     try:
-        result = run(command, capture_output=True, text=True, creationflags=NO_WINDOW, timeout=900)
+        result = run(command, capture_output=True, text=True, creationflags=NO_WINDOW, timeout=900,
+                     **({"env": env} if env else {}))
         if result.returncode == 0 and os.path.exists(path):
             log("Co-op: saved a copy of your database first (backups folder).")
             return path
