@@ -239,6 +239,28 @@
       "check": "addons/momentum/momentum.lua"
     },
     {
+      "id": "ffxiport",
+      "name": "FFXIPort",
+      "author": "wildthing (wildcabbagepatch)",
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/wildcabbagepatch/FFXIPort",
+      "into": "ashita",
+      "note": "Made for XI: Forever Offline: a teleport window (/port) for the Home Points, Survival Guides, gate crystals and Runic Portals you have unlocked (1,000 gil or conquest points; free within a city). The server part ships with the server. Installed switched off (ADDONS > Addons to load it); it follows the Fast travel switch.",
+      "source": {
+        "type": "github_release",
+        "repo": "wildcabbagepatch/FFXIPort",
+        "tag": "v1.1.0",
+        "asset": "^FFXIPort-[0-9.]+\\.zip$"
+      },
+      "files": [
+        [
+          "FFXIPort-1.1.0/client/FFXIPort/",
+          "addons/FFXIPort/"
+        ]
+      ],
+      "check": "addons/FFXIPort/FFXIPort.lua"
+    },
+    {
       "id": "chains",
       "name": "Chains",
       "author": "Sippius, Ivaar and NerfOnline",
