@@ -236,10 +236,12 @@ def refresh_pinned(kit, cfg, fetch, log=print, ids=PINNED_REFRESH):
     done = []
     for item in tp.load_manifest(kit):
         source = item.get("source", {})
-        tag = source.get("tag") or source.get("ref")   # a release tag, or a fixed commit for an archive
-        if item.get("id") not in ids or not tag or tag == "latest":
-            continue
+        tag = source.get("tag") or source.get("ref") or (source.get("version") if source.get("type") == "kit" else None)
         have = (state.get(item["id"]) or {}).get("version")
+        # pinned tools always; items marked refresh_if_installed (Nameplate shipped with the kit) only when installed
+        wanted = item.get("id") in ids or (item.get("refresh_if_installed") and have)
+        if not wanted or not tag or tag == "latest":
+            continue
         if have == tag:
             continue
         log(f"{item['name']}: updating {have or 'the installed copy'} to {tag} (this release needs it)...")

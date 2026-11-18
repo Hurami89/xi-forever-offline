@@ -158,6 +158,9 @@ def resolve(item, fetch=_get):
         ref = source["ref"]
         url = f"https://github.com/{source['repo']}/archive/{ref}.zip"
         return {"version": ref, "url": url, "name": source["repo"].split("/")[-1] + "-" + ref + ".zip", "sha256": None}
+    if kind == "kit":                              # shipped inside the kit folder (no download)
+        return {"version": source["version"], "url": "", "name": source["path"], "sha256": source.get("sha256"),
+                "local": source["path"]}
     if kind == "ollama_model":
         return {"version": source["model"], "url": "", "name": source["model"], "sha256": None}
     if kind in ("url", "installer"):
@@ -167,6 +170,26 @@ def resolve(item, fetch=_get):
 
 def download(item, kit, found, fetch=_get):
     """Downloads into downloads\\<id>\\ and checks the SHA-256 when the release lists one. Returns the file path."""
+    if found.get("local"):                         # a folder inside the kit: zipped in memory, checked like a download
+        import io
+        base = os.path.join(kit, found["local"])
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as archive:
+            for top, _dirs, files in os.walk(base):
+                for name in files:
+                    full = os.path.join(top, name)
+                    archive.write(full, os.path.relpath(full, base).replace("\\", "/"))
+        if found.get("sha256"):
+            dll = [n for n in zipfile.ZipFile(buf).namelist() if n.lower().endswith(".dll")]
+            actual = hashlib.sha256(open(os.path.join(base, dll[0]), "rb").read()).hexdigest() if dll else ""
+            if actual != found["sha256"]:
+                raise RuntimeError(f"{item['name']}: the file in the kit does not match its checksum - not installed.")
+        path = os.path.join(kit, "downloads", item["id"], item["id"] + ".zip")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as handle:
+            handle.write(buf.getvalue())
+        found["sha256_actual"] = found.get("sha256")
+        return path
     folder = os.path.join(kit, "downloads", item["id"])
     os.makedirs(folder, exist_ok=True)
     data = fetch(found["url"], timeout=600)

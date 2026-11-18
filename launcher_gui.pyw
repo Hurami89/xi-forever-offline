@@ -3643,7 +3643,7 @@ class SetupWizard(tk.Tk):
     """First run (no config.json yet): find FFXI, install Ashita and the add-ons, set up the database and the account.
     The work itself is launcher_setup.run_setup; this window only asks the questions and shows the progress."""
 
-    EXTRAS = (("mobdb", "mobdb: monster info on your target", True), ("nameplate", "Nameplate: clearer name plates (may not load on the current Ashita)", False),
+    EXTRAS = (("mobdb", "mobdb: monster info on your target", True), ("nameplate", "Nameplate: clearer name plates", True),
               ("xipivot", "XIPivot: load DAT mods without changing game files", False),
               ("gambatte", "Mini game player", True),
               ("chains", "Chains: skillchain helper", False), ("autobot", "AutoBot: for a second (dualbox) character", False))

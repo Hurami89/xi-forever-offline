@@ -195,28 +195,25 @@
     {
       "id": "nameplate",
       "name": "Nameplate",
-      "author": "Shirk",
+      "author": "Shirk (HealsCodes) / BunnyBox Productions",
       "license": "GPL-3.0",
       "homepage": "https://github.com/Shirk/Nameplate",
       "into": "ashita",
       "source": {
-        "type": "github_release",
-        "repo": "Shirk/Nameplate",
-        "tag": "v0.5.1.0d",
-        "asset": "^Nameplate-v[0-9.a-z]+\\.zip$"
+        "type": "kit",
+        "path": "thirdparty-bundled/nameplate",
+        "version": "0.60",
+        "sha256": "7244f3be110c5ceb043d8bd551564f8614b2bdf674eb8eba1f8f939548c60f7e"
       },
       "files": [
         [
           "plugins/",
           "plugins/"
-        ],
-        [
-          "docs/",
-          "docs/"
         ]
       ],
       "check": "plugins/Nameplate.dll",
-      "note": "The public release (v0.5.1.0d) was made for an older Ashita; the current Ashita may refuse to load it (harmless: name plates stay as they are)."
+      "note": "Version 0.60 ships with the kit: the project publishes 0.60 only as source code, and its last download (v0.5.1.0d) doesn't load on the current Ashita. GPL v3; source at the home page.",
+      "refresh_if_installed": true
     },
     {
       "id": "xipivot",
