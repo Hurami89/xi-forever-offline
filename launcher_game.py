@@ -425,7 +425,7 @@ def retail_install(kit, cfg, reg=None):
     return None
 
 
-TARGET_OFFSET_NOV = (2026, 11, 1)   # FFXiMain built from here on: the November 2026 game update (Ashita main a807426)
+TARGET_OFFSET_NOV = (2026, 10, 26)  # FFXiMain linked from here on = the November 2026 game update (client 30261102_0; its link date can be a few days earlier; the October client is 2026-10-05). Ashita main a807426
 _OFFSET_BEGIN = "; >>> XI: Forever Offline: target offset for this game version (written at PLAY)"
 _OFFSET_END = "; <<< XI: Forever Offline"
 
