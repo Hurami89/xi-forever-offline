@@ -503,7 +503,8 @@ def create_account(mariadb_dir, port, db_password, login, password, run=subproce
         return f"The account '{login}' already exists."
     sql(mariadb_dir, port, DB_USER, db_password,
         "INSERT INTO accounts (id, login, password, timecreate, timelastmodify, status, priv) "
-        f"SELECT GREATEST(1000, IFNULL(MAX(id), 0) + 1), {quote(login)}, PASSWORD({quote(password)}), NOW(), NOW(), 1, 1 FROM accounts",
+        f"SELECT GREATEST(1000, IFNULL(MAX(id), 0) + 1), {quote(login)}, PASSWORD({quote(password)}), NOW(), NOW(), 1, 1 "
+        "FROM accounts WHERE id < 21000000",          # (below the bot accounts)
         database=DB_NAME, run=run)
     return f"Created the account '{login}'."
 
