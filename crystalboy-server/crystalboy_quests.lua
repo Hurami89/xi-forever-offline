@@ -10,10 +10,10 @@
 --   * the reward is a Crystal Boy item instead of 5 more slots.
 -- Parts without a reward yet stay closed, as they were.
 --   Part I  -> Crystal Boy (8100)
---   Part II -> Recollection of the Mana Tree (8101, plays Final Fantasy Adventure)
---   Part III -> Recollection of the Tower (8102, Final Fantasy Legend)
---   Part IV  -> Recollection of the Magi  (8103, Final Fantasy Legend II)
---   Part V   -> Recollection of Time      (8104, Final Fantasy Legend III)
+--   Part II -> Jueno Recollection I   (8101, plays Legend of Jueno)
+--   Part III -> Jueno Recollection II  (8102, Legend of Jueno 2)
+--   Part IV  -> Jueno Recollection III (8103, Legend of Jueno 3)
+--   Part V   -> Dungeon Recollection   (8104, GBHack)
 -- After each: finish the game in the Crystal Boy (play time, see the addon's rewards.lua), then bring the Recollection
 -- back to Bluffnix: a Memory key item (+1% monster exp under Signet, they add up), Page from the Dragon Chronicles,
 -- Anniversary Ring, and 10,000 / 15,000 / 20,000 / 25,000 gil. Once per character.
@@ -35,43 +35,43 @@ local RECOLLECTIONS =
 {
     [8101] =
     {
-        titles  = { 'SEIKEN DENSETSU', 'FINAL FANTASY ADV', 'FF ADVENTURE', 'MYSTIC QUEST' },
-        game    = 'Final Fantasy Adventure',
-        memory  = 1634, -- "Memory of the Mana Tree" (key item text written by install_crystalboy_items.py)
+        titles  = { 'SEIKEN DENSETSU', 'FINAL FANTASY ADV', 'FF ADVENTURE', 'MYSTIC QUEST', 'JUENO LEG 1JUNO' },
+        game    = 'Legend of Jueno',
+        memory  = 1634, -- "Memory of Jueno I" (key item text written by install_crystalboy_items.py)
         items   = { 4198, 15793 }, -- Page from the Dragon Chronicles, Anniversary Ring (no longer Rare: they stack)
         gil     = 10000,
         var     = '[CB]Done8101',
-        story   = 'You saw the end? Tell Bluffnix everything! ...The tree, the sword, the girl... hmm, hmm... Bluffnix has goosebumps.',
+        story   = 'You saw how it ends? Tell Bluffnix everything! ...The road, the city, the people... hmm, hmm... Bluffnix has goosebumps.',
     },
     [8102] =
     {
-        titles  = { 'SAGA' },
-        game    = 'Final Fantasy Legend',
-        memory  = 2605, -- "Memory of the Tower"
+        titles  = { 'SAGA', 'JUENO LEG 2JUNO' },
+        game    = 'Legend of Jueno 2',
+        memory  = 2605, -- "Memory of Jueno II"
         items   = { 4198, 15793 },
         gil     = 15000,
         var     = '[CB]Done8102',
-        story   = 'You reached the top of the tower? And what was waiting in Paradise...? Hmm! Bluffnix will think about that one for a long time.',
+        story   = 'The second part, all the way to the end? Hmm! Bluffnix will think about that one for a long time.',
     },
     [8103] =
     {
-        titles  = { 'SAGA2 DX', 'SAGA2' },
-        game    = 'Final Fantasy Legend II',
-        memory  = 2841, -- "Memory of the Magi"
+        titles  = { 'SAGA2 DX', 'SAGA2', 'JUENO LEG 3JUNO' },
+        game    = 'Legend of Jueno 3',
+        memory  = 2841, -- "Memory of Jueno III"
         items   = { 4198, 15793 },
         gil     = 20000,
         var     = '[CB]Done8103',
-        story   = 'All the MAGI gathered, and the boy found his father? Bluffnix knew it! ...Bluffnix hoped it, anyway.',
+        story   = 'So that is how the whole legend ends! Bluffnix knew it! ...Bluffnix hoped it, anyway.',
     },
     [8104] =
     {
-        titles  = { 'SAGA3 DX', 'SAGA3' },
-        game    = 'Final Fantasy Legend III',
-        memory  = 2716, -- "Memory of Time"
+        titles  = { 'SAGA3 DX', 'SAGA3', 'GBHACK' },
+        game    = 'GBHack',
+        memory  = 2716, -- "Memory of the Dungeon"
         items   = { 4198, 15793 },
         gil     = 25000,
         var     = '[CB]Done8104',
-        story   = 'Past, future, and back again, and the flood stopped? Bluffnix feels dizzy just listening. What a ride!',
+        story   = 'How deep did you get, and you came back up to tell Bluffnix? What a climb!',
     },
 }
 
@@ -163,7 +163,7 @@ local talk =
         start =
         {
             'Crystal Boy friend! Bluffnix found something in a cracked crate from an old Mithra caravan.',
-            'A Recollection! A crystal tablet with a memory inside: a far away land, a young hero, a girl with a strange pendant... and a great tree full of mana.',
+            'A Recollection! A crystal tablet with a memory inside: a city of stone and lanterns, a young traveler, and a long road that starts at its gates.',
             'But the crystal is cloudy and the frame is broken. Bluffnix needs a square of ram leather, a mythril ingot, a square of wool cloth and a turquoise to make it clear again.',
             '...A bowl of Goblin Stew also helps. Thinking is hungry work.',
         },
@@ -173,9 +173,9 @@ local talk =
         },
         finish =
         {
-            'Look! Clear as morning water. Bluffnix can almost hear the wind in the leaves of that tree.',
-            'This is the Recollection of the Mana Tree. Use it with your Crystal Boy and you walk the old hero\'s road yourself.',
-            'People say whoever sees the whole story to its end keeps a little of the tree\'s wisdom. Bluffnix wonders what you will find there...',
+            'Look! Clear as morning water. Bluffnix can almost hear the street cries of that city.',
+            'This is the Recollection of Jueno I. Use it with your Crystal Boy and walk the road yourself.',
+            'People say whoever sees the whole story to its end keeps a little of that city\'s wisdom. Bluffnix wonders what you will find there...',
         },
     },
 }
@@ -200,15 +200,15 @@ talk[3] =
     start =
     {
         'Psst! Bluffnix found another Recollection. Do not ask where. ...Fine: at the bottom of a well, under a very angry crab.',
-        'Inside is a tower so tall it pierces the sky. People climb it, world after world, because they say Paradise waits at the top.',
+        'This one is the second part of the legend. Same city behind you, a longer road ahead, and more people who want something from you.',
         'The tablet is chipped. Bluffnix needs a square of black tiger leather, a gold ingot, a square of velvet cloth and a painite to mend it.',
         '...Goblin Stew also works. Bluffnix always says so.',
     },
-    remind = { 'The tower tablet waits! Black tiger leather, a gold ingot, velvet cloth and a painite. Or Goblin Stew, hehe.' },
+    remind = { 'The second tablet waits! Black tiger leather, a gold ingot, velvet cloth and a painite. Or Goblin Stew, hehe.' },
     finish =
     {
-        'Leather to hold it, gold to seal the chip, velvet to polish... and the painite makes the tower shine again. Look!',
-        'The Recollection of the Tower. Climb it with your Crystal Boy, and tell Bluffnix what is at the top.',
+        'Leather to hold it, gold to seal the chip, velvet to polish... and the painite makes it shine again. Look!',
+        'The Recollection of Jueno II. Carry on with your Crystal Boy, and tell Bluffnix where the road goes.',
     },
 }
 
@@ -217,15 +217,15 @@ talk[4] =
     start =
     {
         'Crystal Boy friend! This one Bluffnix traded from a Galka who traded it from a Mithra who found it in a Quadav nest. Very old.',
-        'Inside: pieces of a goddess, scattered across many worlds. MAGI, they are called. A boy is gathering them, looking for his lost father.',
+        'Inside: the last part of the legend. Everything the first two parts promised, and a few things nobody promised at all.',
         'The tablet is cracked in three places. Bring a cermet chunk, a darksteel ingot, a square of silk cloth and a goshenite.',
         '...Or Goblin Stew. Bluffnix is very consistent about stew.',
     },
-    remind = { 'The MAGI tablet is still cracked! A cermet chunk, a darksteel ingot, silk cloth and a goshenite. Or Goblin Stew.' },
+    remind = { 'The last tablet is still cracked! A cermet chunk, a darksteel ingot, silk cloth and a goshenite. Or Goblin Stew.' },
     finish =
     {
         'Cermet for the frame, darksteel for the corners, silk to wipe it, goshenite to wake it. Listen to it hum!',
-        'The Recollection of the Magi. Find every piece of the goddess, and find the father too. Bluffnix wants to know how it ends!',
+        'The Recollection of Jueno III. See the legend to its end, and tell Bluffnix how it finishes!',
     },
 }
 
@@ -234,15 +234,15 @@ talk[5] =
     start =
     {
         'Bluffnix found the strangest Recollection yet. Every time Bluffnix looks at it, the memory is a little different.',
-        'A world sinking under a great flood, and travelers riding a ship that sails through time itself, past and future, to stop it.',
+        'A dungeon, going down and down, and it builds itself anew every time somebody walks in. No two climbs are the same.',
         'It flickers too much to play. Bluffnix needs a rhodonite, a paktong ingot, a square of moblinweave and a square of bugard leather.',
-        '...Goblin Stew helps Bluffnix think about time. Everything is easier with stew.',
+        '...Goblin Stew helps Bluffnix think about dungeons. Everything is easier with stew.',
     },
-    remind = { 'The time tablet still flickers! Rhodonite, a paktong ingot, moblinweave and bugard leather. Or Goblin Stew, hehe.' },
+    remind = { 'The dungeon tablet still flickers! Rhodonite, a paktong ingot, moblinweave and bugard leather. Or Goblin Stew, hehe.' },
     finish =
     {
-        'There! It stopped flickering. Now the memory stays still... mostly. Time is tricky.',
-        'The Recollection of Time. Sail the time ship with your Crystal Boy, and come back and tell Bluffnix if you stopped the flood.',
+        'There! It stopped flickering. Now the memory holds still... mostly. Dungeons are tricky.',
+        'The Recollection of the Dungeon. Go down with your Crystal Boy, and come back and tell Bluffnix how deep you got.',
     },
 }
 

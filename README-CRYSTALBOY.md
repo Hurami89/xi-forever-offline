@@ -24,10 +24,10 @@ LandSandBoat, Ashita 4, era DAT pack). This file is written for whoever installs
 | Gobbiebag part | Jeuno fame | Reward item | Game (ROM header title) | Finished after | On hand-in to Bluffnix |
 |---|---|---|---|---|---|
 | I | 3 | 8100 Crystal Boy | - | - | - |
-| II | 4 | 8101 Mana Recollection | Final Fantasy Adventure (SEIKEN DENSETSU) | 10 h play | KI 1634 Memory of the Mana Tree, 10,000 gil |
-| III | 5 | 8102 Tower Recollection | Final Fantasy Legend (SAGA) | 8 h | KI 2605 Memory of the Tower, 15,000 gil |
-| IV | 5 | 8103 Magi Recollection | Final Fantasy Legend II (SAGA2 DX / SAGA2) | 12 h | KI 2841 Memory of the Magi, 20,000 gil |
-| V | 6 | 8104 Time Recollection | Final Fantasy Legend III (SAGA3 DX / SAGA3) | 15 h | KI 2716 Memory of Time, 25,000 gil |
+| II | 4 | 8101 Jueno Recollection I | Legend of Jueno (JUENO LEG 1JUNO) or Final Fantasy Adventure (SEIKEN DENSETSU) | 9 h free / 10 h own ROM | KI 1634 Memory of Jueno I, 10,000 gil |
+| III | 5 | 8102 Jueno Recollection II | Legend of Jueno 2 (JUENO LEG 2JUNO) or Final Fantasy Legend (SAGA) | 14 h free / 8 h own ROM | KI 2605 Memory of Jueno II, 15,000 gil |
+| IV | 5 | 8103 Jueno Recollection III | Legend of Jueno 3 (JUENO LEG 3JUNO) or Final Fantasy Legend II (SAGA2 DX / SAGA2) | 13 h free / 12 h own ROM | KI 2841 Memory of Jueno III, 20,000 gil |
+| V | 6 | 8104 Dungeon Recollection | GBHack (GBHACK) or Final Fantasy Legend III (SAGA3 DX / SAGA3) | 4 h free / 15 h own ROM | KI 2716 Memory of the Dungeon, 25,000 gil |
 
 Every hand-in also gives a Page from the Dragon Chronicles (4198) and an Anniversary Ring (15793, made non-Rare so
 they stack). Each Memory key item = +1% exp from monsters while Signet is active (they add up; players only, not
