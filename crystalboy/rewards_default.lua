@@ -32,8 +32,8 @@ return {
     ['SAGA3']    = { name = 'Final Fantasy Legend III', playtime_hours = 15 },
 
     -- The free games that come with XI: Forever Offline (crystalboy-games\CREDITS.md). Times are a first playthrough.
-    ['AEVILIA']  = { name = 'Aevilia',  playtime_hours = 1 },    -- a short RPG demo
-    ['AIRAKI1']  = { name = 'Airaki!',  playtime_hours = 1 },    -- eight battles against harder and harder foes, no saves
-    ['LABIRYNT'] = { name = 'Labirinth', playtime_hours = 2 },   -- seven good deeds on easy, ten and more on hard
+    ['JUENO LEG 1JUNO'] = { name = 'Legend of Jueno',   playtime_hours = 9 },
+    ['JUENO LEG 2JUNO'] = { name = 'Legend of Jueno 2', playtime_hours = 14 },
+    ['JUENO LEG 3JUNO'] = { name = 'Legend of Jueno 3', playtime_hours = 13 },
     ['GBHACK']   = { name = 'GBHack',   playtime_hours = 4 },    -- fifteen dungeon levels, permadeath
 }

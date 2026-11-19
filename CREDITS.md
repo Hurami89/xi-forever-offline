@@ -47,8 +47,6 @@ Gambits began as the TitanGambits engine and was brought here by its author.
 
 ## Crystal Boy mini games
 
-Free Game Boy games, included unchanged with their licenses (`crystalboy-games\licenses`), from Homebrew Hub (https://hh.gbdev.io):
-- **Aevilia**: AeviDev team (ISSOtm, Kai, Parzival, Charmy), Apache 2.0; music engine DevSound by DevEd, MIT. https://github.com/ISSOtm/Aevilia-GB
-- **Airaki!**: furrtek, GPL 3.0 or later (source: https://github.com/furrtek/Airaki)
-- **Labirinth**: Bartek "godai" Biedrzycki / Gniazdo Światów, CC BY-SA 4.0. https://github.com/godai78/labirinth
-- **GBHack**: statico, MIT. https://github.com/statico/gbhack
+Free Game Boy games shipped with the kit (`crystalboy-games`):
+- **Legend of Jueno**, **Legend of Jueno 2**, **Legend of Jueno 3**: written for this project, included with the author's permission.
+- **GBHack**: statico, MIT. https://github.com/statico/gbhack (ROM from Homebrew Hub, https://hh.gbdev.io; license in `crystalboy-games\licenses`)
