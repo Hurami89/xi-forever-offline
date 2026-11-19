@@ -627,7 +627,8 @@ RATE_PRESETS = {
 PLAYER_HIDDEN_RATES = {"map.CAPACITY_RATE", "main.SPARKS_RATE", "main.MAX_LEVEL", "main.ENABLE_WOTG", "main.ENABLE_ACP",
                        "main.ENABLE_AMK", "main.ENABLE_ASA", "main.ENABLE_ABYSSEA", "main.ENABLE_SOA", "main.ENABLE_ROV",
                        "main.ENABLE_VOIDWATCH", "main.ENABLE_TVR", "main.RESTRICT_CONTENT", "main.ENABLE_TRUST_QUESTS",
-                       "main.ENABLE_DAILY_TALLY", "main.HALLOWEEN_2005"}
+                       "main.ENABLE_DAILY_TALLY", "main.HALLOWEEN_2005",
+                       "main.ROE_EXP_RATE"}   # (Records of Eminence are not in this era: Senna, 2026-11-18)
 RATE_PRESETS["Era default"] = {}
 PLAYER_RATE_PRESETS = ["Era default", "Relaxed solo", "Fast"]
 
