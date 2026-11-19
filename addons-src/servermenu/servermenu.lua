@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.21';
+addon.version = '1.22';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -873,10 +873,12 @@ local function campRow()
     local someonePulls = camp.puller ~= 0 or camp.botPuller ~= nil;
     if camp.on and someonePulls then
         imgui.SameLine(0, 6);
-        if button(camp.paused and 'Resume' or 'Pause', 'camppause', 72, 0, camp.paused and 'selected' or nil) then
-            campCommand(camp.paused and 'camp resume' or 'camp pause'); camp.paused = not camp.paused;
+        -- (1.22) a new camp waits for Start before the first pull (squad.lua, from Jon Tanta's Squad Update)
+        local fresh = camp.paused and (camp.pulls or 0) == 0;
+        if button(camp.paused and (fresh and 'Start' or 'Resume') or 'Pause', 'camppause', 72, 0, camp.paused and 'selected' or nil) then
+            campCommand(camp.paused and (fresh and 'camp start' or 'camp resume') or 'camp pause'); camp.paused = not camp.paused;
         end
-        tooltip(camp.paused and 'The puller goes back to pulling' or 'No new pulls (the squad still holds camp)');
+        tooltip(camp.paused and (fresh and 'The puller starts pulling' or 'The puller goes back to pulling') or 'No new pulls (the squad still holds camp)');
     end
     if camp.on then
         imgui.SameLine(0, 12);
