@@ -3953,6 +3953,12 @@ class App(tk.Tk):
         self.logfiles.append(alog)
         boot = getattr(self, "launch_boot", None) or cfg.get("ashita_boot", core.DEFAULT_BOOT)
         self.launch_boot = None
+        try:
+            lang = linux.apply_boot_lang(os.path.join(self.ashita, "config", "boot", boot), linux.game_lang(cfg))
+            if lang != "US":
+                self.say(f"PlayOnline language: {lang}.")
+        except Exception as e:
+            self.say(f"Could not set the PlayOnline language ({e}).")
         self.game_proc = linux.start_game(HERE, cfg, self.ashita, boot, alog)
         start, limit = time.time(), cfg.get("game_start_seconds", 300)     # the first start can download Proton's runtime
         while not core.is_running("xiloader"):
