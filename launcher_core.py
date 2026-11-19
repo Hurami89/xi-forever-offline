@@ -1197,10 +1197,24 @@ def read_boot_graphics(ini_path):
     return clean_graphics(values)
 
 
-def apply_graphics(ini_path, values):
+def game_dir_value(game_dir):
+    """Registry 0042 (the game's install folder, where PrintScreen saves screenshots) as the game sees it: on Linux the
+    Proton Z: path. None when the folder is not known or missing."""
+    if not game_dir or not os.path.isdir(game_dir):
+        return None
+    if os.name == "nt":
+        return os.path.abspath(game_dir)
+    import launcher_linux
+    return launcher_linux.windows_path(game_dir)
+
+
+def apply_graphics(ini_path, values, game_dir=None):
     """Writes the chosen display values into [ffxi.registry]; every other line in the file stays exactly as it was.
+    With game_dir, key 0042 is pointed at the real game folder too (Ashita's example file says C:\\Program Files (x86),
+    and the game crashed on PrintScreen when that folder did not exist).
     The original file is saved once as <file>.before-graphics."""
     values = clean_graphics(values)
+    shot_dir = game_dir_value(game_dir)
     with open(ini_path, "r", encoding="utf-8-sig", newline="") as f:   # newline="" keeps the file's own line endings
         text = f.read()
     newline = "\r\n" if "\r\n" in text else "\n"
@@ -1216,6 +1230,11 @@ def apply_graphics(ini_path, values):
         m = re.match(r"^(\s*)(\d{4})(\s*=\s*)(-?\d+)(.*)$", lines[i])
         if m and m.group(2) in pending:
             lines[i] = f"{m.group(1)}{m.group(2)}{m.group(3)}{pending.pop(m.group(2))}{m.group(5)}"
+        elif shot_dir and re.match(r"^\s*0042\s*=", lines[i]):
+            lines[i] = f"0042 = {shot_dir}"
+            shot_dir = None
+    if shot_dir:
+        pending["0042"] = shot_dir
     insert_at = end
     while insert_at > start + 1 and not lines[insert_at - 1].strip():
         insert_at -= 1   # keep blank lines before the next section where they were

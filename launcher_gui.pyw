@@ -3842,7 +3842,7 @@ class App(tk.Tk):
         self.say(f"Getting ready to play in {world}...")
         if self.graphics_tab is not None:      # the visit's boot file is a copy of yours: put your graphics settings in first
             try:
-                core.apply_graphics(self.boot_ini, self.graphics)
+                core.apply_graphics(self.boot_ini, self.graphics, self.cfg.get("ffxi_client_dir"))
             except Exception:
                 pass
         self.launch_boot = co.write_visit_boot(self.ashita, self.cfg.get("ashita_boot", core.DEFAULT_BOOT), host)
@@ -3894,7 +3894,7 @@ class App(tk.Tk):
             self.say("Updated the loader inside Ashita.")
         if self.graphics_tab is not None:
             try:
-                core.apply_graphics(self.boot_ini, self.graphics)
+                core.apply_graphics(self.boot_ini, self.graphics, self.cfg.get("ffxi_client_dir"))
                 self.say("Applied your graphics settings.")
             except Exception as e:
                 self.say(f"Could not apply the graphics settings ({e}) - starting with the boot file as it is.")
@@ -3929,7 +3929,7 @@ class App(tk.Tk):
         cfg = self.cfg
         if self.graphics_tab is not None:
             try:
-                core.apply_graphics(self.boot_ini, self.graphics)
+                core.apply_graphics(self.boot_ini, self.graphics, self.cfg.get("ffxi_client_dir"))
                 self.say("Applied your graphics settings.")
             except Exception as e:
                 self.say(f"Could not apply the graphics settings ({e}) - starting with the boot file as it is.")
