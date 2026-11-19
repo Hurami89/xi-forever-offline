@@ -485,6 +485,76 @@ m:addOverride('xi.server.onServerStart', function()
     end
 end)
 
+-- The event's games (Horro's Visit, cartridges 8105-8109 in crystalboy-games). The client key-item file has no free
+-- ids left, so a finished game is recorded on the character from the addon's claims file instead of with a Memory key
+-- item: parts I-II add 1% experience each, parts III-V add 1% to the combat and magic skill-up rates each, all while
+-- Signet is active. The claims file is only read while something is still missing, at most once every five minutes.
+local DRAGONLAND =
+{
+    { title = 'DRAGONLAND 1', var = '[CB]DL1', kind = 'exp',   name = 'Dragonland I'   },
+    { title = 'DRAGONLAND 2', var = '[CB]DL2', kind = 'exp',   name = 'Dragonland II'  },
+    { title = 'DRAGONLAND 3', var = '[CB]DL3', kind = 'skill', name = 'Dragonland III' },
+    { title = 'DRAGONLAND 4', var = '[CB]DL4', kind = 'skill', name = 'Dragonland IV'  },
+    { title = 'DRAGONLAND 5', var = '[CB]DL5', kind = 'skill', name = 'Dragonland V'   },
+}
+
+local DL_CHECK = {}   -- [player id] = os.time() of the last claims read
+local DL_MODS  = {}   -- [player id] = { combat, magic }: the percentage we have added
+
+local function dragonlandCount(player, kind)
+    local n = 0
+    for _, g in ipairs(DRAGONLAND) do
+        if g.kind == kind and player:getCharVar(g.var) == 1 then n = n + 1 end
+    end
+
+    return n
+end
+
+-- +1% skill-up chance per finished part III-V, while Signet is active. Only our own share is ever taken back out, so
+-- a Moghancement or a piece of gear that also raises the rate keeps its bonus.
+local function applySkillGain(player)
+    local have = player:hasStatusEffect(xi.effect.SIGNET) and dragonlandCount(player, 'skill') or 0
+    local was  = DL_MODS[player:getID()] or { combat = 0, magic = 0 }
+    if was.combat ~= have then
+        player:setMod(xi.mod.COMBAT_SKILLUP_RATE, player:getMod(xi.mod.COMBAT_SKILLUP_RATE) - was.combat + have)
+        was.combat = have
+    end
+
+    if was.magic ~= have then
+        player:setMod(xi.mod.MAGIC_SKILLUP_RATE, player:getMod(xi.mod.MAGIC_SKILLUP_RATE) - was.magic + have)
+        was.magic = have
+    end
+
+    DL_MODS[player:getID()] = was
+end
+
+local function refreshDragonland(player, force)
+    if not player then return end
+    local open = false
+    for _, g in ipairs(DRAGONLAND) do
+        if player:getCharVar(g.var) == 0 then open = true; break end
+    end
+
+    local now  = os.time()
+    local last = DL_CHECK[player:getID()] or 0
+    if not force and (not open or now - last < 300) then
+        applySkillGain(player)
+        return
+    end
+
+    DL_CHECK[player:getID()] = now
+    local claims = readClaims(player)
+    for _, g in ipairs(DRAGONLAND) do
+        if player:getCharVar(g.var) == 0 and type(claims[g.title]) == 'table' then
+            player:setCharVar(g.var, 1)
+            player:printToPlayer(string.format('%s finished! %s while Signet is active from now on.', g.name,
+                g.kind == 'exp' and '+1% experience' or '+1% combat and magic skill gain'), xi.msg.channel.SYSTEM_3)
+        end
+    end
+
+    applySkillGain(player)
+end
+
 -- Memories of finished Recollections: +1% exp from monsters each while Signet is active.
 -- Added once to the final number (after Dedication, chains and the era tables), only for the player, not squad mates.
 m:addOverride('xi.experiencePoints.calculate', function(member, mob, data)
@@ -498,9 +568,15 @@ m:addOverride('xi.experiencePoints.calculate', function(member, mob, data)
         return result
     end
 
+    refreshDragonland(member)
+
     local percent = 0
     for _, ki in ipairs(MEMORY_KEY_ITEMS) do
         if member:hasKeyItem(ki) then percent = percent + 1 end
+    end
+
+    for _, g in ipairs(DRAGONLAND) do
+        if g.kind == 'exp' and member:getCharVar(g.var) == 1 then percent = percent + 1 end
     end
 
     if percent > 0 then
@@ -571,5 +647,27 @@ finishCommand.onTrigger = function(player, arg)
 end
 
 xi.module.registerCommand('cbfinish', finishCommand)
+
+-- GM helper: re-read the Crystal Boy claims now and show the Dragonland parts this character has finished.
+-- !cbdl
+local dlCommand = {}
+
+dlCommand.cmdprops =
+{
+    permission = 1,
+    parameters = 's',
+}
+
+dlCommand.onTrigger = function(player, arg)
+    refreshDragonland(player, true)
+    local out = {}
+    for _, g in ipairs(DRAGONLAND) do
+        table.insert(out, g.name .. (player:getCharVar(g.var) == 1 and ' done' or ' -'))
+    end
+
+    player:printToPlayer(table.concat(out, ' | '), xi.msg.channel.SYSTEM_3)
+end
+
+xi.module.registerCommand('cbdl', dlCommand)
 
 return m

@@ -36,4 +36,11 @@ return {
     ['JUENO LEG 2JUNO'] = { name = 'Legend of Jueno 2', playtime_hours = 14 },
     ['JUENO LEG 3JUNO'] = { name = 'Legend of Jueno 3', playtime_hours = 13 },
     ['JUENO LEG 4JUNO'] = { name = 'Legend of Jueno 4', playtime_hours = 7 },
+
+    -- Horro's Visit (the Dragon Quest X event): same treatment, one entry per part.
+    ['DRAGONLAND 1'] = { name = 'Dragonland I',   playtime_hours = 8 },
+    ['DRAGONLAND 2'] = { name = 'Dragonland II',  playtime_hours = 8 },
+    ['DRAGONLAND 3'] = { name = 'Dragonland III', playtime_hours = 8 },
+    ['DRAGONLAND 4'] = { name = 'Dragonland IV',  playtime_hours = 8 },
+    ['DRAGONLAND 5'] = { name = 'Dragonland V',   playtime_hours = 8 },
 }

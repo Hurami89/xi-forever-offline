@@ -49,3 +49,4 @@ Gambits began as the TitanGambits engine and was brought here by its author.
 
 Free Game Boy games shipped with the kit (`crystalboy-games`):
 - **Legend of Jueno**, **Legend of Jueno 2**, **Legend of Jueno 3**, **Legend of Jueno 4**: written for this project, included with the author's permission.
+- **Dragonland I**, **Dragonland II**, **Dragonland III**, **Dragonland IV**, **Dragonland V**: provided by the project owner, included with the owner's permission. Only their header titles were changed (`DRAGONLAND 1`-`5`) so the addon can tell the five apart.

@@ -69,6 +69,37 @@ ITEMS = [
         "title": "SEIKEN DENSETSU",   # ROM header title (the addon matches the ROM by this)
         "old_names": ("Time Recollection", "Dungeon Recollection"),
     },
+    # The event's games (Horro's Visit, crystalboy-games). Same treatment as the Jueno cartridges.
+    {
+        "id": 8105, "key": "dragonland1", "name": "Dragonland I",
+        "log": "Recollection of Dragonland I", "plural": "Recollections of Dragonland I", "article": 0,
+        "desc": "A crystal tablet that remembers the\nfirst part of Dragonland.\nUse it with a Crystal Boy.",
+        "icon": "cart_ffa.png",
+    },
+    {
+        "id": 8106, "key": "dragonland2", "name": "Dragonland II",
+        "log": "Recollection of Dragonland II", "plural": "Recollections of Dragonland II", "article": 0,
+        "desc": "A crystal tablet that remembers the\nsecond part of Dragonland.\nUse it with a Crystal Boy.",
+        "icon": "cart_ffl1.png",
+    },
+    {
+        "id": 8107, "key": "dragonland3", "name": "Dragonland III",
+        "log": "Recollection of Dragonland III", "plural": "Recollections of Dragonland III", "article": 0,
+        "desc": "A crystal tablet that remembers the\nthird part of Dragonland.\nUse it with a Crystal Boy.",
+        "icon": "cart_ffl2.png",
+    },
+    {
+        "id": 8108, "key": "dragonland4", "name": "Dragonland IV",
+        "log": "Recollection of Dragonland IV", "plural": "Recollections of Dragonland IV", "article": 0,
+        "desc": "A crystal tablet that remembers the\nfourth part of Dragonland.\nUse it with a Crystal Boy.",
+        "icon": "cart_ffl3.png",
+    },
+    {
+        "id": 8109, "key": "dragonland5", "name": "Dragonland V",
+        "log": "Recollection of Dragonland V", "plural": "Recollections of Dragonland V", "article": 0,
+        "desc": "A crystal tablet that remembers the\nlast part of Dragonland.\nUse it with a Crystal Boy.",
+        "icon": "cart_ffa.png",
+    },
 ]
 
 

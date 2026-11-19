@@ -13,6 +13,12 @@ M.list = {
     [8102] = { name = 'Jueno Recollection II', titles = { 'SAGA', 'JUENO LEG 2JUNO' } },
     [8103] = { name = 'Jueno Recollection III', titles = { 'SAGA2 DX', 'SAGA2', 'JUENO LEG 3JUNO' } },
     [8104] = { name = 'Jueno Recollection IV', titles = { 'SAGA3 DX', 'SAGA3', 'JUENO LEG 4JUNO' } },
+    -- Horro's Visit (the Dragon Quest X event): handed out and sold by the slimes.
+    [8105] = { name = 'Dragonland I',   titles = { 'DRAGONLAND 1' } },
+    [8106] = { name = 'Dragonland II',  titles = { 'DRAGONLAND 2' } },
+    [8107] = { name = 'Dragonland III', titles = { 'DRAGONLAND 3' } },
+    [8108] = { name = 'Dragonland IV',  titles = { 'DRAGONLAND 4' } },
+    [8109] = { name = 'Dragonland V',   titles = { 'DRAGONLAND 5' } },
 }
 
 -- Only the main inventory counts: the Crystal Boy and the cartridge must be in your bag to play
