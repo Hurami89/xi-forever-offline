@@ -84,7 +84,7 @@ lines(A)
 trade(A); ok(given[#given] == 8102 and A.bag[8102], 'Part III gives Jueno Recollection II')
 talkTo(A); ok(said(A, 'last part'), 'Part IV opens at fame 5'); trade(A); ok(given[#given] == 8103, 'Part IV gives Jueno Recollection III')
 talkTo(A); ok(said(A, 'does not know you'), 'Part V needs fame 6'); A.fame = 6
-talkTo(A); ok(said(A, 'dungeon'), 'Part V story'); lines(A); trade(A); ok(given[#given] == 8104, 'Part V gives Dungeon Recollection')
+talkTo(A); ok(said(A, 'fourth'), 'Part V story'); lines(A); trade(A); ok(given[#given] == 8104, 'Part V gives Jueno Recollection IV')
 A.fame = 9
 -- Part VI has no reward: closed. Now the Recollection hints: Mana first (no tablet in the bag)
 talkTo(A); ok(said(A, 'Where is the Recollection'), 'Jueno Recollection I not in the bag: asks for it')
@@ -102,7 +102,7 @@ local fc = commands['cbfinish']; ok(fc and fc.cmdprops.permission >= 1, 'GM-only
 fc.onTrigger(A, '8101'); talkTo(A); ok(A.gil == 30000 and A.kis[1634], 'Jueno I: 10,000 gil and Memory of Jueno I')
 A.bag[8102] = true; fc.onTrigger(A, '8102'); talkTo(A); ok(A.gil == 45000 and A.kis[2605], 'Jueno II: 15,000 gil')
 fc.onTrigger(A, '8104'); A.full = true; talkTo(A); ok(said(A, 'too full') and A.gil == 45000, 'full bag: nothing given')
-A.full = false; talkTo(A); ok(A.gil == 70000 and A.kis[2716], 'Dungeon: 25,000 gil')
+A.full = false; talkTo(A); ok(A.gil == 70000 and A.kis[2716], 'Jueno IV: 25,000 gil')
 talkTo(A); ok(said(A, 'still thinks about that story'), 'all done: thank-you')
 fc.onTrigger(A, '8104 reset'); ok(not A.kis[2716] and A.vars['[CB]Done8104'] == 0, '!cbfinish 8104 reset')
 fc.onTrigger(A, '9999'); ok(said(A, '!cbfinish'), 'unknown id: usage')

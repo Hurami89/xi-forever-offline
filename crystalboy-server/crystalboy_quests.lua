@@ -13,7 +13,7 @@
 --   Part II -> Jueno Recollection I   (8101, plays Legend of Jueno)
 --   Part III -> Jueno Recollection II  (8102, Legend of Jueno 2)
 --   Part IV  -> Jueno Recollection III (8103, Legend of Jueno 3)
---   Part V   -> Dungeon Recollection   (8104, GBHack)
+--   Part V   -> Jueno Recollection IV  (8104, Legend of Jueno 4)
 -- After each: finish the game in the Crystal Boy (play time, see the addon's rewards.lua), then bring the Recollection
 -- back to Bluffnix: a Memory key item (+1% monster exp under Signet, they add up), Page from the Dragon Chronicles,
 -- Anniversary Ring, and 10,000 / 15,000 / 20,000 / 25,000 gil. Once per character.
@@ -65,13 +65,13 @@ local RECOLLECTIONS =
     },
     [8104] =
     {
-        titles  = { 'SAGA3 DX', 'SAGA3', 'GBHACK' },
-        game    = 'GBHack',
-        memory  = 2716, -- "Memory of the Dungeon"
+        titles  = { 'SAGA3 DX', 'SAGA3', 'JUENO LEG 4JUNO' },
+        game    = 'Legend of Jueno 4',
+        memory  = 2716, -- "Memory of Jueno IV"
         items   = { 4198, 15793 },
         gil     = 25000,
         var     = '[CB]Done8104',
-        story   = 'How deep did you get, and you came back up to tell Bluffnix? What a climb!',
+        story   = 'All four parts, right to the very end? Bluffnix has to sit down. What a story!',
     },
 }
 
@@ -233,16 +233,16 @@ talk[5] =
 {
     start =
     {
-        'Bluffnix found the strangest Recollection yet. Every time Bluffnix looks at it, the memory is a little different.',
-        'A dungeon, going down and down, and it builds itself anew every time somebody walks in. No two climbs are the same.',
+        'Bluffnix found one more Recollection. Do not ask how. ...Fine: a Galka owed Bluffnix a favour.',
+        'The fourth and last part of the legend. Everything the first three parts set up, and one long road to finish it.',
         'It flickers too much to play. Bluffnix needs a rhodonite, a paktong ingot, a square of moblinweave and a square of bugard leather.',
-        '...Goblin Stew helps Bluffnix think about dungeons. Everything is easier with stew.',
+        '...Goblin Stew helps Bluffnix think. Everything is easier with stew.',
     },
-    remind = { 'The dungeon tablet still flickers! Rhodonite, a paktong ingot, moblinweave and bugard leather. Or Goblin Stew, hehe.' },
+    remind = { 'The last tablet still flickers! Rhodonite, a paktong ingot, moblinweave and bugard leather. Or Goblin Stew, hehe.' },
     finish =
     {
-        'There! It stopped flickering. Now the memory holds still... mostly. Dungeons are tricky.',
-        'The Recollection of the Dungeon. Go down with your Crystal Boy, and come back and tell Bluffnix how deep you got.',
+        'There! It stopped flickering. Now the memory holds still... mostly. Four parts of a legend are tricky.',
+        'The Recollection of Jueno IV. Walk the last road with your Crystal Boy, and come back and tell Bluffnix how it ends.',
     },
 }
 

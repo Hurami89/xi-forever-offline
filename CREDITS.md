@@ -48,5 +48,4 @@ Gambits began as the TitanGambits engine and was brought here by its author.
 ## Crystal Boy mini games
 
 Free Game Boy games shipped with the kit (`crystalboy-games`):
-- **Legend of Jueno**, **Legend of Jueno 2**, **Legend of Jueno 3**: written for this project, included with the author's permission.
-- **GBHack**: statico, MIT. https://github.com/statico/gbhack (ROM from Homebrew Hub, https://hh.gbdev.io; license in `crystalboy-games\licenses`)
+- **Legend of Jueno**, **Legend of Jueno 2**, **Legend of Jueno 3**, **Legend of Jueno 4**: written for this project, included with the author's permission.

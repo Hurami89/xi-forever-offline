@@ -62,12 +62,12 @@ ITEMS = [
         "old_names": ("Magi Recollection",),
     },
     {
-        "id": 8104, "key": "time_recollection", "name": "Dungeon Recollection",
-        "log": "Recollection of the Dungeon", "plural": "Recollections of the Dungeon", "article": 0,
-        "desc": "A crystal tablet that remembers a\ndungeon that builds itself anew.\nUse it with a Crystal Boy.",
+        "id": 8104, "key": "time_recollection", "name": "Jueno Recollection IV",
+        "log": "Recollection of Jueno IV", "plural": "Recollections of Jueno IV", "article": 0,
+        "desc": "A crystal tablet that remembers the\nfourth part of the Legend of Jueno.\nUse it with a Crystal Boy.",
         "icon": "cart_ffl3.png",
         "title": "SEIKEN DENSETSU",   # ROM header title (the addon matches the ROM by this)
-        "old_names": ("Time Recollection",),
+        "old_names": ("Time Recollection", "Dungeon Recollection"),
     },
 ]
 
@@ -285,9 +285,9 @@ KEY_ITEMS = [
     },
     {
         # a Rhapsodies-era "cheer" the server never gives on this 75-era server
-        "id": 2716, "category": 2, "name": "Memory of the Dungeon", "plural": "Memories of the Dungeon",
-        "replaces": ("Cheer: Lamb", "Memory of Time"),
-        "desc": "\nA memory the Recollection of the Dungeon\nleft behind. While Signet is active,\nexperience from monsters is raised by 1%.",
+        "id": 2716, "category": 2, "name": "Memory of Jueno IV", "plural": "Memories of Jueno IV",
+        "replaces": ("Cheer: Lamb", "Memory of Time", "Memory of the Dungeon"),
+        "desc": "\nA memory the Recollection of Jueno IV\nleft behind. While Signet is active,\nexperience from monsters is raised by 1%.",
     },
 ]
 KI_ENTRY = 0x2BC

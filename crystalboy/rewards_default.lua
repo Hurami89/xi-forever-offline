@@ -35,5 +35,5 @@ return {
     ['JUENO LEG 1JUNO'] = { name = 'Legend of Jueno',   playtime_hours = 9 },
     ['JUENO LEG 2JUNO'] = { name = 'Legend of Jueno 2', playtime_hours = 14 },
     ['JUENO LEG 3JUNO'] = { name = 'Legend of Jueno 3', playtime_hours = 13 },
-    ['GBHACK']   = { name = 'GBHack',   playtime_hours = 4 },    -- fifteen dungeon levels, permadeath
+    ['JUENO LEG 4JUNO'] = { name = 'Legend of Jueno 4', playtime_hours = 7 },
 }

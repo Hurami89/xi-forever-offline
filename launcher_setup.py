@@ -620,18 +620,56 @@ def install_own_addons(kit, ashita_dir):
         install_free_games(kit, cfg)
 
 
+# The free games this loader copied into <Ashita>\config\addons\crystalboy\roms, one file name per line, so the
+# next run knows what it may delete again. A player's own ROMs are never listed here.
+FREE_MANIFEST = "FREE-GAMES-MANIFEST.txt"
+
+# Games earlier builds shipped. They are removed when the current set is installed, so every player's folder ends up
+# with exactly the games in <kit>\crystalboy-games (the owner's rule, 2026-11-19: the Jueno games are the standard).
+RETIRED_FREE_GAMES = ("Aevilia.gbc", "Airaki.gb", "Labirinth.gbc", "GBHack.gbc")
+
+
 def install_free_games(kit, crystalboy_cfg):
-    """The free Game Boy games in <kit>\\crystalboy-games go into Crystal Boy's roms folder (never over a file there)."""
+    """Make Crystal Boy's roms folder match <kit>\\crystalboy-games.
+
+    A shipped game is copied over whatever is there (so an old or damaged copy is replaced), a game this kit used to
+    ship is deleted (RETIRED_FREE_GAMES plus whatever the last run listed in FREE-GAMES-MANIFEST.txt), and anything
+    else in the folder -- the player's own ROMs -- is left alone. Returns the names it copied."""
     src = os.path.join(kit, "crystalboy-games")
     roms = os.path.join(crystalboy_cfg, "roms")
     if not os.path.isdir(src):
         return []
     os.makedirs(roms, exist_ok=True)
+    games = sorted(n for n in os.listdir(src) if n.lower().endswith((".gb", ".gbc")))
+    manifest = os.path.join(roms, FREE_MANIFEST)
+    stale = set(RETIRED_FREE_GAMES)
+    try:
+        with open(manifest, encoding="utf-8") as f:
+            stale.update(line.strip() for line in f if line.strip() and not line.startswith("#"))
+    except OSError:
+        pass
+    for name in sorted(stale - set(games)):
+        path = os.path.join(roms, name)
+        if os.path.isfile(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass                    # read-only or open in game: try again next launch
     added = []
-    for name in sorted(os.listdir(src)):
-        if name.lower().endswith((".gb", ".gbc")) and not os.path.exists(os.path.join(roms, name)):
-            shutil.copy2(os.path.join(src, name), os.path.join(roms, name))
+    for name in games:
+        dest = os.path.join(roms, name)
+        same = os.path.isfile(dest) and os.path.getsize(dest) == os.path.getsize(os.path.join(src, name))
+        shutil.copy2(os.path.join(src, name), dest)
+        if not same:
             added.append(name)
+    try:
+        with open(manifest, "w", encoding="utf-8", newline="\n") as f:
+            f.write("# The free games this kit put in this folder (removed again when the kit stops shipping them).\n")
+            f.write("# Your own ROMs are never listed here, and never touched. One file name per line.\n")
+            for name in games:
+                f.write(name + "\n")
+    except OSError:
+        pass
     for name in ("CREDITS.md",):
         if os.path.exists(os.path.join(src, name)):
             shutil.copy2(os.path.join(src, name), os.path.join(roms, "FREE-GAMES-" + name))

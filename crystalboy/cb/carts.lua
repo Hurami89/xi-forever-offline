@@ -12,7 +12,7 @@ M.list = {
     [8101] = { name = 'Jueno Recollection I', titles = { 'SEIKEN DENSETSU', 'FINAL FANTASY ADV', 'FF ADVENTURE', 'MYSTIC QUEST', 'JUENO LEG 1JUNO' } },
     [8102] = { name = 'Jueno Recollection II', titles = { 'SAGA', 'JUENO LEG 2JUNO' } },
     [8103] = { name = 'Jueno Recollection III', titles = { 'SAGA2 DX', 'SAGA2', 'JUENO LEG 3JUNO' } },
-    [8104] = { name = 'Dungeon Recollection', titles = { 'SAGA3 DX', 'SAGA3', 'GBHACK' } },
+    [8104] = { name = 'Jueno Recollection IV', titles = { 'SAGA3 DX', 'SAGA3', 'JUENO LEG 4JUNO' } },
 }
 
 -- Only the main inventory counts: the Crystal Boy and the cartridge must be in your bag to play
