@@ -4419,16 +4419,31 @@ class SetupWizard(tk.Tk):
         tk.Label(self, text="XI: Forever Offline", bg=BG, fg=GOLD, font=("Georgia", 20, "bold")).pack(anchor="w", padx=16, pady=(14, 0))
         self.step_title = tk.Label(self, text="", bg=BG, fg=FG, font=(UI_FONT, 12, "bold"))
         self.step_title.pack(anchor="w", padx=16, pady=(2, 8))
+        # (2026-11-18, Sunie on Hyprland) the Back/Next row is packed first at the bottom, so a tall page can never push
+        # it out of the window; the window also grows to fit the page (up to the screen)
+        nav = tk.Frame(self, bg=BG)
+        nav.pack(side="bottom", fill="x", padx=16, pady=12)
         self.body = tk.Frame(self, bg=BG)
         self.body.pack(fill="both", expand=True, padx=16)
-        nav = tk.Frame(self, bg=BG)
-        nav.pack(fill="x", padx=16, pady=12)
         self.back_btn = tk.Button(nav, text="Back", command=lambda: self.show(self.page - 1), bg=PANEL, fg=FG, relief="flat", padx=14)
         self.back_btn.pack(side="left")
         self.next_btn = tk.Button(nav, text="Next", command=self.next, bg=ACCENT, fg="white", relief="flat", padx=18)
         self.next_btn.pack(side="right")
         self.pages = [self.page_folders, self.page_world, self.page_account, self.page_install]
         self.show(0)
+
+    def fit(self):
+        """Make the window tall enough for the page it shows (never taller than the screen)."""
+        try:
+            self.update_idletasks()
+            want_w = max(760, self.winfo_reqwidth())
+            want_h = max(600, self.winfo_reqheight())
+            screen_w, screen_h = self.winfo_screenwidth(), self.winfo_screenheight() - 60
+            w, h = min(want_w, screen_w), min(want_h, screen_h)
+            if w > self.winfo_width() or h > self.winfo_height():
+                self.geometry(f"{max(w, self.winfo_width())}x{max(h, self.winfo_height())}")
+        except Exception:
+            pass
 
     # ----- pages -----
     def clear(self, title):
@@ -4551,6 +4566,7 @@ class SetupWizard(tk.Tk):
         self.next_btn.configure(text="Next", command=self.next, state="normal")
         self.back_btn.configure(state="normal" if self.page > 0 else "disabled")
         self.pages[self.page]()
+        self.after_idle(self.fit)
 
     def next(self):
         problem = self.check_page()
