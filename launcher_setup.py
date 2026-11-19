@@ -911,6 +911,32 @@ def existing_case(base, rel):
 
 
 # ----- Phoenix's Era-DATs (the same steps and backup layout as install-era-dats.ps1 / restore-original-dats.ps1) -----
+def reapply_era_dats(ffxi_dir, era_dir, backup, files, log=print):
+    """(2026-11-19, Altair) The Era-DATs are installed already (dat-backup exists), but a PlayOnline/FFXI update wrote its
+    own files over some of them. Copies back only the era files that differ. A game file that is neither the era file nor
+    the saved original is a newer original from the update: it replaces the saved one, so restore-original-dats.ps1
+    still gives back the current game files."""
+    import filecmp
+    changed = 0
+    for index, rel in enumerate(files, 1):
+        src, dest = os.path.join(era_dir, rel), existing_case(ffxi_dir, rel)
+        if os.path.exists(dest) and filecmp.cmp(src, dest, shallow=False):
+            continue
+        saved = os.path.join(backup, rel)
+        if os.path.exists(dest) and not (os.path.exists(saved) and filecmp.cmp(saved, dest, shallow=False)):
+            if os.path.exists(saved) or os.path.exists(dest):
+                os.makedirs(os.path.dirname(saved), exist_ok=True)
+                shutil.copy2(dest, saved)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copy2(src, dest)
+        changed += 1
+        if index % 500 == 0:
+            log(f"Era-DATs: checked {index}/{len(files)}")
+    if changed == 0:
+        return ["The Era-DATs are installed and up to date."]
+    return [f"Era-DATs put back: {changed} file(s) a game update had replaced (the update's files are saved in dat-backup)."]
+
+
 def install_era_dats(kit, ffxi_dir, era_dir=None, log=print):
     """Copies Era-DATs\\ROM..ROM4 into the game folder. Every file it replaces is saved in <kit>\\dat-backup first and the
     new ones are listed in dat-backup\\new-files.txt, so restore-original-dats.ps1 can undo it."""
@@ -918,14 +944,14 @@ def install_era_dats(kit, ffxi_dir, era_dir=None, log=print):
     backup = os.path.join(kit, "dat-backup")
     if not os.path.isdir(os.path.join(ffxi_dir, "ROM")):
         raise RuntimeError("That is not the FFXI game folder (no ROM folder).")
-    if os.path.isdir(backup):
-        return ["The Era-DATs are already installed (dat-backup exists). Run restore-original-dats.ps1 to undo them."]
     files = []
     for rom in ("ROM", "ROM2", "ROM3", "ROM4"):
         for root, _dirs, names in os.walk(os.path.join(era_dir, rom)):
             files += [os.path.relpath(os.path.join(root, n), era_dir) for n in names]
     if not files:
         raise RuntimeError("The Era-DATs are not downloaded yet.")
+    if os.path.isdir(backup):
+        return reapply_era_dats(ffxi_dir, era_dir, backup, files, log)
     new = []
     for index, rel in enumerate(files, 1):
         dest = existing_case(ffxi_dir, rel)
