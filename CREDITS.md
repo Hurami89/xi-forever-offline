@@ -45,6 +45,10 @@ The launcher, tools, server modules (squad, bots, crowds, caskets, era experienc
 and the Gambits, Crystal Boy, followme, servermenu and squadpanel addons were written for this project.
 Gambits began as the TitanGambits engine and was brought here by its author.
 
+## Contributors
+- **Levi Masterson ([levmast](https://github.com/levmast))**: the game switch fix for installs made with Square Enix's
+  official installer (Windows Installer descriptors lifted while the game runs, so the copy's DLLs load).
+
 ## Crystal Boy mini games
 
 Free Game Boy games shipped with the kit (`crystalboy-games`):
