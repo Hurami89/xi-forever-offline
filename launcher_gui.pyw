@@ -3411,15 +3411,19 @@ class App(tk.Tk):
                 return
         self.dl_busy = True
 
+        self.say(f"{item['name']}: downloading...")
+
         def work():
+            # (Altair 2026-11-19: Reinstall / update showed nothing, its lines only went to the LOGS panel on the Play page)
             try:
                 version = tp.install(item, HERE, self.ashita, log=self.say, server=self.cfg.get("server_dir"))
-                self.say(f"{item['name']} {version} is ready.")
+                done = f"{item['name']} {version} is ready."
             except Exception as e:
-                self.say(f"{item['name']}: not installed ({e}).")
-            finally:
-                self.dl_busy = False
-                self.after(0, self.show_downloads)
+                done = f"{item['name']}: not installed ({e})."
+            self.dl_busy = False
+            self.say(done)
+            self.after(0, self.show_downloads)
+            self.after(0, lambda: messagebox.showinfo("Add-ons", done))
         threading.Thread(target=work, daemon=True).start()
 
     def apply_download_patch(self, item):
