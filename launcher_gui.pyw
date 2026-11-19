@@ -1612,7 +1612,7 @@ class RatesTab(tk.Frame):
             ttk.Spinbox(inner, from_=field[5], to=field[6], increment=1 if field[7] == "int" else 0.25,
                         textvariable=var, width=8).grid(row=row, column=1, padx=6, pady=2)
             row += 1
-        for k in (2, 20, 18, 23, 0):            # era exp tables, fast travel, full bags, short quest waits, all crafts
+        for k in (2, 20, 18, 23, 0, 24):        # era exp tables, fast travel, full bags, short quest waits, all crafts, seasonal events
             R[k], row = row, row + 1
         row = header("World", row)
         for k in (3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14):
@@ -1722,6 +1722,12 @@ class RatesTab(tk.Frame):
                        "Forge Your Destiny 1 hour at the forge (era: three game days). Off = the era waits.",
                        variable=self.short_quest_waits, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[23], column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        # (2026-11-18) seasonal events: by their dates (default), all year, or none (events_mode.lua)
+        tk.Label(inner, text="Seasonal events (Harvest Festival, Starlight, Egg Hunt, Horro's Visit)", bg=BG, fg=FG,
+                 anchor="w", width=38, wraplength=300, justify="left").grid(row=R[24], column=0, sticky="w", padx=6, pady=2)
+        self.events = tk.StringVar(value=self.EVENTS_LABELS[core.clean_events(rates.get("events", "date"))])
+        ttk.Combobox(inner, values=list(self.EVENTS_LABELS.values()), state="readonly", textvariable=self.events,
+                     width=16).grid(row=R[24], column=1, padx=6, pady=2)
         if tp is not None:
             self.ai_model_row(inner, R[21])
         self.show_world(rates)
@@ -1817,6 +1823,12 @@ class RatesTab(tk.Frame):
         self.era_exp.set(bool(values.get("era_exp", True)))
         self.fast_travel.set(all(str(values.get(k, 1)) not in ("0", "0.0") for k in self.FAST_TRAVEL))
 
+    EVENTS_LABELS = {"date": "By date", "on": "Always on", "off": "Off"}
+
+    def events_value(self):
+        label = self.events.get()
+        return next((k for k, v in self.EVENTS_LABELS.items() if v == label), "date")
+
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
                  "bots", "squad_chat", "full_bags", "spell_scrolls", "short_quest_waits")
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
@@ -1834,6 +1846,8 @@ class RatesTab(tk.Frame):
         for key, attr in self.TEXT_KEYS:
             if key in values and hasattr(self, attr):
                 getattr(self, attr).set(str(values[key]))
+        if "events" in values and hasattr(self, "events"):
+            self.events.set(self.EVENTS_LABELS[core.clean_events(values["events"])])
         self.fast_travel.set(all(str(self.vars[k].get()) not in ("0", "0.0") for k in self.FAST_TRAVEL))
         self.show_world(self.collect())
 
@@ -1927,6 +1941,7 @@ class RatesTab(tk.Frame):
         rates["full_bags"] = bool(self.full_bags.get())
         rates["spell_scrolls"] = bool(self.spell_scrolls.get())
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
+        rates["events"] = self.events_value()
         rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done
         rates["bots_head_start_done"] = self.head_start_done
         rates["claim_shield"] = False
