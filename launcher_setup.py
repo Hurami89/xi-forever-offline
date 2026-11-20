@@ -937,6 +937,75 @@ def reapply_era_dats(ffxi_dir, era_dir, backup, files, log=print):
     return [f"Era-DATs put back: {changed} file(s) a game update had replaced (the update's files are saved in dat-backup)."]
 
 
+def _era_files(era_dir):
+    files = []
+    for rom in ("ROM", "ROM2", "ROM3", "ROM4"):
+        for root, _dirs, names in os.walk(os.path.join(era_dir, rom)):
+            files += [os.path.relpath(os.path.join(root, n), era_dir) for n in names]
+    return files
+
+
+def _era_state_path(kit):
+    return os.path.join(kit, "backups", "era-state.json")
+
+
+def check_era_dats(kit, ffxi_dir, log=print):
+    """(2026-11-19, Yumainai, Altair) An FFXI/PlayOnline update quietly writes retail files over the era ones (wrong monster
+    names, Home Points that freeze...). On every PLAY: files whose size/time changed since the last PLAY are compared with
+    the era copy, and the ones an update replaced are put back (reapply_era_dats). Nothing happens when the era files were
+    never installed or were removed on purpose (no dat-backup). Returns the messages."""
+    import filecmp, json
+    era_dir, backup = os.path.join(kit, "Era-DATs"), os.path.join(kit, "dat-backup")
+    if not ffxi_dir or not os.path.isdir(backup) or not os.path.isdir(os.path.join(ffxi_dir, "ROM")):
+        return []
+    files = _era_files(era_dir)
+    if not files:
+        return []
+    try:
+        with open(_era_state_path(kit), "r", encoding="utf-8") as handle:
+            state = json.load(handle)
+    except (OSError, ValueError):
+        state = {}
+    drifted = []
+    for rel in files:
+        dest = existing_case(ffxi_dir, rel)
+        try:
+            st = os.stat(dest)
+        except OSError:
+            drifted.append(rel)
+            continue
+        if state.get(rel) == [st.st_size, st.st_mtime_ns]:
+            continue
+        src = os.path.join(era_dir, rel)
+        if st.st_size != os.path.getsize(src) or not filecmp.cmp(src, dest, shallow=False):
+            drifted.append(rel)
+    if not drifted:
+        return []
+    log(f"Era-DATs: {len(drifted)} game file(s) changed since the last PLAY (a game update?) - checking them.")
+    return reapply_era_dats(ffxi_dir, era_dir, backup, drifted, log)
+
+
+def record_era_state(kit, ffxi_dir):
+    """Remembers size and time of every era file in the game (after our own patches), so the next PLAY only looks at the
+    files that changed since."""
+    import json
+    era_dir = os.path.join(kit, "Era-DATs")
+    if not ffxi_dir or not os.path.isdir(os.path.join(kit, "dat-backup")):
+        return
+    state = {}
+    for rel in _era_files(era_dir):
+        try:
+            st = os.stat(existing_case(ffxi_dir, rel))
+        except OSError:
+            continue
+        state[rel] = [st.st_size, st.st_mtime_ns]
+    path = _era_state_path(kit)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "w", encoding="utf-8") as handle:
+        json.dump(state, handle)
+    os.replace(path + ".tmp", path)
+
+
 def install_era_dats(kit, ffxi_dir, era_dir=None, log=print):
     """Copies Era-DATs\\ROM..ROM4 into the game folder. Every file it replaces is saved in <kit>\\dat-backup first and the
     new ones are listed in dat-backup\\new-files.txt, so restore-original-dats.ps1 can undo it."""

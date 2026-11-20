@@ -3743,8 +3743,20 @@ class App(tk.Tk):
                 launcher_setup.install_own_addons(HERE, cfg["ashita_dir"])
             except Exception as e:
                 self.say(f"Could not refresh the addons ({e}) - starting anyway.")
+            try:                              # era game files an FFXI update wrote over (Yumainai, Altair 2026-11-19)
+                for line in launcher_setup.check_era_dats(HERE, cfg.get("ffxi_client_dir", ""), log=self.say):
+                    self.say(line)
+            except PermissionError:
+                self.say("Era-DATs: Windows did not let the launcher put the era game files back. "
+                         "Run the launcher as administrator once (right-click > Run as administrator).")
+            except Exception as e:
+                self.say(f"Could not check the era game files ({e}) - starting anyway.")
             import launcher_client            # our game-file changes, again if an update or the era pack replaced them
             launcher_client.apply_all(HERE, cfg.get("ffxi_client_dir", ""), cfg["server_dir"], log=self.say)
+            try:
+                launcher_setup.record_era_state(HERE, cfg.get("ffxi_client_dir", ""))
+            except Exception:
+                pass
             started = launcher_setup.start_portable(cfg)
             if started is not None:
                 self.db_proc = started
