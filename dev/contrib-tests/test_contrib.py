@@ -112,9 +112,9 @@ class ContribTests(unittest.TestCase):
         self.assertEqual(tree["base_tree"], "t1")
         self.assertEqual([e["path"] for e in tree["tree"]], ["addons-src/Gambits/Gambits.lua"])    # only the changed file
         self.assertEqual(by[("POST", "WildCabbagePatch/xi-forever-offline/git/commits")]["parents"], ["c0ffee"])
-        self.assertEqual(by[("POST", "WildCabbagePatch/xi-forever-offline/git/refs")]["ref"], "refs/heads/contrib/gambits-20261118-1500")
+        self.assertEqual(by[("POST", "WildCabbagePatch/xi-forever-offline/git/refs")]["ref"], "refs/heads/contrib/kit-20261118-1500")
         pull = by[("POST", lc.UPSTREAM + "/pulls")]
-        self.assertEqual((pull["head"], pull["base"]), ("WildCabbagePatch:contrib/gambits-20261118-1500", "main"))
+        self.assertEqual((pull["head"], pull["base"]), ("WildCabbagePatch:contrib/kit-20261118-1500", "main"))
         self.assertIn("Tested on WHM 30", pull["body"])
 
     def test_nothing_to_send(self):
@@ -218,6 +218,41 @@ class EverythingTests(unittest.TestCase):
     def test_kit_folder_is_the_launcher_folder(self):
         self.assertEqual(lc.local_folder("kit", {}, "C:/XIF"), "C:/XIF")
         self.assertEqual(lc.local_folder("server", {"server_dir": "C:/XIF/server"}), "C:/XIF/server")
+
+
+class OneButtonTests(unittest.TestCase):
+    def test_everything_in_one_go(self):
+        """Gambits + launcher files share one pull request on the kit repo; server files get their own."""
+        kit_gh = FakeGitHub(PEOPLE, {"Gambits.lua": lc.blob_sha(b"old")})
+        srv_gh = FakeServerRepo({"modules/custom/lua/squad.lua": b"1\n"})
+
+        def both(method, url, token, data=None):
+            path = url.replace(lc.API, "")
+            if "xi-forever-offline-server" in path:
+                return srv_gh(method, url, token, data)
+            if path.startswith(lc.UPSTREAM + "/git/trees/t1"):          # the whole kit repo
+                return {"tree": [{"type": "blob", "path": "addons-src/Gambits/Gambits.lua", "sha": lc.blob_sha(b"old")},
+                                 {"type": "blob", "path": "launcher_gui.pyw", "sha": lc.blob_sha(b"gui\n")}]}
+            if path == "SirTanta/xi-forever-offline" and method == "GET":
+                return {"parent": {"full_name": lc.UPSTREAM}}
+            return kit_gh(method, url, token, data)
+
+        live = folder_with({"Gambits.lua": b"new"})
+        kit = folder_with({"launcher_gui.pyw": b"gui changed\n", "addons-src/Gambits/Gambits.lua": b"old"})
+        srv = folder_with({"modules/custom/lua/squad.lua": b"2\n"})
+        cfg = {"contrib_gambits_dir": live, "server_dir": srv}
+        founds = {a: lc.check("tok", a, cfg, both, kit_dir=kit) for a in ("gambits", "kit", "server")}
+        self.assertEqual(founds["kit"]["diff"]["changed"], ["launcher_gui.pyw"])
+        self.assertEqual(lc.area_for_path(founds, os.path.join(srv, "x.lua")), "server")
+        self.assertEqual(lc.area_for_path(founds, os.path.join(live, "y.lua")), "gambits")
+        chosen = [(a, rel) for a, f in founds.items() for rel in f["diff"]["changed"] + f["diff"]["added"]]
+        urls = lc.send_all("tok", "SirTanta", founds, chosen, "Big update", "", opener=both, log=lambda m: None,
+                           now=lambda f: "t", wait=lambda s: None)
+        self.assertEqual(len(urls), 2)
+        kit_tree = [d for m, p, d in kit_gh.calls if m == "POST" and p.endswith("/git/trees")][0]
+        self.assertEqual(sorted(e["path"] for e in kit_tree["tree"]), ["addons-src/Gambits/Gambits.lua", "launcher_gui.pyw"])
+        srv_tree = [d for m, p, d in srv_gh.calls if m == "POST" and p.endswith("/git/trees")][0]
+        self.assertEqual([e["path"] for e in srv_tree["tree"]], ["modules/custom/lua/squad.lua"])
 
 
 if __name__ == "__main__":

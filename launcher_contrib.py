@@ -270,45 +270,83 @@ def ensure_fork(token, login, opener=api, log=print, wait=time.sleep, repo=None)
     return fork
 
 
+def area_for_path(founds, path):
+    """Which checked area a picked file belongs to: the one whose folder holds it (the deepest, so the live Gambits
+    folder wins over a parent folder). None when it is in none of them."""
+    path = os.path.abspath(path)
+    best = None
+    for area, found in founds.items():
+        folder = os.path.abspath(found["folder"])
+        try:
+            inside = os.path.commonpath([folder, path]) == folder
+        except ValueError:                       # another drive on Windows
+            inside = False
+        if inside and (best is None or len(folder) > len(os.path.abspath(founds[best]["folder"]))):
+            best = area
+    return best
+
+
+def _file_data(token, area, found, rel, opener):
+    with open(found["local"][rel][1], "rb") as handle:
+        data = handle.read()
+    if b"\r\n" in data and is_text(data) and rel in found.get("remote", {}):
+        # a Windows checkout: keep the file's line endings as GitHub has them, so only real changes show
+        try:
+            blob = opener("GET", f"{repo_of(area)['repo']}/git/blobs/{found['remote'][rel]}", token)
+            if b"\r\n" not in base64.b64decode(blob.get("content", "")):
+                data = lf(data)
+        except RuntimeError:
+            pass
+    return data
+
+
+def send_all(token, login, founds, chosen, title, note, opener=api, log=print, now=time.strftime, wait=time.sleep):
+    """One update from everything the contributor picked: chosen = [(area, relative path), ...] over the checked areas
+    (founds = {area: check() result}). Files for the same repo go in one pull request (kit: Gambits + launcher files;
+    server: its own, since it is another repo). Returns the pull request URLs."""
+    chosen = [(area, rel) for area, rel in chosen if area in founds and rel in founds[area]["local"]]
+    if not chosen:
+        raise RuntimeError("Nothing to send: pick at least one changed or new file.")
+    message = title.strip() or "Update"
+    urls = []
+    for repo_key, repo in REPOS.items():
+        mine = [(area, rel) for area, rel in chosen if AREAS[area]["repo"] == repo_key]
+        if not mine:
+            continue
+        fork = ensure_fork(token, login, opener, log, wait, repo)
+        base = founds[mine[0][0]]
+        entries, listed, seen = [], [], set()
+        for area, rel in sorted(mine, key=lambda x: AREAS[x[0]].get("live") is None):   # the live Gambits copy wins
+            path = prefix_of(area) + rel
+            if path in seen:
+                continue
+            seen.add(path)
+            data = _file_data(token, area, founds[area], rel, opener)
+            log(f"Uploading {path} ({len(data) // 1024} KB)...")
+            blob = opener("POST", f"{fork}/git/blobs", token, {"content": base64.b64encode(data).decode(), "encoding": "base64"})
+            entries.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+            listed.append(f"- {path}" + (" (new)" if rel in founds[area]["diff"]["added"] else ""))
+        tree = opener("POST", f"{fork}/git/trees", token, {"base_tree": base["tree"], "tree": entries})
+        commit = opener("POST", f"{fork}/git/commits", token,
+                        {"message": message + ("\n\n" + note.strip() if note.strip() else ""), "tree": tree["sha"],
+                         "parents": [base["ref"]]})
+        branch = f"contrib/{repo_key}-{now('%Y%m%d-%H%M%S')}"
+        opener("POST", f"{fork}/git/refs", token, {"ref": "refs/heads/" + branch, "sha": commit["sha"]})
+        body = [note.strip() or "(no note)", "", "Files:"] + listed + ["", "Sent from the XI: Forever Offline launcher (contributor mode)."]
+        pull = opener("POST", f"{repo['repo']}/pulls", token, {"title": message, "head": f"{login}:{branch}",
+                                                              "base": repo["branch"], "body": "\n".join(body),
+                                                              "maintainer_can_modify": True})
+        log(f"Sent: {pull['html_url']}")
+        urls.append(pull["html_url"])
+    return urls
+
+
 def send(token, login, area, found, title, note, opener=api, log=print, now=time.strftime, wait=time.sleep, files=None):
-    """Puts the chosen changed and new files on a new branch of the contributor's fork and opens a pull request.
-    files: the relative paths to send (default: every changed and new file). Returns the pull request's URL."""
+    """One area only (see send_all). files: the relative paths to send (default: every changed and new file).
+    Returns the pull request's URL."""
     if files is None:
         files = found["diff"]["changed"] + found["diff"]["added"]
-    files = [rel for rel in files if rel in found["local"]]
-    if not files:
-        raise RuntimeError("Nothing to send: pick at least one changed or new file.")
-    repo = repo_of(area)
-    fork = ensure_fork(token, login, opener, log, wait, repo)
-    prefix = prefix_of(area)
-    entries = []
-    for rel in files:
-        with open(found["local"][rel][1], "rb") as handle:
-            data = handle.read()
-        if b"\r\n" in data and is_text(data) and rel in found.get("remote", {}):
-            # a Windows checkout: keep the file's line endings as GitHub has them, so only real changes show
-            try:
-                blob = opener("GET", f"{repo['repo']}/git/blobs/{found['remote'][rel]}", token)
-                if b"\r\n" not in base64.b64decode(blob.get("content", "")):
-                    data = lf(data)
-            except RuntimeError:
-                pass
-        log(f"Uploading {rel} ({len(data) // 1024} KB)...")
-        blob = opener("POST", f"{fork}/git/blobs", token, {"content": base64.b64encode(data).decode(), "encoding": "base64"})
-        entries.append({"path": prefix + rel, "mode": "100644", "type": "blob", "sha": blob["sha"]})
-    tree = opener("POST", f"{fork}/git/trees", token, {"base_tree": found["tree"], "tree": entries})
-    message = title.strip() or f"{AREAS[area]['label']} update"
-    commit = opener("POST", f"{fork}/git/commits", token, {"message": message + ("\n\n" + note.strip() if note.strip() else ""),
-                                                           "tree": tree["sha"], "parents": [found["ref"]]})
-    branch = f"contrib/{area}-{now('%Y%m%d-%H%M%S')}"
-    opener("POST", f"{fork}/git/refs", token, {"ref": "refs/heads/" + branch, "sha": commit["sha"]})
-    lines = [note.strip() or "(no note)", "", "Files:"] + [f"- {prefix}{rel}" + (" (new)" if rel in found["diff"]["added"] else "")
-                                                         for rel in files]
-    lines += ["", f"Sent from the XI: Forever Offline launcher (contributor mode, {AREAS[area]['label']})."]
-    pull = opener("POST", f"{repo['repo']}/pulls", token, {"title": message, "head": f"{login}:{branch}", "base": repo["branch"],
-                                                          "body": "\n".join(lines), "maintainer_can_modify": True})
-    log(f"Sent: {pull['html_url']}")
-    return pull["html_url"]
+    return send_all(token, login, {area: found}, [(area, rel) for rel in files], title, note, opener, log, now, wait)[0]
 
 
 def my_updates(token, login, opener=api):

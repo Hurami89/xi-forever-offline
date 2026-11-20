@@ -2399,20 +2399,15 @@ class UpdatesTab(tk.Frame):
         frame = tk.Frame(self.contrib_frame, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
         frame.pack(fill="x", padx=14, pady=6)
         tk.Label(frame, text=f"Contributor: {self.contributor}", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
-        tk.Label(frame, text=("Change and test as usual, then send. Pick what you changed below: the launcher finds your changed files, "
-                              "you choose which go in (and can add new ones), and it goes to Hurami for review as a pull request on "
-                              "GitHub. Nothing reaches players until it is merged and published."),
+        tk.Label(frame, text=("Change and test as usual, then press Send. The launcher finds everything you changed (" +
+                              (", ".join(lc.AREAS[a]["label"] for a in areas) or "nothing yet") +
+                              "), you untick what shouldn't go and add new files, and it goes to Hurami for review on GitHub. "
+                              "Nothing reaches players until it is merged and published."),
                  bg=PANEL, fg=DIM, wraplength=880, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(0, 8))
         bar = tk.Frame(frame, bg=PANEL)
-        bar.pack(anchor="w", padx=12, pady=(0, 6))
-        for area in areas:
-            label = lc.AREAS[area]["label"]
-            tk.Button(bar, text=f"Send {label}...", command=lambda a=area: self.contrib_send(a), bg=ACCENT, fg="white",
-                      relief="flat", padx=14, pady=5).pack(side="left", padx=(0, 8))
-        if not areas:
-            tk.Label(bar, text="Nothing to send yet: ask Hurami to add an area for you.", bg=PANEL, fg=DIM).pack(side="left")
-        bar = tk.Frame(frame, bg=PANEL)
         bar.pack(anchor="w", padx=12, pady=(0, 12))
+        tk.Button(bar, text="Send an update to Hurami...", command=self.contrib_send_all, bg=ACCENT, fg="white",
+                  relief="flat", padx=14, pady=5, state="normal" if areas else "disabled").pack(side="left", padx=(0, 8))
         tk.Button(bar, text="My sent updates", command=self.contrib_mine, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5).pack(side="left", padx=(0, 8))
         tk.Button(bar, text="Sign out", command=self.contrib_sign_out, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5).pack(side="left")
 
@@ -2477,6 +2472,31 @@ class UpdatesTab(tk.Frame):
                 self.lines.put(("line", f"   new      {rel}"))
             if then:
                 self.after(0, lambda: then(token, login, found))
+        threading.Thread(target=work, daemon=True).start()
+
+    def contrib_send_all(self):
+        """One button: checks every area this contributor may send and opens one dialog with all their changes."""
+        import launcher_contrib as lc
+        self.write("Looking for everything you changed (the server folder can take a minute)...")
+
+        def work():
+            try:
+                token, login, areas = lc.sign_in()       # the list on GitHub decides, every time
+                if not areas:
+                    raise RuntimeError(f"{login} is not on the contributor list.")
+            except Exception as e:
+                self.lines.put(("line", f"Could not check: {e}"))
+                return
+            founds = {}
+            for area in areas:
+                try:
+                    founds[area] = lc.check(token, area, self.app.cfg, kit_dir=HERE)
+                    d = founds[area]["diff"]
+                    self.lines.put(("line", f"{lc.AREAS[area]['label']}: {len(d['changed'])} changed, {len(d['added'])} new"))
+                except Exception as e:
+                    self.lines.put(("line", f"{lc.AREAS[area]['label']}: skipped ({e})"))
+            if founds:
+                self.after(0, lambda: SendUpdateDialog(self.app, token, login, founds))
         threading.Thread(target=work, daemon=True).start()
 
     def contrib_send(self, area):
@@ -2691,81 +2711,93 @@ class UpdatesTab(tk.Frame):
 
 
 class SendUpdateDialog(tk.Toplevel):
-    """Contributor mode: what you are sending, a title and a note for Hurami, then Send (launcher_contrib.send)."""
+    """Contributor mode: everything you changed (all your areas) in one list, a title and a note for Hurami, then Send
+    (launcher_contrib.send_all: one pull request per repo)."""
 
-    def __init__(self, app, token, login, area, found):
+    def __init__(self, app, token, login, founds, *legacy):
         super().__init__(app)
         import launcher_contrib as lc
-        self.app, self.lc, self.token, self.login, self.area, self.found = app, lc, token, login, area, found
-        label = lc.AREAS[area]["label"]
-        self.title(f"Send {label} update to Hurami")
-        self.geometry("760x680")
+        if legacy:                                   # old call: (area, found)
+            founds = {founds: legacy[0]}
+        self.app, self.lc, self.token, self.login, self.founds = app, lc, token, login, founds
+        self.title("Send an update to Hurami")
+        self.geometry("780x700")
         self.configure(bg=BG)
         self.q = queue.Queue()
-        tk.Label(self, text=f"Files going in this update (from {found['folder']}). Click to leave one out; Add files... for new ones.",
-                 bg=BG, fg=FG, font=(UI_FONT, 10, "bold"), wraplength=720, justify="left").pack(anchor="w", padx=14, pady=(12, 2))
+        tk.Label(self, text="Files going in this update. Click a file to leave it out; Add files... for new ones.",
+                 bg=BG, fg=FG, font=(UI_FONT, 10, "bold"), wraplength=740, justify="left").pack(anchor="w", padx=14, pady=(12, 2))
         box = tk.Frame(self, bg=BG)
         box.pack(fill="x", padx=14)
-        self.files = tk.Listbox(box, selectmode="multiple", height=9, bg=PANEL, fg=FG, selectbackground=ACCENT, relief="flat",
+        self.files = tk.Listbox(box, selectmode="multiple", height=11, bg=PANEL, fg=FG, selectbackground=ACCENT, relief="flat",
                                 font=(MONO_FONT, 9), activestyle="none", exportselection=False)
         scroll = tk.Scrollbar(box, command=self.files.yview)
         self.files.configure(yscrollcommand=scroll.set)
         self.files.pack(side="left", fill="x", expand=True)
         scroll.pack(side="left", fill="y")
-        self.rels = []
-        for rel in found["diff"]["changed"]:
-            self.add_row(rel, "changed")
-        for rel in found["diff"]["added"]:
-            self.add_row(rel, "new")
-        if not self.rels:
+        self.rows = []
+        for area, found in founds.items():
+            for rel in found["diff"]["changed"]:
+                self.add_row(area, rel, "changed")
+            for rel in found["diff"]["added"]:
+                self.add_row(area, rel, "new")
+        if not self.rows:
             self.files.insert("end", "(no changed files found: use Add files...)")
         row = tk.Frame(self, bg=BG)
         row.pack(anchor="w", padx=14, pady=(4, 0))
         tk.Button(row, text="Add files...", command=self.add_files, bg=PANEL, fg=FG, relief="flat", padx=12).pack(side="left")
+        tk.Label(row, text="Launcher and Gambits files go to the kit repo, server files to the server repo (one review each).",
+                 bg=BG, fg=DIM, font=(UI_FONT, 8)).pack(side="left", padx=10)
         tk.Label(self, text="Title (one line: what this update does)", bg=BG, fg=FG).pack(anchor="w", padx=14, pady=(10, 2))
-        self.subject = tk.StringVar(value=f"{lc.AREAS[area].get('short', label)}: ")
+        self.subject = tk.StringVar(value="")
         tk.Entry(self, textvariable=self.subject, bg=PANEL, fg=FG, insertbackground=FG, relief="flat").pack(fill="x", padx=14)
         tk.Label(self, text="Note for Hurami (what changed, how you tested it)", bg=BG, fg=FG).pack(anchor="w", padx=14, pady=(10, 2))
-        self.note = tk.Text(self, height=7, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", wrap="word", font=(UI_FONT, 9))
+        self.note = tk.Text(self, height=6, bg=PANEL, fg=FG, insertbackground=FG, relief="flat", wrap="word", font=(UI_FONT, 9))
         self.note.pack(fill="x", padx=14)
         bar = tk.Frame(self, bg=BG)
         bar.pack(anchor="w", padx=14, pady=8)
         self.go = tk.Button(bar, text="Send", command=self.send, bg=ACCENT, fg="white", relief="flat", padx=18)
         self.go.pack(side="left")
-        self.link = None
-        self.open_button = tk.Button(bar, text="Open on GitHub", command=lambda: self.link and self.app.open_url(self.link),
+        self.links = []
+        self.open_button = tk.Button(bar, text="Open on GitHub", command=lambda: [self.app.open_url(u) for u in self.links],
                                      bg=PANEL, fg=FG, relief="flat", padx=12, state="disabled")
         self.open_button.pack(side="left", padx=8)
         self.log = tk.Text(self, bg=PANEL, fg=FG, relief="flat", font=(MONO_FONT, 9), wrap="word", state="disabled")
         self.log.pack(fill="both", expand=True, padx=14, pady=(4, 12))
         self.after(200, self.pump)
 
-    def add_row(self, rel, kind):
-        if rel in self.rels:
+    def add_row(self, area, rel, kind):
+        if (area, rel) in self.rows:
             return
-        if not self.rels:
+        if not self.rows:
             self.files.delete(0, "end")
-        self.rels.append(rel)
-        self.files.insert("end", f"{kind:<8} {rel}")
+        self.rows.append((area, rel))
+        where = self.lc.AREAS[area].get("short", area)
+        self.files.insert("end", f"{kind:<8} {where:<9} {rel}")
         self.files.selection_set("end")
 
     def add_files(self):
-        paths = filedialog.askopenfilenames(parent=self, title="Add files to this update", initialdir=self.found["folder"])
+        start = next(iter(self.founds.values()))["folder"]
+        paths = filedialog.askopenfilenames(parent=self, title="Add files to this update", initialdir=start)
         for path in paths or ():
+            area = self.lc.area_for_path(self.founds, path)
+            if area is None:
+                folders = ", ".join(f["folder"] for f in self.founds.values())
+                messagebox.showerror("Add files", f"{path} is not in one of your folders ({folders}).", parent=self)
+                continue
             try:
-                rel = self.lc.add_file(self.found, path)
+                rel = self.lc.add_file(self.founds[area], path)
             except Exception as e:
                 messagebox.showerror("Add files", str(e), parent=self)
                 continue
-            self.add_row(rel, "new" if rel in self.found["diff"]["added"] else "changed")
+            self.add_row(area, rel, "new" if rel in self.founds[area]["diff"]["added"] else "changed")
 
     def send(self):
-        chosen = [self.rels[i] for i in self.files.curselection() if i < len(self.rels)]
+        chosen = [self.rows[i] for i in self.files.curselection() if i < len(self.rows)]
         if not chosen:
             messagebox.showinfo("Send update", "Pick at least one file to send.", parent=self)
             return
         title = self.subject.get().strip()
-        if len(title) < 4 or title.endswith(":"):
+        if len(title) < 4:
             messagebox.showinfo("Send update", "Add a title that says what the update does.", parent=self)
             return
         self.go.configure(state="disabled")
@@ -2773,9 +2805,9 @@ class SendUpdateDialog(tk.Toplevel):
 
         def work():
             try:
-                url = self.lc.send(self.token, self.login, self.area, self.found, title, note, log=lambda m: self.q.put(m),
-                                   files=chosen)
-                self.q.put(("link", url))
+                urls = self.lc.send_all(self.token, self.login, self.founds, chosen, title, note, log=lambda m: self.q.put(m))
+                for url in urls:
+                    self.q.put(("link", url))
                 self.q.put("Sent! Hurami gets it on GitHub. You'll get GitHub notifications when he comments or merges it.")
             except Exception as e:
                 self.q.put(f"Stopped: {e}")
@@ -2788,7 +2820,7 @@ class SendUpdateDialog(tk.Toplevel):
                 item = self.q.get_nowait()
                 if isinstance(item, tuple):
                     if item[0] == "link":
-                        self.link = item[1]
+                        self.links.append(item[1])
                         self.open_button.configure(state="normal")
                     else:
                         self.go.configure(state="normal")
