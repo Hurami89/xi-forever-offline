@@ -49,6 +49,16 @@ end
 
 --- Keyboard state (256 bytes, DirectInput). Read it, then empty it so the game sees no key.
 function M.take_keyboard(ptr, block)
+    -- (1.4) a Lua string is a copy of the state: read it, never write through it (writing into a string's memory
+    -- corrupts the game's Lua and crashes it some time later)
+    if type(ptr) == 'string' then
+        local kb = {}
+        for i = 1, math.min(255, #ptr - 1) do
+            if ptr:byte(i + 1) >= 0x80 then kb[i] = true end
+        end
+        M.s.kb = kb
+        return
+    end
     local p = ffi.cast('uint8_t *', ptr)
     local kb = {}
     for i = 1, 255 do

@@ -7,6 +7,17 @@ function M.start(path)
     M.path = path
     M.last = path:gsub('%.txt$', '') .. '_last.txt'
     M.n = 0
+    -- (1.4) keep the trace of the session before this one: after a crash the game or the add-on is started again, which
+    -- used to wipe the very trace that showed the crash (trace_prev.txt, trace_prev_last.txt)
+    for _, pair in ipairs({ { path, (path:gsub('%.txt$', '')) .. '_prev.txt' }, { M.last, (path:gsub('%.txt$', '')) .. '_prev_last.txt' } }) do
+        local old = io.open(pair[1], 'rb')
+        if old then
+            local text = old:read('*a')
+            old:close()
+            local keep = io.open(pair[2], 'wb')
+            if keep then keep:write(text); keep:close() end
+        end
+    end
     local f = io.open(path, 'w')
     if f then f:write('Crystal Boy trace ' .. os.date('%Y-%m-%d %H:%M:%S') .. '\n'); f:close() end
 end

@@ -1,6 +1,6 @@
 addon.name    = 'crystalboy'
 addon.author  = 'XI: Forever Offline'
-addon.version = '1.3'
+addon.version = '1.4'
 addon.desc    = 'Crystal Boy: play your Game Boy cartridges inside FFXI.'
 addon.link    = ''
 
@@ -701,9 +701,12 @@ end)
 
 ashita.events.register('key_state', 'cb_key_state', function(e)
     if not captured() then return end
-    local ptr = e.data_raw or e.data
+    -- (1.4) the pointer to the game's own key table when there is one; a string (a copy) is only read
+    local ptr = e.data_raw
+    if ptr == nil or type(ptr) == 'string' then ptr = e.data end
     if ptr == nil or (e.size and e.size < 256) then return end
-    trace.log('key_state ' .. type(ptr) .. ' size ' .. tostring(e.size), 'ks', 10)
+    trace.log('key_state ' .. type(ptr) .. ' raw ' .. type(e.data_raw) .. ' data ' .. type(e.data) .. ' size ' .. tostring(e.size), 'ks', 10)
+    trace.step('key_state ' .. type(ptr))
     pcall(input.take_keyboard, ptr, true)
     trace.log('key_state done', 'ksd', 10)
 end)
