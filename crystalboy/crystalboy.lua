@@ -1,6 +1,6 @@
 addon.name    = 'crystalboy'
 addon.author  = 'XI: Forever Offline'
-addon.version = '1.6'
+addon.version = '1.7'
 addon.desc    = 'Crystal Boy: play your Game Boy cartridges inside FFXI.'
 addon.link    = ''
 
@@ -760,6 +760,15 @@ local function register(event, alias, f) ashita.events.register(event, alias, gu
 
 register('key', 'cb_key', function(e)
     if captured() then e.blocked = true end -- window messages (chat, menus)
+end)
+
+-- (1.7) Ricc: arrows moved the character too and Enter never reached the Crystal Boy. FFXI also reads the keyboard's
+-- buffered events (key_data); they were neither read nor blocked. Now they are both while the window has focus.
+register('key_data', 'cb_key_data', function(e)
+    if not captured() then return end
+    trace.log('key_data ' .. tostring(e.key) .. ' ' .. tostring(e.down), 'kd', 20)
+    input.key_data(e.key, e.down)
+    e.blocked = true
 end)
 
 register('key_state', 'cb_key_state', function(e)

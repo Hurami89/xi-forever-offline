@@ -40,11 +40,18 @@ local POV = { POV_UP = { 31500, 0, 4500 }, POV_RIGHT = { 4500, 9000, 13500 }, PO
               POV_LEFT = { 22500, 27000, 31500 } }
 local STICK = 12000 -- left stick dead zone (also moves the D-pad)
 
-M.s = { kb = {}, xb = 0, lt = 0, rt = 0, lx = 0, ly = 0, di = {}, pov = -1 }
+M.s = { kb = {}, kd = {}, xb = 0, lt = 0, rt = 0, lx = 0, ly = 0, di = {}, pov = -1 }
 
 function M.clear()
-    M.s.kb, M.s.di = {}, {}
+    M.s.kb, M.s.kd, M.s.di = {}, {}, {}
     M.s.xb, M.s.lt, M.s.rt, M.s.lx, M.s.ly, M.s.pov = 0, 0, 0, 0, 0, -1
+end
+
+--- (1.7) Buffered keyboard events (Ashita's key_data: DirectInput GetDeviceData). FFXI takes many key presses from
+-- this buffer rather than from the key state, so they are both read here and kept from the game.
+function M.key_data(key, down)
+    if type(key) ~= 'number' or key < 1 or key > 255 then return end
+    M.s.kd[key] = down and true or nil
 end
 
 --- Keyboard state (256 bytes, DirectInput). Read it, then empty it so the game sees no key.
@@ -110,7 +117,7 @@ end
 
 --- Is this action held, by any device?
 function M.held(action, binds)
-    if binds.kb[action] and M.s.kb[binds.kb[action]] then return true end
+    if binds.kb[action] and (M.s.kb[binds.kb[action]] or M.s.kd[binds.kb[action]]) then return true end
     if binds.xi[action] and xi_is(binds.xi[action]) then return true end
     if binds.di[action] and di_is(binds.di[action]) then return true end
     if action == 'up' then return M.s.ly > STICK end
