@@ -240,6 +240,7 @@ end
 local function start_game(entry)
     if not char_name() then say('Log in to a character first: saves are kept per character.'); return end
     if entry.problem then say(entry.file .. ': ' .. entry.problem); return end
+    trace.again()
     trace.log('start_game ' .. entry.file)
     if not ensure_core() then say(G.core_error); return end
     trace.log('core ready ' .. tostring(retro.core_name()))
