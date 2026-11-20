@@ -22,7 +22,7 @@ if (-not $Kit) { $Kit = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path } 
 $lua = Join-Path $Server 'modules\custom\lua'
 $gl  = Join-Path $Server 'scripts\globals\gambits.lua'
 $ja  = Join-Path $Server 'scripts\enum\job_ability.lua'
-$add = Join-Path $Kit 'addons-src\GambitsV2'
+$add = Join-Path $Kit 'addons-src\Gambits'
 $t   = $PSScriptRoot
 New-Item -ItemType Directory -Force $Work | Out-Null
 $orig = Join-Path $Work 'squad_base.lua'

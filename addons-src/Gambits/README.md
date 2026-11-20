@@ -1,3 +1,7 @@
+> **2026-11-19:** this addon is now called **Gambits** (folder `addons/Gambits`, commands `/gambits` and `/gv2`). Where this
+> text says GambitsV2 it means this addon. The addon that used to be called Gambits (your own character's rules, Parser,
+> EXP Watch, Enemy Info) is now **autobox**. Settings are still kept in `config/addons/GambitsV2/`.
+
 # GambitsV2
 
 GambitsV2 is rule-based automation for XI: Forever Offline, built from ordered **Target → Conditions → Action** rules.

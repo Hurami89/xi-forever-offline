@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.22';
+addon.version = '1.23';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1446,6 +1446,20 @@ local function myAutoOn()
     return tostring(S.cfg.auto_me) == 'true';
 end
 
+-- (1.23, 2026-11-19) the rules for your own character moved from the addon "Gambits" to "autobox" (the name Gambits
+-- now belongs to the squad Rule Set editor). autobox is not loaded at start: AUTO loads it, and /autobox commands are
+-- only sent while it is loaded (it keeps a flag file while it runs), so nobody sees a command error for it.
+local function autoboxLoaded()
+    local ok, found = pcall(function ()
+        local base = AshitaCore:GetInstallPath();
+        if not base:match('[/\\]$') then base = base .. '\\'; end
+        local f = io.open(base .. 'config\\addons\\Gambits\\autobox_loaded.flag', 'r');
+        if f then f:close(); return true; end
+        return false;
+    end);
+    return ok and found == true;
+end
+
 -- AutoBot reads this file before it rests anyone. Written on every toggle and
 -- forced to "off" at addon load, so resting is never on by accident.
 local function auto_flag_character()
@@ -1541,10 +1555,12 @@ local function syncAutoFlag()
 
     if not myAutoOn() then
         -- Gambits keeps its per-character master switch across sessions, and the
-        -- startup script's /gambits off runs before a character exists, where it
+        -- startup script's /autobox off runs before a character exists, where it
         -- is refused. Send it again now that there is one.
-        enqueue('/gambits off', 0.5)
-        enqueue('/gambits off', 3.0)
+        if autoboxLoaded() then
+            enqueue('/autobox off', 0.5)
+            enqueue('/autobox off', 3.0)
+        end
     end
 
     writeAutoFlag(myAutoOn())
@@ -1568,6 +1584,7 @@ local function setMyAuto(on)
     S.autoJob = on and job or nil;
     if on then
         enqueue('/addon load autobot', 0.1);
+        enqueue('/addon load autobox', 0.3);   -- (its rules; loading it twice only prints a notice)
         enqueue('/ab resume', 0.9);
         enqueue('/ab combat autoengage on', 1.1);
         enqueue('/ab combat approach on', 1.3);
@@ -1582,7 +1599,7 @@ local function setMyAuto(on)
         enqueue('/ab autows off', 2.0);
         enqueue('/ab hprest on', 2.4);
         enqueue('/ab job ' .. job .. ' on', 2.6);
-        enqueue('/gambits on', 2.8);
+        enqueue('/autobox on', 2.8);
         -- AutoBot's own addon load can still be finishing when the first pass
         -- runs, and a /ab sent to an addon that is not listening yet is simply
         -- lost. Send the two that matter again, later, then print what the
@@ -1594,7 +1611,7 @@ local function setMyAuto(on)
         enqueue('/ab job ' .. job .. ' report', 6.6);
         ask(7.0);
     else
-        enqueue('/gambits off');
+        if autoboxLoaded() then enqueue('/autobox off'); end
         enqueue('/ab combat autotarget off', 0.2);
         enqueue('/ab combat autoengage off', 0.4);
         enqueue('/ab combat approach off', 0.6);

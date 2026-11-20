@@ -256,7 +256,7 @@ def list_plugins(ashita_dir):
 
 
 # ---------- what an addon or plugin is (for the Addons page) ----------
-OWN_ADDONS = {"gambits", "followme", "servermenu", "squadpanel", "crystalboy"}
+OWN_ADDONS = {"gambits", "autobox", "followme", "servermenu", "squadpanel", "crystalboy"}
 PLUGIN_NOTES = {"addons": "Runs Lua addons (keep this on).", "thirdparty": "Lets third-party plugins load.",
                 "screenshot": "Screenshots without the interface.", "minimap": "A minimap on screen.",
                 "hardwaremouse": "Hardware mouse cursor.", "toon": "Cel-shaded look.", "winefix": "Fixes for Wine (Linux).",

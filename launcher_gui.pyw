@@ -3851,6 +3851,11 @@ class App(tk.Tk):
         except Exception as e:
             self.say(f"Could not check Ashita's target offset ({e}).")
 
+        try:                                  # (2026-11-19) Gambits -> autobox, GambitsV2 -> Gambits: once, every install
+            import launcher_setup as _names
+            _names.migrate_gambits_names(HERE, cfg.get("ashita_dir", ""), log=self.say)
+        except Exception as e:
+            self.say(f"Could not rename the Gambits add-ons ({e}) - starting anyway.")
         if cfg.get("mariadb_dir"):            # a player install: the kit's own MariaDB, started here (no Windows service)
             import launcher_setup
             try:                              # a loader the server needs (e.g. after updating from an older launcher)

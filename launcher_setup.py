@@ -593,10 +593,86 @@ def write_config(kit, values):
 
 
 # ----- the kit's own addons -----
-OWN_ADDONS = ("Gambits", "followme", "servermenu", "squadpanel")
+# (2026-11-19) "Gambits" is now the squad Rule Set editor (wildcabbagepatch's Gambits v2, first shipped as GambitsV2);
+# the addon that had the name before (your own character's rules, Parser, EXP Watch, Enemy Info) is "autobox".
+OWN_ADDONS = ("Gambits", "autobox", "followme", "servermenu", "squadpanel")
 STOCK_ADDONS = ("distance", "fps", "move", "timestamp", "tparty", "checker", "drawdistance", "allmaps")
 STOCK_PLUGINS = ("minimap",)
 START_ADDONS = ("Gambits", "servermenu", "crystalboy")          # loaded at startup on a new install
+
+
+def migrate_gambits_names(kit, ashita_dir, log=print):
+    """One time, on an install from before 2026-11-19: Ashita\\addons\\Gambits still holds the old engine (now "autobox")
+    and the squad editor may sit in addons\\GambitsV2. Both are moved to <kit>\\backups\\addons, the new Gambits and autobox
+    are copied in, and the start scripts follow: the main window keeps "/addon load Gambits" (now the squad editor; a
+    GambitsV2 line is dropped), the second window (dualbox.txt), whose character is driven by the old engine, loads
+    autobox instead. Player sheets stay where they are (config\\addons\\Gambits). Returns the messages."""
+    addons = os.path.join(ashita_dir, "addons")
+    if not os.path.isdir(addons):
+        return []
+    old = os.path.join(addons, "Gambits")
+    v2 = os.path.join(addons, "GambitsV2")
+    old_engine = os.path.isdir(old) and not os.path.exists(os.path.join(old, "squad_editor.lua"))
+    if not old_engine and not os.path.isdir(v2):
+        return []
+    if not os.path.exists(os.path.join(kit, "addons-src", "Gambits", "squad_editor.lua")) or \
+            not os.path.exists(os.path.join(kit, "addons-src", "autobox", "autobox.lua")):
+        return []                                  # (this kit does not have the renamed addons: leave everything alone)
+    keep = os.path.join(kit, "backups", "addons")
+    os.makedirs(keep, exist_ok=True)
+    tag = time.strftime("%Y%m%d-%H%M%S")
+    messages = []
+    if old_engine:
+        shutil.move(old, os.path.join(keep, f"Gambits-before-autobox-{tag}"))
+    if os.path.isdir(v2):
+        shutil.move(v2, os.path.join(keep, f"GambitsV2-{tag}"))
+    for name in ("Gambits", "autobox"):
+        shutil.copytree(os.path.join(kit, "addons-src", name), os.path.join(addons, name), dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("*.before-*", "*.bak"))
+    scripts = os.path.join(ashita_dir, "scripts")
+    line_re = re.compile(r"^(\s*/addon\s+load\s+)(\S+)\s*$", re.I)
+    for name in (os.listdir(scripts) if os.path.isdir(scripts) else []):
+        if not name.lower().endswith(".txt"):
+            continue
+        path = os.path.join(scripts, name)
+        try:
+            with open(path, "r", encoding="utf-8-sig") as handle:
+                lines = handle.read().splitlines()
+        except OSError:
+            continue
+        second = name.lower() == "dualbox.txt"
+        out, changed = [], False
+        loaded = {m.group(2).lower() for m in (line_re.match(x) for x in lines) if m}
+        for line in lines:
+            m = line_re.match(line)
+            addon = m.group(2).lower() if m else ""
+            if addon == "gambitsv2":
+                changed = True
+                if "gambits" not in loaded and not second:
+                    out.append(m.group(1) + "Gambits")
+                    loaded.add("gambits")
+                continue
+            switch = re.match(r"^\s*/gambits\s+(on|off)\s*$", line, re.I)
+            if switch and old_engine:               # a start-up "/gambits off" was meant for the old engine
+                changed = True
+                if second:
+                    out.append("/autobox " + switch.group(1).lower())
+                continue
+            if addon == "gambits" and second and old_engine:
+                changed = True
+                if "autobox" not in loaded:
+                    out.append(m.group(1) + "autobox")
+                    loaded.add("autobox")
+                continue
+            out.append(line)
+        if changed:
+            with open(path, "w", encoding="utf-8", newline="\r\n") as handle:
+                handle.write("\n".join(out).rstrip("\n") + "\n")
+    messages.append("Gambits is now the squad Rule Set editor (/gambits). Your own character's rules moved to the add-on "
+                    "'autobox' (/autobox): switch it on in ADDONS > Addons if you use them. Your sheets are untouched.")
+    for line in messages:
+        log(line)
+    return messages
 
 
 def install_own_addons(kit, ashita_dir):

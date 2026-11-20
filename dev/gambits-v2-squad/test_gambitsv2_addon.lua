@@ -309,7 +309,7 @@ AshitaCore = { GetChatManager = function() return chatMgr end, GetInstallPath = 
 
 local globalsBefore = {}
 for k in pairs(_G) do globalsBefore[k] = true end
-local GV = dofile(ADDON_DIR .. '/GambitsV2.lua')
+local GV = dofile(ADDON_DIR .. '/Gambits.lua')  -- (the addon was renamed Gambits on 2026-11-19; its global and settings folder kept their names)
 local Ed, Tr = GV.Ed, GV.T
 
 -- the game loop: deliveries (through the text_in event, timestamped), squad timers, then d3d_present

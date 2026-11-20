@@ -92,6 +92,7 @@
 !/addons-src/
 /addons-src/*
 !/addons-src/Gambits/
+!/addons-src/autobox/
 !/addons-src/followme/
 !/addons-src/servermenu/
 !/addons-src/squadpanel/
