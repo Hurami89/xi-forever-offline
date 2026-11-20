@@ -534,6 +534,7 @@ RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # fiel
 RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
 RATE_DEFAULTS.update({"bots_growth": "realistic"})
 RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False})   # one-time bot head start (bots_growth.lua)
+RATE_DEFAULTS.update({"squad_keep_gear": False})   # gear given to the squad is unlocked and you keep the piece (squad.lua squadKeepGear)
 RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
 RATE_DEFAULTS.update({"short_quest_waits": True})   # Chocobo's Wounds 1 minute, Forge Your Destiny 1 hour (late/quest_waits.lua)
 RATE_DEFAULTS.update({"events": "date"})   # seasonal events: "date" (their own dates), "on" (all year), "off" (events_mode.lua)
@@ -707,8 +708,9 @@ def write_crowds_config(server_dir, rates):
             max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth, "true" if head_start else "false"))
     with open(os.path.join(module_dir, "squad_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
-        f.write("return { call_cooldown_min = %d, spell_scrolls = %s }\n" % (clean_call_cooldown(rates.get("squad_call_cooldown", 5)),
-                                                                      "true" if rates.get("spell_scrolls", False) else "false"))
+        f.write("return { call_cooldown_min = %d, spell_scrolls = %s, keep_gear = %s }\n" % (
+            clean_call_cooldown(rates.get("squad_call_cooldown", 5)), "true" if rates.get("spell_scrolls", False) else "false",
+            "true" if rates.get("squad_keep_gear", False) else "false"))
     with open(os.path.join(module_dir, "storage_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         f.write("return { full_bags = %s }\n" % ("true" if rates.get("full_bags", True) else "false"))
@@ -838,6 +840,8 @@ def load_rates(here):
             rates["modern_stacks"] = bool(saved["modern_stacks"])
         if "spell_scrolls" in saved:
             rates["spell_scrolls"] = bool(saved["spell_scrolls"])
+        if "squad_keep_gear" in saved:
+            rates["squad_keep_gear"] = bool(saved["squad_keep_gear"])
         if "short_quest_waits" in saved:
             rates["short_quest_waits"] = bool(saved["short_quest_waits"])
         if "events" in saved:
@@ -945,7 +949,7 @@ def apply_preset(rates, name):
                          ("crowds_field", True), ("crowds_field_parties", 1),
                          ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
-                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False),
+                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False),
                          ("short_quest_waits", True), ("events", "date")):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)

@@ -1618,7 +1618,7 @@ class RatesTab(tk.Frame):
         for k in (3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14):
             R[k], row = row, row + 1
         row = header("Squad and AI", row)
-        for k in (15, 16, 19, 21, 22, 17):
+        for k in (15, 16, 19, 26, 21, 22, 17):   # (26: squad gear, you keep the item)
             R[k], row = row, row + 1
         self.all_crafts = tk.BooleanVar(value=rates.get("all_crafts", True))
         tk.Checkbutton(inner, text="Every craft can reach 100 (off = only one, like the retail rule)", variable=self.all_crafts, bg=BG, fg=FG,
@@ -1723,6 +1723,11 @@ class RatesTab(tk.Frame):
                        "from monsters you defeat with a squad Blue Mage out. Below 18 everything stays automatic.",
                        variable=self.spell_scrolls, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[19], column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        self.squad_keep_gear = tk.BooleanVar(value=rates.get("squad_keep_gear", False))
+        tk.Checkbutton(inner, text="Squad gear: you keep the item. Trading a piece to a mate (or !squad give) unlocks it for "
+                       "the whole squad and you keep yours. Off = the squad takes the piece (one-of-a-kind gear is always kept).",
+                       variable=self.squad_keep_gear, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                       wraplength=520, justify="left").grid(row=R[26], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.short_quest_waits = tk.BooleanVar(value=rates.get("short_quest_waits", True))
         tk.Checkbutton(inner, text="Short quest waits: Chocobo's Wounds 1 minute between feedings (era: a game day each), "
                        "Forge Your Destiny 1 hour at the forge (era: three game days). Off = the era waits.",
@@ -1836,7 +1841,7 @@ class RatesTab(tk.Frame):
         return next((k for k, v in self.EVENTS_LABELS.items() if v == label), "date")
 
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
-                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "short_quest_waits")
+                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "short_quest_waits")
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
                  ("bots_growth", "bots_growth"), ("squad_call_cooldown", "squad_call_cooldown"))
@@ -1947,6 +1952,7 @@ class RatesTab(tk.Frame):
         rates["full_bags"] = bool(self.full_bags.get())
         rates["modern_stacks"] = bool(self.modern_stacks.get())
         rates["spell_scrolls"] = bool(self.spell_scrolls.get())
+        rates["squad_keep_gear"] = bool(self.squad_keep_gear.get())
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
         rates["events"] = self.events_value()
         rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done
