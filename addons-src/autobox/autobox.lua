@@ -29,7 +29,7 @@ require('common');
 local bit = require('bit');
 addon.name = 'autobox';
 addon.author = 'XI: Forever Offline';
-addon.version = '2.2.209';
+addon.version = '2.2.210';
 addon.desc = 'Autobox: rules for your own character (and the dualbox one), Parser, EXP Watch, Enemy Info. Formerly Gambits.';
 addon.link = '';
 
@@ -4011,6 +4011,20 @@ function E.actor_switch_key(actor)
     return (E.is_generated_recruit(actor) and 'recruit:' or 'trust:')
         .. E.safe_file_stem(actor.name) .. ':' .. tostring(actor.mainJob or 'UNKNOWN');
 end
+-- (2.2.210, 2026-11-20: "Kurami wasn't curing as much") Is this window the Dualbox character? The follow addon, which
+-- only runs in the second window, writes that character's name to config/addons/duo/status.cfg every second.
+-- 2.2.208 switched every character's own gambits off until "/autobox on", and that caught the Dualbox character too:
+-- its rule sheet (cures, buffs) stopped running and only the follow addon's basic support was left.
+function E.is_dualbox(name)
+    if type(name)~='string' or name=='' then return false; end
+    local base=E.call(AshitaCore,'GetInstallPath');
+    if type(base)~='string' or base=='' then return false; end
+    if not base:match('[/\\]$') then base=base..'/'; end
+    local txt=E.readfile(base..'config/addons/duo/status.cfg');
+    if type(txt)~='string' then return false; end
+    local who=txt:match('name=([^\r\n]+)');
+    return who~=nil and who:lower()==name:lower();
+end
 function E.actor_switch_load(ctx,force)
     if not ctx or not ctx.self or not ctx.self.name or not ctx.self.id then return false,'No player character'; end
     local identity=E.safe_file_stem(ctx.self.name)..'_'..tostring(ctx.self.id);
@@ -4021,7 +4035,8 @@ function E.actor_switch_load(ctx,force)
         if S.switchPath==path and S.switchText then S.switchError='Switch file temporarily unavailable'; return false,S.switchError; end
         E.mkdir(E.root()..'characters/'); E.mkdir(E.root()..'characters/'..identity..'/');
         local initial=(S.settings or DEFAULT).Enabled~=false;
-        local ok,data=E.writefile(path,{Version=2,Player=false,GuestDefault=initial,Guests={}},   -- your own gambits start OFF: /autobox on
+        -- your own gambits start OFF (/autobox on); the Dualbox character's start ON, nobody is at its keyboard
+        local ok,data=E.writefile(path,{Version=3,Player=E.is_dualbox(ctx.self.name),GuestDefault=initial,Guests={}},
             'Local master switches for this player and owned Trusts.');
         if not ok then S.switchError=tostring(data); return false,S.switchError; end
         txt=data;
@@ -4036,10 +4051,20 @@ function E.actor_switch_load(ctx,force)
             if type(key)~='string' or type(enabled)~='boolean' then value=nil; err='Invalid Trust master switch'; break; end
         end
     end
-    if value and value.Version~=2 then   -- 2.2.208: the player's own gambits are off unless switched on (once per character)
+    if value and value.Version~=2 and value.Version~=3 then   -- 2.2.208: the player's own gambits are off unless switched on (once per character)
         value.Player=false; value.Version=2;
         local ok,data=E.writefile(path,value,'Local master switches for this player and owned Trusts.');
         if ok then txt=data; E.log('Your own gambits are now off unless you turn them on: /autobox on',true); end
+    end
+    if value and value.Version==2 then   -- 2.2.210: once per character, the Dualbox character gets its gambits back
+        value.Version=3;
+        local dual=E.is_dualbox(ctx.self.name);
+        if dual and value.Player==false then value.Player=true; end
+        local ok,data=E.writefile(path,value,'Local master switches for this player and owned Trusts.');
+        if ok then
+            txt=data;
+            if dual then E.log('Dualbox character: its own gambits are switched back on (/autobox off turns them off).',true); end
+        end
     end
     if not value then S.switchError=readError or err; return false,S.switchError; end
     S.switchPath=path; S.switchText=txt; S.switches=value; S.switchError=nil;
