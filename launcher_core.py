@@ -537,6 +537,7 @@ RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False}) 
 RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
 RATE_DEFAULTS.update({"short_quest_waits": True})   # Chocobo's Wounds 1 minute, Forge Your Destiny 1 hour (late/quest_waits.lua)
 RATE_DEFAULTS.update({"events": "date"})   # seasonal events: "date" (their own dates), "on" (all year), "off" (events_mode.lua)
+RATE_DEFAULTS.update({"modern_stacks": True})   # item stacks as in today's game (12 / 99); off = Phoenix's era stacks (stack_mode.py)
 RATE_DEFAULTS.update({"full_bags": True})   # every bag (inventory, Mog Safe, Satchel, Sack, Case, Wardrobes) at 80 from the start (crystalboy_quests.lua)
 RATE_DEFAULTS.update({"squad_call_cooldown": 5})   # minutes before a squad mate can be called again (squad.lua)   # bots grow while you are away (bots_growth.lua)
 RATE_DEFAULTS.update({"squad_chat": True})   # squad mates answer in party chat with the local AI (squad-chat/squad_chat.py)
@@ -833,6 +834,8 @@ def load_rates(here):
             rates["squad_call_cooldown"] = clean_call_cooldown(saved["squad_call_cooldown"])
         if "full_bags" in saved:
             rates["full_bags"] = bool(saved["full_bags"])
+        if "modern_stacks" in saved:
+            rates["modern_stacks"] = bool(saved["modern_stacks"])
         if "spell_scrolls" in saved:
             rates["spell_scrolls"] = bool(saved["spell_scrolls"])
         if "short_quest_waits" in saved:
@@ -942,7 +945,7 @@ def apply_preset(rates, name):
                          ("crowds_field", True), ("crowds_field_parties", 1),
                          ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
-                         ("squad_call_cooldown", 5), ("full_bags", True), ("spell_scrolls", False),
+                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False),
                          ("short_quest_waits", True), ("events", "date")):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)

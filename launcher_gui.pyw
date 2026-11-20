@@ -1612,7 +1612,7 @@ class RatesTab(tk.Frame):
             ttk.Spinbox(inner, from_=field[5], to=field[6], increment=1 if field[7] == "int" else 0.25,
                         textvariable=var, width=8).grid(row=row, column=1, padx=6, pady=2)
             row += 1
-        for k in (2, 20, 18, 23, 0, 24):        # era exp tables, fast travel, full bags, short quest waits, all crafts, seasonal events
+        for k in (2, 20, 18, 25, 23, 0, 24):    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
             R[k], row = row, row + 1
         row = header("World", row)
         for k in (3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14):
@@ -1704,6 +1704,12 @@ class RatesTab(tk.Frame):
                        "wardrobe rewards) add space. Bags never shrink.",
                        variable=self.full_bags, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[18], column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        self.modern_stacks = tk.BooleanVar(value=rates.get("modern_stacks", True))
+        tk.Checkbutton(inner, text="Modern item stacks: items stack as in today's game (sheepskin, goblin helms and the like "
+                       "to 12, and some to 99). Off = the era: most of those don't stack at all. Empty or split your stacks "
+                       "of those items before switching this off.",
+                       variable=self.modern_stacks, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                       wraplength=520, justify="left").grid(row=R[25], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         on = all(str(self.vars[k].get()).strip() not in ("0", "0.0") for k in self.FAST_TRAVEL)
         self.fast_travel = tk.BooleanVar(value=on)
         tk.Checkbutton(inner, text="Fast travel: Home Point and Survival Guide teleports (touch one once, then teleport to it "
@@ -1830,7 +1836,7 @@ class RatesTab(tk.Frame):
         return next((k for k, v in self.EVENTS_LABELS.items() if v == label), "date")
 
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
-                 "bots", "squad_chat", "full_bags", "spell_scrolls", "short_quest_waits")
+                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "short_quest_waits")
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
                  ("bots_growth", "bots_growth"), ("squad_call_cooldown", "squad_call_cooldown"))
@@ -1939,6 +1945,7 @@ class RatesTab(tk.Frame):
         rates["squad_chat"] = bool(self.squad_chat.get())
         rates["squad_call_cooldown"] = core.clean_call_cooldown(self.squad_call_cooldown.get())
         rates["full_bags"] = bool(self.full_bags.get())
+        rates["modern_stacks"] = bool(self.modern_stacks.get())
         rates["spell_scrolls"] = bool(self.spell_scrolls.get())
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
         rates["events"] = self.events_value()
@@ -3945,6 +3952,7 @@ class App(tk.Tk):
 
         self.conquest_ticked = self.run_conquest("tick")      # catch the world up on the time you were away (servers are not running yet)
         self.run_char_sync("sync-in")                         # (off by default) characters your other PC saved to the shared folder
+        self.run_stack_mode()                                 # item stacks on the server: today's sizes (default) or the era's
 
         # broken "what a character wears" rows crash the login (2026-11-07): remove them while the servers are down
         try:
@@ -4195,6 +4203,36 @@ class App(tk.Tk):
         self.launch_boot = boot
         self.select_tab(0)          # shows the Play page and highlights it in the top bar
         self.start()
+
+    def run_stack_mode(self):
+        # Rates tab, "Modern item stacks": stack_mode.py sets the stack size of the items on Phoenix's era list in the
+        # server's item table before the servers start (an update puts the era values back, so this runs on every PLAY).
+        # The game's own item files are done by launcher_client.apply_all with the other game-file changes.
+        script = os.path.join(HERE, "stack_mode.py")
+        if not os.path.exists(script):
+            return
+        try:
+            mode = "modern" if self.rates.get("modern_stacks", True) else "era"
+            done = subprocess.run(core.py_cmd(script, "db", mode), cwd=HERE, capture_output=True, text=True, timeout=90,
+                                  creationflags=core.NO_WINDOW)
+            lines = (done.stdout or "").strip().splitlines()
+            if done.returncode != 0:
+                errors = (done.stderr or "").strip().splitlines()
+                self.say("Item stacks were not set on the server: " + (errors[-1] if errors else "unknown") + " - continuing.")
+            elif lines and "already" not in lines[-1]:
+                self.say(lines[-1][:1].upper() + lines[-1][1:])
+            # a player install does the game files in launcher_client.apply_all; this PC (no kit MariaDB) does them here
+            if not core.load_config(os.path.join(HERE, "config.json")).get("mariadb_dir"):
+                done = subprocess.run(core.py_cmd(script, "dats", mode), cwd=HERE, capture_output=True, text=True, timeout=120,
+                                      creationflags=core.NO_WINDOW)
+                lines = (done.stdout or "").strip().splitlines()
+                if done.returncode != 0:
+                    errors = (done.stderr or "").strip().splitlines()
+                    self.say("Item stacks were not set in the game files: " + (errors[-1] if errors else "unknown") + " - continuing.")
+                elif lines and not lines[-1].startswith("item stacks: 0 changed"):
+                    self.say(lines[-1][:1].upper() + lines[-1][1:])
+        except Exception as e:
+            self.say(f"Item stacks were not set on the server: {e}")
 
     def run_char_sync(self, mode):
         # CO-OP page, "PLAY ON ANOTHER PC", automatic (off by default): launcher_passport.py loads the characters your other
