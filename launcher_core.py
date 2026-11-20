@@ -1090,6 +1090,10 @@ def apply_rates(server_dir, rates):
     wanted["map.lua"].append(("LV_CAP_MISSION_BCNM", True, "bool"))
     # Keep crash dumps on: settings/main.lua is rebuilt from the defaults every launch, so a hand edit
     # there is lost. With dumps on, a crash writes a minidump and a tombstone that names the function.
+    # (2026-11-20, Yumainai: "Explorer Moogles" standing in the middle of Northern San d'Oria, Bastok Mines and Mhaura that
+    # do nothing) they are Wings of the Goddess content, so the server parks them at 0,0,0 and hides them; but the zone
+    # scripts un-hide them whenever this level is not 0 (xi.server.setExplorerMoogles). 0 = no Explorer Moogles.
+    wanted["main.lua"].append(("EXPLORER_MOOGLE_LV", 0, "int"))
     wanted["main.lua"].append(("GENERATE_CORE_DUMP", True, "bool"))
     # The watchdog kills the map server when one tick takes 2 s. On slower PCs a log in (the bots logging in with you and
     # catching up on their history) can take longer; that's fine offline, so allow 15 s before it counts as a hang.
