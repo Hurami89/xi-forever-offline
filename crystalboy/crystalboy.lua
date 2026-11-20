@@ -1,6 +1,6 @@
 addon.name    = 'crystalboy'
 addon.author  = 'XI: Forever Offline'
-addon.version = '1.5'
+addon.version = '1.6'
 addon.desc    = 'Crystal Boy: play your Game Boy cartridges inside FFXI.'
 addon.link    = ''
 
@@ -407,6 +407,7 @@ local function apply_input()
     for _, action in ipairs({ 'save', 'load' }) do
         local down = input.held(action, S.binds)
         if down and not G.held[action] and G.game then
+            trace.log('key: ' .. action .. ' state'); trace.step('key ' .. action .. ' state')
             if action == 'save' then save_state(S.slot) else load_state(S.slot) end
         end
         G.held[action] = down or nil
@@ -483,7 +484,9 @@ end
 local function draw()
     if not G.open[1] then G.focused = false; return end
     imgui.SetNextWindowSize({ 160 * S.scale + 20, 144 * S.scale + 120 }, ImGuiCond_FirstUseEver)
-    if imgui.Begin('Crystal Boy', G.open, ImGuiWindowFlags_AlwaysAutoResize) then
+    -- (1.6) no keyboard / controller navigation inside this window: the keys you play with (Enter = Start, Space = fast)
+    -- are also ImGui's "press the highlighted button" keys, so playing could press Save state, Load state or Reset
+    if imgui.Begin('Crystal Boy', G.open, bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoNavInputs or 0)) then
         G.focused = imgui.IsWindowFocused()
 
         local preview = G.cart and cart_name(G.cart) or 'Choose a cartridge...'
@@ -511,6 +514,7 @@ local function draw()
             local id, u, v = screen.image()
             trace.log('image ' .. tostring(id), 'img', 40); trace.step('image ' .. tostring(id))
             if id then imgui.Image(id, { w, h }, { 0, 0 }, { u, v }) else imgui.Dummy({ w, h }) end
+            trace.step('image drawn')
         else
             imgui.Dummy({ w, h / 2 })
             if G.core_error then imgui.TextColored({ 1, 0.45, 0.45, 1 }, G.core_error) end
@@ -524,11 +528,11 @@ local function draw()
             if imgui.RadioButton(tostring(i), S.slot == i) then S.slot = i; save_settings() end
             imgui.SameLine()
         end
-        if imgui.Button('Save state') then save_state(S.slot) end
+        if imgui.Button('Save state') then trace.log('button: save state'); trace.step('button save state'); save_state(S.slot); trace.step('button save state done') end
         imgui.SameLine()
-        if imgui.Button('Load state') then load_state(S.slot) end
+        if imgui.Button('Load state') then trace.log('button: load state'); trace.step('button load state'); load_state(S.slot); trace.step('button load state done') end
         imgui.SameLine()
-        if imgui.Button('Reset') and G.game then retro.reset() end
+        if imgui.Button('Reset') and G.game then trace.log('button: reset'); trace.step('button reset'); retro.reset(); trace.step('button reset done') end
         imgui.SameLine()
         if imgui.Button(S.sound and 'Sound: on' or 'Sound: off') then
             S.sound = not S.sound; G.audio_failed = nil
@@ -579,6 +583,7 @@ local function draw()
             extra = string.format('   |   %s / %gh', hm((G.play or {})[title]), tonumber(rule.playtime_hours))
         end
         imgui.Text(status .. extra)
+        trace.step('window drawn')
     end
     imgui.End()
 end
