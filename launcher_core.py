@@ -1084,6 +1084,11 @@ def apply_rates(server_dir, rates):
     # (2026-11-20, Trinity: "Is fishing disabled?") the server default switches all fishing off (a guard against fishing
     # bots on public servers, "enable at your own risk"); there is no such risk on your own world
     wanted["map.lua"].append(("FISHING_ENABLE", True, "bool"))
+    # (2026-11-20, the user: "there is no reason for a limit here") no daily limits on your own world: fishing (200
+    # catches a day and the fatigue meter; needs the server from this release on, older ones skip the key) and
+    # chocobo digging (100 finds a day)
+    wanted["map.lua"].append(("FISHING_DAILY_LIMITS", False, "bool"))
+    wanted["main.lua"].append(("DIG_FATIGUE", 0, "int"))
     # (2026-11-20, Yumainai: the rank 2-3 dragon was not capped) the server default lifts the level cap of every mission
     # fight to the max level; on, they keep their era caps (era/lua/battlefields/mission_level_caps.lua: rank 2-3 at 25,
     # rank 5-1 at 50, Promathia 30 / 40 / 50 / 60 / 75), like every other capped battlefield
