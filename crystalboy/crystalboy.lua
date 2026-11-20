@@ -17,6 +17,7 @@ local util    = require('cb.util')
 local carts   = require('cb.carts')
 local input   = require('cb.input')
 local trace   = require('cb.trace')
+local audio   = require('cb.audio')
 local okchat, chat = pcall(require, 'chat')
 
 ------------------------------------------------------------------------------
@@ -29,6 +30,8 @@ local DEFAULTS = {
     pause_unfocused = true,
     core = '',            -- core file in addons\crystalboy\cores ('' = first one found)
     palette = 'auto',     -- gambatte colorization: auto, GBC, SGB, internal, disabled
+    sound = true,         -- (1.5) the game's sound
+    volume = 60,          -- 0-100
 }
 
 local P = {}       -- paths
@@ -105,6 +108,8 @@ local function load_settings()
     S.scale = math.max(1, math.min(6, tonumber(S.scale) or 3))
     S.ff_speed = math.max(2, math.min(10, tonumber(S.ff_speed) or 4))
     S.slot = math.max(1, math.min(3, tonumber(S.slot) or 1))
+    S.volume = math.max(0, math.min(100, tonumber(S.volume) or 60))
+    S.sound = S.sound ~= false
     S.binds = input.load(t.binds) -- (older versions kept window key codes in S.keys: replaced by the defaults)
 end
 
@@ -224,6 +229,7 @@ end
 
 local function stop_game()
     if G.game then flush_save(); save_play() end
+    pcall(audio.flush)
     retro.unload_game()
     G.game = nil
     G.cart = nil
@@ -429,6 +435,26 @@ local function tick()
     trace.log('run ' .. n .. ' frames', 'run', 40); trace.step('run ' .. n .. ' frames')
     retro.run(n)
     trace.log('run done', 'rundone', 40); trace.step('run done')
+    -- (1.5) sound: what the core produced in these frames goes to the sound device. Not while fast forwarding (it would
+    -- only be noise), and never allowed to break the game: any failure switches the sound off for this session.
+    local samples, frames = retro.audio_take()
+    if S.sound and not G.audio_failed and not fast and frames > 0 then
+        trace.step('audio')
+        local ok, err = pcall(function()
+            if not audio.is_open() or audio.rate() ~= retro.sample_rate() then
+                local opened, why = audio.open(retro.sample_rate())
+                trace.log('audio open ' .. tostring(retro.sample_rate()) .. ' -> ' .. tostring(opened) .. ' ' .. tostring(why))
+                if not opened then error(why or 'no sound device') end
+            end
+            audio.write(samples, frames, S.volume)
+        end)
+        if not ok then
+            G.audio_failed = true
+            trace.log('audio off: ' .. tostring(err))
+            say('Crystal Boy: no sound this session (' .. tostring(err) .. ').')
+        end
+        trace.step('audio done')
+    end
     if now_s() >= G.next_flush then
         G.next_flush = now_s() + 3
         flush_save()
@@ -502,6 +528,12 @@ local function draw()
         if imgui.Button('Load state') then load_state(S.slot) end
         imgui.SameLine()
         if imgui.Button('Reset') and G.game then retro.reset() end
+        imgui.SameLine()
+        if imgui.Button(S.sound and 'Sound: on' or 'Sound: off') then
+            S.sound = not S.sound; G.audio_failed = nil
+            if not S.sound then pcall(audio.flush) end
+            save_settings()
+        end
 
         imgui.SameLine()
         if imgui.Button(G.show_controls and 'Controls ^' or 'Controls') then G.show_controls = not G.show_controls; G.capture = nil end
@@ -567,6 +599,7 @@ local HELP = {
     '/cb ff              fast forward on/off (or hold Space while playing)',
     '/cb save [1-3]      save state            /cb load [1-3]   load state',
     '/cb scale <1-6>     picture size          /cb speed <2-10> fast forward speed',
+    '/cb sound [on|off]  the game\'s sound       /cb volume <0-100>',
     '/cb snap <name>     memory snapshot       /cb diff <a> <b> [ram]  what changed',
     '/cb record          record the game memory once a second (start / stop)',
     '/cb done            which games this character has completed',
@@ -596,6 +629,7 @@ end)
 
 ashita.events.register('unload', 'cb_unload', function()
     stop_game()
+    pcall(audio.close)
     retro.close()
     screen.release()
     save_settings()
@@ -637,6 +671,13 @@ ashita.events.register('command', 'cb_command', function(e)
         load_state(tonumber(a[3]) or S.slot)
     elseif sub == 'scale' then
         S.scale = math.max(1, math.min(6, tonumber(a[3]) or S.scale)); save_settings(); say('Scale ' .. S.scale)
+    elseif sub == 'sound' then
+        if a[3] == 'on' or a[3] == 'off' then S.sound = a[3] == 'on' else S.sound = not S.sound end
+        G.audio_failed = nil
+        if not S.sound then pcall(audio.flush) end
+        save_settings(); say('Sound ' .. (S.sound and 'on' or 'off'))
+    elseif sub == 'volume' then
+        S.volume = math.max(0, math.min(100, tonumber(a[3]) or S.volume)); save_settings(); say('Volume ' .. S.volume)
     elseif sub == 'speed' then
         S.ff_speed = math.max(2, math.min(10, tonumber(a[3]) or S.ff_speed)); save_settings(); say('Fast forward x' .. S.ff_speed)
     elseif sub == 'record' then
