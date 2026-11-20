@@ -4160,12 +4160,22 @@ class App(tk.Tk):
     def launch_extra(self, boot, log_name):
         """Opens one more game window with the given boot file, next to the one already running."""
         cli = os.path.join(self.ashita, "Ashita-cli.exe")
+        self.fix_shot_dir(boot)
         log = open(os.path.join(LOGS, log_name), "wb")
         self.logfiles.append(log)
         if linux is not None:
             linux.start_game(HERE, self.cfg, self.ashita, boot, log)
             return
         subprocess.Popen([cli, boot], cwd=self.ashita, stdout=log, stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
+
+    def fix_shot_dir(self, boot):
+        """Points a boot file's screenshot folder (registry 0042) at the real game folder. The main boot file gets this
+        with the graphics settings; the GM and second-character files did not, and PrintScreen froze the game there."""
+        try:
+            if self.ashita and boot:
+                core.apply_shot_dir(os.path.join(self.ashita, "config", "boot", boot), self.cfg.get("ffxi_client_dir"))
+        except Exception:
+            pass
 
     def start_gm(self):
         """Opens the game as the GM account (set up on the Settings page). With the servers off it starts them too, like PLAY."""
@@ -4180,6 +4190,7 @@ class App(tk.Tk):
             return
         if self.running:
             return
+        self.fix_shot_dir(boot)
         self.launch_boot = boot
         self.select_tab(0)          # shows the Play page and highlights it in the top bar
         self.start()

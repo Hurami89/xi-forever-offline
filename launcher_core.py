@@ -1260,6 +1260,37 @@ def apply_graphics(ini_path, values, game_dir=None):
         f.write(newline.join(lines) + newline)
 
 
+def apply_shot_dir(ini_path, game_dir):
+    """Only key 0042 (the game folder, where PrintScreen saves) in a boot file's [ffxi.registry]; nothing else changes.
+    For the boot files that do not get the Graphics page's values: the GM game and the second character (Abbot,
+    2026-11-19: PrintScreen still froze the game on his GM account). True when the file was changed."""
+    shot_dir = game_dir_value(game_dir)
+    if not shot_dir or not ini_path or not os.path.exists(ini_path):
+        return False
+    with open(ini_path, "r", encoding="utf-8-sig", newline="") as f:
+        text = f.read()
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines()
+    start, end = _section_bounds(lines)
+    if start is None:
+        return False
+    want = f"0042 = {shot_dir}"
+    for i in range(start + 1, end):
+        if re.match(r"^\s*0042\s*=", lines[i]):
+            if lines[i].strip() == want:
+                return False
+            lines[i] = want
+            break
+    else:
+        insert_at = end
+        while insert_at > start + 1 and not lines[insert_at - 1].strip():
+            insert_at -= 1
+        lines.insert(insert_at, want)
+    with open(ini_path, "w", encoding="utf-8", newline="") as f:
+        f.write(newline.join(lines) + newline)
+    return True
+
+
 def _borderless_startpos(lines, borderless):
     """A borderless window starts at the screen's top-left corner (x = 0, y = 0 in [ashita.window.startpos]); otherwise
     Ashita's default (-1: centred). Only the launcher's own values (-1 or 0) are changed, never a position someone set."""

@@ -162,6 +162,7 @@ __pycache__/
 *.exe
 *.dll
 !/thirdparty-bundled/*/plugins/*.dll
+!/thirdparty-bundled/*/cores/*.dll
 config.json
 desktop.ini
 Thumbs.db
