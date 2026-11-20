@@ -1084,6 +1084,10 @@ def apply_rates(server_dir, rates):
     # (2026-11-20, Trinity: "Is fishing disabled?") the server default switches all fishing off (a guard against fishing
     # bots on public servers, "enable at your own risk"); there is no such risk on your own world
     wanted["map.lua"].append(("FISHING_ENABLE", True, "bool"))
+    # (2026-11-20, Yumainai: the rank 2-3 dragon was not capped) the server default lifts the level cap of every mission
+    # fight to the max level; on, they keep their era caps (era/lua/battlefields/mission_level_caps.lua: rank 2-3 at 25,
+    # rank 5-1 at 50, Promathia 30 / 40 / 50 / 60 / 75), like every other capped battlefield
+    wanted["map.lua"].append(("LV_CAP_MISSION_BCNM", True, "bool"))
     # Keep crash dumps on: settings/main.lua is rebuilt from the defaults every launch, so a hand edit
     # there is lost. With dumps on, a crash writes a minidump and a tombstone that names the function.
     wanted["main.lua"].append(("GENERATE_CORE_DUMP", True, "bool"))
