@@ -2940,6 +2940,15 @@ class App(tk.Tk):
                   selectbackground=[("readonly", PANEL2)], selectforeground=[("readonly", FG)])
         style.configure("TSpinbox", fieldbackground=PANEL2, background=PANEL2, foreground=FG, arrowcolor=ACCENT,
                         bordercolor=BORDER, lightcolor=PANEL2, darkcolor=PANEL2)
+        # (Altair 2026-11-19: "Experience from monsters" was 0.0 and he never touched it) the mouse wheel changes a
+        # number box or a drop-down under the pointer, so scrolling a page of settings quietly changed them: four
+        # notches took the first rate from 1.0 to 0. The wheel no longer changes values; arrows and typing still do.
+        for widget_class in ("TSpinbox", "TCombobox", "Spinbox"):
+            for wheel in ("<MouseWheel>", "<Shift-MouseWheel>", "<Button-4>", "<Button-5>"):
+                try:
+                    self.unbind_class(widget_class, wheel)
+                except tk.TclError:
+                    pass
         style.configure("Vertical.TScrollbar", background=BORDER, troughcolor=BG, arrowcolor=DIM, bordercolor=BG,
                         lightcolor=BORDER, darkcolor=BORDER)
         style.configure("Solo.Horizontal.TProgressbar", troughcolor=PANEL, background=ACCENT, bordercolor=BORDER,
@@ -3794,6 +3803,11 @@ class App(tk.Tk):
                 self.say(f"Co-op: could not set up hosting ({e}) - starting as a private world.")
 
         self.say("Applying your rates...")
+        try:
+            if float(self.rates.get("map.EXP_RATE", 1) or 0) <= 0:
+                self.say("Note: 'Experience from monsters' is 0 on CONFIG > Rates, so monsters give no experience. Set it to 1 for the normal amount.")
+        except (TypeError, ValueError):
+            pass
         try:
             for note in core.apply_rates(cfg["server_dir"], dict(self.rates, coop_hosting=hosting)):
                 self.say(note)
