@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.23';
+addon.version = '1.24';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -898,7 +898,8 @@ local function campRow()
         for _, k in ipairs(camp.kinds) do
             if k.fits then
                 local key = k.name:lower():gsub('_', ' ');
-                local label = string.format('%s lv%d%s x%d', (k.name:gsub('_', ' ')), k.lo, k.hi ~= k.lo and ('-' .. k.hi) or '', k.count);
+                -- (1.24) the count is how many are up right now; none up = all defeated and waiting to come back
+                local label = string.format('%s lv%d%s %s', (k.name:gsub('_', ' ')), k.lo, k.hi ~= k.lo and ('-' .. k.hi) or '', k.count > 0 and ('x' .. k.count) or '(none up)');
                 imgui.SameLine(0, 6);
                 if button(label, 'campkind' .. k.name, 0, 0, wants[key] and 'selected' or nil) then
                     campCommand('camp want ' .. k.name);
