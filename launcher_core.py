@@ -488,6 +488,11 @@ RATE_FIELDS = [
     ("map.MOB_GIL_MULTIPLIER",          "map.lua",  "MOB_GIL_MULTIPLIER",          "Gil dropped by monsters",               1.0, 0.0, 100.0, "float"),
     ("main.GIL_RATE",                   "main.lua", "GIL_RATE",                    "Gil from quests",                       1.0, 0.0, 100.0, "float"),
     ("main.FAME_RATE",                  "main.lua", "FAME_RATE",                   "Fame from quests (1 = retail)",         1.0, 0.1, 20.0, "float"),
+    # (2026-11-20) lottery NMs (Leaping Lizzy, Valkurm Emperor...): the server reads these since v0.1.49 (spawn_slot.cpp).
+    # Chance: a multiplier on each NM's own chance; any negative value = the NM always comes next. 0 counts as 1%.
+    # Wait: a multiplier on the time after a kill before the NM can be rolled again; 0 = none.
+    ("main.NM_LOTTERY_CHANCE",          "main.lua", "NM_LOTTERY_CHANCE",           "Lottery NM spawn chance (1 = retail, -1 = always)", 1.0, -1.0, 100.0, "float"),
+    ("main.NM_LOTTERY_COOLDOWN",        "main.lua", "NM_LOTTERY_COOLDOWN",         "Lottery NM wait after a kill (1 = retail, 0 = none)", 1.0, 0.0, 10.0, "float"),
     ("main.TABS_RATE",                  "main.lua", "TABS_RATE",                   "Tabs from Fields of Valor",             1.0, 0.0, 100.0, "float"),
     ("main.SPARKS_RATE",                "main.lua", "SPARKS_RATE",                 "Sparks from Records of Eminence",       1.0, 0.0, 100.0, "float"),
     ("main.CASKET_DROP_RATE",           "main.lua", "CASKET_DROP_RATE",            "Treasure casket chance (0.1 = 10%)",    0.1, 0.0, 1.0,   "float"),
@@ -755,6 +760,31 @@ def clean_crowd_size(value):
         return 15
 
 
+# Settings that players set by hand in settings/main.lua before the launcher had a box for them. The first time the
+# launcher sees no saved value for one, it takes the value from that file instead of the default, so an update does not
+# quietly undo a hand edit (the launcher writes its own value over the file from then on).
+ADOPTED_RATES = ("main.NM_LOTTERY_CHANCE", "main.NM_LOTTERY_COOLDOWN")
+
+
+def _adopt_hand_edits(here, rates, saved):
+    try:
+        missing = [f for f in RATE_FIELDS if f[0] in ADOPTED_RATES and f[0] not in saved]
+        if not missing:
+            return
+        with open(os.path.join(here, "config.json"), "r", encoding="utf-8-sig") as f:
+            server_dir = json.load(f).get("server_dir") or ""
+        for field in missing:
+            path = os.path.join(server_dir, "settings", field[1])
+            if not os.path.exists(path):
+                continue
+            with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+                found = re.search(r"(?m)^\s*" + re.escape(field[2]) + r"\s*=\s*(-?\d+(?:\.\d+)?)\s*,", f.read())
+            if found:
+                rates[field[0]] = clean_rate(field, found.group(1))
+    except Exception:
+        pass      # (no config.json yet, an unreadable file: the defaults stand)
+
+
 def load_rates(here):
     rates = dict(RATE_DEFAULTS)
     try:
@@ -763,6 +793,7 @@ def load_rates(here):
         for field in RATE_FIELDS:
             if field[0] in saved:
                 rates[field[0]] = clean_rate(field, saved[field[0]])
+        _adopt_hand_edits(here, rates, saved)
         for flag in ("all_crafts", "ah_sim", "era_exp", "conquest_sim"):
             if flag in saved:
                 rates[flag] = bool(saved[flag])
