@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.24';
+addon.version = '1.25';
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -257,7 +257,7 @@ local function pump(t)
     if chat == nil or typing(chat) then return; end
     local first = table.remove(S.queue, pick);
     S.lastSend = t;
-    S.hideUntil = t + 2.5;
+    S.hideUntil = t + 6;   -- (1.25: was 2.5 s; a busy server answers later than that)
     pcall(function() chat:QueueCommand(1, first.command); end);
 end
 
@@ -2438,13 +2438,15 @@ ashita.events.register('text_in', 'servermenu_text_in', function (e)
     local text = strip(e.message_modified or e.message);
     local at = text:find('squadpanel:', 1, true);
     if at then
-        if now() < S.waitUntil + 3 then e.blocked = true; end                -- hidden only while the menu asked for it
+        -- (1.25, Altair and Yumainai: a wall of squadpanel: lines in the chat log) these lines are only data for this
+        -- menu. They used to be hidden for a few seconds after the menu asked; a second answer, or a slow one, got through.
+        e.blocked = true;
         onLine(text:sub(at + 11));
         return;
     end
     local sheetAt = text:find('squadsheet:', 1, true);
     if sheetAt then
-        if now() < (S.sheetWaitUntil or 0) + 3 then e.blocked = true; end
+        e.blocked = true;
         onSheetLine(text:sub(sheetAt + 11));
         return;
     end

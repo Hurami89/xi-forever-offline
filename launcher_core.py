@@ -516,7 +516,10 @@ RATE_FIELDS = [
     ("main.ENABLE_TRUST_QUESTS",        "main.lua", "ENABLE_TRUST_QUESTS",         "Trust quest NPCs (1 = on)", 0, 0, 1, "int"),
     ("main.ENABLE_DAILY_TALLY",         "main.lua", "ENABLE_DAILY_TALLY",          "Gobbie Mystery Box (1 = on)", 0, 0, 1, "int"),
     ("main.HALLOWEEN_2005",             "main.lua", "HALLOWEEN_2005",              "Harvest Festival (Oct 20-Nov 1, 1=on)", 1,   0,   1,     "int"),
-    ("main.NEW_CHARACTER_CUTSCENE",     "main.lua", "NEW_CHARACTER_CUTSCENE",      "New-character cutscenes (1 = on)", 1, 0, 1, "int"),
+    # (2026-11-20) off by default for now: on the November 2026 game version the opening scene stops at the map page and
+    # the new character is stuck (Ste, Odeken, tarolin, shujimi): the era event files were made for October. A world
+    # that already has a saved value keeps it. Put the default back to 1 once the era files match the game again.
+    ("main.NEW_CHARACTER_CUTSCENE",     "main.lua", "NEW_CHARACTER_CUTSCENE",      "New-character cutscenes (1 = on)", 0, 0, 1, "int"),
     ("main.HOMEPOINT_TELEPORT",         "main.lua", "HOMEPOINT_TELEPORT",          "Home Point teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("main.ENABLE_SURVIVAL_GUIDE",      "main.lua", "ENABLE_SURVIVAL_GUIDE",       "Survival Guide teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("map.BASE_SPEED",                  "map.lua",  "BASE_SPEED",                  "Run speed (50 = retail)",               50,  40,  120,   "int"),
@@ -1078,6 +1081,9 @@ def apply_rates(server_dir, rates):
     wanted["map.lua"].append(("CRAFT_SPECIALIZATION_POINTS", 3200 if rates.get("all_crafts", True) else 400, "int"))
     # auction house: no limit on your own listings (the ah_pagination module shows them 6 per page)
     wanted["map.lua"].append(("AH_LIST_LIMIT", 0, "int"))
+    # (2026-11-20, Trinity: "Is fishing disabled?") the server default switches all fishing off (a guard against fishing
+    # bots on public servers, "enable at your own risk"); there is no such risk on your own world
+    wanted["map.lua"].append(("FISHING_ENABLE", True, "bool"))
     # Keep crash dumps on: settings/main.lua is rebuilt from the defaults every launch, so a hand edit
     # there is lost. With dumps on, a crash writes a minidump and a tombstone that names the function.
     wanted["main.lua"].append(("GENERATE_CORE_DUMP", True, "bool"))
