@@ -3944,6 +3944,7 @@ class App(tk.Tk):
             self.say(f"Could not write kit_paths.lua ({e}) - squad chat and Crystal Boy rewards use the default folders.")
 
         self.conquest_ticked = self.run_conquest("tick")      # catch the world up on the time you were away (servers are not running yet)
+        self.run_char_sync("sync-in")                         # (off by default) characters your other PC saved to the shared folder
 
         # broken "what a character wears" rows crash the login (2026-11-07): remove them while the servers are down
         try:
@@ -4195,6 +4196,24 @@ class App(tk.Tk):
         self.select_tab(0)          # shows the Play page and highlights it in the top bar
         self.start()
 
+    def run_char_sync(self, mode):
+        # CO-OP page, "PLAY ON ANOTHER PC", automatic (off by default): launcher_passport.py loads the characters your other
+        # PC saved to the shared folder before the servers start ("sync-in") and saves yours after they stop ("sync-out").
+        try:
+            cfg = core.load_config(os.path.join(HERE, "config.json"))
+            if not cfg.get("char_sync") or not cfg.get("char_sync_dir"):
+                return
+            done = subprocess.run(core.py_cmd(os.path.join(HERE, "launcher_passport.py"), mode), cwd=HERE, capture_output=True,
+                                  text=True, timeout=120, creationflags=core.NO_WINDOW)
+            lines = (done.stdout or "").strip().splitlines()
+            if done.returncode != 0:
+                errors = (done.stderr or "").strip().splitlines()
+                self.say("The character folder had a problem: " + (errors[-1] if errors else "unknown") + " - continuing without it.")
+            for line in lines:
+                self.say(line[:1].upper() + line[1:])
+        except Exception as e:
+            self.say(f"The character folder was not used: {e}")
+
     def run_conquest(self, mode):
         # The conquest simulator (conquest_sim.py) edits the conquest table. "tick" runs before the servers start, "stamp" after they stop.
         script = os.path.join(HERE, "conquest_sim.py")
@@ -4380,6 +4399,7 @@ class App(tk.Tk):
         if getattr(self, "conquest_ticked", False):
             self.run_conquest("stamp")                         # the session is over: note the time so the tally is not repeated
             self.conquest_ticked = False
+        self.run_char_sync("sync-out")                         # (off by default) your characters go to the shared folder
         for f in self.logfiles:
             try:
                 f.close()
