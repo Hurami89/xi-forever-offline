@@ -54,6 +54,7 @@
 !/check-rebuild.ps1
 !/check-updates.ps1
 !/server_update.py
+!/team_update.py
 !/install-era-dats.ps1
 !/restore-original-dats.ps1
 !/get-reshade-packs.ps1

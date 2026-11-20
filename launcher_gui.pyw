@@ -2359,16 +2359,50 @@ class UpdatesTab(tk.Frame):
         frame = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
         frame.pack(fill="x", padx=14, pady=6)
         tk.Label(frame, text="Updates from your team", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
-        tk.Label(frame, text=("Contributors send their changes from their launcher; each one arrives as a pull request on GitHub. Review it "
-                              "there and merge it (or ask for changes), then pull here and publish as usual. Who can send what is in "
-                              "contributors.json: edit it, commit and push to add or remove someone."),
+        tk.Label(frame, text=("Contributors send their changes from their launcher; each one arrives as a pull request on GitHub. "
+                              "Add to my build brings every waiting update onto this PC (your own edits are saved first; if anything "
+                              "clashes it is cancelled and nothing changes), rebuilds the server when needed and copies new add-ons "
+                              "into Ashita. Try it in game, then Send to GitHub and publish as usual. Undo goes back. Who can send "
+                              "what is in contributors.json."),
                  bg=PANEL, fg=DIM, wraplength=880, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(0, 8))
         bar = tk.Frame(frame, bg=PANEL)
         bar.pack(anchor="w", padx=12, pady=(0, 12))
         tk.Button(bar, text="Show waiting updates", command=self.team_check, bg=PANEL2, fg=FG, relief="flat",
                   padx=12, pady=5).pack(side="left", padx=(0, 8))
+        # (2026-11-19) the same safe steps as the Phoenix update, for the team's pull requests: team_update.py
+        tk.Button(bar, text="Add to my build", command=self.team_add, bg=ACCENT, fg="white", relief="flat",
+                  padx=12, pady=5).pack(side="left", padx=(0, 8))
+        tk.Button(bar, text="Undo", command=self.team_undo, bg=PANEL2, fg=FG, relief="flat",
+                  padx=12, pady=5).pack(side="left", padx=(0, 8))
+        tk.Button(bar, text="Send to GitHub", command=self.team_push, bg=PANEL2, fg=FG, relief="flat",
+                  padx=12, pady=5).pack(side="left", padx=(0, 8))
         tk.Button(bar, text="Open on GitHub", command=lambda: self.app.open_url(f"https://github.com/{KIT_REPO_NAME}/pulls"),
                   bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5).pack(side="left", padx=(0, 8))
+
+    def team_add(self):
+        if self.app.running:
+            messagebox.showinfo("Updates from your team", "Close the game first (the servers must be stopped).")
+            return
+        if messagebox.askyesno("Updates from your team",
+                               "Add every waiting update to the build on this PC?\n\n"
+                               "Your own uncommitted edits are saved as a local commit first. If anything clashes, it is "
+                               "cancelled and nothing changes. The server is rebuilt when the update needs it.\n\n"
+                               "Nothing is sent to GitHub or to players by this."):
+            self.run_script("team_update.py", ["update"])
+
+    def team_undo(self):
+        if self.app.running:
+            messagebox.showinfo("Updates from your team", "Close the game first (the servers must be stopped).")
+            return
+        if messagebox.askyesno("Updates from your team", "Go back to how both folders were before the last 'Add to my build'?"):
+            self.run_script("team_update.py", ["undo"])
+
+    def team_push(self):
+        if messagebox.askyesno("Send to GitHub",
+                               "Send the commits on this PC to GitHub (launcher to main, server to dev)?\n\n"
+                               "Only committed work is sent. Merged team updates are marked as merged on GitHub. "
+                               "Players get nothing until you publish."):
+            self.run_script("team_update.py", ["push"])
 
     def team_check(self):
         def work():
