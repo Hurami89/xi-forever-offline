@@ -1,6 +1,6 @@
 addon.name    = 'crystalboy'
 addon.author  = 'XI: Forever Offline'
-addon.version = '1.4'
+addon.version = '1.5'
 addon.desc    = 'Crystal Boy: play your Game Boy cartridges inside FFXI.'
 addon.link    = ''
 
@@ -695,11 +695,27 @@ end)
 -- empty keyboard and controller (so your character does not walk off while you play). Click the game to give them back.
 local function captured() return G.open[1] and G.focused end
 
-ashita.events.register('key', 'cb_key', function(e)
+-- (1.5) Every input and frame handler runs guarded: a Lua error in one of them is written to the trace with the line
+-- it happened on (once per handler) and the add-on carries on, instead of Ashita reporting "exception in event" and the
+-- error being lost. A crash inside the emulator itself is not a Lua error and still ends in the trace's last step.
+local guard_seen = {}
+local function guarded(name, f)
+    return function(e)
+        local ok, err = xpcall(function() return f(e) end, debug.traceback)
+        if not ok and not guard_seen[name] then
+            guard_seen[name] = true
+            trace.log('ERROR in ' .. name .. ': ' .. tostring(err))
+            pcall(say, 'Crystal Boy hit an error in "' .. name .. '" and carried on. Please send Ashita/config/addons/crystalboy/trace.txt in a bug report.')
+        end
+    end
+end
+local function register(event, alias, f) ashita.events.register(event, alias, guarded(event, f)) end
+
+register('key', 'cb_key', function(e)
     if captured() then e.blocked = true end -- window messages (chat, menus)
 end)
 
-ashita.events.register('key_state', 'cb_key_state', function(e)
+register('key_state', 'cb_key_state', function(e)
     if not captured() then return end
     -- (1.4) the pointer to the game's own key table when there is one; a string (a copy) is only read
     local ptr = e.data_raw
@@ -711,24 +727,26 @@ ashita.events.register('key_state', 'cb_key_state', function(e)
     trace.log('key_state done', 'ksd', 10)
 end)
 
-ashita.events.register('xinput_state', 'cb_xinput_state', function(e)
+register('xinput_state', 'cb_xinput_state', function(e)
     if not captured() or e.state == nil then return end
     trace.log('xinput_state ' .. type(e.state), 'xs', 10)
+    trace.step('xinput_state')
     pcall(input.take_xinput, e.state, e.state_modified)
 end)
 
-ashita.events.register('xinput_button', 'cb_xinput_button', function(e)
+register('xinput_button', 'cb_xinput_button', function(e)
     if captured() then e.blocked = true end
 end)
 
-ashita.events.register('dinput_button', 'cb_dinput_button', function(e)
+register('dinput_button', 'cb_dinput_button', function(e)
     if not captured() then return end
     trace.log('dinput ' .. tostring(e.button) .. ' ' .. tostring(e.state), 'di', 20)
+    trace.step('dinput_button')
     input.dinput(e.button, e.state)
     e.blocked = true
 end)
 
-ashita.events.register('d3d_present', 'cb_present', function()
+register('d3d_present', 'cb_present', function()
     local c = char_name()
     if G.game and c ~= G.char then
         stop_game() -- logged out or switched character: keep saves apart
