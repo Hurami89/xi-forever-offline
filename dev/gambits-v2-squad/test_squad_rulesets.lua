@@ -386,7 +386,7 @@ local badConds = {
     { { 'STATUS', 5 }, 'status effect name' }, { { 'STATUS', 'HASTEE' }, 'unknown status effect HASTEE' },
     { { 'STATUS_FLAG', 'ERASABLE' }, 'needs { flag = NAME }' }, { { 'STATUS_FLAG', { flag = 'NOPE' } }, 'unknown effect flag NOPE' },
     { { 'IS_ECOSYSTEM', 'UNDEAD' }, 'needs { ecosystem = NAME }' }, { { 'IS_ECOSYSTEM', { ecosystem = 'NOPE' } }, 'unknown ecosystem NOPE' },
-    { { 'JA_ON_COOLDOWN', 35 }, 'cannot be used in a Rule Set' }, { { 'SUB_ANIMATION', 1 }, 'cannot be used in a Rule Set' },
+    { { 'JA_ON_COOLDOWN', 35 }, 'needs the updated map server' }, { { 'SUB_ANIMATION', 1 }, 'cannot be used in a Rule Set' },
     { { 'VAL_URIEL_CHECK' }, 'cannot be used in a Rule Set' },
 }
 for _, case in ipairs(badConds) do

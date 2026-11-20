@@ -360,10 +360,11 @@ check(GV.settings.theme == 'classic' and Ed.themeName == 'classic' and Tr.get_in
 step(); step()
 check(#game.sends == 0 and gui.windows == 0, 'nothing is sent and no window is drawn while it is closed')
 check(cmd('/gv2') == true and GV.open[1] == true, '/gv2 is handled (blocked) and opens the window')
-check(cmd('/gambits squad') == false and cmd('/gambits') == false, '/gambits commands are not touched (the old addon\'s)')
+-- (D9, 2026-11-20) since v0.1.50 /gambits is this addon's own command (the old engine is autobox, /autobox)
+check(cmd('/gambits help') == true and cmd('/autobox') == false, '/gambits is this addon\'s command; /autobox (the old engine) is not touched')
 check(cmd('/GV2 help') == true, 'the command is not case sensitive')
 local ok1, t1 = run_until(function() return Ed._S.server and Ed._S.cat ~= nil and #Ed._S.sets > 0 end, 30)
-check(ok1 and Ed._S.server.version == 4 and Ed._S.mates[1].name == 'Mira', string.format('opening asks the server: hello (version %s), Mira, sets, choices (%.1f s)',
+check(ok1 and Ed._S.server.version == 5 and Ed._S.mates[1].name == 'Mira', string.format('opening asks the server: hello (version %s), Mira, sets, choices (%.1f s)',
       tostring(Ed._S.server and Ed._S.server.version), t1))
 check(balanced(gui) and gui.title:find('Gambits v2', 1, true), 'the window draws balanced (colours, style, IDs, children, window)')
 check(not visible_has('GSQ|') and not visible_has('command error') and not visible_has('^>>'), 'no GSQ answer, refusal or error line is visible')
@@ -545,7 +546,9 @@ local function chosen() return R.selectedNum(player, 11, 3) end
 game.party = { trust(11) }
 Ed.assign(1, 1)
 local okA = run_until(idle, 30)
-check(okA and chosen() == 1 and Ed._S.message:find('Mira now uses Rule Set 1 (server confirmed)', 1, true), 'Assign set 1: confirmed by reading Mira\'s choice back')
+-- (beta polish) the message names the Rule Set (its saved name, or "Rule Set #1" when the list has not loaded it)
+check(okA and chosen() == 1 and Ed._S.message:find('Mira now uses ', 1, true) and Ed._S.message:find('(server confirmed)', 1, true)
+      and Ed._S.message:find(Ed.set_label(1), 1, true), 'Assign set 1: confirmed by reading Mira\'s choice back - ' .. tostring(Ed._S.message))
 local first = true
 game.policy = function(line) if line:match('!squad ruleset') and first then first = false; return 'reject' end return 'auto' end
 Ed.assign(1, 2)

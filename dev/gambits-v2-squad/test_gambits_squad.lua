@@ -263,7 +263,7 @@ end
 local o = run('ping 5 77')
 check(#o == 1 and o[1]:match('^GSQ|5|pong|77|%d+$'), 'ping answers with its id and the client value: ' .. tostring(o[1]))
 o = run('hello 6')
-check(o[1] == 'GSQ|6|hello|4|32|120|64', 'hello: version 4, 32 rules, 120 bytes, 64 chunks: ' .. tostring(o[1]))
+check(o[1] == 'GSQ|6|hello|5|32|120|64', 'hello: version 5, 32 rules, 120 bytes, 64 chunks: ' .. tostring(o[1]))
 o = run('nonsense 7')
 check(o[1]:match('^GSQ|7|err|badreq'), 'an unknown request is answered with an error')
 o = run(string.rep('x', 200))
@@ -943,7 +943,7 @@ check(S2.sel == 3 and S2.draft.rules[3].name == 'CURAGA' and #sentLines == 0, 'D
 g.clicks['On / off##gsq-toggle'] = true
 M.draw()
 check(S2.draft.rules[3].on == false and S2.draft.dirty, 'On / off on the selected rule')
-g.clicks['1. Party member: HP below 50% -> Best of Cure##sel'] = true
+g.clicks['1. Party: HP < 50% -> Best of Cure##sel'] = true -- (beta polish: the compact rule line)
 M.draw()
 check(S2.sel == 1, 'clicking a rule in the list selects it')
 g.clicks['Add rule##gsq-add'] = true

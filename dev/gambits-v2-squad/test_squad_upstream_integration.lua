@@ -170,9 +170,11 @@ check(iSquad ~= nil and iGsq ~= nil and iGsq > iSquad, 'init.txt registers custo
 check(has(INIT, 'custom/lua/squad_space.lua') and has(INIT, 'custom/lua/squad_chain.lua'), 'init.txt keeps v0.1.48\'s squad_space and squad_chain')
 local CPP = readAll(LUA .. '/../cpp/squad.cpp')
 check(has(CPP, 'SquadOwnerMerit') and has(CPP, 'squadMateMayUse'), 'squad.cpp has SquadOwnerMerit and the trySquadAbility check (U13)')
-check(has(CPP, 'weapon->getSkillType() != xi::SkillType::None'), 'squad.cpp keeps v0.1.48\'s ranged weapon copy')
+-- (D9, 2026-11-20) since 453366ef (v0.1.49) the ranged copy takes real shooting or throwing weapons only (not a bard's instrument)
+check(has(CPP, 'skillType == xi::SkillType::Archery || skillType == xi::SkillType::Marksmanship || skillType == xi::SkillType::Throwing'),
+      'squad.cpp copies the ranged weapon of real shooting or throwing weapons only')
 local GSQ = readAll(LUA .. '/gambits_squad.lua')
-check(GSQ:match('local VERSION%s*=%s*4%s') ~= nil, 'gambits_squad.lua is protocol v4')
+check(GSQ:match('local VERSION%s*=%s*5%s') ~= nil, 'gambits_squad.lua is protocol v5')
 
 -- ================================================================= 2. default behaviour without a Rule Set = v0.1.48
 section('default job behaviour without a Rule Set (v0.1.48 bard songs by party)')
@@ -302,6 +304,67 @@ closer.tp = 1000
 tick(opener)
 last = opener.tpSettings[#opener.tpSettings]
 check(last and last[1] == ai.tp.OPENER and last[3] == 1000, 'and opens once a closer has 1000 TP')
+
+-- (Gambits WAR/PLD/RDM/WS batch) Custom weapon skill mates and the automatic roles / the skillchain wait
+section('Gambits weapon skill settings with the automatic roles (skillchainRoles) and the skillchain wait (squad_chain)')
+package.preload['modules/custom/lua/squad_ws'] = function() return dofile(LUA .. '/squad_ws.lua') end
+local WS = require('modules/custom/lua/squad_ws')
+local opener2 = entity(xi.objType.TRUST, { job = WAR, level = 40, tp = 1200 })
+local custom = entity(xi.objType.TRUST, { job = WAR, level = 40, tp = 300 })
+local boss2 = player()
+boss2.party = { opener2, custom }
+opener2.master, custom.master = boss2, boss2
+opener2:setLocalVar('SQUAD_ID', 31); custom:setLocalVar('SQUAD_ID', 32)
+-- a Custom Close mate (as squad_ws.lua puts it on the mate)
+custom:setLocalVar('SQUAD_WSC', 7); custom:setLocalVar('SQUAD_WSC_CLOSE_TP', 1000); custom:setLocalVar('SQUAD_SC_ROLE', 1002)
+H.skillchainRoles(boss2)
+check(custom:getLocalVar('SQUAD_SC_ROLE') == 1002 and #custom.tpSettings == 0, 'the automatic roles leave a Custom mate alone (role and trigger kept)')
+check(opener2:getLocalVar('SQUAD_SC_ROLE') == 1, 'a lone default melee mate becomes the opener when a Custom mate closes (not "alone")')
+custom:setLocalVar('SQUAD_WSC_CLOSE_TP', 0) -- (a Custom Open mate does not close)
+opener2:setLocalVar('SQUAD_SC_ROLE', 0)
+H.skillchainRoles(boss2)
+check(opener2:getLocalVar('SQUAD_SC_ROLE') == 3, 'with only a Custom Open mate it stays "alone", as before')
+custom:setLocalVar('SQUAD_WSC_CLOSE_TP', 1000)
+opener2:setLocalVar('SQUAD_SC_ROLE', 1); opener2:setLocalVar('SQUAD_CH_MODE', 0)
+opener2.engagedWith = foe
+tick(opener2)
+last = opener2.tpSettings[#opener2.tpSettings]
+check(last and last[1] == ai.tp.CLOSER_UNTIL_TP and last[3] == 3000, 'the default opener holds while the Custom closer has no TP')
+custom.tp = 1000
+tick(opener2)
+last = opener2.tpSettings[#opener2.tpSettings]
+check(last and last[1] == ai.tp.OPENER, 'and opens for the Custom Close mate once it has 1000 TP (a recognised closer)')
+custom:setLocalVar('SQUAD_WSC_CLOSE_TP', 2000) -- an Independent mate counts from its own threshold
+opener2:setLocalVar('SQUAD_CH_MODE', 0)
+tick(opener2)
+last = opener2.tpSettings[#opener2.tpSettings]
+check(last and last[1] == ai.tp.CLOSER_UNTIL_TP, 'an Independent mate (threshold 2000) with 1000 TP is not ready yet: the opener holds')
+-- legacy and no setting: untouched
+local legacyMate = entity(xi.objType.TRUST, { job = WAR, level = 40 })
+legacyMate.master = boss2; legacyMate:setLocalVar('SQUAD_ID', 33); legacyMate:setLocalVar('SQUAD_WSTP', 1500)
+boss2.party = { legacyMate }
+H.skillchainRoles(boss2)
+last = legacyMate.tpSettings[#legacyMate.tpSettings]
+check(legacyMate:getLocalVar('SQUAD_SC_ROLE') == 115 and last[1] == ai.tp.CLOSER_UNTIL_TP and last[3] == 1500, '!squad ws (1500 TP) works exactly as before')
+-- the call: squad_ws.onSpawn after the !squad ws timing
+local pws = player()
+pws.vars['SQUAD_WSC_32_1'] = WS.encode({ control = 1, mode = 1, tp = 1500, ws = 0 })
+local called = entity(xi.objType.TRUST, { job = WAR, level = 40 })
+called:setLocalVar('SQUAD_ID', 32)
+WS.onSpawn(pws, called, { id = 32, mjob = WAR })
+check(WS.engineReady() == false and called:getLocalVar('SQUAD_WSC') == 0, 'squad_ws on a server without the batch\'s xi_map: no Custom trigger (Squad default)')
+SquadApplyWeaponSkills = function() return true end
+WS.onSpawn(pws, called, { id = 32, mjob = WAR })
+last = called.tpSettings[#called.tpSettings]
+check(last and last[1] == ai.tp.OPEN_AT_TP and last[3] == 1500 and called:getLocalVar('SQUAD_SC_ROLE') == 1001, 'with it: Custom Open at 1500 is on the mate')
+SquadApplyWeaponSkills = nil
+-- the job ability argument of JA_ON_COOLDOWN
+local jc = H.ruleCondition({ 'JA_ON_COOLDOWN', 'PROVOKE' }, false)
+check(jc and jc[1] == ai.c.JA_ON_COOLDOWN and jc[2] == xi.ja.PROVOKE, 'JA_ON_COOLDOWN PROVOKE becomes the engine\'s { 37, Provoke id }')
+check(H.ruleCondition({ 'JA_ON_COOLDOWN', 'NOT_AN_ABILITY' }, false) == nil, 'an unknown job ability: the rule is skipped (logged), never a 0 id')
+check(H.ruleCondition({ 'HAS_MP_MPP_LT', 50 }, false)[1] == ai.c.HAS_MP_MPP_LT, 'HAS_MP_MPP_LT 50 is passed as it is')
+check(has(SQ, 'wsSettings.spawnWs(player, mate)') and has(SQ, 'pcall(wsSettings.onSpawn, player, trust, mate)') and has(SQ, 'wsSettings.legacyNote'),
+      'squad.lua: the call uses the weapon skill settings; !squad ws adds the note')
 
 -- ================================================================= 5. camp and pulling commands (v0.1.48)
 section('camp: set, Start, pause, links')

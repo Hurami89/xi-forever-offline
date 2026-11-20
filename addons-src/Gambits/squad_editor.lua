@@ -233,6 +233,10 @@ function M.check_draft(d, cat)
                 if not pair[2] or not string.match(pair[2], '^[A-Z][A-Z0-9_]*$') then
                     return string.format('rule %d: %s needs a status effect', i, M.cond_label(pair[1]))
                 end
+            elseif c and c.kind == 'j' then
+                if not pair[2] or not string.match(pair[2], '^[A-Z][A-Z0-9_]*$') then
+                    return string.format('rule %d: %s needs a job ability', i, M.cond_label(pair[1]))
+                end
             elseif c and c.kind == 'n' and pair[2] ~= nil and pair[2] ~= '' then
                 return string.format('rule %d: %s takes no value', i, M.cond_label(pair[1]))
             end
@@ -619,7 +623,7 @@ M.CAT_KINDS  = { 't', 'c', 'f', 'j', 's' }
 M.CATM_KINDS = { 't', 'c', 'f', 'j', 's', 'u' } -- (version 4, one mate's catalog: u = allowed by job and level, not confirmed)
 local CAT_ENTRY = {
     t = '^[A-Z][A-Z_]*$',
-    c = '^[A-Z][A-Z0-9_]*:[nre][:%d]*$',
+    c = '^[A-Z][A-Z0-9_]*:[nrej][:%d]*$', -- (j: a job ability argument, server version 5 when asked for with catm "j")
     f = '^[A-Z][A-Z0-9_]*$',
     j = '^[A-Z][A-Z0-9_]*:%d+s?$',
     s = '^[A-Z][A-Z0-9_]*:%d+s?$',
@@ -737,7 +741,13 @@ function M.load_catalog_for(m)
     end
 
     local key = M.catalog_key(m)
-    read_request({ 'catm', tostring(m.slot) }, function(items, endFields)
+    -- (version 5) "j": this editor reads conditions with a job ability argument (JA_ON_COOLDOWN)
+    local words = { 'catm', tostring(m.slot) }
+    if (S.server.version or 0) >= 5 then
+        words[3] = 'j'
+    end
+
+    read_request(words, function(items, endFields)
         local cat, why = M.parse_catalog(items, endFields)
         if cat == nil or not cat.perMate then
             why = why or 'the list was not made for this squad mate'
@@ -861,19 +871,186 @@ function M.open_set(num, copy)
             d.name = string.sub('Copy of ' .. d.name, 1, M.NAME_MAX)
         end
 
+        local kept = S.draft ~= d and M.keep_unsaved() -- (beta polish: unsaved edits become the unsaved draft, never lost)
         S.draft, S.checks = d, {}
-        say(copy and 'Copied into a new, unsaved Rule Set.' or ('Loaded Rule Set ' .. num .. '.'
+        say(copy and 'Copied into a new, unsaved Rule Set.' or ('Opened "' .. tostring(d.name) .. '" (Rule Set ' .. num .. ').'
+            .. (kept and ' Your earlier unsaved changes are kept as the unsaved draft.' or '')
             .. (#opaque > 0 and (' Rule ' .. table.concat(opaque, ', ') .. ' uses options this editor cannot show: read-only.') or '')))
     end, function(why)
         S.progress = nil
         say('Could not load the Rule Set: ' .. why, false)
     end)
 end
+-- ---------------------------------------------------------------- (beta polish) opening and switching without losing edits
+-- Unsaved edits are never thrown away: before another set or another mate replaces them, they become the "unsaved draft"
+-- (also written to squad_draft.lua), which "Restore unsaved draft" brings back. Returns true when it kept something.
+function M.keep_unsaved()
+    local d = S.draft
+    if d and d.dirty and not d.readonly and not d.uneditable then
+        M.save_draft_file()
+        S.restorable = d
+        return true
+    end
+
+    return false
+end
+
+-- One click on a Rule Set: select AND open it. With unsaved edits of another set open, ask first (M.confirm_open).
+function M.select_set(num)
+    S.selectedSet = num
+    local d = S.draft
+    if d and d.num == num and not d.copy then
+        return -- (already open)
+    end
+
+    if d and d.dirty and not d.readonly and not d.uneditable then
+        S.confirmOpen = num
+        return
+    end
+
+    S.confirmOpen = nil
+    M.open_set(num, false)
+    S.sel = 1
+end
+
+-- the answer to "unsaved changes": true = keep them as the unsaved draft and open the set, false = keep editing
+function M.confirm_open(open)
+    local num = S.confirmOpen
+    S.confirmOpen = nil
+    if num == nil or not open then
+        return
+    end
+
+    M.keep_unsaved()
+    M.open_set(num, false)
+    S.sel = 1
+end
+
+-- Another squad mate: the editor shows that mate's assigned Rule Set (or nothing), never the previous mate's
+function M.switch_mate(slot)
+    if slot == S.mateSlot then
+        return
+    end
+
+    local kept = M.keep_unsaved()
+    S.mateSlot, S.selectedSet, S.draft, S.sel, S.checks, S.confirmOpen, S.confirmDelete, S.ws = slot, nil, nil, nil, {}, nil, nil, nil
+    local m = M.mate()
+    if m then
+        M.load_sets(m.job, function()
+            if m.chosen and m.chosen > 0 and S.draft == nil and S.mateSlot == m.slot then
+                S.selectedSet = m.chosen
+                M.open_set(m.chosen, false)
+                S.sel = 1
+            end
+        end)
+        M.load_catalog_for(m)
+    end
+
+    if kept then
+        say('Your unsaved changes were kept as the unsaved draft ("Restore unsaved draft" brings them back).', 'warn')
+    end
+end
+
 function M.new_set(job)
+    M.keep_unsaved() -- (beta polish: earlier unsaved edits become the unsaved draft, never lost)
     S.draft = { num = 0, rev = nil, job = job, name = 'New ' .. job .. ' set', flags = 'o', dirty = true,
                 rules = { { on = true, target = 'PARTY', cond = 'HPP_LT', arg = '50', kind = 'family', name = 'CURE' } } }
     S.checks = {}
     say('New Rule Set (not saved yet).')
+end
+
+-- ---------------------------------------------------------------- starter templates (Gambits WAR/PLD/RDM batch)
+-- Small examples to learn the editor with: mainly the main job's own low-level abilities and spells, a few rules each.
+-- One agreed exception: Basic Paladin's Provoke needs /WAR (without it that one rule is left out when the PLD is called). A template only fills a NEW, unsaved Rule Set in the editor: nothing is saved, assigned or applied, no saved
+-- set is changed and the built-in job rules stay as they are. Assigned to a mate, a Rule Set replaces that mate's usual
+-- job-action rules while it is assigned ("Use job rules" goes back to them).
+M.TEMPLATES = {
+    WAR = { {
+        name = 'Basic Warrior',
+        about = 'Provoke when the enemy attacks someone else and there is no tank (level 5); Defender while the WAR has the '
+            .. 'enemy\'s attention (level 25), Berserk while it does not (level 15). Defender and Berserk cancel each other, so '
+            .. 'the WAR switches only when the enemy\'s attention moves, and their recasts (3 and 5 minutes) keep it slow.',
+        rules = {
+            { on = true, target = 'TARGET', cond = 'NOT_HAS_TOP_ENMITY', cond2 = 'NOT_PT_HAS_TANK', kind = 'ja', name = 'PROVOKE' },
+            { on = true, target = 'SELF', cond = 'HAS_TOP_ENMITY', cond2 = 'NOT_STATUS', arg2 = 'DEFENDER', kind = 'ja', name = 'DEFENDER' },
+            { on = true, target = 'SELF', cond = 'NOT_HAS_TOP_ENMITY', cond2 = 'NOT_STATUS', arg2 = 'BERSERK', kind = 'ja', name = 'BERSERK' },
+        },
+    } },
+    PLD = { {
+        name = 'Basic Paladin',
+        about = 'Shield Bash an enemy that is casting (level 15, needs a shield); Sentinel when HP is low (30); Cure the party '
+            .. 'member with the lowest HP below 60 % (5, the PLD included); Provoke (only with /WAR) and Flash (37) when the '
+            .. 'enemy attacks someone else; Cure itself below 75 %. Rules the PLD cannot use yet (no /WAR, too low) are left '
+            .. 'out when it is called; the others still work.',
+        rules = {
+            { on = true, target = 'TARGET', cond = 'CASTING_MA', kind = 'ja', name = 'SHIELD_BASH' },
+            { on = true, target = 'SELF', cond = 'HPP_LT', arg = '40', cond2 = 'NOT_STATUS', arg2 = 'SENTINEL', kind = 'ja', name = 'SENTINEL' },
+            { on = true, target = 'PARTY_LOWEST_HPP', cond = 'HPP_LT', arg = '60', kind = 'family', name = 'CURE' },
+            { on = true, target = 'TARGET', cond = 'NOT_HAS_TOP_ENMITY', kind = 'ja', name = 'PROVOKE' },
+            { on = true, target = 'TARGET', cond = 'NOT_HAS_TOP_ENMITY', kind = 'spell', name = 'FLASH' },
+            { on = true, target = 'SELF', cond = 'HPP_LT', arg = '75', kind = 'family', name = 'CURE' },
+        },
+    } },
+    WHM = { {
+        name = 'Basic White Mage',
+        about = 'Cure the party member with the lowest HP: the best Cure below 50 %, plain Cure (cheap) below 70 % (level 1); '
+            .. 'Poisona a poisoned party member (6); Protect a party member without it (7, the best Protect it knows).',
+        rules = {
+            { on = true, target = 'PARTY_LOWEST_HPP', cond = 'HPP_LT', arg = '50', kind = 'family', name = 'CURE' },
+            { on = true, target = 'PARTY_LOWEST_HPP', cond = 'HPP_LT', arg = '70', kind = 'spell', name = 'CURE' },
+            { on = true, target = 'PARTY', cond = 'STATUS', arg = 'POISON', kind = 'spell', name = 'POISONA' },
+            { on = true, target = 'PARTY', cond = 'NOT_STATUS', arg = 'PROTECT', kind = 'family', name = 'PROTECT' },
+        },
+    } },
+    RDM = { {
+        name = 'Basic Red Mage',
+        about = 'Cure the party member with the lowest HP when below half (level 3), Dia on an enemy without it (level 1), '
+            .. 'Paralyze on an enemy without it, then wait 30 s (level 6).',
+        rules = {
+            { on = true, target = 'PARTY_LOWEST_HPP', cond = 'HPP_LT', arg = '50', kind = 'family', name = 'CURE' },
+            { on = true, target = 'TARGET', cond = 'NOT_STATUS', arg = 'DIA', kind = 'family', name = 'DIA' },
+            { on = true, target = 'TARGET', cond = 'NOT_STATUS', arg = 'PARALYSIS', kind = 'family', name = 'PARALYZE', retry = '30' },
+        },
+    } },
+}
+
+function M.templates_for(job)
+    return M.TEMPLATES[job or ''] or {}
+end
+
+-- A new, unsaved Rule Set from a template (a copy: the template itself never changes). A target the server does not offer
+-- (an older server without PARTY_LOWEST_HPP) becomes PARTY. Returns the draft, or nil + why.
+function M.new_from_template(job, index, cat)
+    local t = M.templates_for(job)[index or 1]
+    if t == nil then
+        return nil, 'no template for ' .. tostring(job)
+    end
+
+    local offered = {}
+    for _, target in ipairs(cat and cat.targets or {}) do
+        offered[target] = true
+    end
+
+    M.keep_unsaved() -- (beta polish: earlier unsaved edits become the unsaved draft, never lost)
+    local rules = {}
+    for i, r in ipairs(t.rules) do
+        local copy = {}
+        for k, v in pairs(r) do
+            copy[k] = v
+        end
+
+        if cat and not offered[copy.target] then
+            copy.target = 'PARTY'
+        end
+
+        rules[i] = copy
+    end
+
+    S.draft = { num = 0, rev = nil, job = job, name = t.name, flags = 'o', dirty = true, rules = rules, template = t.name }
+    S.checks = {}
+    say(string.format('"%s" loaded as a new Rule Set (not saved). Change it as you like, then Save; assigning it replaces '
+        .. 'the mate\'s usual job rules while it is assigned.', t.name))
+    return S.draft
 end
 
 local function encodings(rules)
@@ -1036,7 +1213,8 @@ function M.save()
         on_done = function()
             S.progress = nil
             saved(d, snap, job.result[1], job.result[2], job.result[3])
-            say(string.format('Saved as Rule Set %d (server confirmed). Assign it to a mate, then Apply now.', job.result[1]))
+            say(string.format('Saved as Rule Set %d (server confirmed). Assign & Apply puts it to use (also for a mate that already '
+                .. 'uses it).', job.result[1]))
         end,
         on_fail = function(failWhy, kind)
             if kind == 'unknown' or job.lost or job.code == 'stale' then
@@ -1149,15 +1327,32 @@ function M.check_set(slot, num)
     end)
 end
 
+-- (beta polish) the name of a Rule Set by its number, from the server's list for the mate's job (S.sets, read with
+-- "list"); "Rule Set #n" when it is not in that list (another job's set, not loaded yet)
+function M.set_label(num)
+    if num == nil or num == 0 then
+        return 'default job rules'
+    end
+
+    for _, set in ipairs(S.sets or {}) do
+        if set.num == num and set.name and set.name ~= '' then
+            return set.name
+        end
+    end
+
+    return 'Rule Set #' .. tostring(num)
+end
+
 -- Assign: "!squad ruleset <slot> <num|off>" (no GSQ answer; setting a value twice is harmless), confirmed only by
--- reading the mate's chosen set back from the server.
-function M.assign(slot, num)
+-- reading the mate's chosen set back from the server. thenApply (beta polish, "Assign & Apply" / "Restore default job
+-- rules"): once confirmed, and only when the mate is summoned, the existing Apply (!squad reapply) runs by itself.
+function M.assign(slot, num, thenApply)
     if M.busy() then
         return busy_say()
     end
 
     local want, rounds = num or 0, 0
-    local what = num and ('Rule Set ' .. num) or 'its job rules'
+    local what = num and M.set_label(num) or 'its default job rules'
     local assign_round
     local function readback()
         S.progress = 'Assigning: reading it back from the server...'
@@ -1165,7 +1360,14 @@ function M.assign(slot, num)
             local m = mate_by_slot(mates, slot)
             if m and m.chosen == want then
                 S.progress = nil
-                say(string.format('%s now uses %s (server confirmed). Press Apply now to call it again.', m.name, what))
+                if thenApply and m.out then
+                    S.pendingApply = true -- (M.tick starts Apply once the queue is free)
+                    say(string.format('%s now uses %s (server confirmed). Applying...', m.name, what))
+                elseif thenApply then
+                    say(string.format('%s now uses %s (server confirmed). %s is not summoned: it applies when called.', m.name, what, m.name))
+                else
+                    say(string.format('%s now uses %s (server confirmed). It applies when %s is called again.', m.name, what, m.name))
+                end
             elseif rounds < 2 then
                 assign_round()
             else
@@ -1201,6 +1403,18 @@ function M.assign(slot, num)
     return true
 end
 
+-- (beta polish) Assign & Apply: the selected SAVED Rule Set. An unsaved edit of that same set is not what would be
+-- assigned, so it is refused with a message instead of being saved or ignored silently.
+function M.assign_apply(slot, num)
+    local d = S.draft
+    if num ~= nil and d and d.dirty and not d.readonly and d.num == num then
+        say(string.format('%s has unsaved changes. Save first: Assign & Apply uses the saved Rule Set.', M.set_label(num)), 'warn')
+        return false
+    end
+
+    return M.assign(slot, num, true)
+end
+
 -- Apply: "!squad reapply" sends the mates that are out away and calls them again (it must not run twice, so it is sent
 -- again only when the game client refused it). Confirmed by reading back that they left and came back.
 function M.apply()
@@ -1219,7 +1433,7 @@ function M.apply()
 
         if #out == 0 then
             S.progress = nil
-            say('No squad mate is out. Call one first, then press Apply now.', false)
+            say('No squad mate is out. Call one first; the assignment applies when it is called.', false)
             return
         end
 
@@ -1302,6 +1516,229 @@ end
 function M.tick()
     T.tick()
     apply_tick()
+    if S.pendingApply and not T.busy() and S.apply == nil then
+        S.pendingApply = nil
+        M.apply()
+    end
+end
+
+-- ---------------------------------------------------------------- weapon skill settings (server version 5, squad_ws.lua)
+-- Per squad mate and main job, separate from Rule Sets. Save stores (server confirmed), Apply puts the stored setting on
+-- the called mate now, Reset stores "Squad default" (the automatic skillchains; the stored choices are kept for later).
+M.WS_MODES = { 'Open', 'Close', 'Open + Close', 'Independent' }
+M.WS_MODE_HELP = {
+    'Opens skillchains: uses its weapon skill at your TP threshold, but only when another party member (you included) has '
+        .. '1000 TP to close it, and never over a skillchain that is already going. It does not close.',
+    'Closes skillchains: waits for an open skillchain and closes it from 1000 TP with a weapon skill that chains. '
+        .. 'No threshold.',
+    'Both: closes an open skillchain from 1000 TP; otherwise opens like Open, at your TP threshold.',
+    'On its own: uses its weapon skill at your TP threshold without waiting for anyone. When a skillchain is open it '
+        .. 'closes it if it can.',
+}
+M.WS_TPS = { 1000, 1500, 2000, 3000 }
+M.WS_BEST_HELP = 'Best available: when a skillchain is open, the weapon skill that forms the best chain; otherwise the last '
+    .. 'one of the mate\'s list (the server\'s order). It is not a damage calculation.'
+M.WS_3000_HELP = 'At 3000 TP the mate always uses a weapon skill (in every mode), so TP is never held for ever.'
+
+function M.ws_supported()
+    return S.server and (S.server.version or 0) >= 5 or false
+end
+
+-- GSQ|n|ws|slot|JOB|src|ctl|mode|tp|ws|ltp|lws|out|usable|applied|eng
+function M.parse_ws(f)
+    if f == nil or f[3] ~= 'ws' or #f < 16 then
+        return nil
+    end
+
+    local function tri(v) -- '1' true, '0' false, anything else nil (not known)
+        if v == '1' then
+            return true
+        elseif v == '0' then
+            return false
+        end
+
+        return nil
+    end
+
+    local d = { slot = tonumber(f[4]), job = f[5], source = f[6], control = tonumber(f[7]), mode = tonumber(f[8]),
+                tp = tonumber(f[9]), ws = tonumber(f[10]), legacyTp = tonumber(f[11]) or 0, legacyWs = tonumber(f[12]) or 0,
+                out = f[13] == '1', usable = tri(f[14]), applied = tri(f[15]), engine = f[16] == '1' }
+    if d.slot == nil or d.mode == nil or d.tp == nil or d.ws == nil or (d.source ~= 'c' and d.source ~= 'd' and d.source ~= 'l') then
+        return nil
+    end
+
+    return d
+end
+
+-- wsl lines "id:Name,..." -> { { id, name, label } ... } in the server's order, or nil + why
+function M.parse_wsl(items)
+    local list, seen = {}, {}
+    for _, f in ipairs(items) do
+        if f[3] ~= 'wsl' then
+            return nil, 'a line of the weapon skill list was not readable'
+        end
+
+        for _, entry in ipairs(split(f[4] or '', ',')) do
+            local id, name = string.match(entry, '^(%d+):([%w_]+)$')
+            if id == nil or seen[id] then
+                return nil, 'the weapon skill list was cut or changed (' .. entry .. ')'
+            end
+
+            seen[id] = true
+            list[#list + 1] = { id = tonumber(id), name = name, label = (name:gsub('_', ' ')) }
+        end
+    end
+
+    return list
+end
+
+-- the editable copy of a stored setting (Custom only when the server says Custom is in use)
+local function ws_edit_from(d)
+    return { control = d.source == 'c' and 1 or 0, mode = d.mode, tp = d.tp, ws = d.ws }
+end
+M.ws_edit_from = ws_edit_from
+
+function M.ws_dirty()
+    local w = S.ws
+    if not (w and w.data and w.edit) then
+        return false
+    end
+
+    local saved = ws_edit_from(w.data)
+    return w.data.source == 'l' or saved.control ~= w.edit.control or saved.mode ~= w.edit.mode or saved.tp ~= w.edit.tp
+        or saved.ws ~= w.edit.ws
+end
+
+function M.ws_name(id)
+    if id == nil or id == 0 then
+        return 'Best available'
+    end
+
+    return (S.wsNames and S.wsNames[id]) or ('weapon skill ' .. id)
+end
+
+local function ws_got(slot, items, keepEdit)
+    local d = M.parse_ws(items[1])
+    if d == nil or d.slot ~= slot then
+        return false, 'the answer was not readable'
+    end
+
+    S.ws = S.ws and S.ws.slot == slot and S.ws or { slot = slot }
+    S.ws.data = d
+    if not keepEdit or S.ws.edit == nil then
+        S.ws.edit = ws_edit_from(d)
+    end
+
+    return true, d
+end
+
+function M.ws_load(slot)
+    S.ws = { slot = slot, loading = true }
+    read_request({ 'wsg', tostring(slot) }, function(items)
+        local ok, d = ws_got(slot, items)
+        if not ok then
+            return false, d
+        end
+
+        S.ws.loading = false
+        if d.out then
+            M.ws_list(slot)
+        end
+
+        return true
+    end, function(why)
+        S.ws = { slot = slot, error = why }
+        say('Could not load the weapon skill settings: ' .. why, false)
+    end)
+end
+
+function M.ws_list(slot)
+    read_request({ 'wsl', tostring(slot) }, function(items)
+        local list, why = M.parse_wsl(items)
+        if list == nil then
+            return false, why
+        end
+
+        if S.ws and S.ws.slot == slot then
+            S.ws.list = list
+        end
+
+        S.wsNames = S.wsNames or {}
+        for _, e in ipairs(list) do
+            S.wsNames[e.id] = e.label
+        end
+
+        return true
+    end, function(why, kind, job)
+        if S.ws and S.ws.slot == slot then
+            S.ws.list, S.ws.listWhy = nil, (job and job.code == 'notout') and 'notout' or why
+        end
+    end)
+end
+
+-- Save: the edit as the stored setting for the mate's job (server confirmed)
+function M.ws_save(slot, edit)
+    if M.busy() then
+        return busy_say()
+    end
+
+    S.progress = 'Saving the weapon skill settings...'
+    read_request({ 'wss', tostring(slot), tostring(edit.control), tostring(edit.mode), tostring(edit.tp), tostring(edit.ws) },
+        function(items)
+            S.progress = nil
+            local ok, d = ws_got(slot, items)
+            if not ok then
+                return false, d
+            end
+
+            say(string.format('Weapon skill settings saved (server confirmed): %s. %s', d.source == 'c' and 'Custom' or 'Squad default',
+                d.out and (d.applied and 'In use now.' or 'Press Apply WS settings now to use them.') or 'They apply when the mate is called.'))
+            return true
+        end, function(why)
+            S.progress = nil
+            say('Weapon skill settings NOT saved: ' .. why, false)
+        end)
+    return true
+end
+
+-- Reset to Squad default: stores control 0 and keeps the other choices for later
+function M.ws_reset(slot)
+    local w = S.ws
+    if not (w and w.data) then
+        return false
+    end
+
+    w.edit = ws_edit_from(w.data)
+    w.edit.control = 0
+    return M.ws_save(slot, w.edit)
+end
+
+-- Apply: the stored setting on the called mate now
+function M.ws_apply(slot)
+    if M.busy() then
+        return busy_say()
+    end
+
+    S.progress = 'Applying the weapon skill settings...'
+    read_request({ 'wsa', tostring(slot) }, function(items)
+        S.progress = nil
+        local ok, d = ws_got(slot, items, true)
+        if not ok then
+            return false, d
+        end
+
+        say(d.applied and 'Weapon skill settings in use now (server confirmed).' or 'Applied, but the server does not confirm it yet. Press Refresh.',
+            d.applied and true or 'warn')
+        return true
+    end, function(why, kind, job)
+        S.progress = nil
+        if job and job.code == 'notout' then
+            say('Not summoned: the saved weapon skill settings apply when the mate is called.', 'warn')
+        else
+            say('Weapon skill settings NOT applied: ' .. why, false)
+        end
+    end)
+    return true
 end
 
 -- ---------------------------------------------------------------- unsaved draft
@@ -1351,12 +1788,15 @@ end
 -- ---------------------------------------------------------------- readable names (what players see; the data keeps the ids)
 -- Wording follows the Gambits v2 WHM prototype (dev/gambits-v2-prototype/rule_model.py) and the launcher's rule editor
 -- (launcher_rules.py). Anything without an entry is shown as a tidied name ("SOME_NAME" -> "Some Name").
-M.TARGET_LABELS = { SELF = 'Self', PARTY = 'Party member', TANK = 'Tank', CASTER = 'Mage', MELEE = 'Melee', RANGED = 'Ranged',
-                    TOP_ENMITY = 'Ally with aggro', TARGET = 'Enemy (current target)', MASTER = 'Master (you)' }
+M.TARGET_LABELS = { SELF = 'Self', PARTY = 'Party member', PARTY_LOWEST_HPP = 'Party member, lowest HP', TANK = 'Tank',
+                    CASTER = 'Mage', MELEE = 'Melee', RANGED = 'Ranged', TOP_ENMITY = 'Ally with aggro',
+                    TARGET = 'Enemy (current target)', MASTER = 'Master (you)' }
 -- what each target really means in the engine (gambits_container.cpp), shown as a tooltip
 M.TARGET_HELP = {
     SELF = 'The squad mate itself.',
     PARTY = 'The first party member, in party order, that matches the conditions.',
+    PARTY_LOWEST_HPP = 'The party member with the lowest HP % that matches the conditions (alive, within 15 yalms; '
+        .. 'equal HP % keeps party order). Good for healing.',
     TANK = 'A party member whose main job is PLD or RUN.',
     CASTER = 'A party member whose main job is WHM, BLM, RDM, BRD, SMN, BLU, SCH, GEO or RUN.',
     MELEE = 'A party member whose main job is a melee job (WAR MNK THF PLD DRK BST SAM NIN DRG BLU PUP DNC RUN).',
@@ -1376,6 +1816,10 @@ M.SUBJECTS = {
     { key = 'ALWAYS',  label = 'Always',      ops = { { 'always', 'ALWAYS' } } },
     { key = 'HP',      label = 'HP',          ops = { { 'below', 'HPP_LT' }, { 'at least', 'HPP_GTE' } }, unit = '%', default = 50 },
     { key = 'MP',      label = 'MP',          ops = { { 'below', 'MPP_LT' }, { 'at least', 'MPP_GTE' } }, unit = '%', default = 50 },
+    -- (server version 5) MP of characters that have MP: false for a target without MP (a Warrior), unlike MP above
+    { key = 'MPUSER',  label = 'MP (mages)',  ops = { { 'below', 'HAS_MP_MPP_LT' }, { 'at least', 'HAS_MP_MPP_GTE' } }, unit = '%',
+      default = 50 },
+    { key = 'HASMP',   label = 'Uses MP',     ops = { { 'yes (has an MP pool)', 'HAS_MP' } } },
     { key = 'TP',      label = 'TP',          ops = { { 'below', 'TP_LT' }, { 'at least', 'TP_GTE' } }, unit = 'TP', default = 1000 },
     { key = 'MISSING', label = 'Missing HP',  ops = { { 'at least', 'HP_MISSING' } }, unit = 'HP', default = 500 },
     { key = 'AGGRO',   label = 'Aggro',       ops = { { 'has it (the mate itself)', 'HAS_TOP_ENMITY' },
@@ -1384,6 +1828,8 @@ M.SUBJECTS = {
     { key = 'ENEMY',   label = 'Enemy',       ops = { { 'is casting a spell', 'CASTING_MA' }, { 'is readying a weapon skill', 'READYING_WS' },
                                                       { 'is readying a special move', 'READYING_MS' },
                                                       { 'is readying a job ability', 'READYING_JA' } }, enemyOnly = true },
+    -- (server version 5) the mate's own recast of a job ability is running (whatever the rule's target is)
+    { key = 'COOLDOWN', label = 'Ability on Cooldown', ops = { { 'is on cooldown (the mate\'s)', 'JA_ON_COOLDOWN' } } },
 }
 M.SUBJECT_OF = {}   -- condition id -> subject, op index
 for _, subj in ipairs(M.SUBJECTS) do
@@ -1434,6 +1880,10 @@ M.COND_LABELS = {
     READYING_MS        = { 'Readying a special move' },
     READYING_JA        = { 'Readying a job ability' },
     CASTING_MA         = { 'Casting a spell' },
+    HAS_MP             = { 'Uses MP' },
+    HAS_MP_MPP_LT      = { 'MP (mages) below', '%' },
+    HAS_MP_MPP_GTE     = { 'MP (mages) at least', '%' },
+    JA_ON_COOLDOWN     = { 'On cooldown:', 'ja' },
 }
 
 local ROMAN = { I = true, II = true, III = true, IV = true, V = true, VI = true }
@@ -1473,7 +1923,7 @@ function M.cond_unit(id, cat)
     end
 
     local c = cat and cat.conds and cat.conds[id or '']
-    return c and (c.kind == 'e' and 'effect' or c.kind == 'r' and '' or nil) or nil
+    return c and (c.kind == 'e' and 'effect' or c.kind == 'j' and 'ja' or c.kind == 'r' and '' or nil) or nil
 end
 
 -- "HP below 50%", "Missing effect Protect", "Always"
@@ -1484,9 +1934,11 @@ function M.cond_text(id, arg, cat)
 
     local unit = M.cond_unit(id, cat)
     local label = M.cond_label(id)
-    if unit == nil then
+    if id == 'JA_ON_COOLDOWN' then
+        return (arg and arg ~= '' and M.pretty(arg) or '?') .. ' is on cooldown' -- "Provoke is on cooldown"
+    elseif unit == nil then
         return label
-    elseif unit == 'effect' then
+    elseif unit == 'effect' or unit == 'ja' then
         return label .. ' ' .. (arg and arg ~= '' and M.pretty(arg) or '?')
     elseif unit == 's' then
         return label .. ' ' .. tostring(arg or '?') .. ' s'
@@ -1511,6 +1963,66 @@ function M.action_text(r)
     end
 
     return r.kind == 'family' and ('Best of ' .. M.pretty(r.name)) or M.pretty(r.name)
+end
+
+-- (beta polish) the compact rule line of the rule list: "Enemy: Not top enmity + No tank -> Provoke". The full wording
+-- (M.rule_summary) stays in the tooltip and under the selected rule.
+M.TARGET_SHORT = { SELF = 'Self', PARTY = 'Party', PARTY_LOWEST_HPP = 'Lowest HP', TANK = 'Tank', CASTER = 'Mage', MELEE = 'Melee',
+                   RANGED = 'Ranged', TOP_ENMITY = 'Aggro ally', TARGET = 'Enemy', MASTER = 'You' }
+M.COND_SHORT = {
+    ALWAYS = 'Always', HAS_TOP_ENMITY = 'Top enmity', NOT_HAS_TOP_ENMITY = 'Not top enmity', PT_HAS_TANK = 'Tank in party',
+    NOT_PT_HAS_TANK = 'No tank', SC_AVAILABLE = 'Skillchain open', NOT_SC_AVAILABLE = 'No skillchain', MB_AVAILABLE = 'Burst window',
+    CASTING_MA = 'Casting', CASTING_DEBUFF = 'Casting a debuff', READYING_WS = 'Readying WS', READYING_MS = 'Readying move',
+    READYING_JA = 'Readying JA', HAS_MP = 'Uses MP',
+}
+M.COND_SHORT_VALUE = { -- id -> prefix, suffix
+    HPP_LT = { 'HP < ', '%' }, HPP_GTE = { 'HP >= ', '%' }, MPP_LT = { 'MP < ', '%' }, MPP_GTE = { 'MP >= ', '%' },
+    HAS_MP_MPP_LT = { 'Mage MP < ', '%' }, HAS_MP_MPP_GTE = { 'Mage MP >= ', '%' }, TP_LT = { 'TP < ', '' }, TP_GTE = { 'TP >= ', '' },
+    HP_MISSING = { 'Missing ', ' HP' }, LVL_LT = { 'Lv < ', '' }, LVL_GTE = { 'Lv >= ', '' }, RANDOM = { '', '% chance' },
+    TIMER = { 'Every ', ' s' },
+}
+
+function M.cond_short(id, arg, cat)
+    if id == nil then
+        return ''
+    elseif M.COND_SHORT[id] then
+        return M.COND_SHORT[id]
+    elseif M.COND_SHORT_VALUE[id] then
+        return M.COND_SHORT_VALUE[id][1] .. tostring(arg or '?') .. M.COND_SHORT_VALUE[id][2]
+    elseif id == 'STATUS' then
+        return 'Has ' .. (arg and M.pretty(arg) or '?')
+    elseif id == 'NOT_STATUS' then
+        return 'No ' .. (arg and M.pretty(arg) or '?')
+    elseif id == 'JA_ON_COOLDOWN' then
+        return (arg and M.pretty(arg) or '?') .. ' on cooldown'
+    end
+
+    return M.cond_text(id, arg, cat)
+end
+
+function M.rule_short(r, cat)
+    if r == nil then
+        return ''
+    elseif r.opaque then
+        return '(kept unchanged, read-only)'
+    end
+
+    local when = M.cond_short(r.cond, r.arg, cat)
+    if r.cond2 then
+        when = when .. ' + ' .. M.cond_short(r.cond2, r.arg2, cat)
+    end
+
+    local text = string.format('%s: %s -> %s', M.TARGET_SHORT[r.target or ''] or M.target_label(r.target), when ~= '' and when or '?',
+        M.action_text(r))
+    if r.retry and tonumber(r.retry) and tonumber(r.retry) > 0 then
+        text = text .. string.format(' (wait %s s)', r.retry)
+    end
+
+    if r.level ~= nil then
+        text = text .. string.format(' (Lv %s+)', r.level)
+    end
+
+    return text
 end
 
 -- One line for the rule list: "Party member: HP below 50% -> Best of Cure"
@@ -2065,6 +2577,24 @@ local function condition_editor(r, slot, cat, labelW)
         end
 
         tooltip('Pick a common effect, or type any status effect (the server checks the name).')
+    elseif spec and spec.kind == 'j' then
+        -- (server version 5) JA_ON_COOLDOWN: one of the mate's own job abilities
+        same_if_fits(s(220), labelW)
+        width(s(220))
+        local names, info = {}, {}
+        for _, e in ipairs(M.ja_choices(cat, M.mate())) do
+            names[#names + 1] = e.name
+            info[e.name] = e
+        end
+
+        local chosen = combo('##gsq-ja' .. slot, r[ak], names, function(v)
+            return v and (info[v] and info[v].label or M.pretty(v)) or '(choose)'
+        end)
+        if chosen ~= r[ak] then
+            r[ak] = chosen
+        end
+
+        tooltip('True while the squad mate\'s own recast of this job ability is running (e.g. Flash while Provoke is not ready).')
     end
 
     if M.ENEMY_CONDS[cond] and r.target ~= 'TARGET' then
@@ -2365,7 +2895,8 @@ local function rule_list(d, cat, readonly, height)
             end
 
             same()
-            local text = string.format('%d. %s', i, M.rule_summary(r, cat))
+            local text = string.format('%d. %s', i, M.rule_short(r, cat)) -- (compact; the full wording is the tooltip)
+            local full = string.format('%d. %s', i, M.rule_summary(r, cat))
             local selected = S.sel == i
             local list = { { 'ImGuiCol_Text', r.on == false and M.theme.muted or nil } }
             if selected then
@@ -2379,7 +2910,7 @@ local function rule_list(d, cat, readonly, height)
                 end
             end)
 
-            tooltip(text) -- (the whole line, also when the panel is too narrow for it)
+            tooltip(full) -- (the full wording, also when the panel is too narrow for the line)
             if S.checks[i] then
                 wrapped(M.theme.bad, 'Rule ' .. i .. ' is left out for this mate now: ' .. M.readable(S.checks[i]))
             end
@@ -2391,7 +2922,7 @@ end
 local function sets_panel(mate, listH)
     local g = imgui()
     heading(mate.job .. ' Rule Sets')
-    wrapped(M.theme.secondary, string.format('%s uses: %s', mate.name, mate.chosen > 0 and ('Rule Set ' .. mate.chosen) or 'its job rules'))
+    wrapped(M.theme.secondary, string.format('%s uses: %s', mate.name, mate.chosen > 0 and M.set_label(mate.chosen) or 'default job rules'))
     child('##gsq-sets', { 0, listH or s(150) }, function()
         if #S.sets == 0 then
             note('No ' .. mate.job .. ' Rule Sets yet. Press New.')
@@ -2409,7 +2940,7 @@ local function sets_panel(mate, listH)
 
             with_colors(list, function()
                 if g.Selectable(label .. '##gsq-set-' .. set.num, selected) then
-                    S.selectedSet = set.num
+                    M.select_set(set.num) -- (one click selects and opens it)
                 end
             end)
 
@@ -2431,13 +2962,27 @@ local function sets_panel(mate, listH)
     end
 
     tooltip('A new ' .. mate.job .. ' Rule Set (saved only when you press Save).')
-    if sel then
-        same_if_fits(s(60))
-        if button('Open##gsq-open') then
-            M.open_set(sel.num, false)
+    for i, t in ipairs(M.templates_for(mate.job)) do
+        same_if_fits(s(150))
+        if button('Starter: ' .. t.name .. '##gsq-tpl' .. i) then
+            M.new_from_template(mate.job, i, S.cat)
             S.sel = 1
         end
 
+        tooltip(t.about .. '\n\nOptional: it only fills a new, unsaved Rule Set to look at and change. Saving, assigning and '
+            .. 'applying stay your choice. Once assigned, a Rule Set replaces ' .. mate.name .. '\'s usual job rules; the built-in '
+            .. 'rules are never changed and "Restore default job rules" goes back to them.')
+    end
+
+    if S.confirmOpen then
+        wrapped(M.theme.gold, string.format('"%s" has unsaved changes. Open %s anyway? Your changes are kept as the unsaved draft.',
+            S.draft and S.draft.name or '?', M.set_label(S.confirmOpen)))
+        if button('Open it##gsq-confirm-open') then M.confirm_open(true) end
+        same_if_fits(s(110))
+        if button('Keep editing##gsq-confirm-keep') then M.confirm_open(false) end
+    end
+
+    if sel then
         same_if_fits(s(60))
         if button('Copy##gsq-copy') then
             M.open_set(sel.num, true)
@@ -2463,8 +3008,9 @@ local function sets_panel(mate, listH)
     g.Separator()
     heading('Use it')
     if sel then
-        if button('Assign to ' .. mate.name .. '##gsq-assign') then M.assign(mate.slot, sel.num) end
-        tooltip('Choose Rule Set ' .. sel.num .. ' for ' .. mate.name .. ' (!squad ruleset).')
+        if button('Assign & Apply##gsq-assign') then M.assign_apply(mate.slot, sel.num) end
+        tooltip(string.format('Use the saved "%s" for %s now: assigns it (!squad ruleset) and, when %s is summoned, calls '
+            .. 'the squad again (!squad reapply). Unsaved changes are not included: Save first.', sel.name, mate.name, mate.name))
         local checkLabel = mate.out and 'Check' or ('Check (' .. mate.name .. ' not summoned)')
         same_if_fits(s(80))
         if button(checkLabel .. '##gsq-check') then M.check_set(mate.slot, sel.num) end
@@ -2474,15 +3020,17 @@ local function sets_panel(mate, listH)
             .. ' Check never summons anyone.')
     end
 
-    if button('Use job rules##gsq-off') then M.assign(mate.slot, nil) end
-    tooltip(mate.name .. ' goes back to the built-in ' .. mate.job .. ' rules.')
-    same_if_fits(s(90))
-    if button('Apply now##gsq-apply') then M.apply() end
-    tooltip('Call the squad again so a new choice takes effect (!squad reapply).')
-    if S.restorable and not S.draft then
+    if button('Restore default job rules##gsq-off') then M.assign(mate.slot, nil, true) end
+    tooltip(mate.name .. ' stops using its Rule Set and goes back to the usual ' .. mate.job .. ' job rules (applied at once '
+        .. 'when summoned). Your saved Rule Sets are kept.')
+    -- (the separate "Apply now" button is gone: Assign & Apply also re-calls a mate after its set was changed and saved)
+    local r = S.restorable
+    if r and r.job == mate.job and not (S.draft and S.draft.dirty) then
         if button('Restore unsaved draft##gsq-restore') then
-            S.draft, S.restorable, S.sel = S.restorable, nil, 1
+            S.draft, S.restorable, S.sel = r, nil, 1
         end
+
+        tooltip('Your unsaved changes to "' .. tostring(r.name) .. '".')
     end
 end
 
@@ -2491,7 +3039,7 @@ local function editor_panel(height)
     local d = S.draft
     if d == nil then
         heading('Rules')
-        note('Open, Copy or New a Rule Set to edit it. Edits stay here until you press Save.')
+        note('Click a Rule Set to open it, or press New or a Starter. Edits stay here until you press Save.')
         return
     end
 
@@ -2510,8 +3058,14 @@ local function editor_panel(height)
         S.sel = #d.rules > 0 and 1 or nil
     end
 
-    heading(readonly and ('Rule Set ' .. d.num .. ' (read-only: Copy it to change it)')
-        or (d.num > 0 and ('Rule Set ' .. d.num) or 'New Rule Set') .. (d.dirty and '  - not saved' or ''))
+    -- (beta polish) always say what is being edited, by name, and for which job
+    local title = (d.name and d.name ~= '' and ('"' .. d.name .. '"') or 'New Rule Set') .. ' (' .. tostring(d.job) .. (d.num > 0 and (', #' .. d.num) or ', new') .. ')'
+    heading(readonly and ('Viewing ' .. title .. ' - read-only: Copy it to change it')
+        or ('Editing ' .. title .. (d.dirty and '  - not saved' or '')))
+    local m = M.mate()
+    if m and d.job ~= m.job then
+        wrapped(M.theme.gold, string.format('This is a %s Rule Set; %s is %s now.', tostring(d.job), m.name, m.job))
+    end
     same_if_fits(s(100))
     colored(#d.rules >= M.MAX_RULES and M.theme.gold or M.theme.secondary, string.format('%d of %d rules', #d.rules, M.MAX_RULES))
     if not readonly then
@@ -2567,6 +3121,157 @@ local function editor_panel(height)
     end
 end
 
+-- The Weapon Skills section (server version 5): one squad mate, its current main job
+local function ws_panel(mate)
+    local g = imgui()
+    heading('Weapon Skills: ' .. mate.name .. ' (' .. mate.job .. ')')
+    note('Separate from Rule Sets: a Rule Set never changes these, and these never change a Rule Set.')
+    if not M.ws_supported() then
+        wrapped(M.theme.gold, 'This needs the server update (gambits_squad.lua version 5).')
+        return
+    end
+
+    local w = S.ws
+    if w == nil or w.slot ~= mate.slot then
+        if not M.busy() then
+            M.ws_load(mate.slot)
+        end
+
+        note('Loading...')
+        return
+    end
+
+    if w.error then
+        colored(M.theme.bad, 'Could not load them: ' .. M.readable(w.error))
+        if button('Try again##gsq-ws-retry') then S.ws = nil end
+        return
+    end
+
+    local d, e = w.data, w.edit
+    if d == nil or e == nil then
+        note('Loading...')
+        return
+    end
+
+    -- what is stored now
+    local stored
+    if d.source == 'c' then
+        stored = string.format('Custom: %s%s, %s.', M.WS_MODES[d.mode] or '?', d.mode == 2 and '' or (' at ' .. d.tp .. ' TP'), M.ws_name(d.ws))
+    elseif d.source == 'd' then
+        stored = 'Squad default (automatic skillchains, every weapon skill).'
+    else
+        stored = 'No Gambits setting yet: the squad\'s own behaviour'
+        if (d.legacyTp or 0) > 0 or (d.legacyWs or 0) > 0 then
+            stored = stored .. string.format(' with your !squad ws choice (%s, %s).', d.legacyTp > 0 and (d.legacyTp .. ' TP') or 'skillchains',
+                M.ws_name(d.legacyWs))
+        else
+            stored = stored .. ' (automatic skillchains).'
+        end
+    end
+
+    wrapped(M.theme.secondary, 'Saved: ' .. stored)
+    if not d.engine then
+        wrapped(M.theme.gold, 'Custom needs the updated map server (xi_map); only Squad default can be used here.')
+    end
+
+    if d.usable == false then
+        wrapped(M.theme.bad, string.format('%s cannot use %s now (weapon, skill level or quest): it uses Best available until it '
+            .. 'can. Your choice is kept.', mate.name, M.ws_name(d.ws)))
+    end
+
+    if not d.out then
+        wrapped(M.theme.secondary, mate.name .. ' is not summoned: saved settings apply when called. Summon ' .. mate.name
+            .. ' and press Refresh to choose a specific weapon skill.')
+    elseif d.applied == false then
+        wrapped(M.theme.gold, 'Saved but not in use yet: press Apply WS settings now.')
+    end
+
+    g.Separator()
+    local labelW = s(110)
+    local function label(text)
+        label_text(text)
+        g.SameLine(labelW)
+    end
+
+    label('Control')
+    width(s(200))
+    local control = combo('##gsq-ws-ctl', e.control, { 0, 1 }, function(v) return v == 1 and 'Custom' or 'Squad default' end,
+        function(v) return v == 1 and 'Your own mode, TP and weapon skill.' or 'The automatic party skillchains (as without Gambits).' end)
+    if control ~= e.control and (control == 0 or d.engine) then
+        e.control = control
+    end
+
+    if e.control == 1 then
+        label('Mode')
+        width(s(200))
+        e.mode = combo('##gsq-ws-mode', e.mode, { 1, 2, 3, 4 }, function(v) return M.WS_MODES[v] or '?' end,
+            function(v) return M.WS_MODE_HELP[v] end)
+        tooltip(M.WS_MODE_HELP[e.mode] or '')
+        if g.SetCursorPosX then
+            g.SetCursorPosX(labelW)
+        end
+
+        wrapped(M.theme.secondary, M.WS_MODE_HELP[e.mode] or '')
+        if e.mode ~= 2 then
+            label(e.mode == 4 and 'TP' or 'TP to open')
+            width(s(120))
+            e.tp = combo('##gsq-ws-tp', e.tp, M.WS_TPS, function(v) return tostring(v) end)
+            if e.mode == 3 then
+                same()
+                note('(opening only: closing is allowed from 1000 TP)')
+            end
+        end
+
+        label('Weapon skill')
+        width(s(240))
+        local ids = { 0 }
+        local inList = e.ws == 0
+        for _, it in ipairs(w.list or {}) do
+            ids[#ids + 1] = it.id
+            inList = inList or it.id == e.ws
+        end
+
+        if not inList then
+            ids[#ids + 1] = e.ws -- (the saved choice stays selectable, even when not in the list now)
+        end
+
+        e.ws = combo('##gsq-ws-ws', e.ws, ids, M.ws_name, function(v) return v == 0 and M.WS_BEST_HELP or nil end)
+        tooltip(e.ws == 0 and M.WS_BEST_HELP or ('Only ' .. M.ws_name(e.ws) .. ' (when the mate can use it; otherwise Best available).'))
+        if w.list == nil then
+            same()
+            note(d.out and '(loading the list...)' or '(summon to see the list)')
+        elseif not inList then
+            same()
+            colored(M.theme.bad, '(not usable now)')
+        end
+
+        if g.SetCursorPosX then
+            g.SetCursorPosX(labelW)
+        end
+
+        note(M.WS_3000_HELP)
+    end
+
+    g.Separator()
+    local dirty = M.ws_dirty()
+    with_colors({ { 'ImGuiCol_Button', M.theme.goGold }, { 'ImGuiCol_ButtonHovered', times(M.theme.goGold, 1.15) },
+                  { 'ImGuiCol_Text', M.theme.goText } }, function()
+        if button((dirty and 'Save *' or 'Save') .. '##gsq-ws-save', s(90)) then
+            M.ws_save(mate.slot, e)
+        end
+    end)
+    tooltip('Store these settings for ' .. mate.name .. ' as ' .. mate.job .. ' (the server checks them).')
+    same_if_fits(s(100))
+    if button('Apply WS settings now##gsq-ws-apply') then M.ws_apply(mate.slot) end
+    tooltip('Use the saved settings on ' .. mate.name .. ' now, without calling again (' .. mate.name .. ' must be summoned).')
+    same_if_fits(s(170))
+    if button('Reset to Squad default##gsq-ws-reset') then M.ws_reset(mate.slot) end
+    tooltip('Back to the automatic skillchains for ' .. mate.job .. '. Your Custom choices are kept for later. Then Apply WS settings now.')
+    same_if_fits(s(70))
+    if button('Refresh##gsq-ws-refresh') then S.ws = nil end
+end
+M.ws_panel = ws_panel
+
 function M.draw()
     local g = imgui()
     if g == nil then
@@ -2603,16 +3308,14 @@ function M.draw()
 
     local picked = combo('##gsq-mate', S.mateSlot, slots, function(v) return labels[v] or tostring(v) end)
     if picked ~= S.mateSlot then
-        S.mateSlot, S.selectedSet = picked, nil
-        local m = M.mate()
-        if m then
-            M.load_sets(m.job)
-            M.load_catalog_for(m)
-        end
+        M.switch_mate(picked) -- (beta polish: the new mate's own Rule Set, never the previous mate's; unsaved edits kept)
     end
 
     same_if_fits(s(70))
-    if button('Refresh##gsq-refresh') then M.load_mates() end
+    if button('Refresh##gsq-refresh') then
+        S.ws = nil -- (the Weapon Skills section loads again too)
+        M.load_mates()
+    end
     tooltip('Ask the server again for your squad and its Rule Sets.')
     same_if_fits(s(50))
     if button('Ping##gsq-ping') then M.ping(10) end
@@ -2658,7 +3361,28 @@ function M.draw()
         with_colors({ { 'ImGuiCol_Border', M.theme.border } }, function()
             child('##gsq-left', { leftW, panelH }, function() sets_panel(mate, setsH) end)
             same()
-            child('##gsq-right', { 0, panelH }, function() editor_panel(rulesH) end)
+            child('##gsq-right', { 0, panelH }, function()
+                -- (version 5) Rules or Weapon Skills on the right
+                if M.ws_supported() then
+                    for _, v in ipairs({ { 'rules', 'Rule Set editor' }, { 'ws', 'Weapon Skills' } }) do
+                        local on = (S.view or 'rules') == v[1]
+                        with_colors(on and { { 'ImGuiCol_Button', M.theme.tabSel } } or {}, function()
+                            if button(v[2] .. '##gsq-view-' .. v[1]) then
+                                S.view = v[1]
+                            end
+                        end)
+                        same()
+                    end
+
+                    g.NewLine()
+                end
+
+                if S.view == 'ws' and M.ws_supported() then
+                    ws_panel(mate)
+                else
+                    editor_panel(rulesH - (M.ws_supported() and s(28) or 0))
+                end
+            end)
         end)
     end
 

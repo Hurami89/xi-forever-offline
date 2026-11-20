@@ -19,6 +19,7 @@ that every built-in job rule set is unchanged against it. `-RuleSetData <copy>` 
 | `test_gambits_squad.lua` | the `!gsq` server command: protocol, catalogs (`cat`, `catm`), codec, saving, ownership, errors |
 | `test_squad_rulesets.lua` | Rule Sets in `squad.lua` and the job ability rules (U13), plus a sweep that every built-in job profile is unchanged |
 | `test_squad_upstream_integration.lua` | the hooks together with the current `squad.lua`: bard songs, spacing, skillchain wait, camp commands, the command error wrapper |
+| `test_gambits_ws_batch.lua` | the WAR/PLD/RDM/Weapon Skill batch: `squad_ws.lua` (storage, precedence, apply), `!gsq` v5 (`wsg`/`wsl`/`wss`/`wsa`, `catm j`), the new conditions/target, the starter templates, the editor's Weapon Skills flows; a specification table of the new C++ weapon skill triggers and C++ source checks (enum values, code shapes) - the C++ itself is not run |
 | `example_squad_rulesets_data.lua` | a valid example store (one WHM set) |
 
 Lua 5.4 note: the server's `!squad` wrapper uses the LuaJIT global `unpack`; `run_tests.ps1` defines it for the Lua 5.4

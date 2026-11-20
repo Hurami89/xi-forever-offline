@@ -47,7 +47,7 @@ LINK_SLOTS = (16, 17)                # char_equip slots of the two worn linkshel
 WORLD_VAR_PREFIXES = ("[Bots]", "[Bot]", "COOP_")               # character variables that belong to one world
 MAX_MATES = 12                # squad mates one character may bring (the game keeps six)
 SQUAD_TABLES = ("squad_mate", "squad_job", "squad_equip", "squad_unlock")
-MATE_VAR = re.compile(r"^(SQUAD_[A-Z_]*_)(\d+)$")                # a mate's own setting: SQUAD_AI_<mate id>, SQUAD_LOOK_<mate id>...
+MATE_VAR = re.compile(r"^(SQUAD_[A-Z_]*_)(\d+)((?:_\d+)?)$")                # a mate's own setting: SQUAD_AI_<mate id>, SQUAD_LOOK_<mate id>...
 GUEST_VAR = "COOP_GUEST"
 MAX_PASSPORT_BYTES = 64 * 1024 * 1024
 MAX_ROWS = 20000
@@ -431,7 +431,8 @@ def _mate_var(name, mates):
     if not found:
         return name
     new = (mates or {}).get(int(found.group(2)))
-    return None if new is None else found.group(1) + str(new)
+    # (group 3: the job of a per-job setting, SQUAD_WSC_<mate id>_<job>, the Gambits weapon skill settings)
+    return None if new is None else found.group(1) + str(new) + found.group(3)
 
 
 def _travel_rows(table, block, mates=None):
