@@ -285,7 +285,7 @@ def update_server(kit, cfg, release, fetch, log=print, run=None, connect=None):
     dump = os.path.join(backups, f"db-before-{release.get('tag_name')}-{time.strftime('%Y%m%d-%H%M%S')}.sql")
     log("Saving your database first...")
     result = run(setup.mariadb_cmd(cfg["mariadb_dir"], "mariadb-dump") + ["-h127.0.0.1", f"-P{cfg.get('db_port', 3306)}",
-                  f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", cfg["db_name"], f"--result-file={dump}"],
+                  f"-u{cfg['db_user']}", f"-p{cfg['db_pass']}", "--single-transaction", cfg["db_name"], f"--result-file={dump}"],
                  capture_output=True, text=True, creationflags=NO_WINDOW,
                  **({} if IS_WINDOWS else {"env": setup.mariadb_env(cfg["mariadb_dir"])}))
     if result.returncode != 0:
