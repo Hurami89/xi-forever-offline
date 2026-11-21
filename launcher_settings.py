@@ -122,6 +122,17 @@ S("short_quest_waits", "rules", "Comforts", SWITCH, "Short quest waits",
       "midnight). Off = the era waits.")
 S("main.NEW_CHARACTER_CUTSCENE", "rules", "Comforts", FLAG, "New-character cutscenes")
 
+# ---------------------------------------------------------------- Rules > Tetra Master (2026-11-21)
+S("main.TM_CARD_DROP_RATE", "rules", "Tetra Master", RATE, "Cards from monsters",
+  tip="How often monsters and notorious monsters drop their Tetra Master card. 1x = about 1 in 50 kills for a common "
+      "card, 0x = no cards from monsters.")
+S("main.TM_CASKET_CARD_RATE", "rules", "Tetra Master", RATE, "Cards from caskets",
+  tip="How often a treasure casket holds a Tetra Master card. 1x = about 1 in 7 caskets, 0x = none.")
+S("main.TM_GIL_RATE", "rules", "Tetra Master", RATE, "Gil for a win",
+  tip="Gil for beating the computer. 1x = 100 / 300 / 800 gil on Easy / Normal / Hard (double for a perfect game).")
+S("main.TM_PRICE_RATE", "rules", "Tetra Master", RATE, "Card prices",
+  tip="What card traders like Luto Mewrilah charge. 1x = 150 to about 1,100 gil a card.")
+
 # ---------------------------------------------------------------- Rules > Squad: rules for the whole squad
 # (2026-11-21, Hurami: moved from the Squad page's top line to the Rules page, in a Squad section)
 S("squad_call_cooldown", "rules", "Squad", COUNT, "Call timer (min)", lo=0, hi=30, step=1,
@@ -166,7 +177,7 @@ S("main.SPARKS_RATE", "era", "Out-of-era content", RATE, "RoE sparks", dev=True,
 LAYOUT = {
     "world": (("Town crowds", "Field parties"), ("Bot players", "Auction house", "Conquest"), ("AI chat", "Seasonal events")),
     "rules": (("Experience and fame", "Notorious monsters", "Expansions"), ("Loot and gil", "Travel", "Squad"),
-              ("Skills and crafting", "Comforts")),
+              ("Skills and crafting", "Comforts", "Tetra Master")),
     "squad": (("Squad rules",),),
     "era": (("Era",), ("Later expansions",), ("Out-of-era content",)),
 }

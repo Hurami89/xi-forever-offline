@@ -186,6 +186,17 @@ local w = newPlayer(); w.job = 23
 for k = 1, 500 do death(mob('Goblin_Thug', 58, false, 20), w, true, false) end
 check((w.vars.TM_N or 0) == 0, 'no cards for monstrosity')
 
+-- the launcher's sliders (settings/main.lua TM_*)
+xi.settings = { main = { TM_CARD_DROP_RATE = 0 } }
+local z = newPlayer()
+for k = 1, 3000 do death(mob('Goblin_Thug', 58, false, 20), z, true, false) end
+check((z.vars.TM_N or 0) == 0, 'card drops at 0x: none')
+xi.settings.main.TM_CARD_DROP_RATE = 3
+local y = newPlayer()
+for k = 1, 3000 do death(mob('Goblin_Thug', 58, false, 20), y, true, false) end
+check((y.vars.TM_N or 0) > 130 and (y.vars.TM_N or 0) < 200, 'card drops at 3x: about 180 in 3000, got ' .. tostring(y.vars.TM_N))
+xi.settings.main.TM_CARD_DROP_RATE = nil
+
 -- caskets
 local open = overrides['xi.caskets.onTrigger']
 local c = newPlayer(); c.lvl = 20
@@ -210,6 +221,16 @@ for k = 1, 300 do
     open(closed, box)
 end
 check((closed.vars.TM_N or 0) == 0, 'a closed casket gives nothing')
+xi.settings = { main = { TM_CASKET_CARD_RATE = 0 } }
+local nobox = newPlayer()
+for k = 1, 500 do
+    local box = { lv = { ['[caskets]SPAWNSTATUS'] = 2 } }
+    function box:getLocalVar(k2) return self.lv[k2] or 0 end
+    function box:setLocalVar(k2, v2) self.lv[k2] = v2 end
+    open(nobox, box)
+end
+check((nobox.vars.TM_N or 0) == 0, 'casket cards at 0x: none')
+xi.settings = nil
 
 -- Luto Mewrilah in Upper Jeuno becomes the Jeuno card trader
 super = function() return 'original' end
@@ -262,6 +283,20 @@ local made = nil
 local before2 = nextNpc
 lutoInit(jeuno2)
 check(nextNpc == before2 + 1 and npcs[nextNpc].t.packetName == 'Luto Mewrilah', 'Luto made when missing')
+
+xi.settings = { main = {} }
+lutoInit(jeuno) -- the zone's own Luto again
+xi.settings.main.TM_PRICE_RATE = 2
+local pp = newPlayer(); function pp:getZoneID() return 244 end
+pp.gil = 100000
+pp.vars.TM_STARTER = 1
+InteractionGlobal.onTrigger(pp, luto, nil)
+local listed = nil
+for _, l in ipairs(pp.lines) do local pr = l:match('^tetramaster:stock|1|%d+|[^|]+|(%d+)|') if pr then listed = tonumber(pr) end end
+commands.tm.onTrigger(pp, 'buy', '1')
+check(listed == 2 * D.price(D.shopStock(100)[1]) and 100000 - pp.gil == listed, 'prices at 2x: listed and charged double')
+xi.settings.main.TM_PRICE_RATE = nil
+xi.settings = nil
 
 os.remove(SHOPS)
 print(string.format('shops and drops: casket tiers %d/%d/%d/%d/%d; %d checks, %d failed', tiers[1], tiers[2], tiers[3], tiers[4], tiers[5], checks, failures))

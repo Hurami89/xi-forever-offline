@@ -102,6 +102,39 @@ for game = 1, 300 do
     end
 end
 
+-- the launcher's gil slider: a win against the computer pays 2x
+do
+    xi.settings = { main = { TM_GIL_RATE = 2 } }
+    local ok2 = true
+    local base = { easy = 100, normal = 300, hard = 800 }
+    for game = 1, 60 do
+        local p = newPlayer(900 + game)
+        commands.tmgive.onTrigger(p, '237', '5')       -- Behemoth King x5, to win often
+        local level = ({ 'easy', 'normal', 'hard' })[game % 3 + 1]
+        tm(p, 'play', level)
+        local view = {}
+        parse(p, view)
+        local guard = 0
+        while not view.over and guard < 40 do
+            guard = guard + 1
+            if view.choose then tm(p, 'pick', '1'); view.choose = nil
+            else
+                local free
+                for x = 1, 4 do for y = 1, 4 do if not free and view.cells[x .. ',' .. y] == nil then free = { x, y } end end end
+                view.placed = 1
+                tm(p, 'move', '1', tostring(free[1]), tostring(free[2]))
+            end
+            parse(p, view)
+        end
+        if view.result and view.result[3] == 'blue' then
+            local want = base[level] * (view.result[4] == '1' and 2 or 1) * 2
+            if view.result[5] ~= want or p.gil ~= want then ok2 = false; print('gil', level, view.result[5], want) end
+        end
+    end
+    check(ok2, 'gil at 2x')
+    xi.settings = nil
+end
+
 -- starter hand, deck, bad moves, quit, GM give
 do
     local p = newPlayer(500)
