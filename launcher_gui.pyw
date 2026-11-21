@@ -796,7 +796,8 @@ class SquadTab(tk.Frame):
         self.cfg = cfg
         self.conn = None
         self.chars, self.mates, self.mate = [], [], None
-        self.require_unlock = bool(cfg.get("squad_require_unlock", True))
+        # (2026-11-21) the Rules page's "Squad gets all gear" lifts the gear lock in the gear picker too
+        self.require_unlock = bool(cfg.get("squad_require_unlock", True)) and not core.load_rates(HERE).get("squad_all_gear", False)
         # player installs: mates start at level 1 and level up in game, and a look is picked once (as in squad.lua)
         self.player = bool(cfg.get("mariadb_dir"))
         self.level_vars, self.gear_vars, self.level_spins = {}, {}, {}
@@ -1630,7 +1631,7 @@ class RatesTab(tk.Frame):
         for k in (3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 28):   # (28: bots pass all loot)
             R[k], row = row, row + 1
         row = header("Squad and AI", row)
-        for k in (15, 16, 19, 26, 27, 21, 22, 17):   # (26: squad gear, you keep the item; 27: training dummies)
+        for k in (15, 16, 19, 26, 29, 27, 21, 22, 17):   # (26: squad gear, you keep the item; 29: all gear; 27: training dummies)
             R[k], row = row, row + 1
         self.all_crafts = tk.BooleanVar(value=rates.get("all_crafts", True))
         tk.Checkbutton(inner, text="Every craft can reach 100 (off = only one, like the retail rule)", variable=self.all_crafts, bg=BG, fg=FG,
@@ -1745,6 +1746,11 @@ class RatesTab(tk.Frame):
                        "you without waiting for the lot timer. Off = they leave it to the timer.",
                        variable=self.bots_pass_loot, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[28], column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        self.squad_all_gear = tk.BooleanVar(value=rates.get("squad_all_gear", False))
+        tk.Checkbutton(inner, text="Squad gets all gear: mates can wear anything their job and level allow without it being "
+                       "given to them first. Off = gear has to be given once (trade it, or !squad give).",
+                       variable=self.squad_all_gear, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                       wraplength=520, justify="left").grid(row=R[29], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.training_dummies = tk.BooleanVar(value=rates.get("training_dummies", False))
         tk.Checkbutton(inner, text="Training dummies (for testing): !sandbox puts dummies of level 1 to 99 in Rolanberry "
                        "Fields that never die and never attack, to try out squads and gambits. Off = no dummies.",
@@ -1864,7 +1870,7 @@ class RatesTab(tk.Frame):
         return next((k for k, v in self.EVENTS_LABELS.items() if v == label), "date")
 
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
-                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "short_quest_waits")
+                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "squad_all_gear", "short_quest_waits")
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
                  ("bots_growth", "bots_growth"), ("squad_call_cooldown", "squad_call_cooldown"))
@@ -1978,6 +1984,7 @@ class RatesTab(tk.Frame):
         rates["squad_keep_gear"] = bool(self.squad_keep_gear.get())
         rates["training_dummies"] = bool(self.training_dummies.get())
         rates["bots_pass_loot"] = bool(self.bots_pass_loot.get())
+        rates["squad_all_gear"] = bool(self.squad_all_gear.get())
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
         rates["events"] = self.events_value()
         rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done

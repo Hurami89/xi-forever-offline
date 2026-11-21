@@ -124,6 +124,9 @@ S("spell_scrolls", "rules", "Squad", SWITCH, "Spells from scrolls",
 S("squad_keep_gear", "rules", "Squad", SWITCH, "Keep gear you give",
   tip="Trading a piece to a mate (or !squad give) unlocks it for the whole squad and you keep yours. "
       "Off = the squad takes the piece (one-of-a-kind gear is always kept).")
+S("squad_all_gear", "rules", "Squad", SWITCH, "Squad gets all gear",
+  tip="Every piece of gear counts as given to your squad: mates can wear anything their job and level allow, "
+      "without trading it to them first. Off = gear has to be given once (trade it, or !squad give).")
 S("training_dummies", "rules", "Squad", SWITCH, "Training dummies",
   tip="For testing: !sandbox puts dummies of level 1 to 99 in Rolanberry Fields that never die and never attack. "
       "Off = no dummies.")
