@@ -859,12 +859,17 @@ local function fakeImgui(opts)
     local g = { colors = 0, ids = 0, children = 0, combos = 0, disabled = 0, errors = {}, clicks = {}, texts = {} }
     local function err(e) g.errors[#g.errors + 1] = e end
     g.Text = function(t) g.texts[#g.texts + 1] = t end
-    g.TextWrapped = g.Text
+    -- (hotfix 2026-11-21) as in Ashita: TextWrapped and SetTooltip take a printf format; a bare % in one is an error
+    local function fmt(t) if tostring(t):gsub('%%%%', ''):find('%', 1, true) then err('format text with a bare %: ' .. t) end return t end
+    g.TextWrapped = function(t) g.texts[#g.texts + 1] = fmt(t) end
+    g.TextUnformatted = g.Text
     g.TextColored = function(_, t) g.texts[#g.texts + 1] = t end
+    g.PushTextWrapPos, g.PopTextWrapPos = function() end, function() end
+    g.BeginTooltip, g.EndTooltip = function() return true end, function() end
     g.SameLine = function() end
     g.SetNextItemWidth = function() end
     g.Separator = function() end
-    g.SetTooltip = function() end
+    g.SetTooltip = function(t) fmt(t) end
     g.IsItemHovered = function() return false end
     g.GetContentRegionAvail = function() return { 1000, 500 } end
     g.Button = function(label) if g.clicks[label] then g.clicks[label] = nil; return true end return false end
