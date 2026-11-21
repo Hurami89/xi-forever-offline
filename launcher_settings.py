@@ -51,7 +51,13 @@ S("crowds_chat_ai", "world", "AI chat", SWITCH, "Town and bot chatter",
   tip="Your local Ollama model writes some of the small talk (runs quietly in the background).")
 S("squad_chat", "world", "AI chat", SWITCH, "Squad mates talk",
   tip="Squad mates answer you in party chat with the local AI (Ollama), each with their own personality.")
-S("events", "world", "Seasonal events", CHOICE, "", options=(("By date", "By date"), ("Always on", "Always on"), ("Off", "Off")))
+S("events", "world", "Seasonal events", CHOICE, "", options=(("By date", "By date"), ("Always on", "Always on"), ("Off", "Off")),
+  tip="By date = each event switched on below runs on its own dates. Always on = they run all year (for trying them out). "
+      "Off = no seasonal events at all.")
+S("event_harvest", "world", "Seasonal events", SWITCH, "Harvest Festival")
+S("event_starlight", "world", "Seasonal events", SWITCH, "Starlight Celebration")
+S("event_egg_hunt", "world", "Seasonal events", SWITCH, "Egg Hunt")
+S("event_horro", "world", "Seasonal events", SWITCH, "Horro's Visit")
 
 # the switch beside a section's title turns the whole feature on or off
 MASTERS = {"Town crowds": "crowds", "Field parties": "crowds_field", "Bot players": "bots",

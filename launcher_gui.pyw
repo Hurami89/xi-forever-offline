@@ -1625,7 +1625,7 @@ class RatesTab(tk.Frame):
             ttk.Spinbox(inner, from_=field[5], to=field[6], increment=1 if field[7] == "int" else 0.25,
                         textvariable=var, width=8).grid(row=row, column=1, padx=6, pady=2)
             row += 1
-        for k in (2, 20, 18, 25, 23, 0, 24):    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
+        for k in (2, 20, 18, 25, 23, 0, 24, 30, 31, 32, 33):    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
             R[k], row = row, row + 1
         row = header("World", row)
         for k in (3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 28):   # (28: bots pass all loot)
@@ -1768,6 +1768,13 @@ class RatesTab(tk.Frame):
         self.events = tk.StringVar(value=self.EVENTS_LABELS[core.clean_events(rates.get("events", "date"))])
         ttk.Combobox(inner, values=list(self.EVENTS_LABELS.values()), state="readonly", textvariable=self.events,
                      width=16).grid(row=R[24], column=1, padx=6, pady=2)
+        # (2026-11-20) one switch per event: on = it runs on its dates (or all year with "Always on"), off = never
+        for slot, key, name in ((30, "event_harvest", "Harvest Festival"), (31, "event_starlight", "Starlight Celebration"),
+                                (32, "event_egg_hunt", "Egg Hunt"), (33, "event_horro", "Horro's Visit")):
+            var = tk.BooleanVar(value=rates.get(key, True))
+            setattr(self, key, var)
+            tk.Checkbutton(inner, text="   " + name, variable=var, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG,
+                           activeforeground=FG).grid(row=R[slot], column=0, columnspan=2, sticky="w", padx=6, pady=1)
         if tp is not None:
             self.ai_model_row(inner, R[21])
         self.show_world(rates)
@@ -1870,7 +1877,8 @@ class RatesTab(tk.Frame):
         return next((k for k, v in self.EVENTS_LABELS.items() if v == label), "date")
 
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
-                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "squad_all_gear", "short_quest_waits")
+                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "squad_all_gear", "short_quest_waits",
+                 "event_harvest", "event_starlight", "event_egg_hunt", "event_horro")
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
                  ("bots_growth", "bots_growth"), ("squad_call_cooldown", "squad_call_cooldown"))
@@ -1987,6 +1995,8 @@ class RatesTab(tk.Frame):
         rates["squad_all_gear"] = bool(self.squad_all_gear.get())
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
         rates["events"] = self.events_value()
+        for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro"):
+            rates[k] = bool(getattr(self, k).get())
         rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done
         rates["bots_head_start_done"] = self.head_start_done
         rates["claim_shield"] = False
