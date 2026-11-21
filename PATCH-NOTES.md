@@ -4,6 +4,12 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ## v0.1.58 · 21 November 2026
 
+### Tetra Master (new)
+• The PlayOnline card game, inside FFXI. Visit Luto Mewrilah in Upper Jeuno (G-8) for a free starter deck, then type /tm and play the computer on Easy, Normal or Hard for gil.
+• Collect 250 cards: from card traders, monster families, notorious monsters, treasure caskets and Vana'diel's biggest fights. Guide in #tetra-master-guide.
+• Rules page sliders for card drops, casket cards, win gil and card prices.
+• Card art, sounds and the original add-on by Nalfey.
+
 ### Character transfer (new)
 • Bring a character over from retail or another private server: SYSTEM > Characters > "Bring a character from another server". Get the capture add-on, snapshot your character there, then import it onto a character here. Jobs, levels, skills, spells, key items, gear and items come along, within this era's limits. Your character is backed up first. How-to in #character-transfer. (charcapture by the VanaDreams team, used with their permission)
 
