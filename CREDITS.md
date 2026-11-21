@@ -12,6 +12,9 @@ covered by this project's license. If Square Enix asks for any of it to be remov
 
 The "XI: Forever Offline" wordmark is our own lettering and contains no Square Enix artwork.
 
+Tetra Master, its cards, characters and the Quad Mist music come from FINAL FANTASY IX, FINAL FANTASY X and the
+PlayOnline Tetra Master game, (c) SQUARE ENIX CO., LTD. They are used in tribute, as above.
+
 ## Server
 - [Phoenix](https://github.com/phoenixffxi/Phoenix), with its xiloader and Era-DATs: the 75-era server this project is built on (GPL v3).
 - [LandSandBoat](https://github.com/LandSandBoat/server): the FFXI server emulator Phoenix is based on (GPL v3).
@@ -54,6 +57,12 @@ Gambits began as the TitanGambits engine and was brought here by its author.
   official installer (Windows Installer descriptors lifted while the game runs, so the copy's DLLs load).
 - **[wildcabbagepatch](https://github.com/wildcabbagepatch)**: GambitsV2, the in-game Squad Rule Set editor, and its
   server side (squad Rule Sets, job ability rules for squad mates, the `!gsq` command).
+
+## Tetra Master
+- **[Nalfey](https://github.com/Nalfey/TetraMaster)**: all the card art, character portraits, board graphics, coin,
+  cursor and explosion animations and the sounds in `tetramaster/assets/` (his own redrawn work), and the original
+  Tetra Master add-on for FFXI, whose rules our server version follows exactly. Used with his permission.
+- Cinzel font: Natanael Gama (SIL Open Font License).
 
 ## Crystal Boy mini games
 

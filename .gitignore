@@ -92,6 +92,14 @@
 !/crystalboy-server/
 !/thirdparty-bundled/
 
+# ---- Tetra Master (art and sounds: Nalfey) ----
+!/install_tetramaster.py
+!/tetramaster/
+# not used by the addon (it plays the .wav sound effects and the .mp3 music): kept out of git and the kit
+/tetramaster/assets/sound/wav/mus_quadmist.wav
+/tetramaster/assets/sound/snd_*.mp3
+/tetramaster/assets/screenshots/
+
 # ---- addons (our own only; third-party ones are downloaded at install) ----
 !/addons-src/
 /addons-src/*
