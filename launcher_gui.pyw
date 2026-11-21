@@ -3948,6 +3948,11 @@ class App(tk.Tk):
                 launcher_setup.install_own_addons(HERE, cfg["ashita_dir"])
             except Exception as e:
                 self.say(f"Could not refresh the addons ({e}) - starting anyway.")
+            try:                              # (2026-11-21) Tetra Master: switched on once when an update brings it
+                launcher_setup.enable_new_addons(HERE, cfg["ashita_dir"], cfg.get("ashita_boot", "phoenixsolo.ini"),
+                                                 log=self.say)
+            except Exception as e:
+                self.say(f"Could not turn Tetra Master on ({e}) - starting anyway.")
             try:                              # era game files an FFXI update wrote over (Yumainai, Altair 2026-11-19)
                 for line in launcher_setup.check_era_dats(HERE, cfg.get("ffxi_client_dir", ""), log=self.say):
                     self.say(line)

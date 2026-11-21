@@ -19,7 +19,7 @@ from launcher_widgets import BG, BORDER, DIM, FG, GOLD, GOLD_LIT, PANEL, PANEL2,
 NAV_BUTTONS = (("home", "HOME", ("Play",)), ("world", "WORLD", ("World",)), ("rules", "RULES", ("Rules",)),
                ("squad", "SQUADS", ("Squad",)),
                ("options", "OPTIONS", ("Graphics", "Shaders", "Addons", "Plugins", "Other")),
-               ("coop", "CO-OP", ("Co-op",)), ("system", "SYSTEM", ("Settings", "Characters", "Era", "About")))
+               ("coop", "CO-OP", ("Co-op",)), ("system", "SYSTEM", ("Settings", "Patch notes", "Characters", "Era", "About")))
 WINDOW = (1100, 810)            # one size for every page
 BANNER = (800, 320)             # the Play page's picture (the classic page: 920 x 368)
 DISCORD = "https://discord.gg/2bh3QYPptz"       # the invite in README.md
@@ -692,6 +692,7 @@ def system_chips(app):
         section("Updates", "updates")
     else:
         section("Team", "team")
+    page("Patch notes")
     page("Characters")
     section("GM and testing", "gm")
     section("Steam Deck" if G.linux is not None and G.linux.is_steam_deck() else "Linux", "linux")
@@ -892,6 +893,56 @@ class CharactersPage(w.ScrollPage):
     def backup_database(self):
         open_system(self.app, "gm")             # its result is printed in the output box there
         self.app.updates_tab.run_script("setup_gm.py", ["backup"])
+
+
+class PatchNotesPage(w.ScrollPage):
+    """What changed in each update, from PATCH-NOTES.md in the kit (newest first; the same notes as #patch-notes)."""
+
+    def __init__(self, parent, app):
+        super().__init__(parent)
+        self.app = app
+        w.page_header(self.body, "Patch notes", "What changed in each update.", note="").pack(fill="x")
+        path = os.path.join(G.HERE, "PATCH-NOTES.md")
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                text = handle.read()
+        except OSError:
+            text = ""
+        mine = ""
+        try:
+            import launcher_update as lu
+            mine = (lu.installed_version(G.HERE) or "").lstrip("v")
+        except Exception:
+            pass
+        bar = tk.Frame(self.body, bg=BG)
+        bar.pack(fill="x", pady=(10, 0))
+        w.button(bar, "All releases on GitHub", lambda: app.open_url(f"https://github.com/{G.KIT_REPO_NAME}/releases"),
+                 small=True).pack(side="left")
+        w.button(bar, "Discord", lambda: app.open_url(DISCORD), small=True).pack(side="left", padx=8)
+        if not text.strip():
+            tk.Label(self.body, text="No patch notes in this install yet.", bg=BG, fg=DIM, font=(UI_FONT, 10)).pack(anchor="w", pady=14)
+            return
+        card = None
+        for raw in text.splitlines():
+            line = raw.rstrip()
+            if line.startswith("## "):
+                title = line[3:].strip()
+                version = title.split()[0].lstrip("v") if title else ""
+                card = w.Card(self.body, title + ("   ·   your version" if mine and version == mine else ""))
+                card.pack(fill="x", pady=(12, 0))
+            elif card is None or not line.strip() or line.startswith("# "):
+                continue
+            elif line.startswith("### "):
+                tk.Label(card.body, text=line[4:].strip(), bg=PANEL, fg=GOLD_LIT, font=(UI_FONT, 10, "bold"),
+                         anchor="w").pack(fill="x", pady=(8, 2))
+            elif line.lstrip().startswith(("•", "- ", "* ")):
+                row = tk.Frame(card.body, bg=PANEL)
+                row.pack(fill="x", pady=1)
+                tk.Label(row, text="•", bg=PANEL, fg=GOLD, font=(UI_FONT, 10)).pack(side="left", anchor="n", padx=(4, 6))
+                tk.Label(row, text=line.lstrip().lstrip("•-* ").strip(), bg=PANEL, fg=FG, font=(UI_FONT, 10), anchor="w",
+                         justify="left", wraplength=940).pack(side="left", fill="x")
+            else:
+                card.note(line.strip(), wrap=960)
 
 
 class AboutPage(w.ScrollPage):
@@ -1299,6 +1350,7 @@ def build(app, tabs):
             app.era_page = EraPage(tabs, app)
             tabs.add(app.era_page, text="  Era  ")
         tabs.add(AboutPage(tabs, app), text="  About  ")
+        tabs.add(PatchNotesPage(tabs, app), text="  Patch notes  ")
         app.system_sections = SystemSections(app.updates_tab, "updates" if player_install(app) else "team")
     except Exception:                   # the Settings page stays whole, as in the classic look
         log_problem("The System pages could not be made")
