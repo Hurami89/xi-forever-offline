@@ -56,6 +56,8 @@ def prepare(app, names):
     G = _Gui(names)
     G.GALLERY_W, G.GALLERY_H = BANNER      # the press and loading pictures are cut to this when they are loaded
     G.ACCENT = GOLD                         # one highlight colour: what the older pages drew in cyan is gold too
+    if "CheckList" in names:                # the "download" tag in the addon and plugin lists was cyan as well
+        names["CheckList"].TAG_COLORS = dict(names["CheckList"].TAG_COLORS, download="#8aa9bd")
     for module in (names.get("coopgui"),):
         if module is not None and hasattr(module, "ACCENT"):
             module.ACCENT = GOLD
@@ -896,6 +898,172 @@ def make_control_on(parent, entry, tab):
 
 
 # ---------------------------------------------------------------- the bar along the bottom
+class ListDownloads:
+    """Other people's addons and plugins (thirdparty.json) on the Addons and Plugins pages, where they belong, instead
+    of the Get more page. An installed one gets its update button on its own row in the list; the ones not installed
+    yet are listed under the installed ones with an Install button. Get more keeps the tools (Ashita, Ollama...).
+    Which page an item goes to is read from the file the launcher looks for: addons/<name>/<name>.lua or plugins/<name>.dll."""
+
+    TITLES = {"addon": "MORE ADDONS", "plugin": "MORE PLUGINS"}
+
+    def __init__(self, app):
+        self.app, self.newer = app, {}
+        self.kinds = {lst.kind for lst in app.lists}
+        self._seen, self._items = None, []
+
+    @staticmethod
+    def place(item):
+        """("addon", "cadence"), ("plugin", "nameplate"), or None for anything else (it stays on Get more)."""
+        parts = str(item.get("check") or "").replace("\\", "/").split("/")
+        if item.get("into", "ashita") != "ashita":
+            return None
+        if len(parts) == 3 and parts[0] == "addons" and parts[2].lower().endswith(".lua"):
+            return "addon", parts[1].lower()
+        if len(parts) == 2 and parts[0] == "plugins" and parts[1].lower().endswith(".dll"):
+            return "plugin", parts[1][:-4].lower()
+        return None
+
+    def moved(self, item):
+        place = self.place(item)
+        return place is not None and place[0] in self.kinds
+
+    def items(self):
+        """thirdparty.json's items, read again only when the file changed."""
+        path = os.path.join(G.HERE, "thirdparty.json")
+        try:
+            seen = os.path.getmtime(path)
+            if seen != self._seen:
+                self._items, self._seen = G.tp.load_manifest(G.HERE), seen
+        except Exception:
+            self._items, self._seen = [], None
+        return self._items
+
+    def of_kind(self, kind):
+        return [(item, self.place(item)[1]) for item in self.items() if self.moved(item) and self.place(item)[0] == kind]
+
+    def status(self, item):
+        try:
+            return G.tp.status(item, G.HERE, self.app.ashita, G.tp.load_state(G.HERE), server=self.app.cfg.get("server_dir"))
+        except Exception:
+            return False, ""
+
+    def controls(self, parent, item, installed, version, bg):
+        """Newer version (when the last check found one), the install or update button, the item's own extra button, its home page."""
+        app = self.app
+        newest = self.newer.get(item["id"])
+        if newest and newest != version:
+            tk.Label(parent, text=f"newer: {newest}", bg=bg, fg=GOLD, font=(UI_FONT, 8, "bold")).pack(side="left", padx=(0, 8))
+        if item["source"]["type"] == "page":
+            label = "Open download page"
+        else:
+            label = "Update" if installed else "Install"
+        w.button(parent, label, lambda: app.install_download(item), primary=not installed, small=True).pack(side="left")
+        if item.get("patch") and installed:
+            w.button(parent, "Apply era edits", lambda: app.apply_download_patch(item), small=True).pack(side="left", padx=(6, 0))
+        w.link(parent, "home page", lambda: app.open_url(item["homepage"]), bg=bg).pack(side="left", padx=(10, 0))
+
+    def on_row(self, lst, row, name):
+        """Called by the list for each installed addon or plugin: its update button, when it is one of the downloads."""
+        try:
+            for item, key in self.of_kind(lst.kind):
+                if key == name.lower():
+                    side = tk.Frame(row, bg=PANEL)
+                    side.grid(row=0, column=2, rowspan=2, sticky="e", padx=(8, 10))
+                    self.controls(side, item, True, self.status(item)[1], PANEL)
+                    return
+        except Exception:
+            log_problem("An update button could not be added to the list")
+
+    def more_rows(self, lst, wanted, names):
+        """Called by the list after its rows: the downloads of this kind that are not in the list yet."""
+        try:
+            have = {name.lower() for name in names}
+            rest = [item for item, key in self.of_kind(lst.kind) if key not in have]
+            if wanted:
+                rest = [item for item in rest
+                        if wanted in " ".join((item["name"], item.get("author", ""), item.get("note", ""))).lower()]
+            if not self.of_kind(lst.kind) or (wanted and not rest):
+                return
+            head = tk.Frame(lst.inner, bg=BG)
+            head.pack(fill="x", padx=8, pady=(16, 0))
+            tk.Label(head, text=self.TITLES.get(lst.kind, "MORE"), bg=BG, fg=GOLD, font=(UI_FONT, 9, "bold")).pack(side="left")
+            w.link(head, "Check for newer versions", self.app.check_download_updates).pack(side="right")
+            tk.Label(lst.inner, bg=BG, fg=DIM, font=(UI_FONT, 9), justify="left", anchor="w", wraplength=900,
+                     text=("Made by other people. Each one comes straight from its author's own release page; files it replaces "
+                           "are saved in backups\\thirdparty first, and your settings are never overwritten."
+                           if rest else "Everything the launcher can download for this page is installed.")
+                     ).pack(fill="x", padx=8, pady=(2, 4))
+            for item in rest:
+                installed, version = self.status(item)
+                row = tk.Frame(lst.inner, bg=PANEL)
+                row.pack(fill="x", padx=8, pady=2)
+                head = tk.Frame(row, bg=PANEL)
+                head.grid(row=0, column=0, sticky="w", padx=(12, 0), pady=(5, 0))
+                tk.Label(head, text=item["name"], bg=PANEL, fg=FG, font=(UI_FONT, 10, "bold")).pack(side="left")
+                tk.Label(head, text=f"by {item['author']}  ·  license: {item['license']}", bg=PANEL, fg=DIM,
+                         font=(UI_FONT, 9)).pack(side="left", padx=(8, 0))
+                tk.Label(head, text=("installed " + version).strip() if installed else "not installed", bg=PANEL,
+                         fg=G.GREEN if installed else DIM, font=(UI_FONT, 8, "bold")).pack(side="left", padx=(10, 0))
+                if item.get("note"):
+                    tk.Label(row, text=item["note"], bg=PANEL, fg=DIM, font=(UI_FONT, 9), wraplength=700, justify="left",
+                             anchor="w").grid(row=1, column=0, sticky="w", padx=(12, 0), pady=(0, 5))
+                side = tk.Frame(row, bg=PANEL)
+                side.grid(row=0, column=1, rowspan=2, sticky="e", padx=(8, 10))
+                self.controls(side, item, installed, version, PANEL)
+                row.columnconfigure(0, weight=1)
+        except Exception:
+            log_problem("The downloads could not be listed on the Addons or Plugins page")
+
+
+def add_list_downloads(app):
+    """Addons and plugins from thirdparty.json move from Get more to the Addons and Plugins pages (see ListDownloads)."""
+    if not getattr(app, "lists", None) or not hasattr(app, "dl_rows") or G.tp is None:
+        return
+    downloads = ListDownloads(app)
+    older = app.show_downloads
+
+    def show_downloads(newer=None):         # after an install, an update or a version check: Get more and both lists again
+        if newer:
+            downloads.newer = dict(newer)
+        older(newer)
+        for lst in app.lists:
+            lst.reload()
+
+    app.list_downloads, app.dl_filter, app.show_downloads = downloads, (lambda item: not downloads.moved(item)), show_downloads
+    for lst in app.lists:
+        lst.extra = downloads
+        wheel_scrolls(app, lst, lst.inner.master)
+    box = app.dl_rows.master.master         # the Get more page: its list, and the words above it
+    wheel_scrolls(app, box, app.dl_rows.master)
+    words = box.master.winfo_children()[0] if box.master.winfo_children() else None
+    if isinstance(words, tk.Label):
+        words.configure(text="Tools and extras made by other people; addons and plugins are on their own pages. Each one comes "
+                             "straight from its author's own release page; files it replaces are saved in backups\\thirdparty "
+                             "first, and your settings are never overwritten.")
+    show_downloads()
+
+
+def wheel_scrolls(app, area, canvas):
+    """The mouse wheel scrolls this older list while the pointer is over it (it had a scroll bar only)."""
+    def turn(event):
+        try:
+            if not area.winfo_ismapped():
+                return
+            x, y = area.winfo_pointerxy()
+            left, top = area.winfo_rootx(), area.winfo_rooty()
+            if not (left <= x < left + area.winfo_width() and top <= y < top + area.winfo_height()):
+                return
+            first, last = canvas.yview()
+            if first <= 0.0 and last >= 1.0:        # everything is in view
+                return
+            step = -1 if (getattr(event, "delta", 0) > 0 or getattr(event, "num", 0) == 4) else 1
+            canvas.yview_scroll(step * 2, "units")
+        except tk.TclError:
+            pass
+    for wheel in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+        app.bind_all(wheel, turn, add="+")
+
+
 class NavButton:
     """A page button with the gold line under it. The launcher only ever calls set_active on these."""
 
@@ -1059,6 +1227,11 @@ def build(app, tabs):
     except Exception:                   # the classic Play layout stays (PlayPage puts it back); the other pages are fine
         app.play_page = None
         log_problem("The newer Play layout could not be made")
+    try:
+        add_list_downloads(app)
+    except Exception:                   # they stay on the Get more page, as in the classic look
+        app.dl_filter = None
+        log_problem("The downloads could not be moved to the Addons and Plugins pages")
     try:
         style_older_pages(app)
     except Exception:

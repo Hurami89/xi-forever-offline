@@ -114,6 +114,38 @@ if newer:
     top = app.squad_tab.pack_slaves()[0]
     kinds = [type(c).__name__ for c in top.winfo_children()]
     ok(kinds.count("Switch") == 2 and kinds.count("Stepper") == 1, f"squad rules on the Squad page: {kinds}")
+    # other people's addons and plugins are listed on the Addons and Plugins pages, the tools stay on Get more
+    import launcher_thirdparty as tp_mod
+    catalog = app.list_downloads
+    manifest = tp_mod.load_manifest(kit)
+    moved = {item["id"]: catalog.place(item)[0] for item in manifest if catalog.moved(item)}
+    ok({i for i, k in moved.items() if k == "addon"} == {"xiui", "autobot", "mobdb", "cadence", "checkmate", "momentum", "ffxiport", "chains", "journal"}
+       and {i for i, k in moved.items() if k == "plugin"} == {"xiuiplus", "nameplate"}, f"which downloads moved: {moved}")
+    def texts_of(widget, out):
+        for child in widget.winfo_children():
+            try:
+                out.append(str(child.cget("text")))
+            except tk.TclError:
+                pass
+            texts_of(child, out)
+        return out
+    on_more = texts_of(app.dl_rows, [])
+    names_of = {item["id"]: item["name"] for item in manifest}
+    ok(all(names_of[i] not in on_more for i in moved), "a moved download is still on Get more")
+    ok(all(item["name"] in on_more for item in manifest if item["id"] not in moved and (player or item.get("into") != "server")),
+       "a tool is missing from Get more")
+    for lst in app.lists:
+        lst.search.set(""); settle(0.1)
+        shown = texts_of(lst.inner, [])
+        mine = [item for item in manifest if moved.get(item["id"]) == lst.kind]
+        installed = [n.lower() for n in (gui.core.list_addons(ashita) if lst.kind == "addon" else gui.core.list_plugins(ashita))]
+        ok(all(item["name"] in shown or catalog.place(item)[1] in installed for item in mine), f"{lst.kind}s: a download is not listed: {shown[:6]}")
+        ok(("MORE ADDONS" if lst.kind == "addon" else "MORE PLUGINS") in shown and "Install" in shown, f"{lst.kind}s: no install rows")
+        ok(shown.count("Update") == sum(1 for i, k in moved.items() if k == lst.kind and catalog.place(next(x for x in manifest if x["id"] == i))[1] in installed),
+           f"{lst.kind}s: update buttons {shown.count('Update')}")
+        lst.search.set("zzzz-nothing"); settle(0.1)
+        ok("Install" not in texts_of(lst.inner, []), f"{lst.kind}s: the search does not narrow the downloads")
+        lst.search.set(""); settle(0.1)
     # Play
     ok(app.play_page is not None and app.stage.winfo_width() == P.BANNER[0] + 2, "the Play page has its newer layout")
     ok(not app.update_btn.winfo_ismapped(), "no permanent UPDATE button")

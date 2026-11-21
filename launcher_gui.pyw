@@ -267,6 +267,7 @@ class CheckList(tk.Frame):
     def __init__(self, parent, kind, scripts):
         super().__init__(parent, bg=BG)
         self.kind, self.scripts, self.message = kind, scripts, ""
+        self.extra = None       # the newer look puts the downloads for these items here too (launcher_pages.ListDownloads)
         top = tk.Frame(self, bg=BG)
         top.pack(fill="x", padx=8, pady=(0, 4))
         tk.Label(top, text="Search:", bg=BG, fg=DIM).pack(side="left")
@@ -342,6 +343,10 @@ class CheckList(tk.Frame):
                 tk.Label(row, text=info["desc"], bg=PANEL, fg=DIM, font=(UI_FONT, 9), wraplength=720, justify="left",
                          anchor="w").grid(row=1, column=1, sticky="w", pady=(0, 4))
             row.columnconfigure(1, weight=1)
+            if self.extra is not None:
+                self.extra.on_row(self, row, n)
+        if self.extra is not None:
+            self.extra.more_rows(self, wanted, names)
 
     def toggle(self, name, var):
         try:
@@ -3501,6 +3506,8 @@ class App(tk.Tk):
         state = tp.load_state(HERE)
         if not self.cfg.get("mariadb_dir"):       # a self-built (dev) server is never replaced by the release package
             items = [item for item in items if item.get("into") != "server"]
+        if getattr(self, "dl_filter", None) is not None:      # the newer look lists addons and plugins on their own pages
+            items = [item for item in items if self.dl_filter(item)]
         for row, item in enumerate(items):
             installed, version = tp.status(item, HERE, self.ashita, state, server=self.cfg.get("server_dir"))
             tk.Label(self.dl_rows, text=item["name"], bg=BG, fg=FG, font=(UI_FONT, 10, "bold"), anchor="w").grid(
