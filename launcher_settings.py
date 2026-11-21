@@ -42,6 +42,8 @@ S("bots_roster", "world", "Bot players", COUNT, "Roster size", lo=0, hi=600, ste
 S("bots_growth", "world", "Bot players", CHOICE, "Bot growth",
   options=(("off", "Off"), ("realistic", "Realistic"), ("fast", "Fast")),
   tip="Bots level, craft and earn gil while you are not playing.")
+S("bots_pass_loot", "world", "Bot players", SWITCH, "Bots pass all loot",
+  tip="Bot players in your party pass every drop at once, so it comes to you without waiting for the lot timer.")
 S("bots_head_start", "world", "Bot players", SWITCH, "One-time head start",
   tip="The starting bots get a few months of history - levels 1-75 (most 10-30), subjobs, crafts, gil, gear - as if the "
       "server had been running a while. Used at your next PLAY, then this switch goes away.")
@@ -80,6 +82,9 @@ S("main.ENABLE_TOAU", "rules", "Expansions", FLAG, "Treasures of Aht Urhgan")
 S("map.DROP_RATE_MULTIPLIER", "rules", "Loot and gil", RATE, "Monster item drops")
 S("map.MOB_GIL_MULTIPLIER", "rules", "Loot and gil", RATE, "Gil from monsters")
 S("main.GIL_RATE", "rules", "Loot and gil", RATE, "Gil from quests")
+S("main.AH_PRICE_RATE", "rules", "Loot and gil", RATE, "Auction house prices",
+  tip="What things cost on the auction house: the simulator's listings and the bot players' own sales. 1x = the "
+      "prices as they are, lower is cheaper, higher is dearer. A change restocks the auction house at your next PLAY.")
 S("main.CASKET_DROP_RATE", "rules", "Loot and gil", PERCENT, "Treasure casket chance", step=0.05)
 S("main.TABS_RATE", "rules", "Loot and gil", RATE, "Tabs from Fields of Valor")
 S("fast_travel", "rules", "Travel", SWITCH, "Fast travel", keys=("main.HOMEPOINT_TELEPORT", "main.ENABLE_SURVIVAL_GUIDE"),
@@ -104,7 +109,8 @@ S("modern_stacks", "rules", "Comforts", SWITCH, "Modern item stacks",
   note="Before switching this off, empty or split your stacks of those items.")
 S("short_quest_waits", "rules", "Comforts", SWITCH, "Short quest waits",
   tip="Chocobo's Wounds 1 minute between feedings (era: a game day each), Forge Your Destiny 1 hour at the forge "
-      "(era: three game days). Off = the era waits.")
+      "(era: three game days), Aht Urhgan missions about 1 minute between missions (era: a game day or Japanese "
+      "midnight). Off = the era waits.")
 S("main.NEW_CHARACTER_CUTSCENE", "rules", "Comforts", FLAG, "New-character cutscenes")
 
 # ---------------------------------------------------------------- Rules > Squad: rules for the whole squad

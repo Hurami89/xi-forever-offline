@@ -487,6 +487,7 @@ RATE_FIELDS = [
     ("map.DROP_RATE_MULTIPLIER",        "map.lua",  "DROP_RATE_MULTIPLIER",        "Monster item drop rate",                1.0, 0.0, 100.0, "float"),
     ("map.MOB_GIL_MULTIPLIER",          "map.lua",  "MOB_GIL_MULTIPLIER",          "Gil dropped by monsters",               1.0, 0.0, 100.0, "float"),
     ("main.GIL_RATE",                   "main.lua", "GIL_RATE",                    "Gil from quests",                       1.0, 0.0, 100.0, "float"),
+    ("main.AH_PRICE_RATE",              "main.lua", "AH_PRICE_RATE",               "Auction house prices (1 = as they are)", 1.0, 0.1, 10.0, "float"),
     ("main.FAME_RATE",                  "main.lua", "FAME_RATE",                   "Fame from quests (1 = retail)",         1.0, 0.1, 20.0, "float"),
     # (2026-11-20) lottery NMs (Leaping Lizzy, Valkurm Emperor...): the server reads these since v0.1.49 (spawn_slot.cpp).
     # Chance: a multiplier on each NM's own chance; any negative value = the NM always comes next. 0 counts as 1%.
@@ -534,6 +535,7 @@ RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # fiel
 RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
 RATE_DEFAULTS.update({"bots_growth": "realistic"})
 RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False})   # one-time bot head start (bots_growth.lua)
+RATE_DEFAULTS.update({"bots_pass_loot": True})   # (delukard) bot players in your party pass every drop at once (bots.cpp)
 RATE_DEFAULTS.update({"training_dummies": False})   # (Jon Tanta) !sandbox training dummies in Rolanberry Fields, a testing tool (squad_sandbox.lua)
 RATE_DEFAULTS.update({"squad_keep_gear": False})   # gear given to the squad is unlocked and you keep the piece (squad.lua squadKeepGear)
 RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
@@ -704,9 +706,10 @@ def write_crowds_config(server_dir, rates):
         growth = rates.get("bots_growth", "realistic")
         growth = growth if growth in ("off", "realistic", "fast") else "realistic"
         head_start = bool(rates.get("bots_head_start")) and not rates.get("bots_head_start_done")
-        f.write("return { enabled = %s, roster = %d, online = %d, growth = '%s', head_start = %s }\n" % (
+        f.write("return { enabled = %s, roster = %d, online = %d, growth = '%s', head_start = %s, pass_loot = %s }\n" % (
             "true" if rates.get("bots", True) else "false", max(0, min(600, int(rates.get("bots_roster", 100) or 0))),
-            max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth, "true" if head_start else "false"))
+            max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth, "true" if head_start else "false",
+            "true" if rates.get("bots_pass_loot", True) else "false"))
     with open(os.path.join(module_dir, "squad_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         f.write("return { call_cooldown_min = %d, spell_scrolls = %s, keep_gear = %s, training_dummies = %s }\n" % (
@@ -845,6 +848,8 @@ def load_rates(here):
             rates["squad_keep_gear"] = bool(saved["squad_keep_gear"])
         if "training_dummies" in saved:
             rates["training_dummies"] = bool(saved["training_dummies"])
+        if "bots_pass_loot" in saved:
+            rates["bots_pass_loot"] = bool(saved["bots_pass_loot"])
         if "short_quest_waits" in saved:
             rates["short_quest_waits"] = bool(saved["short_quest_waits"])
         if "events" in saved:
@@ -952,7 +957,7 @@ def apply_preset(rates, name):
                          ("crowds_field", True), ("crowds_field_parties", 1),
                          ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
-                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False), ("training_dummies", False),
+                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False), ("training_dummies", False), ("bots_pass_loot", True),
                          ("short_quest_waits", True), ("events", "date")):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)

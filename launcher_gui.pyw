@@ -1627,7 +1627,7 @@ class RatesTab(tk.Frame):
         for k in (2, 20, 18, 25, 23, 0, 24):    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
             R[k], row = row, row + 1
         row = header("World", row)
-        for k in (3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14):
+        for k in (3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 28):   # (28: bots pass all loot)
             R[k], row = row, row + 1
         row = header("Squad and AI", row)
         for k in (15, 16, 19, 26, 27, 21, 22, 17):   # (26: squad gear, you keep the item; 27: training dummies)
@@ -1740,6 +1740,11 @@ class RatesTab(tk.Frame):
                        "the whole squad and you keep yours. Off = the squad takes the piece (one-of-a-kind gear is always kept).",
                        variable=self.squad_keep_gear, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[26], column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        self.bots_pass_loot = tk.BooleanVar(value=rates.get("bots_pass_loot", True))
+        tk.Checkbutton(inner, text="Bots pass all loot: bot players in your party pass every drop at once, so it comes to "
+                       "you without waiting for the lot timer. Off = they leave it to the timer.",
+                       variable=self.bots_pass_loot, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                       wraplength=520, justify="left").grid(row=R[28], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.training_dummies = tk.BooleanVar(value=rates.get("training_dummies", False))
         tk.Checkbutton(inner, text="Training dummies (for testing): !sandbox puts dummies of level 1 to 99 in Rolanberry "
                        "Fields that never die and never attack, to try out squads and gambits. Off = no dummies.",
@@ -1747,7 +1752,8 @@ class RatesTab(tk.Frame):
                        wraplength=520, justify="left").grid(row=R[27], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.short_quest_waits = tk.BooleanVar(value=rates.get("short_quest_waits", True))
         tk.Checkbutton(inner, text="Short quest waits: Chocobo's Wounds 1 minute between feedings (era: a game day each), "
-                       "Forge Your Destiny 1 hour at the forge (era: three game days). Off = the era waits.",
+                       "Forge Your Destiny 1 hour at the forge (era: three game days), Aht Urhgan missions about 1 minute "
+                       "between missions. Off = the era waits.",
                        variable=self.short_quest_waits, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[23], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         # (2026-11-18) seasonal events: by their dates (default), all year, or none (events_mode.lua)
@@ -1858,7 +1864,7 @@ class RatesTab(tk.Frame):
         return next((k for k, v in self.EVENTS_LABELS.items() if v == label), "date")
 
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
-                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "short_quest_waits")
+                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "short_quest_waits")
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
                  ("bots_growth", "bots_growth"), ("squad_call_cooldown", "squad_call_cooldown"))
@@ -1971,6 +1977,7 @@ class RatesTab(tk.Frame):
         rates["spell_scrolls"] = bool(self.spell_scrolls.get())
         rates["squad_keep_gear"] = bool(self.squad_keep_gear.get())
         rates["training_dummies"] = bool(self.training_dummies.get())
+        rates["bots_pass_loot"] = bool(self.bots_pass_loot.get())
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
         rates["events"] = self.events_value()
         rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done
