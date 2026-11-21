@@ -18,6 +18,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ### Fixes
 • Borghertz's hands quests: a squad mate on the right job counts, like the other AF quests. (Tasou)
 • Squad mates can Raise a knocked-out party member: /p raise <name>, co-op players included. (Tasou)
+• A Ninja squad mate's Mijin Gakure knocks it out, like a player's. (sparkiie)
 • Squad mates step out of sight during cutscenes and NPC conversations, and come back when they end. (lilibun)
 • A bot player that dropped out of your party when you changed area joins you again and keeps following. (Sunie)
 • Inside your Mog House you only see and hear your room: no town crowd chatter, no NPCs wandering in. (Trinity, Velderen)
