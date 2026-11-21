@@ -56,7 +56,7 @@ if newer:
             raise AssertionError(what)
     ok(app.new_ui is True, "the newer look is on")
     titles = [g["title"] for g in app.nav_groups]
-    ok(titles == ["HOME", "WORLD", "RULES", "SQUADS", "GAME", "CO-OP", "SYSTEM"], f"bar buttons: {titles}")
+    ok(titles == ["HOME", "WORLD", "RULES", "SQUADS", "OPTIONS", "CO-OP", "SYSTEM"], f"bar buttons: {titles}")
     for group in app.nav_groups:
         app.select_tab(group["members"][0][1]); settle(0.15)
         lit = [g["title"] for g in app.nav_groups if g["button"].line.cget("bg") == P.GOLD]

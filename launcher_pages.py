@@ -18,7 +18,7 @@ from launcher_widgets import BG, BORDER, DIM, FG, GOLD, GOLD_LIT, PANEL, PANEL2,
 # the page buttons along the bottom: (picture in assets\ui, name, the pages it opens)
 NAV_BUTTONS = (("home", "HOME", ("Play",)), ("world", "WORLD", ("World",)), ("rules", "RULES", ("Rules",)),
                ("squad", "SQUADS", ("Squad",)),
-               ("game", "GAME", ("Graphics", "Shaders", "Addons", "Plugins", "Other")),
+               ("options", "OPTIONS", ("Graphics", "Shaders", "Addons", "Plugins", "Other")),
                ("coop", "CO-OP", ("Co-op",)), ("system", "SYSTEM", ("Settings", "Characters", "Era", "About")))
 WINDOW = (1100, 810)            # one size for every page
 BANNER = (800, 320)             # the Play page's picture (the classic page: 920 x 368)
@@ -908,7 +908,7 @@ class NavButton:
 
 
 def build_nav(app):
-    """HOME, WORLD, RULES, SQUADS, GAME, CO-OP, SYSTEM, then EXIT. A button for several pages opens the one you were
+    """HOME, WORLD, RULES, SQUADS, OPTIONS, CO-OP, SYSTEM, then EXIT. A button for several pages opens the one you were
     last on in it; a page in no group gets a MORE button, so nothing is ever unreachable."""
     app.page_index = {app.tabs.tab(tab_id, "text").strip(): index for index, tab_id in enumerate(app.tabs.tabs())}
     placed, groups = set(), []
