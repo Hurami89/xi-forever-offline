@@ -800,6 +800,10 @@ class SquadTab(tk.Frame):
         self.require_unlock = bool(cfg.get("squad_require_unlock", True)) and not core.load_rates(HERE).get("squad_all_gear", False)
         # player installs: mates start at level 1 and level up in game, and a look is picked once (as in squad.lua)
         self.player = bool(cfg.get("mariadb_dir"))
+        try:
+            sq.read_subjob_ratio(cfg.get("server_dir", ""))    # (Bob Roberts) sub levels as the server's SUBJOB_RATIO
+        except Exception:
+            pass
         self.level_vars, self.gear_vars, self.level_spins = {}, {}, {}
         self.gear_icons, self.gear_items = {}, {}
         self.icon_loader = itemicons.ItemIcons(self, ASSETS) if itemicons else None
@@ -1479,7 +1483,10 @@ class SquadTab(tk.Frame):
         def chosen(item_id):
             self.guard(lambda: (sq.set_equip(self.conn, m["id"], m["mjob"], slot, item_id), self.reload()))
 
-        ItemPicker(self, self.conn, slot, label, m["mjob"], main, self.charid(), self.require_unlock, chosen,
+        # (2026-11-21, Tasou) the Rules page's "Squad gets all gear" counts as soon as it is ticked, not only after PLAY
+        live = getattr(self, "all_gear_var", None)
+        need_unlock = self.require_unlock and not (live is not None and bool(live.get()))
+        ItemPicker(self, self.conn, slot, label, m["mjob"], main, self.charid(), need_unlock, chosen,
                    icon_loader=self.icon_loader)
 
     def clear_item(self, slot):
@@ -3248,6 +3255,8 @@ class App(tk.Tk):
 
         # Rates tab
         self.rates_tab = RatesTab(tabs, self.rates, player=bool(self.cfg.get("mariadb_dir")))
+        if self.squad_tab is not None:
+            self.squad_tab.all_gear_var = self.rates_tab.squad_all_gear
         if not self.new_ui:                    # the newer World and Rules pages show these settings instead (launcher_pages.py)
             tabs.add(self.rates_tab, text="  Rates  ")
 
@@ -3880,6 +3889,12 @@ class App(tk.Tk):
             if not self.coop_tab.may_close():      # visitors' characters are still in this world
                 return
             self.coop_tab.shutdown()
+        # (2026-11-21, Tasou: "Squad gets all gear" was unticked again after a restart) the Rules page is kept on quit too,
+        # not only when PLAY is pressed
+        try:
+            core.save_rates(HERE, self.rates_tab.collect())
+        except Exception:
+            pass
         self.stop_requested = True
         self.cleanup()
         if getattr(self, "db_proc", None) is not None:      # the kit's MariaDB, if this launcher started it
