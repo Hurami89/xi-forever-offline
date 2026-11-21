@@ -13,10 +13,12 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • The status bar says World asleep / Crystallizing world... / World awake.
 • "Squad gets all gear" is kept when you close the launcher, and the gear pickers (launcher Squad tab and the in-game squad menu) now list everything the mate can wear, not only what you gave. (Tasou, Yache)
 • The Squad tab shows the support job level from your sub job ratio setting. (Bob Roberts)
+• Rules > Travel > "Sneak and Invisible duration": 1x is the era's random 30 seconds to 5 minutes, up to 5x. (Yache)
 • New optional add-ons: VanaFish and VanaCam by the VanaDreams team (off by default). XIUI and FFXIPort updated.
 
 ### Fixes
 • Borghertz's hands quests: a squad mate on the right job counts, like the other AF quests. (Tasou)
+• Squad mates cast enemy spells on the monster you have targeted before anyone engages: /p sleepga ii, /p dia. (sparkiie)
 • Squad mates can Raise a knocked-out party member: /p raise <name>, co-op players included. (Tasou)
 • A Ninja squad mate's Mijin Gakure knocks it out, like a player's. (sparkiie)
 • Squad mates step out of sight during cutscenes and NPC conversations, and come back when they end. (lilibun)

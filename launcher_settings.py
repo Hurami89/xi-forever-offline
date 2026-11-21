@@ -99,6 +99,9 @@ S("fast_travel", "rules", "Travel", SWITCH, "Fast travel", keys=("main.HOMEPOINT
       "Off = classic travel: walk, chocobos, airships and Teleport spells.")
 S("map.BASE_SPEED", "rules", "Travel", NUMBER, "Run speed", step=5, tip="50 = retail.")
 S("map.MOUNT_SPEED", "rules", "Travel", NUMBER, "Mount speed", step=5, tip="Chocobos and other mounts. 80 = retail.")
+S("main.SNEAK_INVIS_DURATION_MULTIPLIER", "rules", "Travel", RATE, "Sneak and Invisible duration",
+  tip="How long Sneak, Invisible and Deodorize last. 1x = the era's (a random 30 seconds to 5 minutes), "
+      "2x = twice as long. (Yache)")
 S("map.SKILLUP_CHANCE_MULTIPLIER", "rules", "Skills and crafting", RATE, "Combat and magic skills",
   tip="How often combat and magic skills go up.")
 S("map.BLUE_LEARN_MULTIPLIER", "rules", "Skills and crafting", RATE, "Learning blue magic",

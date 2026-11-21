@@ -505,6 +505,8 @@ RATE_FIELDS = [
     ("main.TM_PRICE_RATE",              "main.lua", "TM_PRICE_RATE",               "Tetra Master card prices",              1.0, 0.1, 5.0,   "float"),
     ("map.SKILLUP_CHANCE_MULTIPLIER",   "map.lua",  "SKILLUP_CHANCE_MULTIPLIER",   "Combat and magic skill-up chance",      1.0, 0.0, 20.0,  "float"),
     ("map.BLUE_LEARN_MULTIPLIER",       "map.lua",  "BLUE_LEARN_MULTIPLIER",       "Blue magic learning chance",            1.0, 0.0, 3.0,   "float"),
+    # (2026-11-21, Yache) Sneak / Invisible / Deodorize spells (modules/custom/late/sneak_invis_duration.lua)
+    ("main.SNEAK_INVIS_DURATION_MULTIPLIER", "main.lua", "SNEAK_INVIS_DURATION_MULTIPLIER", "Sneak and Invisible duration", 1.0, 0.5, 5.0, "float"),
     ("map.CRAFT_CHANCE_MULTIPLIER",     "map.lua",  "CRAFT_CHANCE_MULTIPLIER",     "Crafting skill-up chance",              1.0, 0.0, 20.0,  "float"),
     ("map.CRAFT_HQ_CHANCE_MULTIPLIER",  "map.lua",  "CRAFT_HQ_CHANCE_MULTIPLIER",  "Crafting high-quality chance",          1.0, 0.0, 20.0,  "float"),
     ("map.FISHING_SKILL_MULTIPLIER",    "map.lua",  "FISHING_SKILL_MULTIPLIER",    "Fishing skill-up chance",               1.0, 0.0, 20.0,  "float"),
