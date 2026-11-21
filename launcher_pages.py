@@ -55,6 +55,15 @@ def prepare(app, names):
     """Called before the launcher builds its pages, with launcher_gui's globals()."""
     global G
     G = _Gui(names)
+    # (2026-11-21) a taller picture fills the Play page (it left empty bands above and below). Not on a short screen
+    # (the Steam Deck's 800 lines, or a laptop): there the window is shorter and the classic height fits.
+    global BANNER
+    try:
+        tall = names.get("linux") is None and app.winfo_screenheight() >= 900
+    except Exception:
+        tall = False
+    if tall:
+        BANNER = (800, 460)
     G.GALLERY_W, G.GALLERY_H = BANNER      # the press and loading pictures are cut to this when they are loaded
     G.ACCENT = GOLD                         # one highlight colour: what the older pages drew in cyan is gold too
     if "CheckList" in names:                # the "download" tag in the addon and plugin lists was cyan as well
