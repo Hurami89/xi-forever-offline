@@ -498,6 +498,7 @@ RATE_FIELDS = [
     ("main.SPARKS_RATE",                "main.lua", "SPARKS_RATE",                 "Sparks from Records of Eminence",       1.0, 0.0, 100.0, "float"),
     ("main.CASKET_DROP_RATE",           "main.lua", "CASKET_DROP_RATE",            "Treasure casket chance (0.1 = 10%)",    0.1, 0.0, 1.0,   "float"),
     ("map.SKILLUP_CHANCE_MULTIPLIER",   "map.lua",  "SKILLUP_CHANCE_MULTIPLIER",   "Combat and magic skill-up chance",      1.0, 0.0, 20.0,  "float"),
+    ("map.BLUE_LEARN_MULTIPLIER",       "map.lua",  "BLUE_LEARN_MULTIPLIER",       "Blue magic learning chance",            1.0, 0.0, 3.0,   "float"),
     ("map.CRAFT_CHANCE_MULTIPLIER",     "map.lua",  "CRAFT_CHANCE_MULTIPLIER",     "Crafting skill-up chance",              1.0, 0.0, 20.0,  "float"),
     ("map.CRAFT_HQ_CHANCE_MULTIPLIER",  "map.lua",  "CRAFT_HQ_CHANCE_MULTIPLIER",  "Crafting high-quality chance",          1.0, 0.0, 20.0,  "float"),
     ("map.FISHING_SKILL_MULTIPLIER",    "map.lua",  "FISHING_SKILL_MULTIPLIER",    "Fishing skill-up chance",               1.0, 0.0, 20.0,  "float"),

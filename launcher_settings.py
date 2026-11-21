@@ -95,6 +95,9 @@ S("map.BASE_SPEED", "rules", "Travel", NUMBER, "Run speed", step=5, tip="50 = re
 S("map.MOUNT_SPEED", "rules", "Travel", NUMBER, "Mount speed", step=5, tip="Chocobos and other mounts. 80 = retail.")
 S("map.SKILLUP_CHANCE_MULTIPLIER", "rules", "Skills and crafting", RATE, "Combat and magic skills",
   tip="How often combat and magic skills go up.")
+S("map.BLUE_LEARN_MULTIPLIER", "rules", "Skills and crafting", RATE, "Learning blue magic",
+  tip="How often a Blue Mage learns a spell from a monster it defeats. 1x = retail (about 1 in 3 when your skill is close enough), "
+      "2x = about 2 in 3, 3x = nearly every time. Your blue magic skill still has to be close enough to the spell's level.")
 S("map.CRAFT_CHANCE_MULTIPLIER", "rules", "Skills and crafting", RATE, "Crafting skill-ups")
 S("map.CRAFT_HQ_CHANCE_MULTIPLIER", "rules", "Skills and crafting", RATE, "High-quality crafts")
 S("map.FISHING_SKILL_MULTIPLIER", "rules", "Skills and crafting", RATE, "Fishing skill-ups")
