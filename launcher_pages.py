@@ -14,6 +14,7 @@ import launcher_core as core
 import launcher_settings as st
 import launcher_widgets as w
 from launcher_widgets import BG, BORDER, DIM, FG, GOLD, GOLD_LIT, PANEL, PANEL2, UI_FONT
+from launcher_widgets import LINE as LINE_COLOUR
 
 # the page buttons along the bottom: (picture in assets\ui, name, the pages it opens)
 NAV_BUTTONS = (("home", "HOME", ("Play",)), ("world", "WORLD", ("World",)), ("rules", "RULES", ("Rules",)),
@@ -475,10 +476,10 @@ class PlayPage:
         app.stage.lift()
         side = self.frame(top)
         side.pack(side="left", fill="both", expand=True, padx=(12, 0))
+        # (2026-11-21) the World / Rules / Squad summary tiles are gone (the same pages are one click away in the bar
+        # below): the newest patch notes sit beside the picture instead
         self.tiles = {}
-        for index, (name, page) in enumerate((("World", "World"), ("Rules", "Rules"), ("Squad", "Squad"))):
-            self.tiles[name] = self.tile(side, name, page)
-            self.tiles[name]["frame"].pack(fill="both", expand=True, pady=(0 if index == 0 else 10, 0))
+        self.build_notes(side)
         row = self.frame(self.box)
         row.pack(fill="x")
         self.buttons.pack(in_=row, side="left")
@@ -571,7 +572,102 @@ class PlayPage:
         except tk.TclError:
             pass                    # the window is closing
 
+    # ----- the newest patch notes, beside the picture -----
+    @staticmethod
+    def latest_notes():
+        """(title, [(kind, text)]) of the newest version in PATCH-NOTES.md; kind is 'head' or 'item'."""
+        try:
+            with open(os.path.join(G.HERE, "PATCH-NOTES.md"), "r", encoding="utf-8") as handle:
+                text = handle.read()
+        except OSError:
+            return None, []
+        title, lines = None, []
+        for raw in text.splitlines():
+            line = raw.strip()
+            if line.startswith("## "):
+                if title is not None:
+                    break
+                title = line[3:].strip()
+            elif title is None or not line or line.startswith("# "):
+                continue
+            elif line.startswith("### "):
+                lines.append(("head", line[4:].strip()))
+            elif line.startswith(("\u2022", "- ", "* ")):
+                lines.append(("item", line.lstrip("\u2022-* ").strip()))
+            else:
+                lines.append(("item", line))
+        return title, lines
+
+    def build_notes(self, parent):
+        outer = self.frame(parent, bg=BORDER)
+        outer.pack(fill="both", expand=True)
+        inner = tk.Frame(outer, bg=PANEL)
+        inner.pack(fill="both", expand=True, padx=1, pady=1)
+        tk.Frame(inner, bg=GOLD, height=2).pack(fill="x")           # a thin gold edge on top
+        head = tk.Frame(inner, bg=PANEL)
+        head.pack(fill="x", padx=16, pady=(12, 0))
+        tk.Label(head, text="PATCH NOTES", bg=PANEL, fg=GOLD, font=(UI_FONT, 8, "bold")).pack(side="left")
+        more = tk.Label(head, text="All notes  \u203a", bg=PANEL, fg=DIM, font=(UI_FONT, 8), cursor="hand2")
+        more.pack(side="right")
+        more.bind("<Button-1>", lambda e: self.app.go("Patch notes"))
+        more.bind("<Enter>", lambda e: more.configure(fg=GOLD_LIT))
+        more.bind("<Leave>", lambda e: more.configure(fg=DIM))
+
+        title, lines = self.latest_notes()
+        version, when = "", ""
+        if title:
+            parts = [p.strip() for p in title.split("\u00b7")]
+            version, when = parts[0], (parts[1] if len(parts) > 1 else "")
+        mine = ""
+        try:
+            import launcher_update as lu
+            mine = (lu.installed_version(G.HERE) or "").lstrip("v")
+        except Exception:
+            pass
+        tk.Label(inner, text=("Version " + version.lstrip("v")) if version else "Patch notes", bg=PANEL, fg=FG,
+                 font=(UI_FONT, 14, "bold"), anchor="w").pack(fill="x", padx=16, pady=(2, 0))
+        sub = [x for x in (when, "your version" if mine and version.lstrip("v") == mine else "") if x]
+        if sub:
+            tk.Label(inner, text="  \u00b7  ".join(sub), bg=PANEL, fg=DIM, font=(UI_FONT, 9), anchor="w").pack(fill="x", padx=16)
+        tk.Frame(inner, bg=LINE_COLOUR, height=1).pack(fill="x", padx=16, pady=(10, 4))
+
+        text = tk.Text(inner, bg=PANEL, fg=FG, relief="flat", bd=0, highlightthickness=0, wrap="word", height=1,
+                       font=(UI_FONT, 9), cursor="arrow", padx=16, pady=2, spacing1=1, spacing3=3,
+                       selectbackground=PANEL, inactiveselectbackground=PANEL)
+        text.tag_configure("head", foreground=GOLD_LIT, font=(UI_FONT, 9, "bold"), spacing1=8, spacing3=3)
+        text.tag_configure("item", lmargin1=0, lmargin2=13)
+        text.tag_configure("dot", foreground=GOLD)
+        text.tag_configure("dim", foreground=DIM)
+        if lines:
+            first = True
+            for kind, words in lines:
+                if kind == "head":
+                    text.insert("end", words.upper() + "\n", "head")
+                else:
+                    # the card shows the first sentence of each note (the full text is one click away)
+                    short = words.split(". ")[0].rstrip(".")
+                    credit = words[words.rfind(" ("):] if words.endswith(")") and " (" in words and short != words else ""
+                    credit = credit if len(credit) <= 30 else ""        # (a name or two, not a long remark)
+                    if len(short) > 120:
+                        short = short[:117].rsplit(" ", 1)[0] + "..."
+                    text.insert("end", "\u2022  ", ("item", "dot"))
+                    text.insert("end", short + ("." if not short.endswith(("...", ")", "!", "?")) else ""), "item")
+                    text.insert("end", (credit.rstrip(".") if credit else "") + "\n", ("item", "dim"))
+                first = False
+        else:
+            text.insert("end", "No patch notes in this install yet. They come with the next update.", "dim")
+        text.configure(state="disabled")
+        text.pack(fill="both", expand=True, pady=(0, 10))
+        # the wheel scrolls the notes (there is no scroll bar: it would crowd the card)
+        text.bind("<MouseWheel>", lambda e: (text.yview_scroll(int(-e.delta / 40) or (-1 if e.delta > 0 else 1), "units"), "break")[1])
+        text.bind("<Button-4>", lambda e: (text.yview_scroll(-2, "units"), "break")[1])
+        text.bind("<Button-5>", lambda e: (text.yview_scroll(2, "units"), "break")[1])
+        text.bind("<Double-Button-1>", lambda e: self.app.go("Patch notes"))
+        self.notes_text = text
+
     def refresh_summary(self):
+        if not self.tiles:
+            return                  # (the summary tiles were replaced by the patch notes)
         app, tab = self.app, self.app.rates_tab
         rates = tab.collect()
         world, population = core.world_of(rates), core.population_of(rates)
