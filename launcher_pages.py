@@ -366,10 +366,7 @@ class RulesPage(SettingsPage):
         self.missing = tk.Label(line, text="", bg=BG, fg=GOLD, font=(UI_FONT, 9))
         self.missing.pack(side="left")
         w.link(line, "Classic settings list", lambda: show_classic(self.app)).pack(side="right")
-        if self.app.squad_tab is None:       # no Squad page to put them on (no database): the squad rules go here
-            card = w.Card(self.grid.winfo_children()[-1], "Squad rules")
-            card.pack(fill="x", pady=(0, 10))
-            fill_card(card, st.section_entries("squad", "Squad rules", self.player), self.tab)
+        # (2026-11-21) the squad rules are a section of this page now (launcher_settings.py, "Squad")
 
     def names(self):
         return [name for name, _words in PRESET_CARDS]

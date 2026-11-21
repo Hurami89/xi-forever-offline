@@ -3900,6 +3900,12 @@ class App(tk.Tk):
         except Exception as e:
             self.say(f"Could not check Ashita's target offset ({e}).")
 
+        try:                                  # (2026-11-21, Yumainai) old update downloads: keep only the newest of each
+            import launcher_update as _upd
+            _upd.prune_updates(HERE, log=self.say)
+        except Exception as e:
+            self.say(f"Could not tidy the old update downloads ({e}).")
+
         try:                                  # (2026-11-19) Gambits -> autobox, GambitsV2 -> Gambits: once, every install
             import launcher_setup as _names
             _names.migrate_gambits_names(HERE, cfg.get("ashita_dir", ""), log=self.say)

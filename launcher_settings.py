@@ -107,16 +107,20 @@ S("short_quest_waits", "rules", "Comforts", SWITCH, "Short quest waits",
       "(era: three game days). Off = the era waits.")
 S("main.NEW_CHARACTER_CUTSCENE", "rules", "Comforts", FLAG, "New-character cutscenes")
 
-# ---------------------------------------------------------------- Squad: rules for the whole squad
-S("squad_call_cooldown", "squad", "Squad rules", COUNT, "Call timer (min)", lo=0, hi=30, step=1,
+# ---------------------------------------------------------------- Rules > Squad: rules for the whole squad
+# (2026-11-21, Hurami: moved from the Squad page's top line to the Rules page, in a Squad section)
+S("squad_call_cooldown", "rules", "Squad", COUNT, "Call timer (min)", lo=0, hi=30, step=1,
   tip="Minutes before a squad mate can be called again. 0-30.")
-S("spell_scrolls", "squad", "Squad rules", SWITCH, "Spells from scrolls",
+S("spell_scrolls", "rules", "Squad", SWITCH, "Spells from scrolls",
   tip="Spells of level 18 and up must be bought and given to your squad once (trade the scroll to a mate, or "
       "!squad give). Blue magic from 18 is learned from monsters you defeat with a squad Blue Mage out. "
       "Below 18 everything stays automatic.")
-S("squad_keep_gear", "squad", "Squad rules", SWITCH, "Keep gear you give",
+S("squad_keep_gear", "rules", "Squad", SWITCH, "Keep gear you give",
   tip="Trading a piece to a mate (or !squad give) unlocks it for the whole squad and you keep yours. "
       "Off = the squad takes the piece (one-of-a-kind gear is always kept).")
+S("training_dummies", "rules", "Squad", SWITCH, "Training dummies",
+  tip="For testing: !sandbox puts dummies of level 1 to 99 in Rolanberry Fields that never die and never attack. "
+      "Off = no dummies.")
 
 # ---------------------------------------------------------------- Era: the dev PC only (players are locked to the era values)
 S("main.MAX_LEVEL", "era", "Era", NUMBER, "Level cap", dev=True, step=1)
@@ -143,7 +147,7 @@ S("main.SPARKS_RATE", "era", "Out-of-era content", RATE, "RoE sparks", dev=True,
 # which sections sit in which column of a page, left to right
 LAYOUT = {
     "world": (("Town crowds", "Field parties"), ("Bot players", "Auction house", "Conquest"), ("AI chat", "Seasonal events")),
-    "rules": (("Experience and fame", "Notorious monsters", "Expansions"), ("Loot and gil", "Travel"),
+    "rules": (("Experience and fame", "Notorious monsters", "Expansions"), ("Loot and gil", "Travel", "Squad"),
               ("Skills and crafting", "Comforts")),
     "squad": (("Squad rules",),),
     "era": (("Era",), ("Later expansions",), ("Out-of-era content",)),
