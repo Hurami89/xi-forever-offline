@@ -39,6 +39,10 @@ try:
     import launcher_coop_gui as coopgui
 except Exception:  # the launcher still works, without the Co-op page
     coopgui = None
+try:
+    import launcher_pages as newui     # the newer look: World, Rules, the eight-button bar ("classic_ui": true in config.json = the old one)
+except Exception:  # the launcher still works, with the classic pages
+    newui = None
 
 LOGS = os.path.join(HERE, "logs")
 KIT_REPO_NAME = "Hurami89/xi-forever-offline"
@@ -1527,7 +1531,10 @@ class ImageButton(tk.Canvas):
 
 
 class RatesTab(tk.Frame):
-    """Experience, drop, gil and skill-up rates, the level cap and a few switches. Read when PLAY is pressed."""
+    """Experience, drop, gil and skill-up rates, the level cap and a few switches. Read when PLAY is pressed.
+    In the newer look this tab is made but not shown: the World, Rules, Squad and Era pages (launcher_pages.py) show
+    its variables. A NEW SETTING ALSO NEEDS A LINE IN launcher_settings.py, which says where it goes on those pages
+    (dev\\launcher-tests\\test_settings.py fails until it has one)."""
     FAST_TRAVEL = ("main.HOMEPOINT_TELEPORT", "main.ENABLE_SURVIVAL_GUIDE")   # one "Fast travel" checkbox for both
     # (2026-11-18) settings about the era and how classic the game feels, shown together under "Era options"
     ERA_KEYS = ("main.MAX_LEVEL", "main.ENABLE_COP", "main.ENABLE_TOAU", "main.ENABLE_WOTG", "main.ENABLE_ACP", "main.ENABLE_AMK",
@@ -3042,6 +3049,9 @@ class App(tk.Tk):
         self.boot_ini = os.path.join(self.ashita, "config", "boot", self.cfg.get("ashita_boot", core.DEFAULT_BOOT)) if self.ashita else None
         has_ini = bool(self.boot_ini) and os.path.exists(self.boot_ini)
         self.graphics = core.load_graphics(HERE, self.boot_ini if has_ini else None)
+        self.new_ui = newui is not None and not self.cfg.get("classic_ui")
+        if self.new_ui:
+            newui.prepare(self, globals())
         self.build_ui()
         self.after(200, self.pump)
         self.after(1000, self.lights)
@@ -3204,7 +3214,8 @@ class App(tk.Tk):
 
         # Rates tab
         self.rates_tab = RatesTab(tabs, self.rates, player=bool(self.cfg.get("mariadb_dir")))
-        tabs.add(self.rates_tab, text="  Rates  ")
+        if not self.new_ui:                    # the newer World and Rules pages show these settings instead (launcher_pages.py)
+            tabs.add(self.rates_tab, text="  Rates  ")
 
         # Graphics tab (needs the Ashita boot file)
         self.graphics_tab = None
@@ -3279,6 +3290,18 @@ class App(tk.Tk):
                           command=lambda: self.add_user_item(folder=True)).pack(side="left", padx=4)
         if tp is not None and os.path.exists(os.path.join(HERE, "thirdparty.json")):
             self.build_downloads_page(tabs)
+        if self.new_ui:                        # World, Rules, the new bar (launcher_pages.py takes over build_nav, show_subnav, fit_window)
+            try:
+                newui.build(self, tabs)
+            except Exception:                  # anything wrong with the newer pages: the classic ones, so the launcher always opens
+                self.new_ui = False
+                try:
+                    os.makedirs(LOGS, exist_ok=True)
+                    with open(os.path.join(LOGS, "new-pages-error.log"), "w") as f:
+                        f.write(traceback.format_exc())
+                except OSError:
+                    pass
+                tabs.add(self.rates_tab, text="  Rates  ")
         self.build_nav()
 
     def ui_button(self, parent, name, command, text):
@@ -3934,7 +3957,7 @@ class App(tk.Tk):
         self.say("Applying your rates...")
         try:
             if float(self.rates.get("map.EXP_RATE", 1) or 0) <= 0:
-                self.say("Note: 'Experience from monsters' is 0 on CONFIG > Rates, so monsters give no experience. Set it to 1 for the normal amount.")
+                self.say("Note: Experience from monsters is 0 on the RULES page, so monsters give no experience. Set it to 1 for the normal amount.")
         except (TypeError, ValueError):
             pass
         try:
@@ -4127,7 +4150,7 @@ class App(tk.Tk):
             if self.game_proc.poll() is not None:
                 raise RuntimeError("The game closed before it started (Proton said it was done).\n\nAshita / Proton said:\n"
                                    + core.tail(os.path.join(LOGS, "ashita.log"))
-                                   + "\n\nTurn on 'Write Proton logs' on the Settings page and send logs/steam-*.log with the report.")
+                                   + "\n\nTurn on 'Write Proton logs' on SYSTEM > Linux and send logs/steam-*.log with the report.")
             if time.time() - start > limit:
                 raise RuntimeError("The game loader never started.\n\nAshita / Proton said:\n" + core.tail(os.path.join(LOGS, "ashita.log")))
             self.say_status(f"Starting the game... {int(time.time() - start)} seconds")
@@ -4197,7 +4220,7 @@ class App(tk.Tk):
         boot = self.cfg.get("ashita_boot_gm")
         path = os.path.join(self.ashita, "config", "boot", boot) if (self.ashita and boot) else ""
         if not path or not os.path.exists(path):
-            messagebox.showinfo("GM game", "The GM account is not set up yet.\n\nOn the Settings page press 'Set up GM account' first.")
+            messagebox.showinfo("GM game", "The GM account is not set up yet.\n\nOn SYSTEM > GM and testing press 'Set up GM account' first.")
             return
         if self.running and core.is_running("xiloader"):
             self.launch_extra(boot, "ashita-gm.log")
@@ -4853,7 +4876,7 @@ class SetupWizard(tk.Tk):
                         linux.deck_defaults(HERE, boot)
                         self.q.put(("log", "Steam Deck: the game is set to the Deck's screen (1280 x 800)."))
                         linux.install_desktop_entry(HERE)
-                        self.q.put(("log", "Added XI: Forever Offline to the menu: add it to Steam on the launcher's Settings page."))
+                        self.q.put(("log", "Added XI: Forever Offline to the menu: add it to Steam on the launcher's SYSTEM > Linux page."))
                     except Exception as e:
                         self.q.put(("log", f"Could not set the Steam Deck defaults ({e})."))
                 self.q.put(("done", None))

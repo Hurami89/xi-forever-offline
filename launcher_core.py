@@ -885,7 +885,7 @@ def list_profiles(here):
 def profile_text(name, rates):
     """The shareable form: a short header plus the settings as JSON (only the known settings)."""
     data = {k: v for k, v in rates.items() if k in RATE_DEFAULTS and k not in PROFILE_SKIP}
-    return ("# XI: Forever Offline rate profile: %s\n# Load it in the launcher: CONFIG > Rates > Profile > Import.\n" % name
+    return ("# XI: Forever Offline rate profile: %s\n# Load it in the launcher: RULES > My builds > Import.\n" % name
             + json.dumps({"name": name, "rates": data}, indent=2) + "\n")
 
 
