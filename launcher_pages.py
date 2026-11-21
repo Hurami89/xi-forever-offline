@@ -63,7 +63,8 @@ def prepare(app, names):
     except Exception:
         tall = False
     if tall:
-        BANNER = (800, 460)
+        width = 1056 if names.get("coopgui") is not None else 936      # (launcher_gui.fit_window: 1100 / 980 wide)
+        BANNER = (width, round(width / 2.5))
     G.GALLERY_W, G.GALLERY_H = BANNER      # the press and loading pictures are cut to this when they are loaded
     G.ACCENT = GOLD                         # one highlight colour: what the older pages drew in cyan is gold too
     if "CheckList" in names:                # the "download" tag in the addon and plugin lists was cyan as well
@@ -477,20 +478,25 @@ class PlayPage:
         for widget in (app.stage, self.strip, self.buttons, self.actions):
             widget.pack_forget()
         self.build_notice()
+        # (2026-11-21) the picture across the whole page at its own shape (2.5 : 1, nothing cut off), PLAY under it,
+        # and the newest patch notes in a strip filling the rest. The World / Rules / Squad summary tiles are gone:
+        # the same pages are one click away in the bar below.
+        try:
+            self.box.pack_configure(fill="both", expand=True)
+        except tk.TclError:
+            pass
         top = self.frame(self.box)
-        top.pack(fill="x", pady=(0, 16))
+        top.pack(fill="x", pady=(4, 14))
         self.top = top
         app.stage.configure(width=BANNER[0] + 2, height=BANNER[1] + 2)
-        app.stage.pack(in_=top, side="left")
+        app.stage.pack(in_=top)
         app.stage.lift()
-        side = self.frame(top)
-        side.pack(side="left", fill="both", expand=True, padx=(12, 0))
-        # (2026-11-21) the World / Rules / Squad summary tiles are gone (the same pages are one click away in the bar
-        # below): the newest patch notes sit beside the picture instead
         self.tiles = {}
-        self.build_notes(side)
         row = self.frame(self.box)
         row.pack(fill="x")
+        notes = self.frame(self.box)
+        notes.pack(side="bottom", fill="both", expand=True, pady=(14, 4))
+        self.build_notes(notes)
         self.buttons.pack(in_=row, side="left")
         self.buttons.lift()
         app.stop_btn.pack_forget()
@@ -612,15 +618,11 @@ class PlayPage:
         outer.pack(fill="both", expand=True)
         inner = tk.Frame(outer, bg=PANEL)
         inner.pack(fill="both", expand=True, padx=1, pady=1)
-        tk.Frame(inner, bg=GOLD, height=2).pack(fill="x")           # a thin gold edge on top
-        head = tk.Frame(inner, bg=PANEL)
-        head.pack(fill="x", padx=16, pady=(12, 0))
-        tk.Label(head, text="PATCH NOTES", bg=PANEL, fg=GOLD, font=(UI_FONT, 8, "bold")).pack(side="left")
-        more = tk.Label(head, text="All notes  \u203a", bg=PANEL, fg=DIM, font=(UI_FONT, 8), cursor="hand2")
-        more.pack(side="right")
-        more.bind("<Button-1>", lambda e: self.app.go("Patch notes"))
-        more.bind("<Enter>", lambda e: more.configure(fg=GOLD_LIT))
-        more.bind("<Leave>", lambda e: more.configure(fg=DIM))
+        tk.Frame(inner, bg=GOLD, width=3).pack(side="left", fill="y")       # a thin gold edge on the left
+        left = tk.Frame(inner, bg=PANEL, width=210)
+        left.pack(side="left", fill="y", padx=(16, 0), pady=(10, 10))
+        left.pack_propagate(False)
+        tk.Label(left, text="PATCH NOTES", bg=PANEL, fg=GOLD, font=(UI_FONT, 8, "bold"), anchor="w").pack(fill="x")
 
         title, lines = self.latest_notes()
         version, when = "", ""
@@ -633,12 +635,17 @@ class PlayPage:
             mine = (lu.installed_version(G.HERE) or "").lstrip("v")
         except Exception:
             pass
-        tk.Label(inner, text=("Version " + version.lstrip("v")) if version else "Patch notes", bg=PANEL, fg=FG,
-                 font=(UI_FONT, 14, "bold"), anchor="w").pack(fill="x", padx=16, pady=(2, 0))
+        tk.Label(left, text=("Version " + version.lstrip("v")) if version else "Patch notes", bg=PANEL, fg=FG,
+                 font=(UI_FONT, 14, "bold"), anchor="w").pack(fill="x", pady=(2, 0))
         sub = [x for x in (when, "your version" if mine and version.lstrip("v") == mine else "") if x]
         if sub:
-            tk.Label(inner, text="  \u00b7  ".join(sub), bg=PANEL, fg=DIM, font=(UI_FONT, 9), anchor="w").pack(fill="x", padx=16)
-        tk.Frame(inner, bg=LINE_COLOUR, height=1).pack(fill="x", padx=16, pady=(10, 4))
+            tk.Label(left, text="  \u00b7  ".join(sub), bg=PANEL, fg=DIM, font=(UI_FONT, 9), anchor="w").pack(fill="x")
+        more = tk.Label(left, text="All patch notes  \u203a", bg=PANEL, fg=DIM, font=(UI_FONT, 9), cursor="hand2", anchor="w")
+        more.pack(side="bottom", fill="x")
+        more.bind("<Button-1>", lambda e: self.app.go("Patch notes"))
+        more.bind("<Enter>", lambda e: more.configure(fg=GOLD_LIT))
+        more.bind("<Leave>", lambda e: more.configure(fg=DIM))
+        tk.Frame(inner, bg=LINE_COLOUR, width=1).pack(side="left", fill="y", pady=12)
 
         text = tk.Text(inner, bg=PANEL, fg=FG, relief="flat", bd=0, highlightthickness=0, wrap="word", height=1,
                        font=(UI_FONT, 9), cursor="arrow", padx=16, pady=2, spacing1=1, spacing3=3,
@@ -666,7 +673,7 @@ class PlayPage:
         else:
             text.insert("end", "No patch notes in this install yet. They come with the next update.", "dim")
         text.configure(state="disabled")
-        text.pack(fill="both", expand=True, pady=(0, 10))
+        text.pack(side="left", fill="both", expand=True, pady=(8, 8))
         # the wheel scrolls the notes (there is no scroll bar: it would crowd the card)
         text.bind("<MouseWheel>", lambda e: (text.yview_scroll(int(-e.delta / 40) or (-1 if e.delta > 0 else 1), "units"), "break")[1])
         text.bind("<Button-4>", lambda e: (text.yview_scroll(-2, "units"), "break")[1])
