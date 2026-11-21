@@ -770,9 +770,92 @@ class CharactersPage(w.ScrollPage):
         w.button(bar, "Folder...", coop.carry_pick_folder, small=True).pack(side="left")
         tk.Label(bar, textvariable=coop.carry_folder_text, bg=PANEL, fg=DIM, font=(UI_FONT, 9), anchor="w", justify="left",
                  wraplength=380).pack(side="left", padx=10)
+        # (2026-11-20) character transfer: charcapture (VanaDreams, with permission) on the other game, char_import.py here
+        bring = w.Card(grid, "Bring a character from another server")
+        bring.grid(row=2, column=0, columnspan=2, sticky="new", pady=(10, 0))
+        bring.note("From retail or another private server: 1) Get the capture add-on into that game's Ashita folder, "
+                   "2) there: /addon load charcapture, zone once, then /capture, 3) make a character here in the lobby and log "
+                   "out, 4) pick it above and Import. Jobs, skills, spells, key items, gil and bags come across (capped at this "
+                   "world's level cap); quests, missions and fame don't. The character here is backed up first.", wrap=960)
+        bar = tk.Frame(bring.body, bg=PANEL)
+        bar.pack(fill="x", pady=(6, 2))
+        w.button(bar, "Get the capture add-on...", self.get_capture).pack(side="left")
+        w.button(bar, "Import a snapshot...", self.import_snapshot, primary=True).pack(side="left", padx=8)
         tk.Label(self.body, textvariable=coop.note_text, bg=BG, fg=GOLD, font=(UI_FONT, 9), anchor="w", justify="left",
                  wraplength=1000).pack(fill="x", pady=(12, 0))
         self.bind("<Map>", lambda e: self.load(), add="+")
+
+    def get_capture(self):
+        """Puts VanaDreams' charcapture add-on into the Ashita folder of the game the character is coming from."""
+        from tkinter import filedialog
+        folder = filedialog.askdirectory(title="The Ashita folder of the game you're bringing the character from", parent=self)
+        if not folder:
+            return
+        import char_import as ci
+        self.coop.job(lambda: ci.install_capture(folder, log=lambda _t: None),
+                      lambda target: self.coop.note(f"charcapture is in {target}. In that game: /addon load charcapture, "
+                                                    "zone once, then /capture. The file lands in its config\\charcapture folder."),
+                      "Downloading charcapture...")
+
+    def import_snapshot(self):
+        """Reads a /capture file and puts it onto the character picked above (after a backup and a yes)."""
+        from tkinter import filedialog
+        import char_import as ci
+        name = self.choice.get()
+        if not name:
+            messagebox.showinfo("Import", "Make the character in the lobby first, log out, then pick it above.", parent=self)
+            return
+        if getattr(self.app, "running", False):
+            messagebox.showinfo("Import", "Press STOP first: a character is imported while the game is closed.", parent=self)
+            return
+        path = filedialog.askopenfilename(title="A snapshot made with /capture (config\\charcapture\\<Name>.json)",
+                                          filetypes=[("Character snapshot", "*.json")], parent=self)
+        if not path:
+            return
+        try:
+            snap = ci.load_snapshot(path)
+        except ci.ImportError_ as e:
+            messagebox.showwarning("Import", str(e), parent=self)
+            return
+        max_level = ci.server_max_level(self.app.cfg.get("server_dir"))
+        coop = self.coop
+
+        def look():
+            conn = coop.connect()
+            try:
+                charid = ci.find_character(conn, name)
+                return charid, ci.plan(conn, snap, charid, max_level)
+            finally:
+                conn.close()
+
+        def ask(result):
+            charid, plan = result
+            if not messagebox.askyesno("Import", ci.describe(plan) + f"\n\nPut this onto {name}? Its jobs, skills, spells, key "
+                                       "items and bags here are replaced (a backup is made first).", icon="warning", parent=self):
+                return
+
+            def write():
+                conn = coop.connect()
+                try:
+                    saved = ci.backup_first(conn, charid, name)
+                    ci.apply(conn, plan)
+                    return saved
+                finally:
+                    conn.close()
+
+            coop.job(write, lambda saved: coop.note(f"{plan['name']} came across as {name}. The old {name} is backed up in "
+                                                    f"{saved} (Restore from a backup puts it back)."), "Importing...")
+
+        def failed(e):
+            messagebox.showwarning("Import", str(e), parent=self)
+
+        def guarded():
+            try:
+                return ("ok", look())
+            except ci.ImportError_ as e:
+                return ("err", e)
+
+        coop.job(guarded, lambda r: ask(r[1]) if r[0] == "ok" else failed(r[1]), "Reading the snapshot...")
 
     def load(self):
         """Read the characters that are at home in this world (in the background: the database may be slow to answer)."""
