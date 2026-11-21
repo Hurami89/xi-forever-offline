@@ -24,6 +24,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Inside your Mog House you only see and hear your room: no town crowd chatter, no NPCs wandering in. (Trinity, Velderen)
 • No more floating names left behind when a town crowd NPC leaves. (Sunie, Starfret)
 • Bot players fish only at the water's edge. (Sunie)
+• Horro's Visit: the message now sends you to the right place for Slarin (next to Home Point #2 in Southern San d'Oria). (Altair)
 • "Modern item stacks" now really works on your PC: the part that changes the stack sizes was missing from the download, so sheepskin, goblin masks and the rest stayed single. (Egon, Ricc)
 • Crystal Boy 1.8: fixes a crash that could take all your add-ons down with it, and Enter works on more setups. (krazy, Ricc)
 
