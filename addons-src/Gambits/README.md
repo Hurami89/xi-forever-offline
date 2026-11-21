@@ -66,6 +66,24 @@ Settings live in `config/addons/GambitsV2/` (per character). An unsaved draft is
   abilities only from the main job, merit abilities only with your merits); spells by the game's rules for squad mates
   (no Trust, Summoning or Geomancy spells, only spells that come on a scroll, and with "spells from scrolls" on, only
   learned spells from level 18). Names are listed alphabetically; the tooltip gives the level and job.
+- **Planning ahead (0.3.1):** Best of Family and Specific Spell also list what the mate's jobs learn later (the main
+  job up to level 75, the sub job up to its level cap), dimmed and marked with the level ("Haste (Lv 48)"); a rule
+  with one starts working at that level. **Show all** lists every family the server offers (and the sub job's
+  spells above its cap), marked "(not RDM)" where no spell of the mate's jobs fits. Only the lists change: saved rules
+  stay as they are, and the server checks every rule on Save. The setting is remembered.
+- **Job Abilities the same way (0.3.1):** what the mate can use now, then what its jobs learn later ("Warcry (Lv 35)",
+  "Divine Seal (sub Lv 15)"), and merit abilities you have not unlocked ("(Lv 75, merit)"). The same **Show all** adds the
+  sub job's two-hour and main-job-only abilities and those above the level caps, marked. Show all covers the mate's
+  main and support jobs only: other jobs' abilities are not listed (no extra server requests). A saved ability the list
+  leaves out stays selected and marked (e.g. "(WAR, not RDM)"). The lists are about job, level and merits only: recast
+  and status are checked in combat. The job, level and restrictions come from the server's own ability table
+  (`gambits_data.lua`, generated).
+- **Status effects (0.3.1):** one dropdown: the effects the mate's jobs give (from the server's ability scripts and
+  spell data), the common ones, and **Custom...** for any other name (typed with spaces; a name the server does not
+  have is marked and never changed silently).
+- **Tooltips** on every dropdown entry: targets, conditions, families (their spells and levels), spells, effects.
+- **Weapon Skills** is a section of the same editor (click its header to open it; remembered); closed, it shows one
+  line with what is saved. The **Save** button stays visible below the rules.
 - **Level Sync** does not change the choices; the server runs each rule at the mate's current level, and Check says
   which level it checked.
 - **Saved rules are never rewritten:** a spell or ability that is not in the list any more stays as saved, with a note;
@@ -94,7 +112,9 @@ The job ability check (level, sub job, merits) applies to every squad mate's job
 
 ## Files
 `GambitsV2.lua` (window, settings, commands, events), `transport.lua` (chat transport), `squad_editor.lua` (the
-editor), `trust_spells.lua` (generated: Trust spells left out of the spell list). Tests and tools:
+editor), `trust_spells.lua` (generated: Trust spells left out of the spell list), `gambits_data.lua` (generated from
+the server's data: spell families, status effects and what gives them, and each job ability's job, level and sub job /
+merit restrictions; 0.3.1). Tests and tools:
 `dev/gambits-v2-squad/`.
 
 The colour palettes come from FFXIPort 1.2.0 (© 2026 wildthing, GPL-3.0-only).
