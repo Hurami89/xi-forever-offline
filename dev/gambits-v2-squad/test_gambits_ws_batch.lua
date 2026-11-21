@@ -216,7 +216,7 @@ GetSquad = function() return squad end
 local function run(line) srv.printed = {}; G.handle(srv, line); return srv.printed end
 local function F(line) return G.splitPlain(line, '|') end
 local o = run('hello 1')
-check(o[1] == 'GSQ|1|hello|5|32|120|64', 'hello: version 5 - ' .. tostring(o[1]))
+check(o[1] == 'GSQ|1|hello|6|32|120|64', 'hello: version 6 (job expansion) - ' .. tostring(o[1]))
 o = run('wsg 2 1')
 local f = F(o[1])
 check(#o == 2 and f[3] == 'ws' and f[4] == '1' and f[5] == 'WAR' and f[6] == 'l' and f[13] == '0' and f[14] == '-' and f[15] == '-' and f[16] == '1'
@@ -411,7 +411,8 @@ S.draft.rules[1].name = 'CHANGED'
 check(M.TEMPLATES.RDM[1].rules[1].name == 'CURE', 'the draft is a copy')
 local d2 = M.new_from_template('RDM', 1, { targets = { 'PARTY', 'TARGET', 'SELF' } })
 check(d2.rules[1].target == 'PARTY', 'a server without PARTY_LOWEST_HPP: the template falls back to PARTY')
-check(#M.templates_for('BLM') == 0 and M.new_from_template('BLM', 1) == nil, 'no template for other jobs')
+-- (job expansion) the other jobs have starters now (test_gambits_jobexp.lua); still none for SMN or PUP
+check(#M.templates_for('SMN') == 0 and #M.templates_for('PUP') == 0 and M.new_from_template('SMN', 1) == nil, 'no template for SMN or PUP')
 
 -- ================================================================= 6b. beta polish: the Rule Set editor's usability changes
 section('beta polish: compact rule lines, labels, set names, one-click open, unsaved edits kept, Assign & Apply')
