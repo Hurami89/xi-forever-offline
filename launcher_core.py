@@ -1088,6 +1088,15 @@ def apply_rates(server_dir, rates):
     wanted["map.lua"].append(("CRAFT_SPECIALIZATION_POINTS", 3200 if rates.get("all_crafts", True) else 400, "int"))
     # auction house: no limit on your own listings (the ah_pagination module shows them 6 per page)
     wanted["map.lua"].append(("AH_LIST_LIMIT", 0, "int"))
+    # (2026-11-21, Bob Roberts) the core caps a player's speed at map.SPEED_LIMIT (80), so a "Run speed" above 50 was cut
+    # back as soon as Flee or movement gear added to it, and above 80 it did nothing at all. The limit keeps the retail
+    # ratio (80 for 50: room for Flee and gear) and never drops below the mount speed or 80.
+    try:
+        _base = int(float(rates.get("map.BASE_SPEED", 50)))
+        _mount = int(float(rates.get("map.MOUNT_SPEED", 80)))
+    except (TypeError, ValueError):
+        _base, _mount = 50, 80
+    wanted["map.lua"].append(("SPEED_LIMIT", max(80, _mount, min(255, round(_base * 1.6))), "int"))
     # (2026-11-20, Trinity: "Is fishing disabled?") the server default switches all fishing off (a guard against fishing
     # bots on public servers, "enable at your own risk"); there is no such risk on your own world
     wanted["map.lua"].append(("FISHING_ENABLE", True, "bool"))
