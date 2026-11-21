@@ -15,6 +15,7 @@ The "XI: Forever Offline" wordmark is our own lettering and contains no Square E
 ## Server
 - [Phoenix](https://github.com/phoenixffxi/Phoenix), with its xiloader and Era-DATs: the 75-era server this project is built on (GPL v3).
 - [LandSandBoat](https://github.com/LandSandBoat/server): the FFXI server emulator Phoenix is based on (GPL v3).
+- [AirSkyBoat](https://github.com/AirSkyBoat/AirSkyBoat): the Starlight Celebration's Smilebringer activities (presents, greetings, Goblin Merrymakers, Boot Camp, token and vendor moogles) and the Goblin routes and Jeuno decorations, ported into modules/custom/lua/starlight_smilebringers.lua (GPL v3).
 
 ## Downloaded at install, not included here
 Each comes from its official release page and keeps its own license.
