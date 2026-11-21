@@ -91,6 +91,7 @@
     },
     {
       "id": "xiui",
+      "refresh_if_installed": true,
       "name": "XIUI",
       "author": "Team XIUI",
       "license": "GPL-3.0",
@@ -100,7 +101,7 @@
       "source": {
         "type": "github_release",
         "repo": "tirem/XIUI",
-        "tag": "v1.8.4",
+        "tag": "v1.8.5",
         "asset": "^XIUI-[0-9.]+\\.zip$"
       },
       "files": [
@@ -250,6 +251,7 @@
     },
     {
       "id": "ffxiport",
+      "refresh_if_installed": true,
       "name": "FFXIPort",
       "author": "wildthing (wildcabbagepatch)",
       "license": "GPL-3.0",
@@ -259,12 +261,12 @@
       "source": {
         "type": "github_release",
         "repo": "wildcabbagepatch/FFXIPort",
-        "tag": "v1.1.0",
+        "tag": "v1.2.0",
         "asset": "^FFXIPort-[0-9.]+\\.zip$"
       },
       "files": [
         [
-          "FFXIPort-1.1.0/client/FFXIPort/",
+          "FFXIPort-1.2.0/client/FFXIPort/",
           "addons/FFXIPort/"
         ]
       ],
