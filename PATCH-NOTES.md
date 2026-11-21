@@ -7,6 +7,9 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ### Character transfer (new)
 • Bring a character over from retail or another private server: SYSTEM > Characters > "Bring a character from another server". Get the capture add-on, snapshot your character there, then import it onto a character here. Jobs, levels, skills, spells, key items, gear and items come along, within this era's limits. Your character is backed up first. How-to in #character-transfer. (charcapture by the VanaDreams team, used with their permission)
 
+### Forever Beta Shirt (new)
+• A thank-you for playing the beta: a shirt of its own, in royal purple and gold with a crystal on the chest. Use it for the Chariot Band's bonus (+75% experience for 12 hours), 5 times. New characters start with it; everyone else finds it in their delivery box at the next login.
+
 ### Launcher
 • A new loading animation: a row of Vana'diel crystals that light up as the world starts, and turn green when the game launches.
 • SYSTEM > Patch notes: these notes, right in the launcher.

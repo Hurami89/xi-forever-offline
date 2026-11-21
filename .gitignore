@@ -38,6 +38,8 @@
 !/stack_mode.py
 !/char_import.py
 !/PATCH-NOTES.md
+# (2026-11-21) Forever Beta Shirt: builds its look and item entry from the player's own game files (launcher_client step 5)
+!/forever_beta_shirt.py
 # Linux / Steam Deck: Proton, the game's own prefix, the menu entry; the Linux build and its GitHub workflow
 !/launcher_linux.py
 !/build_release.sh
