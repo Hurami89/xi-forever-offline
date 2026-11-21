@@ -3135,10 +3135,8 @@ class App(tk.Tk):
         inner.pack(fill="x", padx=20, pady=7)
         self.summary_dot = tk.Label(inner, text="\u25cf", bg=PANEL, fg=GREY, font=(UI_FONT, 11))
         self.summary_dot.pack(side="left")
-        self.summary = tk.StringVar(value="Servers offline")
+        self.summary = tk.StringVar(value="World asleep")
         tk.Label(inner, textvariable=self.summary, bg=PANEL, fg=FG, font=(UI_FONT, 9, "bold")).pack(side="left", padx=(4, 18))
-        tk.Label(inner, text="Offline single-player  \u00b7  Level 75 era", bg=PANEL, fg=DIM,
-                 font=(UI_FONT, 9)).pack(side="left")
         tk.Label(inner, text=f"Launcher v{VERSION}", bg=PANEL, fg=DIM, font=(UI_FONT, 9)).pack(side="right")
 
         # the page buttons: along the bottom of every page, just above the status bar (filled in by build_nav once every page exists)
@@ -3212,7 +3210,8 @@ class App(tk.Tk):
         strip.pack(fill="x", padx=2, pady=(10, 6))
         self.status = tk.StringVar(value=PRESS_NOTE or "Ready when you are.")
         tk.Label(strip, textvariable=self.status, bg=BG, fg=FG, font=(UI_FONT, 11), anchor="w").pack(side="left", fill="x", expand=True)
-        self.progress = ttk.Progressbar(strip, mode="indeterminate", length=380, style="Solo.Horizontal.TProgressbar")
+        from launcher_widgets import CrystalLoader
+        self.progress = CrystalLoader(strip, width=380)   # (2026-11-21) a crystal wave instead of the sliding bar
         self.progress.pack(side="right")
 
         # PLAY, STOP and DUALBOX, then UPDATE and LOGS (pictures in assets\\ui; plain text buttons if they are missing)
@@ -3719,6 +3718,8 @@ class App(tk.Tk):
                     self.status.set(val)
                 elif kind == "log":
                     self.status.set(val)
+                    if str(val).startswith("Game is running") and hasattr(self.progress, "success"):
+                        self.progress.success()          # (2026-11-21) the loading crystals turn green
                     self.log.configure(state="normal")
                     self.log.insert("end", time.strftime("%H:%M:%S  ") + val + "\n")
                     self.log.see("end")
@@ -3745,13 +3746,13 @@ class App(tk.Tk):
                 up += alive
                 d.configure(fg=GREEN if alive else RED)
         if up == len(self.dots):
-            self.summary.set("Servers online")
+            self.summary.set("World awake")
             self.summary_dot.configure(fg=GREEN)
         elif up:
-            self.summary.set(f"{up} of {len(self.dots)} servers running")
+            self.summary.set("Crystallizing world...")
             self.summary_dot.configure(fg="#e0a030")
         else:
-            self.summary.set("Servers offline")
+            self.summary.set("World asleep")
             self.summary_dot.configure(fg=GREY)
         self.after(1000, self.lights)
 
