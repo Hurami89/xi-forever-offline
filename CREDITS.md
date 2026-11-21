@@ -35,6 +35,9 @@ Each comes from its official release page and keeps its own license.
 | [Checkmate](https://github.com/KiplingFFXI/checkmate) | KiplingFFXI | GPL v3 |
 | [Momentum](https://github.com/KiplingFFXI/momentum) | KiplingFFXI | GPL v3 |
 | [FFXIPort](https://github.com/wildcabbagepatch/FFXIPort) (add-on download; its server module ships with the server, one change: follows the Fast travel switch) | wildthing | GPL v3 |
+| [VanaFish](https://github.com/VanaDreams/vanadreams-launcher/tree/main/addons/vanafish) (add-on download, unchanged) | VanaDreams | used with the authors' permission |
+| [VanaCam](https://github.com/VanaDreams/vanadreams-launcher/tree/main/addons/vanacam) (add-on download, unchanged; its camera core is XICamera's, BSD) | VanaDreams | used with the authors' permission |
+| [charcapture](https://github.com/VanaDreams/vanadreams-launcher/tree/main/addons/charcapture) (downloaded into the other game's Ashita by the Characters page; `char_import.py` reads its snapshots) | VanaDreams | used with the authors' permission |
 | [xiloader (Phoenix)](https://github.com/phoenixffxi/xiloader) | Phoenix / LandSandBoat | GPL v3 |
 | Gambatte (libretro core, used by Crystal Boy) | the Gambatte and libretro authors | GPL v2 |
 | dgVoodoo | Dege | see its site |

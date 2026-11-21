@@ -4688,7 +4688,7 @@ class SetupWizard(tk.Tk):
               ("cadence", "Cadence: auto-attack and resting timers (loads switched off)", False),
               ("checkmate", "Checkmate: detailed monster check (loads switched off)", False),
               ("momentum", "Momentum: EXP and merit tracking (loads switched off)", False),
-              ("ffxiport", "FFXIPort: a teleport window, /port (loads switched off)", False), ("autobot", "AutoBot: for a second (dualbox) character", False))
+              ("ffxiport", "FFXIPort: a teleport window, /port (loads switched off)", False), ("vanafish", "VanaFish: fishing bot, /vanafish (loads switched off)", False), ("vanacam", "VanaCam: camera presets and combat distance (loads switched off)", False), ("autobot", "AutoBot: for a second (dualbox) character", False))
 
     def __init__(self):
         super().__init__()
