@@ -263,7 +263,7 @@ end
 local o = run('ping 5 77')
 check(#o == 1 and o[1]:match('^GSQ|5|pong|77|%d+$'), 'ping answers with its id and the client value: ' .. tostring(o[1]))
 o = run('hello 6')
-check(o[1] == 'GSQ|6|hello|5|32|120|64', 'hello: version 5, 32 rules, 120 bytes, 64 chunks: ' .. tostring(o[1]))
+check(o[1] == 'GSQ|6|hello|6|32|120|64', 'hello: version 6 (job expansion), 32 rules, 120 bytes, 64 chunks: ' .. tostring(o[1]))
 o = run('nonsense 7')
 check(o[1]:match('^GSQ|7|err|badreq'), 'an unknown request is answered with an error')
 o = run(string.rep('x', 200))
@@ -285,7 +285,8 @@ check(o[1]:match('^GSQ|10|hdr|1|WHM|m|%d+|custom.whm.cure%-basics|WHM %- Cure ba
 o = run('cat 11 WHM')
 local catKinds = {}
 for kind, list in pairs(catLists(o)) do catKinds[kind] = table.concat(list, ',') .. ',' end
-check(catKinds.t == 'SELF,PARTY,TANK,CASTER,MELEE,RANGED,TOP_ENMITY,TARGET,MASTER,', 'catalog: the targets the engine has, in the editor\'s order')
+check(catKinds.t == 'SELF,PARTY,TANK,CASTER,MELEE,RANGED,TOP_ENMITY,TARGET,MASTER,TRIGGER_SELF_ACTION_TARGET,',
+      'catalog: the targets the engine has, in the editor\'s order (version 6: Check Self -> Act on Enemy last)')
 check(catKinds.c and catKinds.c:find('HPP_LT:r:0:100', 1, true) and catKinds.c:find('ALWAYS:n', 1, true) and catKinds.c:find('NOT_STATUS:e', 1, true)
       and catKinds.c:find('HPP_GTE:r:0:100', 1, true) and catKinds.c:find('STATUS:e', 1, true) and catKinds.c:find('READYING_WS:n', 1, true),
       'catalog: every condition with its argument kind and range (HPP_LT, HPP_GTE, STATUS, READYING_WS included)')
