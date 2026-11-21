@@ -1824,6 +1824,10 @@ M.SUBJECTS = {
     { key = 'MISSING', label = 'Missing HP',  ops = { { 'at least', 'HP_MISSING' } }, unit = 'HP', default = 500 },
     { key = 'AGGRO',   label = 'Aggro',       ops = { { 'has it (the mate itself)', 'HAS_TOP_ENMITY' },
                                                       { 'does not have it', 'NOT_HAS_TOP_ENMITY' } } },
+    -- (hotfix 2026-11-21) the engine's party tank test (a party member whose main job is NIN, PLD or RUN; the rule's
+    -- target does not matter). The Basic Warrior starter uses NOT_PT_HAS_TANK, which the builder could not offer.
+    { key = 'PTTANK',  label = 'Party tank',  ops = { { 'there is one (NIN, PLD or RUN)', 'PT_HAS_TANK' },
+                                                      { 'there is none', 'NOT_PT_HAS_TANK' } } },
     { key = 'STATUS',  label = 'Status',      ops = { { 'has', 'STATUS' }, { 'is missing', 'NOT_STATUS' } } },
     { key = 'ENEMY',   label = 'Enemy',       ops = { { 'is casting a spell', 'CASTING_MA' }, { 'is readying a weapon skill', 'READYING_WS' },
                                                       { 'is readying a special move', 'READYING_MS' },
@@ -2273,10 +2277,28 @@ local function available()
     return s(600)
 end
 
+-- (hotfix 2026-11-21) Ashita's Lua bindings hand the text of imgui.SetTooltip and imgui.TextWrapped to ImGui as a
+-- printf FORMAT (addons.dll passes the Lua string as the only argument of IGuiManager::SetTooltip(fmt, ...) and
+-- TextWrapped(fmt, ...)). A '%' in such a text is read as a conversion: "40% and" printed garbage (% a), and the Lowest
+-- HP help ("HP % that") is an invalid format, on which the C runtime ends the game (0xC0000409). TextUnformatted never
+-- formats, so tooltips and wrapped lines are drawn with it; the text the player sees is unchanged.
+local function format_safe(text)
+    return (tostring(text or ''):gsub('%%', '%%%%')) -- (only for a binding without TextUnformatted: '%%' shows one '%')
+end
+
 local function tooltip(text)
     local g = imgui()
-    if g.IsItemHovered and g.SetTooltip and g.IsItemHovered() then
-        g.SetTooltip(text)
+    if not (g.IsItemHovered and g.IsItemHovered()) then
+        return
+    end
+
+    if g.BeginTooltip and g.EndTooltip and g.TextUnformatted then
+        if g.BeginTooltip() ~= false then -- (true when shown; nil from a binding that returns nothing)
+            g.TextUnformatted(tostring(text or ''))
+            g.EndTooltip()
+        end
+    elseif g.SetTooltip then
+        g.SetTooltip(format_safe(text))
     end
 end
 
@@ -2297,14 +2319,20 @@ end
 M.available_h = available_h
 
 -- coloured text that wraps at the panel's edge (status lines, warnings: never cut off)
+-- (hotfix 2026-11-21) drawn unformatted: see tooltip() above. PushTextWrapPos(0) + TextUnformatted is what TextWrapped
+-- does inside ImGui, without reading the text as a format.
 local function wrapped(color, text)
     local g = imgui()
-    if not g.TextWrapped then
+    if g.PushTextWrapPos and g.PopTextWrapPos and g.TextUnformatted then
+        with_colors({ { 'ImGuiCol_Text', color } }, function()
+            g.PushTextWrapPos(0)
+            scoped(nil, function() g.PopTextWrapPos() end, function() g.TextUnformatted(tostring(text or '')) end)
+        end)
+    elseif g.TextWrapped then
+        with_colors({ { 'ImGuiCol_Text', color } }, function() g.TextWrapped(format_safe(text)) end)
+    else
         colored(color, text)
-        return
     end
-
-    with_colors({ { 'ImGuiCol_Text', color } }, function() g.TextWrapped(text) end)
 end
 
 -- continue the line when `w` pixels still fit, else start a new one (narrow windows, large scales; FFXIPort's pattern)
@@ -3285,7 +3313,7 @@ function M.draw()
 
     if S.server == false then
         heading('Squad Rule Sets')
-        g.TextWrapped('The Squad editor needs the server update with !gsq (gambits_squad.lua version ' .. M.MIN_SERVER .. ')'
+        wrapped(nil, 'The Squad editor needs the server update with !gsq (gambits_squad.lua version ' .. M.MIN_SERVER .. ')'
             .. (S.serverWhy and (': ' .. S.serverWhy) or '') .. '.')
         if button('Try again##gsq-retry') then
             S.server = nil
