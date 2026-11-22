@@ -2074,6 +2074,17 @@ M.TARGET_HELP = {
     TRIGGER_SELF_ACTION_TARGET = 'The conditions are checked on the squad mate itself, the action goes to the enemy. '
         .. 'E.g. "MP below 50 %" -> Aspir the enemy, or "HP below 50 %" -> Drain the enemy.',
 }
+-- (role clarity) the four role targets are Gambits Party Roles, never the Squad menu's Role. Text only: who a target
+-- means is unchanged (the server's party roles decide).
+M.PARTY_ROLE_NOTE = '\n\nGambits Party Role: decides who this target is. Not the Squad menu\'s Squad Role, which only '
+    .. 'filters default job rules (a Rule Set replaces those and is not filtered).'
+for _, key in ipairs({ 'TANK', 'CASTER', 'MELEE', 'RANGED' }) do
+    M.TARGET_HELP[key] = M.TARGET_HELP[key] .. M.PARTY_ROLE_NOTE
+end
+-- (role clarity) the set panel's "uses: default job rules": the editor does not know a mate's Squad Role, so this
+-- only says how the two relate
+M.DEFAULT_RULES_HELP = 'Default job rules: the job\'s built-in rules, filtered by the Squad Role and Mode (Squad menu; '
+    .. 'e.g. Damage cures only below 30% HP). An assigned Rule Set replaces them and is not filtered.'
 M.KIND_LABELS   = { family = 'Best of Family', spell = 'Specific Spell', ja = 'Job Ability', ranged = 'Ranged attack',
                     nuke = 'Best nuke (weakness)', burst = 'Magic burst' }
 -- (job expansion) offered for new rules: ranged (RNG/COR), nuke (the best nuke for the enemy's weakness) and burst (the
@@ -4251,6 +4262,7 @@ local function sets_panel(mate, panelH)
     local g = imgui()
     heading(mate.job .. ' Rule Sets')
     wrapped(M.theme.secondary, string.format('%s uses: %s', mate.name, mate.chosen > 0 and M.set_label(mate.chosen) or 'default job rules'))
+    tooltip(M.DEFAULT_RULES_HELP)
     -- (0.3.1) as high as its rows (at least 3), at most half the panel; "in use" (green) and "editing" (highlight) differ
     local listH = M.list_height(#S.sets, row_h(), math.max(s(80), (panelH or s(400)) * 0.5), 3)
     child('##gsq-sets', { 0, listH }, function()
@@ -4412,7 +4424,7 @@ local function sets_panel(mate, panelH)
 
     if button('Restore default job rules##gsq-off') then M.assign(mate.slot, nil, true) end
     tooltip(mate.name .. ' stops using its Rule Set and goes back to the usual ' .. mate.job .. ' job rules (applied at once '
-        .. 'when summoned). Your saved Rule Sets are kept.')
+        .. 'when summoned). Your saved Rule Sets are kept. The Squad Role and Mode (Squad menu) filter those job rules again.')
     -- (the separate "Apply now" button is gone: Assign & Apply also re-calls a mate after its set was changed and saved)
     local r = S.restorable
     if r and r.job == mate.job and not (S.draft and S.draft.dirty) then
@@ -4780,9 +4792,9 @@ M.ROLE_NAMES   = { [0] = 'Auto', 'Tank', 'Melee', 'Mage', 'Ranged' }
 M.ROLE_LETTER  = { 'T', 'M', 'C', 'R' }
 M.LETTER_NAME  = { T = 'Tank', M = 'Melee', C = 'Mage', R = 'Ranged' }
 M.ROLE_VALUES  = { 0, 1, 2, 3, 4 }
-M.ROLES_HELP   = 'Who your squad\'s Rule Set targets Tank, Melee, Mage and Ranged mean, and who a Bard\'s songs for those '
-    .. 'roles reach. This is not the Squad menu\'s Role (tank / damage / healer / support): that one only changes how a '
-    .. 'mate acts itself and does not make it a Tank target.'
+M.ROLES_HELP   = 'Gambits Party Roles: who the Tank, Melee, Mage (CASTER) and Ranged targets, and a Bard\'s role songs, '
+    .. 'reach. Not the Squad menu\'s Squad Role (Auto / Tank / Damage / Healer / Support), which only filters default '
+    .. 'job rules, never a Rule Set, and does not make a mate a Tank target.'
 M.ROLES_AUTO_HELP = 'Auto = by main job. Some jobs count for more than one target: a PLD is Tank and Melee, a RUN is Tank, '
     .. 'Melee and Mage. Tank = PLD or RUN; Melee = WAR MNK THF PLD DRK BST SAM NIN DRG BLU PUP DNC RUN; Mage = WHM BLM RDM '
     .. 'BRD SMN BLU SCH GEO RUN; Ranged = RNG or COR.'

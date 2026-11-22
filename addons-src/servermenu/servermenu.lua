@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26c';
+addon.version = '1.26d';   -- (1.26d) Squad Role help from the server's real filter, and the gold healing note
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -93,18 +93,72 @@ local function hasBit(mask, bit)
 end
 local TABS  = { 'Squad', 'Dualbox', 'Auto' };
 
+-- (role clarity) what a squad mate's Role really does, from the server's squad.lua behaviorFilter / ROLE_KEEPS /
+-- EMERGENCY_HP (tank 40, damage 30) and MODE_HEAL_SHIFT (+15 / -15, kept between 15 and 90). Text only: the server
+-- decides. One table (ROLE_INFO) to keep this file's count of locals down.
 local ROLE_HELP = {
-    auto    = 'the job\'s normal behaviour',
-    tank    = 'Provoke, Flash, own buffs; heals only the badly hurt',
-    damage  = 'attacks and nukes; heals only the badly hurt',
-    healer  = 'cures, status removal, party buffs',
-    support = 'buffs, weakening spells, cures',
+    auto    = 'Auto: the job\'s default rules, nothing filtered.',
+    tank    = 'Tank: keeps Provoke, Sentinel, Flash and other debuffs, its own buffs and other job abilities.\n'
+        .. 'Cures only targets below 40% HP (Aggressive 55%, Conserve 25%). No status removal (-na, Erase), '
+        .. 'no buffs on others, no nukes or ranged attacks.',
+    damage  = 'Damage: keeps attacks, nukes, ranged attacks, debuffs, its own buffs and job abilities other than '
+        .. 'tank ones.\nCures only targets below 30% HP (Aggressive 45%, Conserve 15%). No status removal (-na, Erase), '
+        .. 'no buffs on others, no Provoke or Sentinel.',
+    healer  = 'Healer: keeps cures, status removal and buffs for the party.\n'
+        .. 'No debuffs (Flash, Dia, Paralyze...), nukes, ranged attacks or job abilities (Convert and Chakra stay).',
+    support = 'Support: keeps buffs for the party, debuffs, status removal, normal cures and ranged attacks.\n'
+        .. 'No nukes and no job abilities (Convert and Chakra stay).',
 };
 local MODE_HELP = {
-    balanced   = 'the normal pace',
-    aggressive = 'heals earlier and holds nothing back',
-    conserve   = 'heals later and keeps 40% MP in reserve',
+    balanced   = 'Balanced: the normal pace, nothing changed.',
+    aggressive = 'Aggressive: cures at 15% more HP (at most 90%), also on top of a Tank or Damage limit; '
+        .. 'holds no MP back.',
+    conserve   = 'Conserve: cures at 15% less HP (at least 15%) and keeps 40% MP before buffs, debuffs, nukes and '
+        .. 'status removal.',
 };
+local ROLE_INFO = {
+    FOOTER = 'The Squad Role changes only the mate\'s default job rules, from its next call (Apply now). '
+        .. 'A Gambits Rule Set replaces those rules and is not filtered by the Role. '
+        .. 'Not the same as the Gambits party roles (Tank / Melee / Mage / Ranged).',
+    TIPS = {},
+    -- the Dualbox tab's profile buttons are the second character's gambit profiles (followme), not a squad Role
+    DUO = {
+        auto    = 'the job\'s normal behaviour',
+        tank    = 'Provoke, Flash, own buffs; heals only the badly hurt',
+        damage  = 'attacks and nukes; heals only the badly hurt',
+        healer  = 'cures, status removal, party buffs',
+        support = 'buffs, weakening spells, cures',
+    },
+    -- jobs whose default rules heal or support others, and what a Tank / Damage Role takes from them: WHM cures, status
+    -- removal and party buffs; RDM cures and buffs on you and the party; PLD its Cure
+    CARE = { WHM = { cleanse = true, buffs = true }, RDM = { buffs = true }, PLD = {} },
+    CAP = { tank = 40, damage = 30 },
+    SHIFT = { aggressive = 15, conserve = -15 },
+};
+for role, text in pairs(ROLE_HELP) do ROLE_INFO.TIPS[role] = text .. '\n\n' .. ROLE_INFO.FOOTER; end
+
+-- (role clarity) the small gold note on a mate's row: only when a Tank or Damage Role takes healing or support away
+-- from a job (main or sub) whose default rules have it. A PLD tank without a WHM/RDM sub job is the usual set-up: no
+-- note. The menu does not know whether a Gambits Rule Set is assigned, so it speaks only of the default job rules.
+-- Returns the tooltip, the Role's name and the job it is about, or nil.
+function ROLE_INFO.note(mate)
+    local role = mate and mate.role;
+    local cap = ROLE_INFO.CAP[role or ''];
+    if cap == nil then return nil; end
+    local main, sub = ROLE_INFO.CARE[mate.main or ''], ROLE_INFO.CARE[mate.sub or ''];
+    if main == nil and sub == nil then return nil; end
+    if role == 'tank' and mate.main == 'PLD' and sub == nil then return nil; end
+    local limit = math.max(15, math.min(90, cap + (ROLE_INFO.SHIFT[mate.mode or ''] or 0)));
+    local parts = { string.format('cures only below %d%% HP', limit) };
+    if (main and main.cleanse) or (sub and sub.cleanse) then parts[#parts + 1] = 'no status removal'; end
+    if (main and main.buffs) or (sub and sub.buffs) then parts[#parts + 1] = 'no buffs on party members'; end
+    local job = main and mate.main or mate.sub;
+    local roleName = role:sub(1, 1):upper() .. role:sub(2);
+    return string.format('Default healing is heavily restricted: Role %s %s.\n'
+        .. 'This is a valid choice for an offensive %s; Auto gives the job\'s normal healing.\n'
+        .. 'It applies only to the default job rules: a Gambits Rule Set replaces them and is not restricted.',
+        roleName, table.concat(parts, ', '), job), roleName, job;
+end
 
 local LAYERS = {
     emergency_survival     = { 'Survival',    { 0.90, 0.45, 0.40, 1 } },
@@ -806,6 +860,28 @@ local function tooltip(text)
     if has('IsItemHovered') and imgui.IsItemHovered() and has('SetTooltip') then imgui.SetTooltip(text); end
 end
 
+-- (role clarity) the Role / Mode / note tooltips: wrapped at about 27 characters' width of the current font (~350 px at
+-- 13 px), as the Gambits editor's tooltips and Ashita's imgui.ShowHelp do, so they stay next to the mouse instead of
+-- running across the screen. Drawn with TextUnformatted: Ashita hands SetTooltip's text to ImGui as a printf format,
+-- and these texts contain '%' ("below 30% HP"). Without BeginTooltip / TextUnformatted: SetTooltip with '%' doubled.
+ROLE_INFO.WRAP_EM = 27;
+function ROLE_INFO.tip(text)
+    if not (has('IsItemHovered') and imgui.IsItemHovered()) or text == nil then return; end
+    if has('BeginTooltip') and has('EndTooltip') and has('TextUnformatted') then
+        if imgui.BeginTooltip() ~= false then
+            local size = has('GetFontSize') and imgui.GetFontSize() or nil;
+            local wrap = (type(size) == 'number' and size > 0) and size * ROLE_INFO.WRAP_EM or px(350);
+            local wrapOk = has('PushTextWrapPos') and has('PopTextWrapPos');
+            if wrapOk then imgui.PushTextWrapPos(wrap); end
+            imgui.TextUnformatted(tostring(text));
+            if wrapOk then imgui.PopTextWrapPos(); end
+            imgui.EndTooltip();
+        end
+    elseif has('SetTooltip') then
+        imgui.SetTooltip((tostring(text):gsub('%%', '%%%%')));
+    end
+end
+
 local function pushColors(list)
     local n = 0;
     for _, pair in ipairs(list) do
@@ -836,19 +912,20 @@ local function button(label, id, w, h, look)
 end
 
 -- a drop-down list; falls back to a row of buttons when this ImGui has no combo boxes
-local function combo(id, current, items, width, help)
+local function combo(id, current, items, width, help, tip)
     local chosen = nil;
+    tip = tip or tooltip;   -- (role clarity) the Role and Mode lists pass ROLE_INFO.tip (wrapped)
     if has('BeginCombo') and has('Selectable') and has('EndCombo') then
         if has('PushItemWidth') then imgui.PushItemWidth(px(width)); end
         if imgui.BeginCombo('##' .. id, current or '?') then
             for _, item in ipairs(items) do
                 if imgui.Selectable(item .. '##' .. id .. item, item == current) then chosen = item; end
-                if help and help[item] then tooltip(help[item]); end
+                if help and help[item] then tip(help[item]); end
             end
             imgui.EndCombo();
         end
         if has('PopItemWidth') then imgui.PopItemWidth(); end
-        if help and help[current] then tooltip(help[current]); end
+        if help and help[current] then tip(help[current]); end
     else
         for i, item in ipairs(items) do
             if i > 1 then imgui.SameLine(0, 3); end
@@ -1285,12 +1362,19 @@ local function squadTab()
 
                 gap(2);
                 dimText('Role'); imgui.SameLine(0, 8);
-                local role = combo('role' .. mate.slot, mate.role, ROLES, 120, ROLE_HELP);
+                local role = combo('role' .. mate.slot, mate.role, ROLES, 120, ROLE_INFO.TIPS, ROLE_INFO.tip);
                 if role then changeMate(mate, 'role', role); end
                 imgui.SameLine(0, 18);
                 dimText('Mode'); imgui.SameLine(0, 8);
-                local mode = combo('mode' .. mate.slot, mate.mode, MODES, 120, MODE_HELP);
+                local mode = combo('mode' .. mate.slot, mate.mode, MODES, 120, MODE_HELP, ROLE_INFO.tip);
                 if mode then changeMate(mate, 'mode', mode); end
+                -- (role clarity) a quiet gold note when the Role restricts this job's default healing (ROLE_INFO.note)
+                local note, noteRole, noteJob = ROLE_INFO.note(mate);
+                if note then
+                    imgui.SameLine(0, 12);
+                    colorText(C.gold, '(i) ' .. noteJob .. ' - Role: ' .. noteRole);
+                    ROLE_INFO.tip(note);
+                end
                 if opt then
                     gap(2);
                     styleRow(mate, opt);
@@ -1381,7 +1465,7 @@ local function dualboxTab()
             queueDuo({ profile = role });
             duo.profile = role;
         end
-        tooltip(ROLE_HELP[role]);
+        tooltip(ROLE_INFO.DUO[role]);
     end
     if has('EndGroup') then imgui.EndGroup(); end
     gap(8);
