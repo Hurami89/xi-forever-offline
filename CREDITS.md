@@ -67,6 +67,8 @@ Gambits began as the TitanGambits engine and was brought here by its author.
   cursor and explosion animations and the sounds in `tetramaster/assets/` (his own redrawn work), and the original
   Tetra Master add-on for FFXI, whose rules our server version follows exactly. Used with his permission.
 - Cinzel font: Natanael Gama (SIL Open Font License).
+- Kanit font (the lettering on the XIFO banner): Cadson Demak (SIL Open Font License).
+- Righteous font (the neon sign on the XIFO banner): Astigmatic (SIL Open Font License).
 
 ## Crystal Boy mini games
 

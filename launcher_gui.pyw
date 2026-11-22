@@ -66,6 +66,7 @@ NAV_BUTTONS = (("home", "HOME", ("Play",)), ("squad", "SQUADS", ("Squad",)), ("c
                ("addons", "ADDONS", ("Addons", "Plugins", "Other")), ("settings", "SETTINGS", ("Settings",)))
 PRESS_ANCHOR = 0.38      # press pictures are wider than the frame is tall: keep the part 38% of the way down (sky and skyline are above, people below)
 PRESS_NOTE = ""
+ONCE_TAG = "__once"      # a press picture with this in its name (xifo__once.png) is a one-time banner: see load_once
 
 
 def fit_picture(img, width, height, anchor=0.5):
@@ -81,7 +82,7 @@ def fit_picture(img, width, height, anchor=0.5):
 
 def press_anchor(name):
     """A picture called  castle__top.jpg  keeps its top, castle__bottom.jpg its bottom, castle__center.jpg its middle."""
-    stem = os.path.splitext(name)[0].lower()
+    stem = os.path.splitext(name)[0].lower().replace(ONCE_TAG, "")
     for tag, value in (("__top", 0.0), ("__center", 0.5), ("__middle", 0.5), ("__bottom", 1.0)):
         if stem.endswith(tag):
             return value
@@ -94,7 +95,7 @@ def load_press():
     global PRESS_NOTE
     folder = os.path.join(ASSETS, "press")
     try:
-        names = sorted(n for n in os.listdir(folder) if n.lower().endswith((".png", ".jpg", ".jpeg")))
+        names = sorted(n for n in os.listdir(folder) if n.lower().endswith((".png", ".jpg", ".jpeg")) and ONCE_TAG not in n.lower())
     except OSError:
         return []
     if not names:
@@ -111,6 +112,26 @@ def load_press():
         except Exception:
             continue
     return pictures
+
+
+def load_once(cfg):
+    """A one-time banner: a picture in assets\\press with __once in its name (xifo__once.png) is shown first on ONE start of the launcher
+    and is never part of the rotation. config.json remembers the ones that have been shown ("banners_seen"), so to see one again, take
+    its name out of that list. With several waiting, each start shows the next. Returns (picture, file name) or (None, None)."""
+    folder = os.path.join(ASSETS, "press")
+    seen = {str(s).lower() for s in (cfg.get("banners_seen") or [])}
+    try:
+        names = sorted(n for n in os.listdir(folder)
+                       if n.lower().endswith((".png", ".jpg", ".jpeg")) and ONCE_TAG in n.lower() and n.lower() not in seen)
+    except OSError:
+        return None, None
+    for name in names:
+        try:
+            from PIL import Image, ImageTk
+            return ImageTk.PhotoImage(fit_picture(Image.open(os.path.join(folder, name)), GALLERY_W, GALLERY_H, press_anchor(name))), name
+        except Exception:
+            continue
+    return None, None
 
 
 def load_ui_images(name):
@@ -3409,6 +3430,16 @@ class App(tk.Tk):
             self.banner_label.configure(image=banner)
         else:
             self.banner_label.configure(text="XI: FOREVER OFFLINE", fg=FG, font=("Georgia", 30, "bold"))
+        # a one-time banner (assets\\press\\name__once.png): up for this start of the launcher only, until it is clicked; the next start is
+        # back to the usual banners. It counts as shown once it has been on screen for a few seconds (or was clicked away).
+        self.once_banner, self.once_name = load_once(self.cfg)
+        if self.once_banner is not None:
+            self._images.append(self.once_banner)
+            self.banner_label.configure(image=self.once_banner, text="")
+            if self.heroes:
+                self.banner_label.configure(cursor="hand2")
+                self.banner_label.bind("<Button-1>", lambda e: self.next_hero())
+            self.after(4000, self.once_shown)
         self.pictures = load_gallery() + self.heroes
         self._images.extend(g for g in self.pictures if g not in self._images)
         self.picture_index = 0
@@ -3932,7 +3963,25 @@ class App(tk.Tk):
             self.banner_label.pack(fill="both", expand=True)
         self.fit_window()
 
+    def once_shown(self):
+        """The one-time banner has been seen: its name goes into config.json ("banners_seen"), so the next start has the usual banners."""
+        name, self.once_name = getattr(self, "once_name", None), None
+        if not name:
+            return
+        try:
+            shown = [s for s in (self.cfg.get("banners_seen") or []) if isinstance(s, str)] + [name]
+            save_config_value("banners_seen", shown)
+            self.cfg["banners_seen"] = shown
+        except Exception:
+            pass                                    # config.json could not be written: it shows once more, nothing worse
+
     def next_hero(self):
+        if getattr(self, "once_banner", None) is not None:      # the one-time banner makes way for the usual ones
+            self.once_banner = None
+            self.once_shown()
+            if self.heroes:
+                self.banner_label.configure(image=self.heroes[self.hero_index])
+            return
         if len(self.heroes) > 1:
             self.hero_index = (self.hero_index + 1) % len(self.heroes)
             self.banner_label.configure(image=self.heroes[self.hero_index])
@@ -3941,7 +3990,8 @@ class App(tk.Tk):
         if len(self.pictures) > 1 and self.running and not self.showing_details:
             self.picture_index = (self.picture_index + 1) % len(self.pictures)
             self.picture_label.configure(image=self.pictures[self.picture_index])
-        elif not manual and not self.running and not self.showing_details and len(self.heroes) > 1:
+        elif (not manual and not self.running and not self.showing_details and len(self.heroes) > 1
+              and getattr(self, "once_banner", None) is None):
             self.hero_ticks += 1
             if self.hero_ticks % 2 == 0:                  # while nothing is running, the banner changes about every twelve seconds
                 self.next_hero()
@@ -4144,7 +4194,11 @@ class App(tk.Tk):
             pass
         self.stop_requested = True
         self.cleanup()
-        if getattr(self, "db_proc", None) is not None:      # the kit's MariaDB, if this launcher started it
+        # the kit's own MariaDB (player installs) is stopped whoever started it. (2026-11-21, Meli) It used to be left
+        # running when an earlier launcher had started it and was then closed from Task Manager: every launcher after
+        # that found it running, so none of them stopped it. Only one launcher runs at a time (one_launcher_only) and
+        # the servers are stopped by now, so nothing else is using it.
+        if self.cfg.get("mariadb_dir"):
             try:
                 import launcher_setup
                 launcher_setup.stop_portable(self.cfg)
