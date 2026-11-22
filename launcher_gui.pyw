@@ -997,16 +997,11 @@ class SquadTab(tk.Frame):
         self.mode_box = ttk.Combobox(f, values=sq.MODES, state="readonly", width=12)
         self.mode_box.pack(side="left")
         tk.Button(f, text="Apply", command=self.apply_behavior, bg=PANEL, fg=FG, relief="flat", padx=14).pack(side="left", padx=10)
-        tk.Label(page, text=("tank: Provoke, Flash, own buffs; heals only the badly hurt.\n"
-                             "damage: attacks and nukes; heals only the badly hurt.\n"
-                             "healer: cures, status removal and party buffs; no nukes.\n"
-                             "support: buffs, weakening spells and cures; no nukes.\n"
-                             "auto: what the job normally does.\n\n"
-                             "aggressive: heals earlier and holds nothing back.\n"
-                             "conserve: heals later and keeps 40% mana in reserve."),
-                 bg=BG, fg=DIM, justify="left").pack(anchor="w", padx=10, pady=(8, 4))
-        tk.Label(page, text="Applies the next time you call the mate. Change it with the game closed here, or in the game (the Squad panel, /sq).",
-                 bg=BG, fg=DIM, wraplength=470, justify="left").pack(anchor="w", padx=10)
+        tk.Label(page, text=sq.behavior_help_text(),
+                 bg=BG, fg=DIM, wraplength=520, justify="left").pack(anchor="w", padx=10, pady=(8, 4))
+        tk.Label(page, text="Applies the next time you call the mate. Change it with the game closed here, or in the game (the Squad panel, /sq). "
+                            + sq.ROLE_FOOTER,
+                 bg=BG, fg=DIM, wraplength=520, justify="left").pack(anchor="w", padx=10)
         tk.Button(page, text="Edit job rules...", command=self.open_rules, bg=ACCENT, fg="white", relief="flat", padx=14, pady=4).pack(anchor="w", padx=10, pady=(12, 2))
         tk.Label(page, text="Job rules set how every mate of a job behaves by default. To choose your own spells, targets and "
                             "conditions for one mate, use Gambits instead (type /gambits in the game).",

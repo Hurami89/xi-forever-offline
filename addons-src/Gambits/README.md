@@ -90,7 +90,9 @@ Settings live in `config/addons/GambitsV2/` (per character). An unsaved draft is
   mean more than one target (a PLD is "Auto (Tank, Melee)"); a role you choose replaces the job for every target (a
   PLD set to Melee is no longer a Tank) and stays when the job changes, until you choose Auto again. A change counts
   only when the server confirms it; it works at once for a mate that is out, else from its next call. It is **not**
-  the Squad menu's Role (tank/damage/healer/support), which only changes how a mate acts itself. Closed, the section
+  the Squad menu's Role (Auto / Tank / Damage / Healer / Support): that one filters a mate's default job rules (Damage,
+  for one, cures only below 30% HP and drops status removal), is not used while a Rule Set is assigned, and never
+  decides who a target is. The target tooltips and the "uses: default job rules" line say so too. Closed, the section
   shows who counts as what in your whole party, dualbox characters and other members included (read-only: they set
   their own with `!squad partyrole me <role>`). Needs gambits_squad.lua version 7; with an older server the section
   only says so.

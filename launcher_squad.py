@@ -23,6 +23,31 @@ BOT_ACCOUNT_BASE = 21000000
 ROLES = ["auto", "tank", "damage", "healer", "support"]
 MODES = ["balanced", "aggressive", "conserve"]
 
+# (role clarity) what each role and mode really does, from the server's squad.lua behaviorFilter / ROLE_KEEPS /
+# EMERGENCY_HP (tank 40, damage 30) and MODE_HEAL_SHIFT (+15 / -15, kept between 15 and 90). The same words as the
+# in-game Squad menu and Squad panel. Text only: the server decides.
+ROLE_HELP = {
+    "tank": "Provoke, Sentinel, debuffs, own buffs; cures only below 40% HP, no status removal, no buffs on others; no nukes",
+    "damage": "attacks, nukes, debuffs, own buffs; cures only below 30% HP, no status removal, no buffs on others",
+    "healer": "cures, status removal, party buffs; no debuffs, nukes or job abilities",
+    "support": "party buffs, debuffs, status removal, cures; no nukes or job abilities",
+    "auto": "the job's default rules, nothing filtered",
+}
+MODE_HELP = {
+    "aggressive": "cures 15% HP earlier (also on top of a Tank or Damage limit); holds no MP back",
+    "conserve": "cures 15% HP later and keeps 40% MP before buffs, debuffs, nukes and status removal",
+}
+ROLE_FOOTER = ("The role changes only the mate's default job rules. A Gambits Rule Set replaces those rules and is not "
+               "filtered by the role. It is not the Gambits party role (Tank / Melee / Mage / Ranged).")
+
+
+def behavior_help_text():
+    """The Behavior page's legend: one line per role, then the modes."""
+    lines = [f"{role}: {ROLE_HELP[role]}." for role in ("tank", "damage", "healer", "support", "auto")]
+    lines.append("")
+    lines += [f"{mode}: {MODE_HELP[mode]}." for mode in ("aggressive", "conserve")]
+    return "\n".join(lines)
+
 # WAR MNK WHM BLM RDM THF are available from the start; the other jobs are "advanced" and must be unlocked
 # on the character first (the game keeps that as a bit per job id in char_jobs.unlocked).
 STARTER_JOBS = {1, 2, 3, 4, 5, 6}
