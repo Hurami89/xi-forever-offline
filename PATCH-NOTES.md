@@ -22,6 +22,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Squad Dragoons no longer get the Shikaree Z template's MP bonus. (wildthing)
 • Party roles apply at once. (wildthing)
 • The bard's "NOT MOVING" line only shows with !bard debug. (Meli, PTgamerguy)
+• A Dragoon's wyvern runs as fast as its master, so it keeps up with a raised run speed. (Yache)
+• Squad Thieves get Trick Attack's sure critical hit (with Assassin, level 60+) like players do, and a squad Dark Knight's Souleater now really adds damage and costs HP.
 
 ### Fixes
 • Forever Beta Shirt: on player installs it showed as a blank Lv127 item, and opening Equipment could crash the game. It now gets its name, icon and look at the next PLAY. (Ricc, Trinity, danwei20)
