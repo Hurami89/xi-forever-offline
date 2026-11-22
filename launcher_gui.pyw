@@ -2146,18 +2146,13 @@ class ControllerTab(tk.Frame):
         self.layout_changed()
 
     def refresh(self):
-        state = "normal" if self.managed.get() else "disabled"
-        for child in self.body.winfo_children():
-            for w in [child] + list(child.winfo_children()):
-                try:
-                    if isinstance(w, ttk.Combobox):
-                        w.configure(state="readonly" if state == "normal" else "disabled")
-                    elif isinstance(w, (tk.Checkbutton, tk.Button)):
-                        w.configure(state=state)
-                except tk.TclError:
-                    pass
+        """The choices only show while the launcher sets the controller up (off: the game's own settings apply)."""
         if self.managed.get():
+            if not self.body.winfo_ismapped():
+                self.body.pack(fill="both", expand=True)
             self.steam_box.configure(state="normal" if self._type() in ("ps4", "ps5") else "disabled")
+        else:
+            self.body.pack_forget()
 
 
 class GraphicsTab(tk.Frame):

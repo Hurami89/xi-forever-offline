@@ -8,6 +8,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Casino Dealer in Southern San d'Oria, Bastok Markets, Windurst Woods and Lower Jeuno: trade gil, and you and the dealer each roll 0-999. Roll higher and your bet is doubled; a tie gives it back. (Yache)
 • Rules > Comforts, all off by default (out of era): "Caskets tell you the code" (Dugahst), "Guild shops never run out" (delukard), "Full merits" (every merit to its own maximum) and "Merit points you can hold" up to 99 (PTgamerguy, Ricc).
 • OPTIONS > Graphics > "Gamepad setup" opens FFXI's own gamepad tool, on Windows and Linux. (Sunie)
+• OPTIONS > Controller: set your controller up in the launcher. Pick Xbox, PlayStation 4 / 5 or Switch Pro and the buttons are laid out for it; change any button, confirm on the right (Nintendo / Japanese style), vibration, invert the camera, keep the pad working with the game in the background. Off by default: then the game keeps what its own gamepad tool saved. Ported from LocalXI (seamuswilkie31-dev, GPL-3.0). (Sunie)
 • tCrossBar, on-screen controller macros, can be added from the add-on list. (Yache)
 • Gambits 0.3.2: job-aware spell and ability lists, a Weapon Skills section, and a Party roles section for who counts as Tank / Melee / Mage / Ranged. (wildthing)
 • The Job rules editor now explains what it does and points to Gambits for your own spell choices. (wildthing)

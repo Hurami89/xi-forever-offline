@@ -20,6 +20,9 @@ PlayOnline Tetra Master game, (c) SQUARE ENIX CO., LTD. They are used in tribute
 - [LandSandBoat](https://github.com/LandSandBoat/server): the FFXI server emulator Phoenix is based on (GPL v3).
 - [AirSkyBoat](https://github.com/AirSkyBoat/AirSkyBoat): the Starlight Celebration's Smilebringer activities (presents, greetings, Goblin Merrymakers, Boot Camp, token and vendor moogles) and the Goblin routes and Jeuno decorations, ported into modules/custom/lua/starlight_smilebringers.lua (GPL v3).
 
+## Launcher
+- [LocalXI](https://github.com/seamuswilkie31-dev/LocalXI) by seamuswilkie31-dev: the controller setup (OPTIONS > Controller, launcher_gamepad.py) is ported from its Gamepad.cs (GPL v3).
+
 ## Downloaded at install, not included here
 Each comes from its official release page and keeps its own license.
 
