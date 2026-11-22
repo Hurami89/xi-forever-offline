@@ -2,6 +2,11 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.1.60 · 22 November 2026
+
+### Fixes
+• Threw away the Forever Beta Shirt while it showed as a nameless Lv127 item? You get another one. After this update it is waiting in your delivery box, and the game tells you so when you log in. Once per character, and only if you have none left (bags, Mog House and delivery box all count).
+
 ## v0.1.59 · 22 November 2026
 
 ### New
