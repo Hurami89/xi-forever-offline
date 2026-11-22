@@ -12,6 +12,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • tCrossBar, on-screen controller macros, can be added from the add-on list. (Yache)
 • Gambits 0.3.2: job-aware spell and ability lists, a Weapon Skills section, and a Party roles section for who counts as Tank / Melee / Mage / Ranged. (wildthing)
 • The Job rules editor now explains what it does and points to Gambits for your own spell choices. (wildthing)
+• RULES > Skills and crafting > "Fishing minigame": on by default (today's fishing). Switch it off for era fishing: no fight on screen, the catch is decided as soon as the fish bites, and your skill still decides lost catches and broken lines.
 • SYSTEM > Settings > "Change game folder": moved FINAL FANTASY XI to another drive? Pick the new folder and keep playing. (K-Andy)
 
 ### Squad
@@ -31,6 +32,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Treasure casket "ghost" after opening removed. (Yache)
 • Server menu: MY AUTO off now always reaches autobox, so your rules no longer run while the menu says OFF. (wildthing, Altair)
 • Crystal Boy 1.8b: more detail in its trace files for crash reports. (Ricc)
+• Combat and magic skill-up rate: above about 2x it did nothing more (a 50% ceiling). The ceiling now rises with the rate, and from 10x each skill-up is bigger too. (Ricc)
+• The launcher keeps the size you give it when you change pages. (Starfret)
 
 ## v0.1.58 · 21 November 2026
 

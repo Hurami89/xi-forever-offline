@@ -510,6 +510,7 @@ RATE_FIELDS = [
     ("map.CRAFT_CHANCE_MULTIPLIER",     "map.lua",  "CRAFT_CHANCE_MULTIPLIER",     "Crafting skill-up chance",              1.0, 0.0, 20.0,  "float"),
     ("map.CRAFT_HQ_CHANCE_MULTIPLIER",  "map.lua",  "CRAFT_HQ_CHANCE_MULTIPLIER",  "Crafting high-quality chance",          1.0, 0.0, 20.0,  "float"),
     ("map.FISHING_SKILL_MULTIPLIER",    "map.lua",  "FISHING_SKILL_MULTIPLIER",    "Fishing skill-up chance",               1.0, 0.0, 20.0,  "float"),
+    ("map.FISHING_MINIGAME",            "map.lua",  "FISHING_MINIGAME",            "Fishing minigame (1 = on, 0 = era fishing)", 1, 0, 1, "int"),
     ("main.MAX_LEVEL",                  "main.lua", "MAX_LEVEL",                   "Level cap",                             75,  50,  99,    "int"),
     ("main.ENABLE_COP",                 "main.lua", "ENABLE_COP",                  "Chains of Promathia (1 = on)",          1,   0,   1,     "int"),
     ("main.ENABLE_TOAU",                "main.lua", "ENABLE_TOAU",                 "Treasures of Aht Urhgan (1 = on)",      1,   0,   1,     "int"),
@@ -1132,6 +1133,13 @@ def apply_rates(server_dir, rates):
     wanted["map.lua"].append(("SPEED_LIMIT", max(80, _mount, min(255, round(_base * 1.6))), "int"))
     # (2026-11-20, Trinity: "Is fishing disabled?") the server default switches all fishing off (a guard against fishing
     # bots on public servers, "enable at your own risk"); there is no such risk on your own world
+    # (2026-11-22, Ricc: skill-ups at 20x still slow) a high skill-up rate also raises how much each skill-up gives:
+    # SKILLUP_AMOUNT_MULTIPLIER = rate / 5, which the server uses from 2 up: 10x = three times as much, 20x = five times
+    try:
+        _skill = float(rates.get("map.SKILLUP_CHANCE_MULTIPLIER", 1.0))
+    except (TypeError, ValueError):
+        _skill = 1.0
+    wanted["map.lua"].append(("SKILLUP_AMOUNT_MULTIPLIER", max(1, int(_skill // 5)), "int"))
     wanted["map.lua"].append(("FISHING_ENABLE", True, "bool"))
     # (2026-11-20, the user: "there is no reason for a limit here") no daily limits on your own world: fishing (200
     # catches a day and the fatigue meter; needs the server from this release on, older ones skip the key) and

@@ -3701,6 +3701,15 @@ class App(tk.Tk):
         if linux is not None:     # the Steam Deck's screen is 1280 x 800: never taller (or wider) than the screen
             width = min(width, self.winfo_screenwidth())
             height = min(height, self.winfo_screenheight() - (0 if linux.in_game_mode() else 40))
+        # (2026-11-22, Starfret: a window made bigger by hand snapped back on every page) after the first fit only grow it
+        if getattr(self, "_fitted", False):
+            try:
+                if self.state() == "zoomed" or (self.winfo_width() >= width and self.winfo_height() >= height):
+                    return
+                width, height = max(width, self.winfo_width()), max(height, self.winfo_height())
+            except tk.TclError:
+                pass
+        self._fitted = True
         self.geometry(f"{width}x{height}")
 
     def show_subnav(self, group, index):

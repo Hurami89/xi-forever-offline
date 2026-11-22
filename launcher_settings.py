@@ -110,6 +110,9 @@ S("map.BLUE_LEARN_MULTIPLIER", "rules", "Skills and crafting", RATE, "Learning b
 S("map.CRAFT_CHANCE_MULTIPLIER", "rules", "Skills and crafting", RATE, "Crafting skill-ups")
 S("map.CRAFT_HQ_CHANCE_MULTIPLIER", "rules", "Skills and crafting", RATE, "High-quality crafts")
 S("map.FISHING_SKILL_MULTIPLIER", "rules", "Skills and crafting", RATE, "Fishing skill-ups")
+S("map.FISHING_MINIGAME", "rules", "Skills and crafting", FLAG, "Fishing minigame",
+  tip="On = today's fishing, where you fight the fish on screen. Off = era fishing: no fight, the catch is decided as "
+      "soon as the fish bites (your skill still decides lost catches and broken lines or rods).")
 S("all_crafts", "rules", "Skills and crafting", SWITCH, "Every craft can reach 100",
   tip="Off = only one craft can reach 100, like the retail rule.")
 S("full_bags", "rules", "Comforts", SWITCH, "Full bags from the start",
