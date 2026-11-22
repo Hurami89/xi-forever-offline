@@ -251,9 +251,13 @@ def sections(page, player=False):
     return columns
 
 
-def preset_now(core, rates, names):
-    """Which of the named rate presets the rates match exactly (the first one), or None."""
+def preset_now(core, rates, names, player=False):
+    """Which of the named rate presets the rates match exactly (the first one), or None.
+    player: a player install keeps the hidden options at their era values (core.lock_player_rates), so its rates are
+    compared with the preset after the same lock. (2026-11-22, EyalRA: Relaxed solo and Fast were never shown as
+    SELECTED there, and counted as "your own rates", because both presets set hidden options.)"""
     for name in names:
-        if core.apply_preset(rates, name) == rates:
+        want = core.apply_preset(rates, name)
+        if (core.lock_player_rates(want) if player else want) == rates:
             return name
     return None

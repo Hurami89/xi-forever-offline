@@ -384,7 +384,7 @@ class RulesPage(SettingsPage):
 
     def pick_preset(self, name):
         rates = self.tab.collect()
-        now = st.preset_now(core, rates, self.names())
+        now = st.preset_now(core, rates, self.names(), player_install(self.app))
         if now == name:
             return
         if now is None and not messagebox.askyesno("Rules", f"Replace the rates you set yourself with {name}?\n\n"
@@ -395,7 +395,7 @@ class RulesPage(SettingsPage):
 
     def refresh(self):
         rates = self.tab.collect()
-        now = st.preset_now(core, rates, self.names())
+        now = st.preset_now(core, rates, self.names(), player_install(self.app))
         for name, card in self.preset_cards.items():
             card.set_selected(name == now)
         self.custom_mark.configure(text="" if now else "YOUR OWN RATES")
@@ -692,7 +692,7 @@ class PlayPage:
         if core.needs_ai(rates) and hasattr(tab, "ai_model"):
             words.append(tab.ai_model.get())
         self.show("World", core.WORLDS[world][0] if world in core.WORLDS else "Your own mix", "  \u00b7  ".join(words))
-        preset = st.preset_now(core, rates, [name for name, _words in PRESET_CARDS])
+        preset = st.preset_now(core, rates, [name for name, _words in PRESET_CARDS], player_install(app))
         self.show("Rules", preset or "Your own rates",
                   f"Experience {w.number_text(rates['map.EXP_RATE'])}x  \u00b7  drops {w.number_text(rates['map.DROP_RATE_MULTIPLIER'])}x")
         squad = app.squad_tab
