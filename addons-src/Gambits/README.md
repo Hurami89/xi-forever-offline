@@ -84,6 +84,19 @@ Settings live in `config/addons/GambitsV2/` (per character). An unsaved draft is
 - **Tooltips** on every dropdown entry: targets, conditions, families (their spells and levels), spells, effects.
 - **Weapon Skills** is a section of the same editor (click its header to open it; remembered); closed, it shows one
   line with what is saved. The **Save** button stays visible below the rules.
+- **Party roles (0.3.2):** a section below Weapon Skills (remembered) for who the targets **Tank, Melee, Mage and
+  Ranged** mean (and who a Bard's role songs reach): you and each squad mate, with a dropdown **Auto / Tank / Melee /
+  Mage / Ranged** - the same setting as `!squad partyrole`, stored on the server. **Auto** follows the main job and can
+  mean more than one target (a PLD is "Auto (Tank, Melee)"); a role you choose replaces the job for every target (a
+  PLD set to Melee is no longer a Tank) and stays when the job changes, until you choose Auto again. A change counts
+  only when the server confirms it; it works at once for a mate that is out, else from its next call. It is **not**
+  the Squad menu's Role (tank/damage/healer/support), which only changes how a mate acts itself. Closed, the section
+  shows who counts as what in your whole party, dualbox characters and other members included (read-only: they set
+  their own with `!squad partyrole me <role>`). Needs gambits_squad.lua version 7; with an older server the section
+  only says so.
+  Known limits (unchanged engine rules): the conditions "Tank in party" / "No tank" also count a NIN by job and the
+  mate checking the rule itself (a WAR set to Tank with "No tank -> Provoke" does not Provoke); a target still has to
+  be alive, in the zone and in range.
 - **Level Sync** does not change the choices; the server runs each rule at the mate's current level, and Check says
   which level it checked.
 - **Saved rules are never rewritten:** a spell or ability that is not in the list any more stays as saved, with a note;

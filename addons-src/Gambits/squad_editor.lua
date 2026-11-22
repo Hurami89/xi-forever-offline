@@ -66,6 +66,7 @@ function M.init(a)
     -- (0.3.1) remembered view choices (the addon's settings): Show all spells/families, the Weapon Skills section open
     S.showAll = api.get_pref ~= nil and api.get_pref('show_all') == true
     S.wsOpen = api.get_pref ~= nil and api.get_pref('ws_open') == true
+    S.rolesOpen = api.get_pref ~= nil and api.get_pref('roles_open') == true -- (0.3.2) the Party roles section open
 
     T.init({ now = api.now, queue_command = api.queue_command, input_open = api.input_open, log = api.log,
              config = api.transport_config })
@@ -600,6 +601,10 @@ end
 function M.read_mates(on_mates, on_fail)
     return read_request({ 'mates' }, function(items)
         S.mates = parse_mates(items)
+        if S.roles and S.roles.rows then
+            S.roles.stale = true -- (0.3.2: who is out may have changed: the party roles are loaded again when shown)
+        end
+
         on_mates(S.mates)
     end, on_fail)
 end
@@ -4766,6 +4771,374 @@ local function ws_section(mate)
 end
 M.ws_section = ws_section
 
+-- ---------------------------------------------------------------- (0.3.2) party roles (!gsq version 7: prl, prs)
+-- Who the Rule Sets' Tank / Melee / Mage / Ranged targets (and a Bard's role songs) mean: the server's party roles
+-- (!squad partyrole), NOT the Squad menu's Role. The server is the authority: a row shows only what an answer said, a
+-- change is shown only once the server confirms it, and an older answer never overwrites a newer one (S.rolesGen).
+M.ROLES_SERVER = 7
+M.ROLE_NAMES   = { [0] = 'Auto', 'Tank', 'Melee', 'Mage', 'Ranged' }
+M.ROLE_LETTER  = { 'T', 'M', 'C', 'R' }
+M.LETTER_NAME  = { T = 'Tank', M = 'Melee', C = 'Mage', R = 'Ranged' }
+M.ROLE_VALUES  = { 0, 1, 2, 3, 4 }
+M.ROLES_HELP   = 'Who your squad\'s Rule Set targets Tank, Melee, Mage and Ranged mean, and who a Bard\'s songs for those '
+    .. 'roles reach. This is not the Squad menu\'s Role (tank / damage / healer / support): that one only changes how a '
+    .. 'mate acts itself and does not make it a Tank target.'
+M.ROLES_AUTO_HELP = 'Auto = by main job. Some jobs count for more than one target: a PLD is Tank and Melee, a RUN is Tank, '
+    .. 'Melee and Mage. Tank = PLD or RUN; Melee = WAR MNK THF PLD DRK BST SAM NIN DRG BLU PUP DNC RUN; Mage = WHM BLM RDM '
+    .. 'BRD SMN BLU SCH GEO RUN; Ranged = RNG or COR.'
+M.ROLES_UNSUPPORTED = 'Party roles need the server update (gambits_squad.lua version 7). Meanwhile: !squad partyrole '
+    .. '<slot> <tank|melee|mage|ranged|auto>, then call the mate again.'
+
+function M.roles_supported()
+    return S.server ~= nil and S.server ~= false and (S.server.version or 0) >= M.ROLES_SERVER
+end
+
+-- "Tank, Melee" from "TM" ("none" for no letter)
+function M.role_words(letters)
+    local words = {}
+    for c in string.gmatch(letters or '', '[TMCR]') do
+        words[#words + 1] = M.LETTER_NAME[c]
+    end
+
+    return #words > 0 and table.concat(words, ', ') or 'none'
+end
+
+-- what a row counts as: an explicit role is exactly that target, auto is what its job gives
+function M.role_effective(role, auto)
+    return M.ROLE_LETTER[tonumber(role) or 0] or (auto or '')
+end
+
+-- the answer lines of prl / prs, checked strictly: nil and why for anything malformed (nothing half shown)
+function M.parse_roles(items)
+    local rows, byWho, party = {}, {}, {}
+    for _, f in ipairs(items or {}) do
+        if f[3] == 'pr' then
+            local who, level, set = tonumber(f[4] or ''), tonumber(f[7] or ''), tonumber(f[8] or '')
+            local live = f[11] == '-' and nil or tonumber(f[11] or '')
+            if #f ~= 11 or who == nil or who < 0 or who ~= math.floor(who) or (f[5] or '') == '' or not string.match(f[6] or '', '^[%u%-]+$')
+                or level == nil or set == nil or M.ROLE_NAMES[set] == nil or not string.match(f[9] or '', '^[TMCR]*$')
+                or (f[10] ~= '0' and f[10] ~= '1') or (f[11] ~= '-' and (live == nil or M.ROLE_NAMES[live] == nil)) then
+                return nil, 'a party role line was not readable'
+            end
+
+            if byWho[who] then
+                return nil, 'a party role line came twice'
+            end
+
+            local row = { who = who, name = f[5], job = f[6], level = level, set = set, auto = f[9], out = f[10] == '1', live = live }
+            byWho[who] = row
+            rows[#rows + 1] = row
+        elseif f[3] == 'pm' then
+            if #f ~= 7 or (f[4] or '') == '' or not string.match(f[5] or '', '^[%u%-]+$') or (f[6] ~= 'p' and f[6] ~= 't')
+                or not string.match(f[7] or '', '^[TMCR]*$') then
+                return nil, 'a party member line was not readable'
+            end
+
+            party[#party + 1] = { name = f[4], job = f[5], kind = f[6], targets = f[7] }
+        else
+            return nil, 'the answer had an unexpected line'
+        end
+    end
+
+    table.sort(rows, function(a, b) return a.who < b.who end)
+    return { rows = rows, byWho = byWho, party = party }
+end
+
+-- loads the list (only when the section is open; one request at a time)
+function M.roles_load()
+    if not M.roles_supported() or M.busy() then
+        return false
+    end
+
+    S.rolesGen = (S.rolesGen or 0) + 1
+    local gen = S.rolesGen
+    S.roles = S.roles or {}
+    S.roles.loading, S.roles.error = gen, nil
+    read_request({ 'prl' }, function(items)
+        local data, why = M.parse_roles(items)
+        if data == nil or data.byWho[0] == nil then
+            return false, why or 'the answer had no line for you'
+        end
+
+        if gen ~= S.rolesGen then
+            -- an older answer: a newer list request or a confirmed change came since; it must not overwrite them
+            if S.roles and S.roles.loading == gen then
+                S.roles.loading = nil
+            end
+
+            return true
+        end
+
+        S.roles = data
+        return true
+    end, function(why)
+        if S.roles and S.roles.loading == gen then
+            -- (no automatic retry every frame: "Update" or Refresh asks again; the summary says the update failed)
+            S.roles.loading, S.roles.stale = nil, nil
+            S.roles.error = why
+        end
+    end)
+    return true
+end
+
+-- changes one role on the server: who 0 = you, else a squad slot. The row shows the change only when the server's answer
+-- (read back) says so; on any failure it keeps what the server had.
+function M.roles_set(who, role)
+    if not M.roles_supported() then
+        return false
+    end
+
+    if M.busy() then
+        return busy_say()
+    end
+
+    role = tonumber(role)
+    local r = S.roles
+    local row = r and r.byWho and r.byWho[who]
+    if row == nil or row.pending or role == nil or M.ROLE_NAMES[role] == nil or role ~= math.floor(role) then
+        return false
+    end
+
+    S.rolesGen = (S.rolesGen or 0) + 1 -- (a list answer asked for before this change is older: it is not used)
+    local token = {}
+    row.pending = { role = role, token = token }
+    local label = row.who == 0 and 'You' or row.name
+    read_request({ 'prs', tostring(who), tostring(role) }, function(items)
+        local data, why = M.parse_roles(items)
+        if data == nil or #data.rows ~= 1 or data.rows[1].who ~= who or #data.party ~= 0 then
+            return false, why or 'the answer was not for this change'
+        end
+
+        local cur = S.roles and S.roles.byWho and S.roles.byWho[who]
+        if cur == nil or cur.pending == nil or cur.pending.token ~= token then
+            return true -- (the list was loaded again meanwhile: that newer state stays)
+        end
+
+        local new = data.rows[1]
+        for i, it in ipairs(S.roles.rows) do
+            if it == cur then
+                S.roles.rows[i] = new
+            end
+        end
+
+        S.roles.byWho[who] = new
+        if new.set ~= role then
+            say(string.format('Party role NOT changed: the server still has %s as %s.', label, M.ROLE_NAMES[new.set]), false)
+        else
+            local what = role == 0 and ('Auto (' .. M.role_words(new.auto) .. ')') or M.ROLE_NAMES[role]
+            say(string.format('%s: %s (server confirmed)%s', label, what, (new.out and new.live == new.set) and ', in effect now.'
+                or ', from the next call.'))
+        end
+
+        return true
+    end, function(why)
+        local cur = S.roles and S.roles.byWho and S.roles.byWho[who]
+        if cur and cur.pending and cur.pending.token == token then
+            cur.pending = nil
+        end
+
+        say('Party role NOT changed: ' .. tostring(why) .. '. The list shows what the server has.', false)
+    end)
+    return true
+end
+
+-- the one-line summary: from EVERYONE the server reported in your party (your mates that are out, and the other members:
+-- dualbox characters, other players, their trusts), never from your own list alone
+function M.roles_summary(r)
+    if not M.roles_supported() then
+        return M.ROLES_UNSUPPORTED
+    elseif r and r.error then
+        -- (never counts from an older list once an update failed)
+        return 'Party roles could not be loaded (' .. r.error .. '). Open this section and press Update to try again.'
+    elseif r == nil or r.rows == nil then
+        return 'Open this section to see who counts as Tank, Melee, Mage and Ranged in your party.'
+    elseif r.stale then
+        return 'Party roles: your squad changed since the last update. Open this section to update the list.'
+    end
+
+    local names = { T = {}, M = {}, C = {}, R = {} }
+    local notOut = {}
+    for _, row in ipairs(r.rows) do
+        local label = row.who == 0 and 'You' or row.name
+        if row.out then
+            local letters = M.role_effective(row.live ~= nil and row.live or row.set, row.auto)
+            for c in string.gmatch(letters, '[TMCR]') do
+                table.insert(names[c], label .. ((row.live or row.set) ~= 0 and ' (set)' or ''))
+            end
+        else
+            notOut[#notOut + 1] = string.format('%s (%s)', label, M.role_words(M.role_effective(row.set, row.auto)))
+        end
+    end
+
+    for _, pm in ipairs(r.party or {}) do
+        for c in string.gmatch(pm.targets, '[TMCR]') do
+            table.insert(names[c], pm.name)
+        end
+    end
+
+    local parts = {}
+    for _, c in ipairs(M.ROLE_LETTER) do
+        parts[#parts + 1] = M.LETTER_NAME[c] .. ': ' .. (#names[c] > 0 and table.concat(names[c], ', ') or 'nobody')
+    end
+
+    local text = 'In your party at the last update - ' .. table.concat(parts, '; ') .. '.'
+    if #(r.party or {}) > 0 then
+        text = text .. string.format(' (Includes %d member%s of other characters, read-only.)', #r.party, #r.party == 1 and '' or 's')
+    end
+
+    if #notOut > 0 then
+        text = text .. ' Not summoned: ' .. table.concat(notOut, ', ') .. '.'
+    end
+
+    return text
+end
+
+local function role_status(row)
+    if row.pending then
+        note('saving...')
+        tooltip('Waiting for the server to confirm the change.')
+    elseif row.out and row.live == row.set then
+        colored(M.theme.ok, 'in effect')
+        tooltip('The server confirmed it; ' .. (row.who == 0 and 'your' or (row.name .. '\'s')) .. ' role is used from the next rule check.')
+    elseif not row.out then
+        note('applies when called')
+        tooltip('Saved on the server; ' .. row.name .. ' gets it when called.')
+    else
+        colored(M.theme.gold, 'applies when called again')
+        tooltip('Saved on the server, but ' .. row.name .. ' is out with another role: call it again (or use Assign & Apply).')
+    end
+end
+
+local function role_row(row)
+    local g = imgui()
+    local who = row.who == 0 and ('You (' .. row.name .. ')') or row.name
+    label_text(who)
+    if row.who == 0 then
+        tooltip('Your own role for your mates\' rules (e.g. Tank if you tank yourself).')
+    end
+
+    same_if_fits(s(120))
+    note(string.format('%s %d%s', row.job, row.level, row.out and '' or '  (not summoned)'))
+    same_if_fits(s(180))
+    width(s(170))
+    local disable = (row.pending ~= nil or M.busy()) and g.BeginDisabled ~= nil
+    if disable then
+        g.BeginDisabled(true)
+    end
+
+    local picked
+    scoped(nil, function() if disable then g.EndDisabled() end end, function()
+        picked = combo('##gsq-role-' .. row.who, row.set, M.ROLE_VALUES, function(v)
+            if v == 0 then
+                return 'Auto (' .. M.role_words(row.auto) .. ')'
+            end
+
+            return M.ROLE_NAMES[v] or '?'
+        end, function(v)
+            if v == 0 then
+                return M.ROLES_AUTO_HELP
+            end
+
+            local others = string.gsub(row.auto or '', M.ROLE_LETTER[v] or '', '')
+            return string.format('%s counts as %s only, whatever its job%s, for Rule Set targets and role songs. Kept until you '
+                .. 'choose Auto, also when its job changes.', row.who == 0 and 'You' or row.name, M.ROLE_NAMES[v],
+                others ~= '' and (': no longer ' .. M.role_words(others)) or '')
+        end, function(v) return v == 0 and M.theme.secondary or nil end)
+    end)
+    tooltip(row.set == 0 and M.ROLES_AUTO_HELP or (M.ROLE_NAMES[row.set] .. ' was chosen for ' .. (row.who == 0 and 'you' or row.name)
+        .. '. Choose Auto to follow the main job again.'))
+    if picked ~= nil and picked ~= row.set and not row.pending and not disable then
+        M.roles_set(row.who, picked)
+    end
+
+    same_if_fits(s(130))
+    role_status(row)
+    if row.set ~= 0 then
+        same_if_fits(s(140))
+        note('(by job: ' .. M.role_words(row.auto) .. ')')
+    end
+end
+
+local function roles_section()
+    local g = imgui()
+    g.Separator()
+    local open = S.rolesOpen == true
+    local label = 'Party roles (who Tank / Melee / Mage / Ranged mean)##gsq-roles-section'
+    if g.CollapsingHeader then
+        if g.SetNextItemOpen then
+            g.SetNextItemOpen(open)
+        end
+
+        open = g.CollapsingHeader(label) == true
+    elseif button((open and '[-] ' or '[+] ') .. label) then
+        open = not open
+    end
+
+    tooltip(M.ROLES_HELP .. ' Click to ' .. (open and 'close' or 'open') .. ' this section.')
+    if open ~= (S.rolesOpen == true) then
+        S.rolesOpen = open
+        if api.set_pref then
+            api.set_pref('roles_open', open)
+        end
+    end
+
+    if not open then
+        wrapped(M.theme.secondary, M.roles_summary(S.roles))
+        return
+    end
+
+    if not M.roles_supported() then
+        wrapped(M.theme.secondary, M.ROLES_UNSUPPORTED)
+        return
+    end
+
+    local r = S.roles
+    if r == nil or (r.stale and not r.loading) then
+        M.roles_load()
+        r = S.roles
+    end
+
+    if r == nil or r.rows == nil then
+        if r and r.error then
+            wrapped(M.theme.bad, 'Could not load the party roles: ' .. r.error)
+            if button('Try again##gsq-roles-retry') then
+                S.roles = nil
+            end
+        else
+            note('(loading party roles...)')
+        end
+
+        return
+    end
+
+    wrapped(M.theme.secondary, M.roles_summary(r))
+    tooltip('Counted as the engine sees it now: the role, else the main job. A Rule Set target also needs the member alive, '
+        .. 'in the zone and in range.')
+    for _, row in ipairs(r.rows) do
+        g.PushID('gsq-role-row-' .. row.who)
+        scoped(nil, function() g.PopID() end, function() role_row(row) end)
+    end
+
+    if #r.party > 0 then
+        heading('Other party members (set on their own character)')
+        tooltip('A dualbox character sets its own role with !squad partyrole me <role> on that character.')
+        for _, pm in ipairs(r.party) do
+            note(string.format('%s  %s  %s', pm.name, pm.job, M.role_words(pm.targets)))
+        end
+    end
+
+    if r.error then
+        wrapped(M.theme.bad, 'The last update failed: ' .. r.error)
+    end
+
+    if button('Update##gsq-roles-update') then
+        S.roles.stale, S.roles.error = true, nil
+    end
+
+    tooltip('Ask the server again who counts as what (after calling or dismissing mates, or a role set in chat).')
+end
+M.roles_section = roles_section
+
 -- (0.3.1) the right side: the editor and the Weapon Skills section scroll together; the Save bar stays below them
 local function right_panel(mate)
     local d = S.draft
@@ -4775,11 +5148,13 @@ local function right_panel(mate)
     plain_child('##gsq-right-body', { 0, bodyH }, function()
         local afterList = editor_panel()
         ws_section(mate)
+        roles_section() -- (0.3.2) the whole party, not only this mate
         local bottom = cursor_y()
         if afterList and bottom then
             -- what the editor needs below its rule list (next frame's limit): the largest seen while the same set, the
             -- same Weapon Skills state and the same panel height are shown; anything else starts measuring again
-            local key = tostring(d) .. '|' .. tostring(S.wsOpen == true) .. '|' .. tostring(math.floor(bodyH / row_h()))
+            local key = tostring(d) .. '|' .. tostring(S.wsOpen == true) .. '|' .. tostring(S.rolesOpen == true) .. '|'
+                .. tostring(math.floor(bodyH / row_h()))
             local measured = math.max(0, bottom - afterList)
             if S.layout.restKey ~= key then
                 S.layout.restKey, S.layout.restH = key, measured
@@ -4835,6 +5210,7 @@ function M.draw()
     same_if_fits(s(70))
     if button('Refresh##gsq-refresh') then
         S.ws = nil -- (the Weapon Skills section loads again too)
+        S.roles = nil -- (0.3.2: and the party roles, when their section is open)
         M.load_mates()
     end
     tooltip('Ask the server again for your squad and its Rule Sets.')
