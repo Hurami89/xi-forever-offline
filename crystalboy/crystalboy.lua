@@ -1,6 +1,6 @@
 addon.name    = 'crystalboy'
 addon.author  = 'XI: Forever Offline'
-addon.version = '1.8'
+addon.version = '1.8b'
 addon.desc    = 'Crystal Boy: play your Game Boy cartridges inside FFXI.'
 addon.link    = ''
 
@@ -459,7 +459,7 @@ local function tick()
     end
     if now_s() >= G.next_flush then
         G.next_flush = now_s() + 3
-        flush_save()
+        trace.step('save flush'); flush_save(); trace.step('save flush done')   -- (1.8b, Ricc's crash after 'audio done')
     end
     if G.rec and now_s() >= G.rec.next then
         -- recorder: the game's working memory once a second, so the "finished" bytes can be found afterwards
@@ -474,7 +474,7 @@ local function tick()
     if now_s() >= G.next_ram_check then
         G.next_ram_check = now_s() + 2
         local rule = G.game and G.game.header and G.rules[G.game.header.title]
-        if rule then check_done('check') end
+        if rule then trace.step('ram check'); check_done('check'); trace.step('ram check done') end
     end
 end
 
