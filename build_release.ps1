@@ -26,6 +26,7 @@ if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
 $skip = "idlelib test lib2to3 ensurepip turtledemo turtle pydoc_data venv distutils msilib"
 $std = & $py -c "import sys; skip=set('$skip'.split()); print('\n'.join(sorted(n for n in sys.stdlib_module_names if not n.startswith('_') and n not in skip)))"
 $hidden = @($std -split "`r?`n" | Where-Object { $_ }) + @("bcrypt", "certifi", "mariadb", "PIL.Image", "PIL.ImageTk",
+            "PIL.ImageDraw", "PIL.ImageFont", "PIL.ImageFilter", "PIL.ImageChops", "PIL.ImageStat",   # forever_beta_shirt.py
             "launcher_core", "launcher_squad", "launcher_rules", "launcher_icons", "launcher_personality",
             "launcher_thirdparty", "launcher_setup", "launcher_game", "launcher_client",
             "launcher_passport", "launcher_coop", "launcher_coop_gui", "launcher_contrib",
