@@ -12,6 +12,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • tCrossBar, on-screen controller macros, can be added from the add-on list. (Yache)
 • Gambits 0.3.2: job-aware spell and ability lists, a Weapon Skills section, and a Party roles section for who counts as Tank / Melee / Mage / Ranged. (wildthing)
 • The Job rules editor now explains what it does and points to Gambits for your own spell choices. (wildthing)
+• SYSTEM > Settings > "Change game folder": moved FINAL FANTASY XI to another drive? Pick the new folder and keep playing. (K-Andy)
 
 ### Squad
 • Gear chosen by hand is checked against the rest of the outfit: a Rare item can't be worn twice, and Sub must fit Main (a two-handed weapon takes a grip only). Old setups simply leave the extra piece off. (Ricc, Meli)

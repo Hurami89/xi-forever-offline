@@ -2458,6 +2458,41 @@ class GfxModTab(tk.Frame):
 class UpdatesTab(tk.Frame):
     """The Settings page: a GM account for testing, and updates from Phoenix. setup_gm.py and server_update.py do the work; this page shows what they say."""
 
+    # (2026-11-22, K-Andy: moved FFXI from a hard disk to an SSD and the game closed right away) where the game is
+    def build_game_folder(self):
+        box = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+        box.pack(fill="x", padx=14, pady=(0, 6))
+        tk.Label(box, text="Game folder", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        self.game_folder_text = tk.StringVar(value=self.app.cfg.get("ffxi_client_dir", "") or "(not set)")
+        tk.Label(box, textvariable=self.game_folder_text, bg=PANEL, fg=DIM, font=(UI_FONT, 9)).pack(anchor="w", padx=12)
+        tk.Label(box, text="Moved FINAL FANTASY XI to another drive? Close the game, move the whole SquareEnix folder (FINAL FANTASY XI "
+                           "and PlayOnlineViewer together), then pick the new FINAL FANTASY XI folder here.",
+                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(2, 4))
+        tk.Button(box, text="Change game folder...", command=self.change_game_folder, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5,
+                  activebackground=BORDER, activeforeground=FG).pack(anchor="w", padx=12, pady=(0, 12))
+
+    def change_game_folder(self):
+        chosen = filedialog.askdirectory(parent=self, title="Pick the FINAL FANTASY XI folder",
+                                         initialdir=self.app.cfg.get("ffxi_client_dir") or None)
+        if not chosen:
+            return
+        import launcher_game as lg
+        try:
+            ffxi, viewer = lg.pick_game_folder(chosen, self.app.cfg.get("pol_lang", "US"))
+        except ValueError as problem:
+            messagebox.showerror("Game folder", str(problem), parent=self)
+            return
+        if not messagebox.askyesno("Game folder", f"Play FINAL FANTASY XI from here from now on?\n\n{ffxi}\n{viewer}", parent=self):
+            return
+        # game_copy: at PLAY the launcher points PlayOnline at these folders until the game closes (Windows asks once),
+        # so the registry's old location no longer matters
+        for key, value in (("ffxi_client_dir", ffxi), ("pol_dir", viewer), ("game_copy", True)):
+            save_config_value(key, value)
+            self.app.cfg[key] = value
+        self.game_folder_text.set(ffxi)
+        messagebox.showinfo("Game folder", "Saved. Press PLAY: Windows asks for permission once, so the launcher can point "
+                            "PlayOnline at this folder while you play.", parent=self)
+
     def __init__(self, master, app):
         super().__init__(master, bg=BG)
         self.app = app
@@ -2479,6 +2514,8 @@ class UpdatesTab(tk.Frame):
             button = tk.Button(gm_bar, text=text, command=command, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5, activebackground=BORDER, activeforeground=FG)
             button.pack(side="left", padx=(0, 8))
             self.gm_buttons.append(button)
+        if IS_WINDOWS:
+            self.build_game_folder()
         self.player = bool(app.cfg.get("mariadb_dir"))      # a player install (first-run setup); else this is the dev PC
         self.buttons = []
         if linux is not None:
