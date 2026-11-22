@@ -37,6 +37,7 @@ Each comes from its official release page and keeps its own license.
 | [Cadence](https://github.com/KiplingFFXI/cadence) | KiplingFFXI | GPL v3 |
 | [Checkmate](https://github.com/KiplingFFXI/checkmate) | KiplingFFXI | GPL v3 |
 | [Momentum](https://github.com/KiplingFFXI/momentum) | KiplingFFXI | GPL v3 |
+| [tCrossBar](https://github.com/ThornyFFXI/tCrossBar) (add-on download, unchanged) | Thorny | MIT |
 | [FFXIPort](https://github.com/wildcabbagepatch/FFXIPort) (add-on download; its server module ships with the server, one change: follows the Fast travel switch) | wildthing | GPL v3 |
 | [VanaFish](https://github.com/VanaDreams/vanadreams-launcher/tree/main/addons/vanafish) (add-on download, unchanged) | VanaDreams | used with the authors' permission |
 | [VanaCam](https://github.com/VanaDreams/vanadreams-launcher/tree/main/addons/vanacam) (add-on download, unchanged; its camera core is XICamera's, BSD) | VanaDreams | used with the authors' permission |
