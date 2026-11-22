@@ -1650,7 +1650,9 @@ class RatesTab(tk.Frame):
         for k in (2, 20, 18, 25, 23, 0, 24, 30, 31, 32, 33):    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
             R[k], row = row, row + 1
         row = header("World", row)
-        for k in (3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 28):   # (28: bots pass all loot)
+        # (34-35: crowd members through the gates / stopping for each other; 36-39: bot players' emotes, death memory,
+        #  life stories, gate travel - the 2026-11-21 additions, extras.lua)
+        for k in (3, 1, 4, 5, 34, 35, 6, 7, 8, 9, 10, 11, 12, 13, 14, 28, 36, 37, 38, 39):   # (28: bots pass all loot)
             R[k], row = row, row + 1
         row = header("Squad and AI", row)
         for k in (15, 16, 19, 26, 29, 27, 21, 22, 17):   # (26: squad gear, you keep the item; 29: all gear; 27: training dummies)
@@ -1768,6 +1770,24 @@ class RatesTab(tk.Frame):
                        "you without waiting for the lot timer. Off = they leave it to the timer.",
                        variable=self.bots_pass_loot, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[28], column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        # (2026-11-21) one switch each for the crowd and bot player additions (extras.lua; in game: !extras)
+        for slot, key, text in (
+                (34, "crowd_gates", "Crowds use the gates: newcomers walk in from the zone lines and Mog House doors, and people "
+                                    "leaving walk out through them or warp from the Home Point. Off = they appear and fade by the Home Point."),
+                (35, "crowd_meet", "Crowds stop for each other: two adventurers walking past each other may stop, turn and wave."),
+                (36, "bot_social", "Bot emotes: bot players cheer level ups, bow when they join you, wave goodbye, panic when "
+                                   "badly hurt, and trade emotes with each other in town."),
+                (37, "bot_memory", "Bots remember where they died: after dying twice in an area a bot hunts somewhere else for a "
+                                   "while, and it keeps away from the camp it died at."),
+                (38, "bot_story", "Bot life stories: each bot keeps its milestones between play sessions (!bots story Name), so "
+                                  "in a chat it still knows what it did yesterday."),
+                (39, "bot_gates", "Bots use the town gates: a bot going hunting runs to the gate first, and one coming home "
+                                  "arrives at the gate and walks in. Off = they leave from and return to their spot.")):
+            var = tk.BooleanVar(value=rates.get(key, True))
+            setattr(self, key, var)
+            tk.Checkbutton(inner, text=text, variable=var, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG,
+                           activeforeground=FG, wraplength=520, justify="left").grid(
+                           row=R[slot], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.squad_all_gear = tk.BooleanVar(value=rates.get("squad_all_gear", False))
         tk.Checkbutton(inner, text="Squad gets all gear: mates can wear anything their job and level allow without it being "
                        "given to them first. Off = gear has to be given once (trade it, or !squad give).",
@@ -1900,7 +1920,7 @@ class RatesTab(tk.Frame):
 
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
                  "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "squad_all_gear", "short_quest_waits",
-                 "event_harvest", "event_starlight", "event_egg_hunt", "event_horro")
+                 "event_harvest", "event_starlight", "event_egg_hunt", "event_horro") + tuple(core.EXTRAS_KEYS)
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
                  ("bots_growth", "bots_growth"), ("squad_call_cooldown", "squad_call_cooldown"))
@@ -2014,6 +2034,8 @@ class RatesTab(tk.Frame):
         rates["squad_keep_gear"] = bool(self.squad_keep_gear.get())
         rates["training_dummies"] = bool(self.training_dummies.get())
         rates["bots_pass_loot"] = bool(self.bots_pass_loot.get())
+        for k in core.EXTRAS_KEYS:
+            rates[k] = bool(getattr(self, k).get())
         rates["squad_all_gear"] = bool(self.squad_all_gear.get())
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
         rates["events"] = self.events_value()

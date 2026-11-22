@@ -33,6 +33,11 @@ S("crowds_chat", "world", "Town crowds", SWITCH, "Crowd chat",
   tip="Party-wanted shouts, people selling crafted items, and small talk near you.")
 S("crowds_chat_amount", "world", "Town crowds", CHOICE, "Chat amount",
   options=(("quiet", "Quiet"), ("normal", "Normal"), ("busy", "Busy")))
+S("crowd_gates", "world", "Town crowds", SWITCH, "Come and go through the gates",
+  tip="Newcomers walk in from the zone lines and Mog House doors, and people leaving walk out through them or warp "
+      "from the Home Point. Off = everyone appears and fades by the Home Point.")
+S("crowd_meet", "world", "Town crowds", SWITCH, "Stop for each other",
+  tip="Two adventurers walking past each other may stop, turn and wave before going on.")
 S("crowds_field_parties", "world", "Field parties", COUNT, "Parties per area", dev=True, lo=0, hi=3, step=1,
   tip="Players get this from their world choice.")
 S("bots_online", "world", "Bot players", COUNT, "Online at a time", lo=0, hi=550, step=10,
@@ -44,6 +49,17 @@ S("bots_growth", "world", "Bot players", CHOICE, "Bot growth",
   tip="Bots level, craft and earn gil while you are not playing.")
 S("bots_pass_loot", "world", "Bot players", SWITCH, "Bots pass all loot",
   tip="Bot players in your party pass every drop at once, so it comes to you without waiting for the lot timer.")
+S("bot_social", "world", "Bot players", SWITCH, "Emotes and greetings",
+  tip="Bot players cheer level ups, bow when they join you, wave goodbye, panic when badly hurt, and trade emotes with "
+      "each other in town.")
+S("bot_memory", "world", "Bot players", SWITCH, "Remember where they died",
+  tip="After dying twice in an area a bot hunts somewhere else for a while, and it keeps away from the camp it died at.")
+S("bot_story", "world", "Bot players", SWITCH, "Life stories",
+  tip="Each bot keeps its milestones between play sessions (!bots story Name), so in a chat it still knows what it did "
+      "yesterday.")
+S("bot_gates", "world", "Bot players", SWITCH, "Use the town gates",
+  tip="A bot going hunting runs to the town gate first, and one coming home arrives at the gate and walks in. "
+      "Off = they leave from and return to their spot.")
 S("bots_head_start", "world", "Bot players", SWITCH, "One-time head start",
   tip="The starting bots get a few months of history - levels 1-75 (most 10-30), subjobs, crafts, gil, gear - as if the "
       "server had been running a while. Used at your next PLAY, then this switch goes away.")

@@ -553,6 +553,10 @@ RATE_DEFAULTS.update({"bots_growth": "realistic"})
 RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False})   # one-time bot head start (bots_growth.lua)
 RATE_DEFAULTS.update({"squad_all_gear": False})   # (Yache) every piece of gear counts as given to the squad (squad.lua squadAllGear)
 RATE_DEFAULTS.update({"bots_pass_loot": True})   # (delukard) bot players in your party pass every drop at once (bots.cpp)
+# (2026-11-21) crowd members through the gates / stopping for each other, bot players' emotes, death memory, life
+# stories and gate travel (modules/custom/lua/extras.lua reads extras_config.lua; in game: !extras). All on by default.
+EXTRAS_KEYS = ("crowd_gates", "crowd_meet", "bot_social", "bot_memory", "bot_story", "bot_gates")
+RATE_DEFAULTS.update({key: True for key in EXTRAS_KEYS})
 RATE_DEFAULTS.update({"training_dummies": False})   # (Jon Tanta) !sandbox training dummies in Rolanberry Fields, a testing tool (squad_sandbox.lua)
 RATE_DEFAULTS.update({"squad_keep_gear": False})   # gear given to the squad is unlocked and you keep the piece (squad.lua squadKeepGear)
 RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
@@ -728,6 +732,10 @@ def write_crowds_config(server_dir, rates):
             "true" if rates.get("bots", True) else "false", max(0, min(600, int(rates.get("bots_roster", 100) or 0))),
             max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth, "true" if head_start else "false",
             "true" if rates.get("bots_pass_loot", True) else "false"))
+    with open(os.path.join(module_dir, "extras_config.lua"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
+        f.write("return { %s }\n" % ", ".join(
+            "%s = %s" % (key, "true" if rates.get(key, True) else "false") for key in EXTRAS_KEYS))
     with open(os.path.join(module_dir, "squad_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         f.write("return { call_cooldown_min = %d, spell_scrolls = %s, keep_gear = %s, training_dummies = %s, all_gear = %s }\n" % (
@@ -871,6 +879,9 @@ def load_rates(here):
             rates["training_dummies"] = bool(saved["training_dummies"])
         if "bots_pass_loot" in saved:
             rates["bots_pass_loot"] = bool(saved["bots_pass_loot"])
+        for key in EXTRAS_KEYS:
+            if key in saved:
+                rates[key] = bool(saved[key])
         if "squad_all_gear" in saved:
             rates["squad_all_gear"] = bool(saved["squad_all_gear"])
         if "short_quest_waits" in saved:
@@ -987,6 +998,8 @@ def apply_preset(rates, name):
                          ("short_quest_waits", True), ("events", "date"), ("event_harvest", True), ("event_starlight", True), ("event_egg_hunt", True), ("event_horro", True)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
+    for key in EXTRAS_KEYS:
+        out[key] = rates.get(key, True)
     out["main.MAX_LEVEL"] = rates.get("main.MAX_LEVEL", 75)
     out.update(RATE_PRESETS.get(name, {}))
     return out
