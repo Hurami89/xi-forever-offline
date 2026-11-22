@@ -2071,10 +2071,31 @@ class GraphicsTab(tk.Frame):
         bar.pack(anchor="w", padx=10, pady=6)
         tk.Button(bar, text="Check", command=self.check, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left", padx=(0, 6))
         tk.Button(bar, text="Restore original settings", command=self.restore, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left")
+        # (2026-11-22, Sunie: handheld players) FFXI's own gamepad setup tool, without hunting for it in the game folder
+        tk.Button(bar, text="Gamepad setup", command=self.open_pad_config, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left", padx=(6, 0))
         tk.Label(self, text="Not listed yet: Map Compression, Maintain Aspect Ratio, 3D LCD Mode and Environment. "
                             "I have not confirmed which values control those, so they are left alone.",
                  bg=BG, fg=DIM, wraplength=480, justify="left", font=(UI_FONT, 8)).pack(anchor="w", padx=10, pady=(4, 0))
         self.check()
+
+    def open_pad_config(self):
+        """Opens FFXiPadConfig.exe from the game folder the launcher plays (ToolsUS / ToolsEU / Tools)."""
+        cfg = core.load_config(os.path.join(HERE, "config.json"))
+        game = cfg.get("ffxi_client_dir", "")
+        first = {"US": "ToolsUS", "EU": "ToolsEU", "JP": "Tools"}.get(cfg.get("pol_lang", "US"), "ToolsUS")
+        for sub in (first, "ToolsUS", "Tools", "ToolsEU"):
+            exe = os.path.join(game, sub, "FFXiPadConfig.exe") if game else ""
+            if exe and os.path.isfile(exe):
+                try:
+                    if linux is not None:
+                        linux.run_windows(HERE, cfg, [exe], cwd=os.path.dirname(exe), wait=False)
+                    else:
+                        os.startfile(exe)          # (the tool can ask for Windows' permission; startfile shows that prompt)
+                except Exception as problem:
+                    messagebox.showerror("Gamepad setup", f"Could not open the gamepad setup tool:\n{problem}", parent=self)
+                return
+        messagebox.showinfo("Gamepad setup", "FFXI's gamepad setup tool (FFXiPadConfig.exe) was not found in the game "
+                            "folder's Tools folders" + (f":\n{game}" if game else ".") , parent=self)
 
     def _reverse(self, table, text):
         return next((k for k, v in table.items() if v == text), None)

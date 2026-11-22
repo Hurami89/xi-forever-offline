@@ -124,6 +124,18 @@ S("short_quest_waits", "rules", "Comforts", SWITCH, "Short quest waits",
       "(era: three game days), Aht Urhgan missions about 1 minute between missions (era: a game day or Japanese "
       "midnight). Off = the era waits.")
 S("main.NEW_CHARACTER_CUTSCENE", "rules", "Comforts", FLAG, "New-character cutscenes")
+# (2026-11-22, suggestions) out of era, so off by default
+S("main.CASKET_SHOW_CODE", "rules", "Comforts", FLAG, "Caskets tell you the code",
+  tip="A locked treasure casket tells your party its two-digit combination when you touch it; enter it to open. "
+      "Off = the era's guessing game.")
+S("main.GUILD_SHOPS_ALWAYS_STOCKED", "rules", "Comforts", FLAG, "Guild shops never run out",
+  tip="Everything a guild shop stocks is back to its usual amount whenever you shop there, even right after you bought "
+      "it out. Prices stay the game's own. Off = the era: stock refills a little each day.")
+S("map.FULL_MERITS", "rules", "Comforts", FLAG, "Full merits",
+  tip="Every merit can be raised to its own maximum. Off = the era's group limits (for example only one attribute "
+      "to 5/5, and only a few combat skills to 8/8).")
+S("map.MAX_MERIT_POINTS", "rules", "Comforts", NUMBER, "Merit points you can hold", step=5,
+  tip="30 = the default here (the earliest era held 10). Up to 99.")
 
 # ---------------------------------------------------------------- Rules > Tetra Master (2026-11-21)
 S("main.TM_CARD_DROP_RATE", "rules", "Tetra Master", RATE, "Cards from monsters",

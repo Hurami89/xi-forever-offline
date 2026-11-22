@@ -530,6 +530,12 @@ RATE_FIELDS = [
     # the new character is stuck (Ste, Odeken, tarolin, shujimi): the era event files were made for October. A world
     # that already has a saved value keeps it. Put the default back to 1 once the era files match the game again.
     ("main.NEW_CHARACTER_CUTSCENE",     "main.lua", "NEW_CHARACTER_CUTSCENE",      "New-character cutscenes (1 = on)", 0, 0, 1, "int"),
+    # (2026-11-22, suggestions: Dugahst, delukard, PTgamerguy, Ricc) comforts, off = the era (server: custom/late/comforts.lua,
+    # merit.cpp)
+    ("main.CASKET_SHOW_CODE",           "main.lua", "CASKET_SHOW_CODE",            "Caskets tell you their combination (1 = on)", 0, 0, 1, "int"),
+    ("main.GUILD_SHOPS_ALWAYS_STOCKED", "main.lua", "GUILD_SHOPS_ALWAYS_STOCKED",  "Guild shops never run out (1 = on)",  0,   0,   1,     "int"),
+    ("map.FULL_MERITS",                 "map.lua",  "FULL_MERITS",                 "Every merit to its maximum (1 = on)", 0,   0,   1,     "int"),
+    ("map.MAX_MERIT_POINTS",            "map.lua",  "MAX_MERIT_POINTS",            "Merit points you can hold",          30,  10,  99,    "int"),
     ("main.HOMEPOINT_TELEPORT",         "main.lua", "HOMEPOINT_TELEPORT",          "Home Point teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("main.ENABLE_SURVIVAL_GUIDE",      "main.lua", "ENABLE_SURVIVAL_GUIDE",       "Survival Guide teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("map.BASE_SPEED",                  "map.lua",  "BASE_SPEED",                  "Run speed (50 = retail)",               50,  40,  120,   "int"),
