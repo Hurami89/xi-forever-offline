@@ -99,7 +99,7 @@ def ollama_models(run=None):
     if not exe:
         return []
     try:
-        out = (run or subprocess.run)([exe, "list"], capture_output=True, text=True, timeout=20, creationflags=NO_WINDOW)
+        out = (run or subprocess.run)([exe, "list"], capture_output=True, text=True, errors="replace", timeout=20, creationflags=NO_WINDOW)
     except Exception:
         return []
     return [line.split()[0] for line in (out.stdout or "").splitlines()[1:] if line.strip()]
@@ -112,8 +112,8 @@ def status(item, kit, ashita, state=None, server=None):
         have = any(name == model or name == model + ":latest" for name in ollama_models())
         return have, model if have else ""
     if item.get("check_system"):             # something Windows itself keeps (the Visual C++ runtime)
-        present = os.path.exists(os.path.expandvars(item["check_system"]))
-        return present, "installed" if present else ""
+        present, version, _why = system_file_status(item)
+        return present, version if present else ""
     state = load_state(kit) if state is None else state
     record = state.get(item["id"])
     root = target_root(item, kit, ashita, server)
@@ -135,6 +135,77 @@ def status(item, kit, ashita, state=None, server=None):
 
 # ----- finding the download -----
 _SSL_CONTEXT = None
+
+
+def file_version(path):
+    """(major, minor, build, revision) of a Windows program or DLL, from its version resource, or None. Read straight
+    from the file (the fixed version block starts with 0xFEEF04BD), so it needs none of Windows' own functions."""
+    import struct
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+    except OSError:
+        return None
+    at = data.find(b"\xbd\x04\xef\xfe")
+    if at < 0 or at + 16 > len(data):
+        return None
+    _signature, _struct_version, high, low = struct.unpack_from("<IIII", data, at)
+    return (high >> 16, high & 0xFFFF, low >> 16, low & 0xFFFF)
+
+
+def _version_numbers(text):
+    return tuple(int(n) for n in re.findall(r"\d+", text or "")[:4])
+
+
+def system_file_status(item):
+    """(ok, version text, why) for an item Windows itself keeps ("check_system": a file that is there once it is
+    installed). With "min_version" the file also has to be at least that version; why is '' / 'missing' / 'old'.
+    A file whose version can't be read counts as fine (better than asking for an installer again and again)."""
+    path = os.path.expandvars(item["check_system"])
+    if not os.path.exists(path):
+        return False, "", "missing"
+    need = _version_numbers(item.get("min_version"))
+    have = file_version(path) if need else None
+    if have is None:
+        return True, "installed", ""
+    text = ".".join(str(n) for n in have[:3])
+    if have[:len(need)] < need:
+        return False, text, "old"
+    return True, text, ""
+
+
+def ensure_system_runtimes(kit, ashita, fetch=None, log=print, run=None, items=None):
+    """(Windows) The Microsoft Visual C++ runtimes: the game loader and Ashita use the 32-bit one, the server and the
+    database the 64-bit one. (2026-11-22, Leyna Crosse: xiloader.exe stopped inside MSVCP140.dll 14.29 without a word;
+    installing the current runtime fixed it. Programs built with Visual Studio 2022 17.10 or newer stop like that on
+    a runtime older than 14.40. The launcher used to check only that the 64-bit one existed and never installed the
+    32-bit one.) Installs each runtime that is missing or older than its "min_version".
+    Returns [(id, 'installed' | 'failed', text)]; nothing is raised, PLAY goes on either way."""
+    out = []
+    for item in (load_manifest(kit) if items is None else items):
+        source = item.get("source", {})
+        if not item.get("check_system") or source.get("type") != "installer":
+            continue
+        ok, have, why = system_file_status(item)
+        if ok:
+            continue
+        log(f"{item['name']}: " + ("not installed" if why == "missing" else
+                                   f"version {have} is too old (needs {item.get('min_version')} or newer)")
+            + ". Installing it now; Windows may ask for permission...")
+        try:
+            install(item, kit, ashita, fetch=fetch or _get, log=log, run=run)
+            ok, have, why = system_file_status(item)
+            problem = "" if ok else "its installer finished but the runtime is still " + ("missing" if why == "missing" else "the old one")
+        except Exception as e:
+            ok, problem = False, str(e)
+        if ok:
+            log(f"{item['name']}: installed ({have}).")
+            out.append((item["id"], "installed", have))
+        else:
+            log(f"{item['name']} could not be installed ({problem}). Without it the game or the server can stop as "
+                f"soon as it starts. Install it yourself from {source.get('url')} and press PLAY again.")
+            out.append((item["id"], "failed", problem))
+    return out
 
 
 def ssl_context():
@@ -287,7 +358,8 @@ def plan(item, names):
 # Squad chat and the crowd/bot chat both read "model" from squad-chat/config.json, so that is the one place to set it.
 SUGGESTED_MODELS = [
     ("gemma4:12b", "default: good chat, about 8 GB of video memory"),
-    ("gemma4:4b", "lighter: about 3 GB, for smaller graphics cards"),
+    # (2026-11-22, Yumainai: "ollama pull gemma4:4b failed") there is no gemma4:4b; the small ones are e2b and e4b
+    ("gemma4:e2b", "lighter: about 5 GB, for smaller graphics cards"),
     ("qwen3:8b", "about 5 GB"),
     ("qwen3:14b", "about 9 GB, needs a strong graphics card"),
     ("mistral-nemo:latest", "about 7 GB"),
@@ -347,7 +419,7 @@ def import_gguf(gguf_path, name=None, log=print, run=None):
     with open(modelfile, "w", encoding="utf-8") as f:
         f.write(f'FROM "{os.path.abspath(gguf_path)}"\n')
     log(f"Importing {os.path.basename(gguf_path)} into Ollama as {name} (this can take a few minutes)...")
-    out = (run or subprocess.run)([exe, "create", name, "-f", modelfile], capture_output=True, text=True,
+    out = (run or subprocess.run)([exe, "create", name, "-f", modelfile], capture_output=True, text=True, errors="replace",
                                   creationflags=NO_WINDOW)
     if out.returncode != 0:
         raise RuntimeError(((out.stderr or out.stdout or "").strip()[-300:]) or "ollama create failed")
@@ -380,7 +452,11 @@ def pull_model(model, log=print, popen=None):
                 log(f"AI model {model}: {lines[-1][:90]}")
             last = time.time()
     if proc.wait() != 0:
-        raise RuntimeError(f"ollama pull {model} failed (code {proc.returncode}).")
+        # what Ollama itself said last (a name that doesn't exist, an Ollama that is too old for the model, no room)
+        said = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", buffer.decode("utf-8", "replace")).replace("\r", "\n")
+        said = [l.strip() for l in said.splitlines() if l.strip()]
+        raise RuntimeError(f"ollama pull {model} failed (code {proc.returncode})."
+                           + (f"\n\nOllama said: {said[-1][:300]}" if said else ""))
     log(f"AI model {model} is ready.")
 
 
@@ -460,13 +536,13 @@ def extract_tree(archive_path, dest):
 def _extract_with_system_tar(archive_path, dest):
     """A .tar.zst with a Python that can't read zstd: the system's tar does it (SteamOS and most distros have zstd)."""
     import subprocess
-    listing = subprocess.run(["tar", "--zstd", "-tf", archive_path], capture_output=True, text=True)
+    listing = subprocess.run(["tar", "--zstd", "-tf", archive_path], capture_output=True, text=True, errors="replace")
     if listing.returncode != 0:
         raise RuntimeError("This system can't unpack .tar.zst files (install zstd).")
     for name in listing.stdout.splitlines():
         if name.startswith("/") or ".." in name.split("/"):
             raise RuntimeError(f"refusing a path outside the folder: {name}")
-    done = subprocess.run(["tar", "--zstd", "--no-same-owner", "-xf", archive_path, "-C", dest], capture_output=True, text=True)
+    done = subprocess.run(["tar", "--zstd", "--no-same-owner", "-xf", archive_path, "-C", dest], capture_output=True, text=True, errors="replace")
     if done.returncode != 0:
         raise RuntimeError("Unpacking failed: " + (done.stderr or "")[-300:])
 

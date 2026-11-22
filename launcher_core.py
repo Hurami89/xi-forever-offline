@@ -26,7 +26,7 @@ def ui_fonts():
         return "Segoe UI", "Consolas"
     families = set()
     try:
-        out = subprocess.run(["fc-list", ":", "family"], capture_output=True, text=True, timeout=5).stdout
+        out = subprocess.run(["fc-list", ":", "family"], capture_output=True, text=True, errors="replace", timeout=5).stdout
         for line in out.splitlines():
             families.update(part.strip() for part in line.split(","))
     except (OSError, subprocess.SubprocessError):
@@ -82,13 +82,16 @@ def load_config(path):
 
 # ---------- processes (Windows; Linux through launcher_linux, which reads /proc) ----------
 def _run(cmd):
-    return subprocess.run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW)
+    # errors="replace": (2026-11-22, R1PFake) on a Windows in another language, tasklist's "no tasks" line can have a letter the default
+    # decoding refuses; the output then came back as None and the helper that points PlayOnline at the game copy
+    # stopped at PLAY ("NoneType object has no attribute lower"). Only plain names are looked for in the output.
+    return subprocess.run(cmd, capture_output=True, text=True, errors="replace", creationflags=NO_WINDOW)
 
 def is_running(image_name):
     if not IS_WINDOWS:
         import launcher_linux
         return bool(launcher_linux.pids_named(image_name))
-    out = _run(["tasklist", "/FI", f"IMAGENAME eq {image_name}.exe", "/NH"]).stdout.lower()
+    out = (_run(["tasklist", "/FI", f"IMAGENAME eq {image_name}.exe", "/NH"]).stdout or "").lower()
     return f"{image_name.lower()}.exe" in out
 
 def count_running(image_name):
@@ -96,7 +99,7 @@ def count_running(image_name):
     if not IS_WINDOWS:
         import launcher_linux
         return len(launcher_linux.pids_named(image_name))
-    out = _run(["tasklist", "/FI", f"IMAGENAME eq {image_name}.exe", "/NH"]).stdout.lower()
+    out = (_run(["tasklist", "/FI", f"IMAGENAME eq {image_name}.exe", "/NH"]).stdout or "").lower()
     return out.count(f"{image_name.lower()}.exe")
 
 def kill(image_name):
@@ -162,13 +165,13 @@ def kill_squad_chat():
 def ensure_service(name):
     if not IS_WINDOWS:          # Linux installs always use the kit's own MariaDB (config.json mariadb_dir)
         return False
-    out = _run(["sc", "query", name]).stdout
+    out = _run(["sc", "query", name]).stdout or ""
     if "RUNNING" in out:
         return True
     if "does not exist" in out or "1060" in out:
         return False
     _run(["net", "start", name])
-    return "RUNNING" in _run(["sc", "query", name]).stdout
+    return "RUNNING" in (_run(["sc", "query", name]).stdout or "")
 
 
 # ---------- servers ----------
@@ -183,6 +186,114 @@ def start_server(cfg, name, logs_dir):
                          stdout=log, stderr=subprocess.STDOUT, creationflags=NO_WINDOW,
                          **({} if IS_WINDOWS else {"start_new_session": True}))
     return p, log
+
+def clear_half_made_certificate(server_dir):
+    """(2026-11-22, Helix, ManTears) The login server makes login.key and then login.cert on its first start. Stopped
+    in between (Windows blocked another server program and the launcher stopped them all), it left login.key alone,
+    and every start after that waited 30 seconds for a certificate nobody was making and stopped with "Cannot load
+    login.cert and login.key". Called while no server runs: a key without its certificate is removed, so the pair is
+    made again. The other way round too (Lion: the key renamed by hand, the certificate left): either file alone is
+    useless and stops every server that needs the pair. True when one was removed."""
+    key, cert = os.path.join(server_dir, "login.key"), os.path.join(server_dir, "login.cert")
+    if os.path.exists(key) == os.path.exists(cert):
+        return False                               # a complete pair, or a first start
+    alone = key if os.path.exists(key) else cert
+    for path in (alone, cert + ".tmp"):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    return not os.path.exists(alone)
+
+
+BLOCKED_BY_WINDOWS = 4551          # ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION: Smart App Control / an App Control policy
+
+
+def explain_start_error(problem):
+    """The text for the launcher's error box. Windows' own words for a blocked program say nothing about what to do."""
+    text = str(problem)
+    if getattr(problem, "winerror", None) == BLOCKED_BY_WINDOWS or "WinError 4551" in text:
+        return ("Windows blocked one of the game's programs (\"An Application Control policy has blocked this file\").\n\n"
+                "On a home PC that is Smart App Control: it stops programs that are not signed by a known publisher, "
+                "and the server programs are built by this project, not signed.\n\n"
+                "To play, turn it off: Windows Security > App & browser control > Smart App Control settings > Off, "
+                "then press PLAY again. On some versions of Windows it can only be turned on again by resetting the "
+                "PC, so that is yours to decide. On a work or school PC the block can come from its administrator "
+                "instead.")
+    if "forbidden by its access permissions" in text:
+        # (2026-11-22, Tetazos: xi_profile "bind: An attempt was made to access a socket in a way forbidden by its
+        # access permissions") Windows hands blocks of ports to Hyper-V, WSL and Docker, and one of them covers a port
+        # the server listens on. Restarting the service that holds them (winnat) gives them back.
+        return (text + "\n\nWhat this means: Windows has set aside the network port this server needs (Hyper-V, WSL "
+                "or Docker do that). To free it, open PowerShell as administrator and run these two lines, then press "
+                "PLAY again:\n\n    net stop winnat\n    net start winnat")
+    if "Only one usage of each socket address" in text:
+        return (text + "\n\nWhat this means: another program is already using the network port this server needs, "
+                "usually another FFXI server or a second copy of this one. Close it (or restart the PC) and press PLAY "
+                "again.")
+    return text
+
+
+def loader_log_since(since, appdata=None):
+    """(path, text) of the newest log xiloader wrote at or after `since` (xiloader 3 keeps one per start in
+    %APPDATA%\\xiloader\\logs), or ('', '')."""
+    folder = os.path.join(appdata or os.environ.get("APPDATA", ""), "xiloader", "logs")
+    try:
+        names = [n for n in os.listdir(folder) if n.lower().startswith("xiloader-") and n.lower().endswith(".log")]
+    except OSError:
+        return "", ""
+    best, best_time = "", since - 5
+    for name in names:
+        path = os.path.join(folder, name)
+        try:
+            written = os.path.getmtime(path)
+        except OSError:
+            continue
+        if written >= best_time:
+            best, best_time = path, written
+    if not best:
+        return "", ""
+    try:
+        with open(best, encoding="utf-8", errors="replace") as handle:
+            return best, handle.read()
+    except OSError:
+        return "", ""
+
+
+LOADER_TROUBLE = ("fail", "error", "unsupported", "not found", "cannot", "could not", "refused", "rejected", "expired")
+
+
+def game_gave_up(loader_log):
+    """True when the loader did its whole job (logged in, profile loaded, no complaint) and the game then closed by
+    itself: FINAL FANTASY XI's own start refused something."""
+    said = [row.strip().lower() for row in loader_log.splitlines() if row.strip()]
+    return (any("profile loaded" in row for row in said)
+            and not any(mark in row for row in said for mark in LOADER_TROUBLE))
+
+
+def why_game_closed(seconds, loader_log, windows=True):
+    """Lines for the launcher's log when the game closed soon after it started. Nothing on screen says why: the
+    loader's window closes with it, and FINAL FANTASY XI itself gives up without a message. loader_log: xiloader's own
+    log of this start ('' when it wrote none)."""
+    lines = [f"The game closed {int(seconds)} seconds after it started."]
+    rows = [row.strip() for row in loader_log.splitlines() if row.strip()]
+    said = [re.sub(r"^\[[^\]]*\]\s*", "", row) for row in rows]
+    trouble = [row for row in said if any(mark in row.lower() for mark in LOADER_TROUBLE)]
+    if not rows:
+        lines.append("The game loader (xiloader) wrote no log of this start, so it stopped before it could do anything."
+                     + (" The usual cause is an old or missing Microsoft Visual C++ runtime (x86): install "
+                        "https://aka.ms/vc14/vc_redist.x86.exe and press PLAY again. An antivirus that removed or "
+                        "blocked xiloader.exe does the same." if windows else ""))
+    elif trouble:
+        lines.append("The game loader said: " + " | ".join(trouble[-3:]))
+    elif any("profile loaded" in row.lower() for row in said):
+        lines.append("The loader logged in and handed over to FINAL FANTASY XI, and the game itself closed before its "
+                     "window opened. That points at the game files or how they are registered, not at the server. "
+                     "If it keeps happening, please report it with the logs folder.")
+    else:
+        lines.append("The game loader's last line: " + said[-1])
+    return lines
+
 
 def map_ready(logs_dir):
     try:

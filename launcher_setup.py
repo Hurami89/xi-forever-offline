@@ -227,7 +227,7 @@ def missing_libs(mariadb_dir):
         if not os.path.isfile(exe):
             continue
         try:
-            out = subprocess.run(["ldd", exe], capture_output=True, text=True, env=mariadb_env(mariadb_dir),
+            out = subprocess.run(["ldd", exe], capture_output=True, text=True, errors="replace", env=mariadb_env(mariadb_dir),
                                  timeout=60).stdout
         except (OSError, subprocess.SubprocessError):
             return []                                  # no ldd: MariaDB itself says what is wrong when it starts
@@ -306,7 +306,7 @@ def init_mariadb(mariadb_dir, root_password, port, run=subprocess.run):
         cmd = mariadb_cmd(base, "mariadb-install-db") + [
             f"--basedir={base}", f"--datadir={os.path.join(base, 'data')}", "--auth-root-authentication-method=normal",
             "--skip-test-db"] + (["--user=root"] if _as_root() else [])
-    result = run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW,
+    result = run(cmd, capture_output=True, text=True, errors="replace", creationflags=NO_WINDOW,
                  **({} if IS_WINDOWS else {"env": mariadb_env(mariadb_dir), "cwd": base}))
     if result.returncode != 0:
         out = ((result.stderr or "") + "\n" + (result.stdout or "")).strip()
@@ -414,7 +414,7 @@ def sql(mariadb_dir, port, user, password, statement, database=None, run=subproc
         ([f"-p{password}"] if password or IS_WINDOWS else []) + ["--batch", "--skip-column-names", "-e", statement]
     if database:
         cmd.insert(-2, database)
-    result = run(cmd, capture_output=True, text=True, creationflags=NO_WINDOW,
+    result = run(cmd, capture_output=True, text=True, errors="replace", creationflags=NO_WINDOW,
                  **({} if IS_WINDOWS else {"env": mariadb_env(mariadb_dir)}))
     if result.returncode != 0:
         raise RuntimeError((result.stderr or "").strip()[-500:] or "SQL failed")
@@ -717,7 +717,7 @@ def install_own_addons(kit, ashita_dir):
 def enable_new_addons(kit, ashita_dir, boot_name, log=print):
     """Turns Tetra Master on for the main window ONCE per install, when the kit has it: an existing install gets it
     with the update, and a player who switches it off later (OPTIONS > Addons) keeps it off. The marker file
-    <Ashita>\config\addons\tetramaster\enabled-once.txt remembers that it was done."""
+    <Ashita>/config/addons/tetramaster/enabled-once.txt remembers that it was done."""
     if not os.path.isfile(os.path.join(kit, TM_ADDON, TM_ADDON + ".lua")):
         return False
     import launcher_core as core
@@ -854,8 +854,9 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
                                    "minutes after a release). Wait a little and press Install again.")
             raise RuntimeError(f"The server files could not be downloaded ({problem}). Check the internet connection, "
                                "or choose a folder with a built server.")
-    if "vcredist" in items and not tp.status(items["vcredist"], kit, ashita)[0]:      # (Windows only)
-        tp.install(items["vcredist"], kit, ashita, fetch=fetch, log=log, run=run)
+    for iid in ("vcredist", "vcredist86"):       # (Windows only) 64-bit: server and database; 32-bit: xiloader, Ashita
+        if iid in items and not tp.status(items[iid], kit, ashita)[0]:
+            tp.install(items[iid], kit, ashita, fetch=fetch, log=log, run=run)
     log("   Ashita and xiloader...")
     for iid in ("ashita", "xiloader"):
         if not tp.status(items[iid], kit, ashita)[0]:

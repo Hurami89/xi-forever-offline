@@ -6,6 +6,19 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ### Fixes
 • Threw away the Forever Beta Shirt while it showed as a nameless Lv127 item? You get another one. After this update it is waiting in your delivery box, and the game tells you so when you log in. Once per character, and only if you have none left (bags, Mog House and delivery box all count).
+• The game or the server closing the moment it starts, without any message: the launcher now checks the Microsoft Visual C++ runtimes at setup and at every PLAY (the 32-bit one for the game loader and Ashita, the 64-bit one for the server and the database) and installs the current one when yours is missing or older than 14.40. Windows asks for permission once. Until now only the 64-bit one was looked at, and only whether it existed. (Leyna Crosse, Lion, RobinDesBois)
+• PLAY stopped with "NoneType object has no attribute lower" on Windows set to some languages other than English, when the launcher uses its own copy of the game. (R1PFake)
+• "xi_connect stopped unexpectedly ... Cannot load login.cert and login.key" after a first start that was cut short: the half-made key is removed and made again. (Helix, ManTears)
+• "[WinError 4551] An Application Control policy has blocked this file" now says what it is (Windows' Smart App Control) and what you can do about it. (Helix, ManTears)
+• A game that closes within a minute of starting no longer leaves you guessing: the launcher's log says what the game loader reported, and the loader's own log is kept as logs/xiloader-last.log for bug reports. (Sunie)
+• Linux: the game closing right after "Profile loaded." with nothing on screen (seen with game files updated after Square Enix's 18 November patch). The game checks its own version file against registry values that PlayOnline keeps up to date on Windows and that are fixed inside Proton. When it happens the launcher now switches on Ashita's Sandbox, which answers that check, and asks you to press PLAY again. (Sunie, Ziegh, skibbity rizzard)
+• Linux: backing up the world no longer prints a SyntaxWarning. (Sunie)
+• RULES page: Relaxed solo and Fast are marked SELECTED when you pick them; they used to count as "your own rates". (EyalRA)
+• Beaucedine Glacier: a treasure casket could turn up as "Peculiar Footprints" that did nothing when touched. (Bob Roberts)
+• Casino Dealer: a bet of gil alone was refused with "Gil only, please". (Yache; reported by Altair, Kentar4565)
+• AI chat model list: the lighter choice was "gemma4:4b", a model that doesn't exist, so picking it failed with "ollama pull ... failed". It is gemma4:e2b now, and a failed model download shows what Ollama itself said. (Yumainai)
+• "xi_profile stopped unexpectedly ... access a socket in a way forbidden by its access permissions": the launcher now says what it means (Windows set the port aside for Hyper-V, WSL or Docker) and the two commands that free it. (Tetazos)
+• Squad: a mate whose main job is level 1 keeps a level 1 support job, as a player does; it used to lose it. (wildthing; reported by Hammer)
 
 ## v0.1.59 · 22 November 2026
 

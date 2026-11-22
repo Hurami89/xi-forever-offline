@@ -4212,7 +4212,7 @@ class App(tk.Tk):
         except Cancelled:
             self.say("Stopped.")
         except Exception as e:
-            self.q.put(("error", str(e)))
+            self.q.put(("error", core.explain_start_error(e)))
             self.say("Failed - see the message.")
         finally:
             self.cleanup()
@@ -4228,6 +4228,18 @@ class App(tk.Tk):
         core.kill_stray_helpers()              # helpers an earlier launcher left running
         time.sleep(2)
         self.check()
+        if linux is None:                      # (2026-11-22) the Visual C++ runtimes: an old or missing one stops the game
+            try:                               # loader, Ashita or the server as it starts, without any message
+                import launcher_thirdparty as tp_runtimes
+                tp_runtimes.ensure_system_runtimes(HERE, cfg.get("ashita_dir"), log=self.say)
+            except Exception as e:
+                self.say(f"Could not check the Microsoft Visual C++ runtimes ({e}) - starting anyway.")
+            self.check()
+        try:                                   # a login key left without its certificate by a start that was cut short
+            if core.clear_half_made_certificate(cfg["server_dir"]):
+                self.say("Removed a half-made login certificate from an interrupted start; the server makes a new one.")
+        except Exception as e:
+            self.say(f"Could not check the login certificate ({e}) - starting anyway.")
         try:                                   # Ashita's target offset to match this game's version (target bar, XIUI)
             import launcher_game as lg_offsets
             got = lg_offsets.match_target_offset(cfg.get("ashita_dir", ""), cfg.get("ffxi_client_dir", ""))
@@ -4480,10 +4492,37 @@ class App(tk.Tk):
                                + core.tail(os.path.join(LOGS, "ashita.log")))
         self.say("Game is running in your friend's world." if getattr(self, "visit_mode", False)
                  else "Game is running. Closing it will stop the servers.")
+        began = time.time()
         while core.is_running("xiloader"):
             self.check()
             time.sleep(2)
         self.say("Game closed.")
+        self.explain_quick_close(began)
+
+    def explain_quick_close(self, began, appdata=None):
+        """(2026-11-22) A game that closes within a minute of starting says nothing about why: the loader's own log does.
+        Its lines go into the launcher's log, and a copy of that log into the logs folder for a bug report."""
+        seconds = time.time() - began
+        if seconds > 75 or self.stop_requested:
+            return
+        try:
+            import shutil
+            path, text = core.loader_log_since(began - 90, appdata)
+            for line in core.why_game_closed(seconds, text, windows=linux is None):
+                self.say(line)
+            if path:
+                shutil.copyfile(path, os.path.join(LOGS, "xiloader-last.log"))
+            # (2026-11-22, Sunie, Ziegh, skibbity rizzard) Linux: the game checks its version file (patch.ver) against
+            # the Interface values in the registry. PlayOnline keeps those right on Windows; in our Proton prefix they
+            # are fixed placeholders, so a game updated after Square Enix's 2026-11-18 patch fails the check and closes
+            # right after "Profile loaded." Ashita's Sandbox answers that check itself: switched on once, for good.
+            if linux is not None and core.game_gave_up(text) and not self.cfg.get("linux_sandbox"):
+                self.cfg["linux_sandbox"] = True
+                save_config_value("linux_sandbox", True)
+                self.say("Linux: this game version needs Ashita's Sandbox to pass its own version check. It is "
+                         "switched on now: press PLAY again.")
+        except Exception as e:
+            self.say(f"Could not read the game loader's log ({e}).")
 
     def launch_ashita_linux(self):
         """Linux: Ashita (and through it xiloader and the game) through Proton. Waits until the game has closed."""
@@ -4520,10 +4559,17 @@ class App(tk.Tk):
             time.sleep(1)
         self.say("Game is running in your friend's world." if getattr(self, "visit_mode", False)
                  else "Game is running. Closing it will stop the servers.")
+        began = time.time()
         while linux.game_running(self.game_proc):
             self.check()
             time.sleep(2)
         self.say("Game closed.")
+        try:                                   # the loader's log is inside the game's Windows folder (Proton's prefix)
+            import glob
+            roaming = glob.glob(os.path.join(HERE, "prefix", "drive_c", "users", "*", "AppData", "Roaming"))
+        except Exception:
+            roaming = []
+        self.explain_quick_close(began, roaming[0] if roaming else None)
 
     def launch_plain(self):
         cfg = self.cfg
@@ -4618,7 +4664,7 @@ class App(tk.Tk):
             return
         try:
             mode = "modern" if self.rates.get("modern_stacks", True) else "era"
-            done = subprocess.run(core.py_cmd(script, "db", mode), cwd=HERE, capture_output=True, text=True, timeout=90,
+            done = subprocess.run(core.py_cmd(script, "db", mode), cwd=HERE, capture_output=True, text=True, errors="replace", timeout=90,
                                   creationflags=core.NO_WINDOW)
             lines = (done.stdout or "").strip().splitlines()
             if done.returncode != 0:
@@ -4628,7 +4674,7 @@ class App(tk.Tk):
                 self.say(lines[-1][:1].upper() + lines[-1][1:])
             # a player install does the game files in launcher_client.apply_all; this PC (no kit MariaDB) does them here
             if not core.load_config(os.path.join(HERE, "config.json")).get("mariadb_dir"):
-                done = subprocess.run(core.py_cmd(script, "dats", mode), cwd=HERE, capture_output=True, text=True, timeout=120,
+                done = subprocess.run(core.py_cmd(script, "dats", mode), cwd=HERE, capture_output=True, text=True, errors="replace", timeout=120,
                                       creationflags=core.NO_WINDOW)
                 lines = (done.stdout or "").strip().splitlines()
                 if done.returncode != 0:
@@ -4647,7 +4693,7 @@ class App(tk.Tk):
             if not cfg.get("char_sync") or not cfg.get("char_sync_dir"):
                 return
             done = subprocess.run(core.py_cmd(os.path.join(HERE, "launcher_passport.py"), mode), cwd=HERE, capture_output=True,
-                                  text=True, timeout=120, creationflags=core.NO_WINDOW)
+                                  text=True, errors="replace", timeout=120, creationflags=core.NO_WINDOW)
             lines = (done.stdout or "").strip().splitlines()
             if done.returncode != 0:
                 errors = (done.stderr or "").strip().splitlines()
@@ -4663,7 +4709,7 @@ class App(tk.Tk):
         if not self.rates.get("conquest_sim", True) or not os.path.exists(script):
             return False
         try:
-            done = subprocess.run(core.py_cmd(script, mode), cwd=HERE, capture_output=True, text=True, timeout=90,
+            done = subprocess.run(core.py_cmd(script, mode), cwd=HERE, capture_output=True, text=True, errors="replace", timeout=90,
                                   creationflags=core.NO_WINDOW)
             if done.returncode != 0:
                 lines = (done.stderr or done.stdout or "").strip().splitlines()
