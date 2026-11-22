@@ -1028,5 +1028,249 @@ do
     check(okp and gp.formats == 0 and hasTip(gp, '100%d %s Rook') and balanced(gp), 'a mate name with "%d %s": tooltips show it exactly, no format call: ' .. tostring(errp))
 end
 
+-- ================================================================= 0.3.2: the Party roles section (!gsq v7 prl / prs)
+section('0.3.2 Party roles: server-confirmed only, Auto with several targets, the whole party in the summary, the Aldric case')
+do
+    -- the real server module answers: the editor's line goes out through the real transport, gambits_squad.lua answers
+    package.preload['modules/custom/lua/squad_jobs'] = function() return dofile(LUA_DIR .. '/squad_jobs.lua') end
+    local cv, lv = {}, {}
+    srv.getCharVar = function(_, k) return cv[k] or 0 end
+    srv.setCharVar = function(_, k, v) cv[k] = (v ~= 0) and v or nil end
+    srv.getLocalVar = function(_, k) return lv[k] or 0 end
+    srv.setLocalVar = function(_, k, v) lv[k] = v end
+    srv.getMainJob = function() return 3 end
+    srv.getMainLvl = function() return 30 end
+    srv.getName = function() return 'Testcharone' end
+    local function member(o)
+        local e = { vars = { SQUAD_ID = o.squadId or 0, SQUAD_ROLE = o.role or 0 } }
+        function e:getID() return o.id end
+        function e:getObjType() return o.pc and xi.objType.PC or xi.objType.TRUST end
+        function e:getMainJob() return o.job end
+        function e:getMainLvl() return o.lvl or 30 end
+        function e:getSubJob() return 0 end
+        function e:getSubLvl() return 0 end
+        function e:getMaster() return o.master end
+        function e:getName() return o.name end
+        function e:getPacketName() return o.name end
+        function e:getLocalVar(k) return self.vars[k] or 0 end
+        function e:setLocalVar(k, v) self.vars[k] = v end
+        return e
+    end
+    -- the squad for this section: Aldric WAR 20 (out), Lyra WHM 30 (out, the healer), Hild PLD 30 (not summoned)
+    local savedSquad = {}
+    for i, m in ipairs(SQUAD) do savedSquad[i] = m end
+    for i = #SQUAD, 1, -1 do SQUAD[i] = nil end
+    SQUAD[1] = { slot = 7, id = 107, name = 'Aldric', mjob = JOB.WAR, sjob = 0, jobs = { [JOB.WAR] = { level = 20 } } }
+    SQUAD[2] = { slot = 8, id = 108, name = 'Lyra', mjob = JOB.WHM, sjob = 0, jobs = { [JOB.WHM] = { level = 30 } } }
+    SQUAD[3] = { slot = 9, id = 109, name = 'Hild', mjob = JOB.PLD, sjob = 0, jobs = { [JOB.PLD] = { level = 30 } } }
+    local aldric = member({ id = 6001, squadId = 107, job = JOB.WAR, lvl = 20, master = srv, name = 'Aldric' })
+    local lyra = member({ id = 6002, squadId = 108, job = JOB.WHM, master = srv, name = 'Lyra' })
+    local dual = member({ id = 2, pc = true, job = JOB.PLD, name = 'Dualpld' })
+    local partyNow = { srv, aldric, lyra }
+    srv.getPartyWithTrusts = function() return partyNow end
+
+    local drop, sentLog = false, {}
+    local function serve(rounds)
+        for _ = 1, rounds or 40 do
+            clock = clock + 0.3
+            M.tick()
+            local pending = sent
+            sent = {}
+            for _, l in ipairs(pending) do
+                sentLog[#sentLog + 1] = l
+                local body = l:match('^/say !gsq (.*)$')
+                if body then
+                    M.text_in('Testcharone : !gsq ' .. body, 'Testcharone : !gsq ' .. body)
+                    if not drop then
+                        srv.printed = {}
+                        G.handle(srv, body)
+                        for _, ans in ipairs(srv.printed) do M.text_in(ans, ans) end
+                    end
+                end
+            end
+
+            if not M.busy() and #sent == 0 then
+                break
+            end
+        end
+    end
+    local function sentCount(verb)
+        local c = 0
+        for _, l in ipairs(sentLog) do if l:find('^/say !gsq ' .. verb .. ' ') then c = c + 1 end end
+        for _, l in ipairs(sent) do if l:find('^/say !gsq ' .. verb .. ' ') then c = c + 1 end end
+        return c
+    end
+    local function fresh(opts, version)
+        local g = fakeGui(opts)
+        setup(g, 1, { num = 3, job = 'WHM', name = 'Healer', flags = 'o', rules = { rule('TANK', 'NOT_STATUS', 'REGEN', nil, nil, 'family', 'REGEN') } })
+        S.server.version = version or 7
+        S.roles, S.rolesGen = nil, 0
+        sent, sentLog = {}, {}
+        return g
+    end
+
+    -- K1: an older server: one update line, no dropdowns, no request
+    local g1 = fresh({}, 6)
+    S.rolesOpen = true
+    M.draw(); M.draw()
+    check(sentCount('prl') == 0 and hasText(g1, 'Party roles need the server update') and not logHas(g1, 'combo ##gsq-role-'),
+          'K1 server version 6: the update line only; no dropdowns, no prl')
+    check(not M.roles_set(7, 1) and sentCount('prs') == 0, 'K1 and roles_set does nothing (no prs sent)')
+    -- K2: closed sends nothing; opening sends exactly one prl
+    local g2 = fresh({}, 7)
+    S.rolesOpen = false
+    M.draw(); M.draw()
+    check(sentCount('prl') == 0 and hasText(g2, 'Open this section to see who counts as'), 'K2 closed: nothing sent; the summary says to open it')
+    S.rolesOpen = true
+    M.draw(); M.draw()
+    clock = clock + 0.3
+    M.tick() -- (the transport sends on its tick)
+    M.draw()
+    check(sentCount('prl') == 1, 'K2 opened: exactly one prl (also after more frames while it is loading)')
+    serve()
+    M.draw()
+    check(S.roles and S.roles.rows and #S.roles.rows == 4 and S.roles.byWho[0].name == 'Testcharone' and sentCount('prl') == 1,
+          'K2 the answer: you + 3 mates; still one prl after the answer')
+    -- K3 / K11: the rows; Auto shows every target of the job
+    local g3 = fresh({ combos = { ['##gsq-role-7'] = true, ['##gsq-role-9'] = true }, hover = true }, 7)
+    S.rolesOpen = true
+    M.draw(); serve(); M.draw()
+    check(logHas(g3, 'combo ##gsq-role-7 = Auto (Melee)') and logHas(g3, 'combo ##gsq-role-9 = Auto (Tank, Melee)'),
+          'K3 Aldric WAR: "Auto (Melee)"; Hild PLD: "Auto (Tank, Melee)" (Auto can be more than one target)')
+    check(hasText(g3, 'Hild') and hasText(g3, 'PLD 30  (not summoned)') and hasText(g3, 'applies when called') and hasText(g3, 'in effect'),
+          'K3 a mate not out is marked "(not summoned)" / "applies when called"; the mates out "in effect"')
+    check(hasTip(g3, 'Some jobs count for more than one target') and hasTip(g3, 'counts as Tank only, whatever its job: no longer Melee'),
+          'K3 tooltips: Auto can mean several targets; an explicit role replaces the job ("no longer Melee")')
+    check(M.roles_summary(S.roles):find('Tank: nobody', 1, true) and M.roles_summary(S.roles):find('Not summoned: Hild (Tank, Melee)', 1, true),
+          'K11 the Aldric case before: "Tank: nobody" in the party now; Hild (not out) is listed apart, not counted')
+    -- K4 / K11: choose Tank for Aldric: nothing changes before the answer; then the server's row
+    local before = M.encode_rule(S.draft.rules[1])
+    g3.picks['##gsq-role-7'] = 'Tank'
+    M.draw()
+    local pend = S.roles.byWho[7]
+    check(pend.set == 0 and pend.pending ~= nil and pend.pending.role == 1, 'K4 picking Tank: the row still has the server value (Auto) and is pending; nothing confirmed yet')
+    g3.log = {}
+    M.draw()
+    check(logHas(g3, 'combo ##gsq-role-7 = Auto (Melee)') and logHas(g3, 'disabled') and hasText(g3, 'saving...'),
+          'K4 while pending: the dropdown still shows the server value, disabled, "saving..."')
+    serve()
+    local row = S.roles.byWho[7]
+    check(sentCount('prs') == 1 and sentLog[#sentLog]:find('prs %d+ 7 1') and row.set == 1 and row.live == 1 and row.out and row.pending == nil,
+          'K4 the server answer: Aldric tank, stored and live (one prs 7 1)')
+    check(cv.SQUAD_PROLE_107 == 1 and aldric:getLocalVar('SQUAD_ROLE') == 1, 'K11 on the server: stored AND live on Aldric at once (no recall)')
+    check(S.message:find('Aldric: Tank (server confirmed), in effect now.', 1, true), 'K4 the message comes from the answer: ' .. tostring(S.message))
+    check(M.roles_summary(S.roles):find('Tank: Aldric (set)', 1, true) and not M.roles_summary(S.roles):find('Melee: Aldric', 1, true),
+          'K11 after: "Tank: Aldric (set)", and Aldric no longer counts as Melee')
+    check(M.encode_rule(S.draft.rules[1]) == before, 'K11 the healer\'s "Tank -> missing Regen -> Regen" rule is unchanged')
+    -- K6: back to Auto for a summoned mate
+    M.roles_set(7, 0)
+    serve()
+    row = S.roles.byWho[7]
+    check(row.set == 0 and row.live == 0 and cv.SQUAD_PROLE_107 == nil and aldric:getLocalVar('SQUAD_ROLE') == 0
+          and M.roles_summary(S.roles):find('Tank: nobody', 1, true), 'K6 Auto again: stored cleared, live 0 at once; "Tank: nobody" again')
+    -- K5: a refused change and a lost answer: the old row stays, no success text
+    local keepSquad = SQUAD[1]
+    SQUAD[1] = nil
+    SQUAD[1], SQUAD[2], SQUAD[3] = SQUAD[2], SQUAD[3], nil
+    M.roles_set(7, 2)
+    serve()
+    row = S.roles.byWho[7]
+    check(row.set == 0 and row.pending == nil and S.message:find('Party role NOT changed', 1, true) and not S.message:find('confirmed', 1, true),
+          'K5 refused by the server (no such slot in your squad): the old row stays, "NOT changed", no success text')
+    SQUAD[3], SQUAD[2], SQUAD[1] = SQUAD[2], SQUAD[1], keepSquad
+    drop = true
+    M.roles_set(7, 4)
+    serve(400)
+    drop = false
+    row = S.roles.byWho[7]
+    check(row.set == 0 and row.pending == nil and S.message:find('NOT changed', 1, true), 'K5 no answer at all (timeout): the old row stays, "NOT changed": ' .. tostring(S.message))
+    -- out of order: an older list answer never overwrites a newer confirmed change; a change answer for an old row is ignored
+    M.roles_load()
+    local genAtLoad = S.rolesGen
+    S.rolesGen = S.rolesGen + 1 -- (what a confirmed change does meanwhile)
+    local rolesBefore = S.roles
+    serve()
+    check(S.roles == rolesBefore and S.roles.loading == nil and genAtLoad < S.rolesGen, 'an older prl answer is not used (a newer change came since)')
+    M.roles_set(7, 3)
+    S.roles.byWho[7].pending.token = {} -- (the list was reloaded meanwhile: the pending change belongs to an older row)
+    serve()
+    check(S.roles.byWho[7].set == 0, 'a prs answer for an older row does not overwrite the newer list')
+    S.roles.byWho[7].pending = nil
+    -- K7: the summary includes members the UI cannot edit (a dualbox PLD), so it never says "Tank: nobody" wrongly
+    partyNow[#partyNow + 1] = dual
+    S.roles = nil
+    M.roles_load(); serve()
+    local sum = M.roles_summary(S.roles)
+    check(sum:find('Tank: Dualpld', 1, true) and not sum:find('Tank: nobody', 1, true) and sum:find('Includes 1 member of other characters', 1, true),
+          'K7 a dualbox PLD in the party: "Tank: Dualpld", not "nobody"; the summary says it includes another character: ' .. sum)
+    local g7 = fresh({}, 7)
+    S.rolesOpen = true
+    M.draw(); serve(); M.draw()
+    check(hasText(g7, 'Other party members (set on their own character)') and hasText(g7, 'Dualpld  PLD  Tank, Melee') and not logHas(g7, 'combo ##gsq-role-Dualpld'),
+          'K7 the open section lists the dualbox character read-only (no dropdown)')
+    table.remove(partyNow)
+    S.roles.stale = true
+    check(M.roles_summary(S.roles):find('Open this section to update', 1, true) and not M.roles_summary(S.roles):find('Tank:', 1, true),
+          'K7 after the squad changed: the summary asks to update, it shows no old counts')
+    S.roles = { error = 'timeout' }
+    check(M.roles_summary(S.roles):find('could not be loaded (timeout)', 1, true), 'K7 a failed load: the summary says so, no counts')
+    -- a reload that fails while an older list is shown: tried once (no retry every frame), no old counts in the summary
+    local g12 = fresh({}, 7)
+    S.rolesOpen = true
+    M.draw(); serve(); M.draw()
+    S.roles.stale = true
+    drop = true
+    for _ = 1, 30 do M.draw(); clock = clock + 0.3; M.tick() end
+    serve(400)
+    for _ = 1, 30 do M.draw(); clock = clock + 0.3; M.tick() end
+    drop = false
+    local s12 = M.roles_summary(S.roles)
+    check(sentCount('prl') <= 4 and S.roles.error ~= nil and S.roles.rows ~= nil and s12:find('could not be loaded', 1, true)
+          and not s12:find('Tank:', 1, true) and hasText(g12, 'The last update failed'),
+          string.format('K7 a failed reload: one request (resent by the transport at most, %d lines), no retry loop, the summary shows no old counts', sentCount('prl')))
+    sent = {}
+    local before12 = sentCount('prl')
+    for _ = 1, 20 do M.draw(); clock = clock + 0.3; M.tick() end
+    check(sentCount('prl') == before12, 'K7 after the failure: no new automatic prl')
+    serve()
+    -- K8: the open state is remembered (pref whitelist), and the rule list makes room for it
+    local g8 = fresh({ collapsing = true }, 7)
+    S.rolesOpen = false
+    prefs.roles_open = nil
+    g8.clicks.header = true
+    M.roles_section()
+    check(S.rolesOpen == true and prefs.roles_open == true, 'K8 clicking the header opens it and remembers roles_open')
+    local gs = readAll(ADDON_DIR .. '/Gambits.lua')
+    check(gs:find('roles_open = true }', 1, true) and gs:find("s.roles_open = s.roles_open == true", 1, true) and gs:find("addon.version = '0.3.2'", 1, true),
+          'K8 Gambits.lua: roles_open whitelisted and cleaned; version 0.3.2')
+    serve()
+    -- K9: themes and sizes, open with every dropdown and tooltip, narrow window: balanced, no format calls
+    for _, case in ipairs({ { 'classic', 1, { 1000, 560 } }, { 'squad', 0.7, { 700, 400 } }, { 'crimson', 2, { 1060, 580 } } }) do
+        local g = fakeGui({ avail = case[3], hover = true, combos = { ['##gsq-role-0'] = true, ['##gsq-role-7'] = true } })
+        setup(g, 1, { num = 3, job = 'WHM', name = 'Healer', flags = 'o', rules = { rule('TANK', 'NOT_STATUS', 'REGEN', nil, nil, 'family', 'REGEN') } }, case[2])
+        S.server.version = 7
+        M.set_theme(case[1])
+        S.rolesOpen = true
+        S.roles = nil
+        M.draw(); serve(); M.draw(); M.draw()
+        check(balanced(g) and g.formats == 0 and logHas(g, 'combo ##gsq-role-0 = Auto (Mage)'),
+              string.format('K9 %s at %d %%, %dx%d: the section draws balanced, 0 format calls, your row "Auto (Mage)"', case[1], case[2] * 100, case[3][1], case[3][2]))
+    end
+    M.set_theme('classic')
+    -- K10: the answers are checked strictly
+    local function f(...) return { 'GSQ', '1', ... } end
+    check(M.parse_roles({ f('pr', '0', 'You', 'WHM', '30', '0', 'C', '1', '0') }) ~= nil, 'K10 a good pr line is read')
+    check(M.parse_roles({ f('pr', '0', 'You', 'WHM', '30', '0', 'X', '1', '0') }) == nil, 'K10 a bad target letter is refused')
+    check(M.parse_roles({ f('pr', '0', 'You', 'WHM', '30', '9', 'C', '1', '0') }) == nil, 'K10 a role out of range is refused')
+    check(M.parse_roles({ f('pr', '0', 'You', 'WHM', '30', '0', 'C', '1', '0'), f('pr', '0', 'You', 'WHM', '30', '0', 'C', '1', '0') }) == nil,
+          'K10 the same who twice is refused')
+    check(M.parse_roles({ f('pr', '0', 'You', 'WHM', '30', '0', 'C', '1') }) == nil and M.parse_roles({ f('pm', 'X', 'PLD', 'q', 'TM') }) == nil
+          and M.parse_roles({ f('mate', '1') }) == nil, 'K10 a short line, a bad member kind or a foreign line is refused')
+    -- restore
+    for i = #SQUAD, 1, -1 do SQUAD[i] = nil end
+    for i, m in ipairs(savedSquad) do SQUAD[i] = m end
+    S.roles, S.rolesOpen = nil, false
+end
+
 io.write(string.format('\npassed %d, failed %d\n', passed, failed))
 os.exit(failed == 0 and 0 or 1)

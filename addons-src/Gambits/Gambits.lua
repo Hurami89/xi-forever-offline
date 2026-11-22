@@ -19,7 +19,7 @@ Files: Gambits.lua (this shell), transport.lua (chat transport), squad_editor.lu
 
 addon.name    = 'Gambits'
 addon.author  = 'XI: Forever Offline'
-addon.version = '0.3.1'
+addon.version = '0.3.2'
 addon.desc    = 'Gambits: Rule Sets for your squad mates (Target -> Conditions -> Action).'
 addon.link    = ''
 
@@ -97,10 +97,10 @@ end
 
 -- ---------------------------------------------------------------- settings
 -- (0.3.1) show_all: the editor's Show all (every spell family / spell the server offers); ws_open: the Weapon Skills
--- section is open
+-- section is open; (0.3.2) roles_open: the Party roles section is open
 local DEFAULTS = { theme = 'classic', scale = 100, interval = 1.0, hide_echo = true, win_w = 0, win_h = 0, show_all = false,
-                   ws_open = false }
-local PREFS = { show_all = true, ws_open = true } -- (the editor may read and set only these)
+                   ws_open = false, roles_open = false }
+local PREFS = { show_all = true, ws_open = true, roles_open = true } -- (the editor may read and set only these)
 local settingsLib
 do
     local ok, mod = pcall(require, 'settings')
@@ -118,6 +118,7 @@ local function clean_settings(s)
     s.win_h = math.max(0, math.floor(tonumber(s.win_h) or 0))
     s.show_all = s.show_all == true
     s.ws_open = s.ws_open == true
+    s.roles_open = s.roles_open == true
     return s
 end
 
