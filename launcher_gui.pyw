@@ -6,6 +6,7 @@ from tkinter import ttk, messagebox, simpledialog, filedialog
 HERE = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))  # the kit folder
 sys.path.insert(0, HERE)
 import launcher_core as core
+import launcher_gamepad as gp
 
 IS_WINDOWS = os.name == "nt"
 UI_FONT, MONO_FONT = core.ui_fonts()
@@ -61,7 +62,7 @@ LIST_HINT_SECOND = "Tick what you want loaded in the second window (dualbox). Ch
 # The page buttons along the bottom: (picture in assets\\ui, name, the pages it opens). A button for several pages opens the one you were last on
 # in it. A page that is in none of them gets a MORE button, so nothing is ever unreachable.
 NAV_BUTTONS = (("home", "HOME", ("Play",)), ("squad", "SQUADS", ("Squad",)), ("coop", "CO-OP", ("Co-op",)),
-               ("config", "CONFIG", ("Rates", "Graphics", "Shaders")),
+               ("config", "CONFIG", ("Rates", "Graphics", "Shaders", "Controller")),
                ("addons", "ADDONS", ("Addons", "Plugins", "Other")), ("settings", "SETTINGS", ("Settings",)))
 PRESS_ANCHOR = 0.38      # press pictures are wider than the frame is tall: keep the part 38% of the way down (sky and skyline are above, people below)
 PRESS_NOTE = ""
@@ -599,6 +600,17 @@ class RulesEditor(tk.Toplevel):
         style.configure("Rules.Treeview", background=PANEL, fieldbackground=PANEL, foreground=FG, rowheight=24, borderwidth=0)
         style.map("Rules.Treeview", background=[("selected", ACCENT)], foreground=[("selected", "white")])
         style.configure("Rules.Treeview.Heading", background=PANEL2, foreground=FG, relief="flat")
+        # (2026-11-22, wildthing: players looked here for a way to add spells) what this editor is, and where the rest lives
+        note = tk.Frame(self, bg=PANEL2)
+        note.pack(fill="x", padx=12, pady=(12, 0))
+        tk.Label(note, text="Job rules are the built-in behaviour every squad mate of a job follows: when it uses the abilities "
+                            "and spells its job already knows. They can't add new spells or choose them for one mate. For that, "
+                            "use Gambits: type /gambits in the game to give one mate your own Rule Sets (spells, targets, "
+                            "conditions, weapon skills). When a Gambits Rule Set is applied to a mate, it decides that mate's actions.",
+                 bg=PANEL2, fg=FG, wraplength=820, justify="left").pack(side="left", padx=10, pady=8)
+        tk.Button(note, text="Gambits guide", relief="flat", bg=ACCENT, fg="white", padx=10,
+                  command=lambda: __import__("webbrowser").open(
+                      "https://discord.com/channels/1571346961779400859/1573535859980894338")).pack(side="right", padx=10, pady=8)
         top = tk.Frame(self, bg=BG)
         top.pack(fill="x", padx=12, pady=(12, 4))
         tk.Label(top, text="Job", bg=BG, fg=FG).pack(side="left")
@@ -974,7 +986,10 @@ class SquadTab(tk.Frame):
                  bg=BG, fg=DIM, justify="left").pack(anchor="w", padx=10, pady=(8, 4))
         tk.Label(page, text="Applies the next time you call the mate. Change it with the game closed here, or in the game (the Squad panel, /sq).",
                  bg=BG, fg=DIM, wraplength=470, justify="left").pack(anchor="w", padx=10)
-        tk.Button(page, text="Edit job rules...", command=self.open_rules, bg=ACCENT, fg="white", relief="flat", padx=14, pady=4).pack(anchor="w", padx=10, pady=12)
+        tk.Button(page, text="Edit job rules...", command=self.open_rules, bg=ACCENT, fg="white", relief="flat", padx=14, pady=4).pack(anchor="w", padx=10, pady=(12, 2))
+        tk.Label(page, text="Job rules set how every mate of a job behaves by default. To choose your own spells, targets and "
+                            "conditions for one mate, use Gambits instead (type /gambits in the game).",
+                 bg=BG, fg=DIM, wraplength=520, justify="left").pack(anchor="w", padx=10, pady=(0, 8))
 
     def build_greetings_page(self, pages):
         page = tk.Frame(pages, bg=BG)
@@ -2008,6 +2023,141 @@ class RatesTab(tk.Frame):
         rates["bots_head_start_done"] = self.head_start_done
         rates["claim_shield"] = False
         return core.lock_player_rates(rates) if self.player else rates
+
+
+class ControllerTab(tk.Frame):
+    """(2026-11-22) Controller setup from the launcher, instead of FFXI's own FFXiPadConfig.exe (launcher_gamepad.py,
+    ported from LocalXI). Written into the Ashita boot file's [ffxi.registry] when PLAY is pressed."""
+
+    def __init__(self, parent, values):
+        super().__init__(parent, bg=BG)
+        values = gp.clean(values)
+        self.applied = values["applied"]
+        self.managed = tk.BooleanVar(value=values["managed"])
+        self.enabled = tk.BooleanVar(value=values["enabled"])
+        self.kind = tk.StringVar(value=gp.CONTROLLER_NAMES[values["type"]])
+        self.steam = tk.BooleanVar(value=values["steam_input"])
+        self.confirm_right = tk.BooleanVar(value=values["confirm_right"])
+        self.vibration = tk.BooleanVar(value=values["vibration"])
+        self.background = tk.BooleanVar(value=values["background"])
+        self.invert = tk.BooleanVar(value=values["invert_camera"])
+        self.chosen = dict(values["buttons"])          # slot -> button id the player changed
+        self.action_vars = {}
+
+        def check(parent, text, var, command=None):
+            b = tk.Checkbutton(parent, text=text, variable=var, command=command, bg=BG, fg=FG, selectcolor=PANEL,
+                               activebackground=BG, activeforeground=FG, anchor="w", justify="left")
+            b.pack(anchor="w", padx=10, pady=1)
+            return b
+
+        check(self, "Set up my controller here", self.managed, self.refresh)
+        tk.Label(self, text="Off = the game keeps what FFXI's own gamepad tool saved. Applied when you press PLAY "
+                            "(the main window; the dualbox window keeps its own).",
+                 bg=BG, fg=DIM, wraplength=760, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=10, pady=(0, 6))
+
+        self.body = tk.Frame(self, bg=BG)
+        self.body.pack(fill="both", expand=True)
+        left = tk.Frame(self.body, bg=BG)
+        left.pack(side="left", fill="y", anchor="n")
+        row = tk.Frame(left, bg=BG)
+        row.pack(anchor="w", padx=10, pady=4)
+        tk.Label(row, text="Controller:", bg=BG, fg=FG).pack(side="left")
+        box = ttk.Combobox(row, values=[n for _, n in gp.CONTROLLERS], textvariable=self.kind, state="readonly", width=26)
+        box.pack(side="left", padx=6)
+        box.bind("<<ComboboxSelected>>", self.kind_changed)
+        check(left, "Use a controller (off: keyboard only, and no controller search, which can stutter)", self.enabled)
+        self.steam_box = check(left, "PlayStation pad through Steam Input or DS4Windows", self.steam, self.layout_changed)
+        check(left, "Confirm with the right face button (Nintendo's A, Japanese style)", self.confirm_right, self.layout_changed)
+        check(left, "Vibration", self.vibration)
+        check(left, "Controller works while the game is in the background", self.background)
+        check(left, "Invert camera up / down", self.invert)
+        self.hint = tk.Label(left, text="", bg=BG, fg=DIM, wraplength=330, justify="left", font=(UI_FONT, 9))
+        self.hint.pack(anchor="w", padx=10, pady=(8, 0))
+        bar = tk.Frame(left, bg=BG)
+        bar.pack(anchor="w", padx=10, pady=10)
+        tk.Button(bar, text="Reset buttons", command=self.reset_buttons, bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left")
+        tk.Button(bar, text="FFXI's own gamepad tool", command=lambda: GraphicsTab.open_pad_config(self),
+                  bg=PANEL, fg=FG, relief="flat", padx=10).pack(side="left", padx=6)
+
+        right = tk.Frame(self.body, bg=BG)
+        right.pack(side="left", fill="both", expand=True, anchor="n", padx=(20, 10))
+        tk.Label(right, text="Buttons", bg=BG, fg=FG, font=(UI_FONT, 10, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=(4, 4))
+        self.boxes = {}
+        for i, (slot, name) in enumerate(gp.ACTIONS, start=1):
+            tk.Label(right, text=name, bg=BG, fg=FG, anchor="w").grid(row=i, column=0, sticky="w", pady=1)
+            var = tk.StringVar()
+            b = ttk.Combobox(right, textvariable=var, state="readonly", width=20)
+            b.grid(row=i, column=1, sticky="w", padx=6, pady=1)
+            b.bind("<<ComboboxSelected>>", lambda _e, s=slot: self.button_changed(s))
+            self.action_vars[slot], self.boxes[slot] = var, b
+        tk.Label(right, text="Sticks and D-pad: left stick moves, right stick turns the camera, D-pad moves in menus.",
+                 bg=BG, fg=DIM, wraplength=420, justify="left", font=(UI_FONT, 9)).grid(row=len(gp.ACTIONS) + 1, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        self.layout_changed()
+
+    def _type(self):
+        return next((k for k, n in gp.CONTROLLERS if n == self.kind.get()), "xbox")
+
+    def collect(self):
+        values = {"managed": self.managed.get(), "enabled": self.enabled.get(), "type": self._type(),
+                  "steam_input": self.steam.get(), "confirm_right": self.confirm_right.get(),
+                  "vibration": self.vibration.get(), "background": self.background.get(),
+                  "invert_camera": self.invert.get(), "buttons": dict(self.chosen), "applied": self.applied}
+        return gp.clean(values)
+
+    def kind_changed(self, _event=None):
+        kind = self._type()
+        self.confirm_right.set(kind in ("switch", "switch2"))      # Nintendo's A is the right button
+        if kind not in ("ps4", "ps5"):
+            self.steam.set(False)
+        self.chosen = {}                                            # button numbers differ between pads
+        self.layout_changed()
+
+    def layout_changed(self):
+        values = self.collect()
+        self.chosen = dict(values["buttons"])
+        names = gp.buttons(values)
+        self.names = {b: n for b, n in names}
+        current = gp.default_buttons(values)
+        current.update(self.chosen)
+        for slot, var in self.action_vars.items():
+            self.boxes[slot].configure(values=[n for _, n in names])
+            var.set(self.names.get(current.get(slot, gp.NONE), "(nothing)"))
+        kind = values["type"]
+        self.steam_box.configure(state="normal" if kind in ("ps4", "ps5") else "disabled")
+        if kind in ("switch", "switch2"):
+            text = "Nintendo controllers need Steam Input (or BetterJoy for the Switch 1 Pro), which makes them act like an Xbox pad."
+        elif kind in ("ps4", "ps5") and not values["steam_input"]:
+            text = "Plugged in directly, on Sony's own driver. If it goes through Steam or DS4Windows, tick that box above."
+        else:
+            text = "On the Steam Deck, keep Xbox: Steam Input makes its controls act like an Xbox pad."
+        self.hint.configure(text=text)
+        self.refresh()
+
+    def button_changed(self, slot):
+        wanted = self.action_vars[slot].get()
+        button = next((b for b, n in self.names.items() if n == wanted), gp.NONE)
+        if button == gp.default_buttons(self.collect()).get(slot, gp.NONE):
+            self.chosen.pop(slot, None)
+        else:
+            self.chosen[slot] = button
+
+    def reset_buttons(self):
+        self.chosen = {}
+        self.layout_changed()
+
+    def refresh(self):
+        state = "normal" if self.managed.get() else "disabled"
+        for child in self.body.winfo_children():
+            for w in [child] + list(child.winfo_children()):
+                try:
+                    if isinstance(w, ttk.Combobox):
+                        w.configure(state="readonly" if state == "normal" else "disabled")
+                    elif isinstance(w, (tk.Checkbutton, tk.Button)):
+                        w.configure(state=state)
+                except tk.TclError:
+                    pass
+        if self.managed.get():
+            self.steam_box.configure(state="normal" if self._type() in ("ps4", "ps5") else "disabled")
 
 
 class GraphicsTab(tk.Frame):
@@ -3112,6 +3262,7 @@ class App(tk.Tk):
         self.boot_ini = os.path.join(self.ashita, "config", "boot", self.cfg.get("ashita_boot", core.DEFAULT_BOOT)) if self.ashita else None
         has_ini = bool(self.boot_ini) and os.path.exists(self.boot_ini)
         self.graphics = core.load_graphics(HERE, self.boot_ini if has_ini else None)
+        self.gamepad = gp.load(HERE)
         self.new_ui = newui is not None and not self.cfg.get("classic_ui")
         if self.new_ui:
             newui.prepare(self, globals())
@@ -3288,6 +3439,12 @@ class App(tk.Tk):
             tabs.add(self.graphics_tab, text="  Graphics  ")
         else:
             self.add_note(tabs, "Graphics", "The Graphics tab needs ashita_dir and ashita_boot in config.json to point at your Ashita boot file.")
+
+        # Controller tab (2026-11-22): controller setup in the boot file, instead of FFXI's own gamepad tool
+        self.pad_tab = None
+        if self.boot_ini and os.path.exists(self.boot_ini):
+            self.pad_tab = ControllerTab(tabs, self.gamepad)
+            tabs.add(self.pad_tab, text="  Controller  ")
 
         # Shaders tab: dgVoodoo + ReShade (Windows; on Linux Proton's own DXVK draws the game)
         self.gfx_tab = None
@@ -3813,6 +3970,12 @@ class App(tk.Tk):
                 core.save_graphics(HERE, self.graphics)
             except OSError:
                 pass
+        if self.pad_tab is not None:
+            self.gamepad = self.pad_tab.collect()
+            try:
+                gp.save(HERE, self.gamepad)
+            except OSError:
+                pass
         self.running, self.stop_requested = True, False
         self.pending_visit = visit
         self.play_btn.configure(state="disabled")
@@ -4129,6 +4292,7 @@ class App(tk.Tk):
                 core.apply_graphics(self.boot_ini, self.graphics, self.cfg.get("ffxi_client_dir"))
             except Exception:
                 pass
+        self.apply_gamepad()                   # the visit's boot file is a copy of yours too
         self.launch_boot = co.write_visit_boot(self.ashita, self.cfg.get("ashita_boot", core.DEFAULT_BOOT), host)
         self.visit_mode = True
         try:
@@ -4182,6 +4346,7 @@ class App(tk.Tk):
                 self.say("Applied your graphics settings.")
             except Exception as e:
                 self.say(f"Could not apply the graphics settings ({e}) - starting with the boot file as it is.")
+        self.apply_gamepad()
         self.say("Starting the game through Ashita...")
         alog = open(os.path.join(LOGS, "ashita.log"), "wb")
         self.logfiles.append(alog)
@@ -4217,6 +4382,7 @@ class App(tk.Tk):
                 self.say("Applied your graphics settings.")
             except Exception as e:
                 self.say(f"Could not apply the graphics settings ({e}) - starting with the boot file as it is.")
+        self.apply_gamepad()
         self.say("Starting the game through Ashita and Proton...")
         alog = open(os.path.join(LOGS, "ashita.log"), "wb")
         self.logfiles.append(alog)
@@ -4290,6 +4456,19 @@ class App(tk.Tk):
             linux.start_game(HERE, self.cfg, self.ashita, boot, log)
             return
         subprocess.Popen([cli, boot], cwd=self.ashita, stdout=log, stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
+
+    def apply_gamepad(self):
+        """The Controller tab's setup into the main boot file (launcher_gamepad.py). Nothing changes while it is off."""
+        if getattr(self, "pad_tab", None) is None or not self.boot_ini:
+            return
+        try:
+            changed, self.gamepad = gp.apply(self.boot_ini, self.gamepad)
+            gp.save(HERE, self.gamepad)
+            if changed:
+                self.say("Applied your controller settings." if self.gamepad["managed"] else
+                         "Gave the controller back to the game's own gamepad settings.")
+        except Exception as e:
+            self.say(f"Could not apply the controller settings ({e}) - starting with the boot file as it is.")
 
     def fix_shot_dir(self, boot):
         """Points a boot file's screenshot folder (registry 0042) at the real game folder. The main boot file gets this

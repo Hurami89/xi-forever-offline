@@ -2,6 +2,34 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.1.59 · 22 November 2026
+
+### New
+• Casino Dealer in Southern San d'Oria, Bastok Markets, Windurst Woods and Lower Jeuno: trade gil, and you and the dealer each roll 0-999. Roll higher and your bet is doubled; a tie gives it back. (Yache)
+• Rules > Comforts, all off by default (out of era): "Caskets tell you the code" (Dugahst), "Guild shops never run out" (delukard), "Full merits" (every merit to its own maximum) and "Merit points you can hold" up to 99 (PTgamerguy, Ricc).
+• OPTIONS > Graphics > "Gamepad setup" opens FFXI's own gamepad tool, on Windows and Linux. (Sunie)
+• tCrossBar, on-screen controller macros, can be added from the add-on list. (Yache)
+• Gambits 0.3.2: job-aware spell and ability lists, a Weapon Skills section, and a Party roles section for who counts as Tank / Melee / Mage / Ranged. (wildthing)
+• The Job rules editor now explains what it does and points to Gambits for your own spell choices. (wildthing)
+
+### Squad
+• Gear chosen by hand is checked against the rest of the outfit: a Rare item can't be worn twice, and Sub must fit Main (a two-handed weapon takes a grip only). Old setups simply leave the extra piece off. (Ricc, Meli)
+• !squad give / equip / lockstyle take item names of several words: "Light Crossbow +1". (wildthing)
+• Squad mates lose enmity when they take damage, like players. (wildthing)
+• Squad Dragoons no longer get the Shikaree Z template's MP bonus. (wildthing)
+• Party roles apply at once. (wildthing)
+• The bard's "NOT MOVING" line only shows with !bard debug. (Meli, PTgamerguy)
+
+### Fixes
+• Forever Beta Shirt: on player installs it showed as a blank Lv127 item, and opening Equipment could crash the game. It now gets its name, icon and look at the next PLAY. (Ricc, Trinity, danwei20)
+• Character transfer: an out-of-range body size (CatsEye exports) no longer stops the import. (delukard, MrDink, Bigbadbill)
+• Port San d'Oria Home Point #1 sits on the ground and works again. (Tasou, Yache)
+• A Home Point teleport inside the same town to the moved Home Point #1s (Port San d'Oria, Bastok Markets, Port Bastok, Port Windurst) lands next to the crystal. (Yumainai)
+• Blue Mage AF quests no longer wait for Japanese midnight between steps. (Yache)
+• Treasure casket "ghost" after opening removed. (Yache)
+• Server menu: MY AUTO off now always reaches autobox, so your rules no longer run while the menu says OFF. (wildthing, Altair)
+• Crystal Boy 1.8b: more detail in its trace files for crash reports. (Ricc)
+
 ## v0.1.58 · 21 November 2026
 
 ### Tetra Master (new)
