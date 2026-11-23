@@ -199,5 +199,9 @@ ok("self.after(1800, self.revamped_prompt)" in gui, "the question is asked at la
 ok(gui.count("self.apply_revamped()") == 2, "the scripts follow the choice before each game start")
 ok("self.build_revamped()" in gui and "Use the Revamped versions" in gui and "Use the old versions" in gui, "System has the switch buttons")
 ok("rv.to_ask(HERE, self.ashita)" in gui and "rv.declined(HERE, self.ashita)" in gui, "Yes saves, No is remembered")
+# (v0.3.3a) without a package the buttons are greyed out and say where the switch comes from
+ok('REVAMPED_GREY_TIP = "Comes with Gambits Revamped / Squads Revamped"' in gui, "the grey-out tip text")
+ok("HoverTip(button, lambda b=button: REVAMPED_GREY_TIP" in gui and "disabledforeground=DIM" in gui, "disabled buttons are grey and carry the tip")
+ok('button.configure(state="disabled")' in gui, "no package: the buttons are disabled, not hidden")
 
 print(f"test_revamped: {checks} checks passed")

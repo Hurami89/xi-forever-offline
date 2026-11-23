@@ -900,6 +900,8 @@ class HoverTip:
             self.tip = None
 
 
+REVAMPED_GREY_TIP = "Comes with Gambits Revamped / Squads Revamped"
+
 # Squad faces: the game's face numbers 0-15 are 1A, 1B, 2A ... 8B (char_entity.h CharFace)
 FACE_LABELS = [f"{i // 2 + 1}{'AB'[i % 2]}  ({i + 1})" for i in range(16)]
 FACE_FILES = {1: "Hm", 2: "Hf", 3: "Em", 4: "Ef", 5: "Tm", 6: "Tf", 7: "M", 8: "G"}  # race id -> assets\faces prefix
@@ -2643,8 +2645,10 @@ class UpdatesTab(tk.Frame):
         self.revamped_buttons = []
         for text, value in (("Use the Revamped versions", "revamped"), ("Use the old versions", "stock")):
             button = tk.Button(bar, text=text, command=lambda v=value: self.revamped_switch(v), bg=PANEL2, fg=FG, relief="flat",
-                               padx=12, pady=5, activebackground=BORDER, activeforeground=FG)
+                               padx=12, pady=5, activebackground=BORDER, activeforeground=FG, disabledforeground=DIM)
             button.pack(side="left", padx=(0, 8))
+            # (v0.3.3a) greyed out until a Revamped package is installed; the tip says where it comes from
+            HoverTip(button, lambda b=button: REVAMPED_GREY_TIP if str(b.cget("state")) == "disabled" else None)
             self.revamped_buttons.append(button)
         self.revamped_refresh()
 
