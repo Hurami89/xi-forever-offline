@@ -50,6 +50,11 @@ KIT_REPO_NAME = "Hurami89/xi-forever-offline"
 BG, PANEL, PANEL2, FG, DIM = "#0a1118", "#101c28", "#162634", "#e9f1f5", "#8aa0ad"
 BORDER, GOLD = "#1d3445", "#e6be64"
 GREEN, RED, GREY, ACCENT = "#3ecf6e", "#e5534b", "#44525d", "#35c4e0"
+try:        # a limited-time look (a dated .json in assets\press) stands in for these colours while it is in date: launcher_theme.py
+    import launcher_theme
+    globals().update(launcher_theme.colours(globals()))
+except Exception:
+    pass
 ASSETS = os.path.join(HERE, "assets")
 VERSION = "1.3"
 
@@ -5464,6 +5469,11 @@ def main():
                 return
         app = App()
         bring_to_front(app)
+        try:                                      # the opening theme of a limited-time look, while one is in date
+            import launcher_theme
+            launcher_theme.start(app)
+        except Exception:
+            pass
         app.mainloop()
     except Exception:
         os.makedirs(LOGS, exist_ok=True)

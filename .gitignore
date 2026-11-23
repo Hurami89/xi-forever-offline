@@ -22,6 +22,7 @@
 !/launcher_widgets.py
 !/launcher_settings.py
 !/launcher_gamepad.py
+!/launcher_theme.py
 !/launcher_thirdparty.py
 !/launcher_setup.py
 !/launcher_update.py

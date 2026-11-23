@@ -18,6 +18,15 @@ Limited-time banners: put __until- and a date in the file name (party__until-202
 those pictures take the place of the usual ones: while at least one is in date, only they are shown. The day after, the usual pictures are
 back by themselves and the dated ones are simply skipped, so nothing has to be removed. The date is the one on the player's own PC.
 
+A limited-time look and an opening theme work the same way (launcher_theme.py), with the same __until- date in the name:
+    vaporwave__until-2026-12-02.json   the launcher's colours and its own set of buttons, while it is in date
+    theme__until-2026-12-02.mp3        played once when the launcher opens (.mp3 or .wav); it stops when the game starts, and a small
+                                       MUSIC switch on the banner turns it off for good on that PC
+The day after the date the launcher has its own colours again and is silent. In config.json, "limited_look": false turns both off on
+one PC. A .json needs a "colours" table (the names at the top of launcher_widgets.py: BG, PANEL, GOLD ...). Its "art" may name a folder
+in here ("folder": "vaporwave-ui") whose pictures stand in for the ones in assets\ui, name for name and size for size; a button the
+folder has no picture for stays as it is. art-src\scripts\vice_buttons.py makes the vaporwave set.
+
 This needs Pillow. If the launcher's status line says so, run once in PowerShell:
     python -m pip install pillow
 
