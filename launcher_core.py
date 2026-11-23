@@ -716,6 +716,74 @@ class ScriptManager:
         self._write(kept)
 
 
+# ---------- draw distance (2026-11-23, Dugahst; the user: yes) ----------
+# Ashita's stock drawdistance addon sets the game's world and entity draw distances (multipliers on the game's own,
+# 1 = as the game draws). The launcher keeps the choice in drawdistance.json and, at PLAY, puts a small block at the end
+# of its start script: load the addon, wait for the game, set both. 0 / 0 (default) leaves the game's own distances and
+# writes no block.
+DRAW_FILE = "drawdistance.json"
+DRAW_BEGIN, DRAW_END = "# xifo-drawdistance (written by the launcher's Graphics page)", "# xifo-drawdistance end"
+DRAW_LIMITS = (0.0, 10.0)
+
+
+def load_draw(here):
+    try:
+        with open(os.path.join(here, DRAW_FILE), encoding="utf-8-sig") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        data = {}
+    out = {}
+    for key in ("world", "entity"):
+        try:
+            out[key] = max(DRAW_LIMITS[0], min(DRAW_LIMITS[1], float(data.get(key, 0) or 0)))
+        except (TypeError, ValueError):
+            out[key] = 0.0
+    return out
+
+
+def save_draw(here, values):
+    with open(os.path.join(here, DRAW_FILE), "w", encoding="utf-8") as handle:
+        json.dump({k: float(values.get(k, 0) or 0) for k in ("world", "entity")}, handle, indent=2)
+
+
+def draw_block(values):
+    """The start script lines for these distances ([] = leave the game's own)."""
+    world, entity = float(values.get("world", 0) or 0), float(values.get("entity", 0) or 0)
+    if world <= 0 and entity <= 0:
+        return []
+    lines = [DRAW_BEGIN, "/addon load drawdistance", "/wait 10"]
+    if world > 0:
+        lines.append(f"/drawdistance setworld {world:g}")
+    if entity > 0:
+        lines.append(f"/drawdistance setentity {entity:g}")
+    return lines + [DRAW_END]
+
+
+def apply_draw(script_path, values):
+    """Replaces the launcher's draw distance block at the end of the start script (adds, changes or removes it)."""
+    try:
+        with open(script_path, encoding="utf-8-sig") as handle:
+            lines = handle.read().splitlines()
+    except OSError:
+        return False
+    kept, inside = [], False
+    for line in lines:
+        if line.strip() == DRAW_BEGIN:
+            inside = True
+            continue
+        if inside:
+            if line.strip() == DRAW_END:
+                inside = False
+            continue
+        kept.append(line)
+    while kept and not kept[-1].strip():
+        kept.pop()
+    kept += draw_block(values)
+    with open(script_path, "w", encoding="utf-8", newline="\r\n") as handle:
+        handle.write("\n".join(kept).rstrip("\n") + "\n")
+    return True
+
+
 # ---------- rates (written into the server's settings before every launch) ----------
 # Each field: id, settings file, key, label, default, min, max, kind ("float" or "int")
 RATE_FIELDS = [
@@ -792,6 +860,8 @@ RATE_FIELDS = [
     ("main.SQUAD_UNLIMITED_JUICE",      "main.lua", "SQUAD_UNLIMITED_JUICE",       "Squad mates: unlimited juice (1 = on)", 0, 0, 1, "int"),
     # (2026-11-23, Meli; the user: mates can be raised) server: trust_entity.cpp Die, squad.lua xi.squad.onRaised
     ("main.SQUAD_MATES_RAISABLE",       "main.lua", "SQUAD_MATES_RAISABLE",        "Fallen squad mates can be Raised (1 = on)", 1, 0, 1, "int"),
+    # (2026-11-23, Yumainai; the user: yes, an option) server: custom/late/warp_ring.lua
+    ("main.CONQUEST_WARP_RING",         "main.lua", "CONQUEST_WARP_RING",          "Warp Ring for conquest points (1 = on)", 0, 0, 1, "int"),
     # (2026-11-22, suggestions: Hexblood, VRTRA, Poptart, Gilder) out of era, so the era's value by default. All but the
     # chain time are the server's own settings (LandSandBoat), which had no line here; the chain time is ours
     # (scripts/globals/experience_points.lua). The server reads the HP and MP multipliers from 0.1 to 2.

@@ -15,6 +15,11 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Bot players: the roster can go up to 2000 and bots online up to 1500 for strong PCs. Past the usual 600 / 550 the launcher asks first, with a warning. Bots online are at most 60% of the roster (now said next to the setting), so 500 online needs a roster of about 840. (Meli)
 • Squad mates can be Raised: a mate that falls stays where it fell, in your party, for 5 minutes. Raise, Raise II, Raise III or Arise brings it back at once with 10 / 25 / 50 / 100% HP, no call wait. Nobody raises it: it leaves as before, and calling it again works any time. RULES, "Fallen squad mates can be Raised" (1 = on). (Meli)
 • Squad camp: the monster your puller brings back is the whole squad's fight even while you rest or keep your weapon away. Everyone stands up and goes in, and the tank provokes it. (Eureka629)
+• Squad food: any food can join the menu. Trade one to a mate and it is unlocked for the whole squad (that one is the price), under "Foods you gave" in !squad food <slot>; it works as the real item. A food from the list traded the same way is unlocked without the gil. (FalconX51)
+• !squad attack and !squad stop also order the bot players in your party. (Yenkei)
+• GM characters: !squad setlevel <slot> <job> <level> sets a squad mate's level in a job. (ChazDingle)
+• Warp Ring for conquest points (RULES, off by default): your nation's Conquest Overseers offer it for 5,000 points before their usual list. (Yumainai)
+• Graphics: draw distance for scenery and for characters (through Ashita's drawdistance add-on; 0 = the game's own). (Dugahst)
 • SYSTEM > Updates: "Repair..." installs the newest launcher and server again over what you have (database update included), for an update that stopped halfway. (Reika, Ryan)
 
 ### Fixes
@@ -27,6 +32,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Setup: step 4 looked frozen on "Downloading MariaDB" on Windows. It now shows the progress, gives up on a stalled download after a minute instead of half an hour, and the next try carries on where it stopped. (Art-Machine)
 • Squad chat with AI: a line you said to someone outside the squad (a bot player in your linkshell or party, or anyone you name first, "Hrokok are you still there?") got an answer from a squad mate, and so did your next lines. Now the squad leaves them to that person for a minute and a half, until you name a mate. (Sunie)
 • Updates: a launcher that lost its version file (an update stopped halfway: "Launcher: you have ?") was never offered the update again. It is now. (Ryan)
+• Linux: setup no longer says the game must come from a Windows PC; the Steam version or the official installer run through Proton works too. (Sunie)
 
 ## v0.3.4 · 23 November 2026
 

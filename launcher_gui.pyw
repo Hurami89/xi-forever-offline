@@ -2386,6 +2386,19 @@ class GraphicsTab(tk.Frame):
             tk.Checkbutton(grid, text=text, variable=var, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG,
                            activeforeground=FG).grid(row=row, column=0, columnspan=4, sticky="w", pady=1)
             row += 1
+        # (2026-11-23, Dugahst) draw distance, through Ashita's drawdistance addon: a multiplier on the game's own
+        # (1 = as the game draws it, 0 = leave it alone). Far scenery and far people/monsters separately.
+        draw = core.load_draw(HERE)
+        self.draw_world = tk.StringVar(value=f"{draw['world']:g}")
+        self.draw_entity = tk.StringVar(value=f"{draw['entity']:g}")
+        label("Draw distance: scenery", row)
+        ttk.Spinbox(grid, from_=core.DRAW_LIMITS[0], to=core.DRAW_LIMITS[1], increment=0.5, textvariable=self.draw_world, width=7).grid(row=row, column=1, padx=4)
+        tk.Label(grid, text="0 = the game's own", bg=BG, fg=DIM, font=(UI_FONT, 8)).grid(row=row, column=2, columnspan=2, sticky="w", padx=4)
+        row += 1
+        label("Draw distance: characters", row)
+        ttk.Spinbox(grid, from_=core.DRAW_LIMITS[0], to=core.DRAW_LIMITS[1], increment=0.5, textvariable=self.draw_entity, width=7).grid(row=row, column=1, padx=4)
+        tk.Label(grid, text="x the game's own; 2-4 is plenty, more costs speed", bg=BG, fg=DIM, font=(UI_FONT, 8)).grid(row=row, column=2, columnspan=2, sticky="w", padx=4)
+        row += 1
 
         tk.Label(self, textvariable=self.warning, bg=BG, fg="#e0a030", wraplength=480, justify="left").pack(anchor="w", padx=10, pady=(2, 0))
         bar = tk.Frame(self, bg=BG)
@@ -2417,6 +2430,15 @@ class GraphicsTab(tk.Frame):
                 return
         messagebox.showinfo("Gamepad setup", "FFXI's gamepad setup tool (FFXiPadConfig.exe) was not found in the game "
                             "folder's Tools folders" + (f":\n{game}" if game else ".") , parent=self)
+
+    def collect_draw(self):
+        out = {}
+        for key, var in (("world", self.draw_world), ("entity", self.draw_entity)):
+            try:
+                out[key] = max(core.DRAW_LIMITS[0], min(core.DRAW_LIMITS[1], float(var.get())))
+            except (TypeError, ValueError):
+                out[key] = 0.0
+        return out
 
     def _reverse(self, table, text):
         return next((k for k, v in table.items() if v == text), None)
@@ -4573,6 +4595,13 @@ class App(tk.Tk):
                 core.save_graphics(HERE, self.graphics)
             except OSError:
                 pass
+            try:                               # (2026-11-23) draw distance: a block at the end of the start script
+                draw = self.graphics_tab.collect_draw()
+                core.save_draw(HERE, draw)
+                if self.scripts is not None:
+                    core.apply_draw(self.scripts.path, draw)
+            except Exception as e:
+                self.say(f"Could not set the draw distance ({e}) - starting anyway.")
         if self.pad_tab is not None:
             self.gamepad = self.pad_tab.collect()
             try:
@@ -4619,13 +4648,13 @@ class App(tk.Tk):
             if not info.get("copy"):
                 messagebox.showinfo("Update FINAL FANTASY XI", f"Your FINAL FANTASY XI is the {have} version, older than "
                                     f"the {need} update the server needs (older games crash opening Equipment). Update it "
-                                    "on the Windows PC (PlayOnline), copy its SquareEnix folder over this one again, "
-                                    "then press PLAY.", parent=self)
+                                    "where you installed it (PlayOnline, on Windows or through Steam / Proton here), copy "
+                                    "its SquareEnix folder over this one again, then press PLAY.", parent=self)
                 return False
             if messagebox.askyesno("Update your game copy", f"XI: Forever Offline's copy of FINAL FANTASY XI is the {have} "
                                    f"version, older than the {need} update the server needs (older games crash opening "
-                                   "Equipment and can freeze at some NPCs).\n\nUpdate the game on the Windows PC "
-                                   "(PlayOnline), copy its SquareEnix folder here again, then choose it: only changed files "
+                                   "Equipment and can freeze at some NPCs).\n\nUpdate the game where you installed it "
+                                   "(PlayOnline, on Windows or through Steam / Proton here), copy its SquareEnix folder here again, then choose it: only changed files "
                                    "are copied; your era files stay.\n\nChoose the updated folder now? No = play anyway.",
                                    parent=self):
                 folder = filedialog.askdirectory(title="The updated SquareEnix folder", parent=self)
@@ -5821,9 +5850,10 @@ class SetupWizard(tk.Tk):
         self.text("This sets up everything here: the game files, the game add-on loader (Ashita), Proton (runs the "
                   "Windows game on Linux), the game server and a small database. It takes a while and needs an internet "
                   "connection for the downloads (about 2 GB).")
-        self.text("FINAL FANTASY XI comes from a Windows PC: copy its SquareEnix folder (inside PlayOnline in Program Files, "
-                  "with PlayOnlineViewer and FINAL FANTASY XI in it) to a USB stick or this machine, then choose it below. "
-                  "Update the game on the Windows PC first (PlayOnline, once).", fg=FG)
+        self.text("FINAL FANTASY XI: choose its SquareEnix folder (the one with PlayOnlineViewer and FINAL FANTASY XI in it). "
+                  "It can come from a Windows PC (inside PlayOnline in Program Files, copied to a USB stick or this machine), "
+                  "or from the game installed on this machine: the Steam version, or the official installer from "
+                  "playonline.com run through Proton or Wine. Update the game first (PlayOnline, once).", fg=FG)
         for key, label, about in (
                 ("copy", "Copy the game into XI: Forever Offline's folder (recommended)",
                  "The folder you choose stays as it is (a USB stick can be unplugged afterwards). Needs about 16 GB free."),
@@ -5936,8 +5966,8 @@ class SetupWizard(tk.Tk):
         if self.page == 0 and linux is not None:
             ffxi, viewer = linux.find_game_parts(self.ffxi.get())
             if not ffxi or not viewer:
-                return ("Choose the folder with both FINAL FANTASY XI and PlayOnlineViewer in it (the SquareEnix folder "
-                        "copied from a Windows PC).")
+                return ("Choose the folder with both FINAL FANTASY XI and PlayOnlineViewer in it (the SquareEnix folder, "
+                        "from a Windows PC or from the game installed here through Steam or Proton).")
             return None
         if self.page == 0:
             if self.game.get() != "official" and not self.setup.valid_ffxi(self.ffxi.get()):

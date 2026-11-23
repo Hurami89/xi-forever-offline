@@ -225,3 +225,4 @@ Thumbs.db
 # face reference pictures downloaded from FFXIclopedia (not shipped)
 /art-src/faces/
 /dev/incoming/
+drawdistance.json

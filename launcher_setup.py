@@ -900,7 +900,7 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         ffxi, viewer = ll.find_game_parts(choices.get("ffxi_dir"))
         if not ffxi or not viewer:
             raise RuntimeError("That folder doesn't have both FINAL FANTASY XI and PlayOnlineViewer in it. Choose the "
-                               "SquareEnix folder copied from a Windows PC (it has both).")
+                               "SquareEnix folder (it has both), from a Windows PC or from the game installed here through Steam or Proton.")
         lang = ll.detect_lang(viewer)
         if game == "copy":
             paths = lg.copy_install(ffxi, viewer, os.path.join(kit, "Game"), log=log)
