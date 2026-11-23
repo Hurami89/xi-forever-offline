@@ -14,7 +14,8 @@ What a theme's .json may hold:
                 "fonts/PixelifySans-Bold.ttf"]}, .ttf files in assets\\press (kept to this program, nothing is installed on the PC)
                 and the name they go by. A font whose letters are about as wide as the usual ones keeps every label in its place.
 A dated .mp3 / .wav (theme__until-2026-12-02.mp3) is the opening theme of the limited-time theme of those days: played once when the
-launcher opens. A limited-time theme also has the limited-time banners of its days.
+launcher opens. A limited-time theme also has the limited-time banners of its days. A song can also say when it starts
+(newer__from-2026-11-24__until-2026-12-02.mp3): from that day on it takes over from the one that was playing.
 default.mp3 (or default.wav) in assets\\press is the launcher's own opening theme: it plays with the Default look, and with any theme
 that has no song of its own.
 
@@ -45,6 +46,7 @@ from tkinter import messagebox
 HERE = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))  # the kit folder
 PRESS = os.path.join(HERE, "assets", "press")
 UNTIL_TAG = "__until-"
+FROM_TAG = "__from-"             # ... and a song with __from-2026-11-24 in its name is not used before that day
 TINTED = ("ui", "buttons")       # the folders of assets whose pictures a look may replace or tint
 BUTTON_KINDS = {"play": "play", "stop": "stop", "dual": "dualbox"}     # assets\\buttons\\<kind>\\ holds variants of these assets\\ui pictures
 SOUNDS = (".mp3", ".wav")
@@ -71,12 +73,25 @@ def until(name):
     return day if len(day) == 10 and day[4] == "-" and day[7] == "-" and (day[:4] + day[5:7] + day[8:]).isdigit() else "0"
 
 
+def since(name):
+    """The first day a dated file is used: the date after __from- in its name. "" when it has none (from the start), "9" (never) when
+    it cannot be read."""
+    low = name.lower()
+    cut = low.find(FROM_TAG)
+    if cut < 0:
+        return ""
+    day = low[cut + len(FROM_TAG):cut + len(FROM_TAG) + 10]
+    return day if len(day) == 10 and day[4] == "-" and day[7] == "-" and (day[:4] + day[5:7] + day[8:]).isdigit() else "9"
+
+
 def dated(endings):
-    """The files in assets\\press with one of these endings whose date has not passed, by name (full paths)."""
+    """The files in assets\\press with one of these endings that are in date today (not over, and started if their name says when
+    they start), as full paths: the one that started last comes first, so a newer one takes over; otherwise by name."""
     try:
-        names = sorted(n for n in os.listdir(PRESS) if n.lower().endswith(endings) and until(n) >= today())
+        names = sorted((n for n in os.listdir(PRESS) if n.lower().endswith(endings) and until(n) >= today() and since(n) <= today()), key=str.lower)
     except OSError:
         return []
+    names.sort(key=since, reverse=True)
     return [os.path.join(PRESS, n) for n in names]
 
 

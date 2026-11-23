@@ -61,7 +61,8 @@ Gambits began as the TitanGambits engine and was brought here by its author.
   official installer (Windows Installer descriptors lifted while the game runs, so the copy's DLLs load).
 - **[wildcabbagepatch](https://github.com/wildcabbagepatch)**: GambitsV2, the in-game Squad Rule Set editor, and its
   server side (squad Rule Sets, job ability rules for squad mates, the `!gsq` command).
-- **JØ (jnull)**: "A Place to Return", the launcher's opening theme (`assets/press/default.mp3`), made with Suno.
+- **JØ (jnull)**: "A Place to Return", the launcher's opening theme (`assets/press/default.mp3`), and "No Signal, All
+  Vibes", the Vaporwave theme's song from 24 November 2026; both made with Suno.
 - **Records of Vana'diel** (a pack of FINAL FANTASY XI characters drawn as 8 / 16-bit sprites): the characters on the
   buttons of the launcher's 8-Bit theme (`assets/press/8bit-ui`; the sprites used are in `art-src/8bit-sprites`).
 

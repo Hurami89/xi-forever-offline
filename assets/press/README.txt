@@ -23,6 +23,8 @@ Themes work the same way (launcher_theme.py). A theme is a .json in here with a 
     8bit.json                          (no date in the name) a theme that is always there to pick; never on unless a player picks it
     theme__until-2026-12-02.mp3        the limited-time theme's song: played once when the launcher opens (.mp3 or .wav); it stops
                                        when the game starts
+    newer__from-2026-11-24__until-2026-12-02.mp3   a song that starts later: from that day on it takes over from the one above
+                                       (of the songs in date, the one that started last plays)
     default.mp3                        (or default.wav) the launcher's own opening theme: it plays with the Default look, and with
                                        any theme that has no song of its own
 OPTIONS > Theme has a switch for Default (the launcher's own look) and one for every theme, so each player picks (it takes a

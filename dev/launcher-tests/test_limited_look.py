@@ -348,6 +348,17 @@ def launch(work, step, out):
         check(page.music_var.get() is False and on() == ["t_look"], "the page shows the song off and the theme on")
         c.play(asked=True)
         check(player.calls == [("play", song)], "'Play it now' still plays it")
+        check(theme.since("a__from-2026-11-24__until-2026-12-02.mp3") == "2026-11-24" and theme.since("a__until-2026-12-02.mp3") == ""
+              and theme.since("a__from-soon.mp3") == "9" and theme.until("a__from-2026-11-24__until-2026-12-02.mp3") == "2026-12-02",
+              "the first day of a song is read from its name")
+        tone(os.path.join(press, f"a_later__from-{day(1)}__until-{day(3)}.wav"))
+        tone(os.path.join(press, "a_never__from-soon__until-2999-01-01.wav"))
+        check(os.path.basename(theme.music_file()) == song, "a song that starts tomorrow (or whose first day cannot be read) is not played yet")
+        tone(os.path.join(press, f"z_newer__from-{day(0)}__until-{day(3)}.wav"))
+        check(os.path.basename(theme.music_file()) == f"z_newer__from-{day(0)}__until-{day(3)}.wav", "from its first day on it takes over from the one that was playing")
+        tone(os.path.join(press, f"z_over__from-{day(-5)}__until-{day(-1)}.wav"))
+        tone(os.path.join(press, f"b_older__from-{day(-2)}__until-{day(3)}.wav"))
+        check(os.path.basename(theme.music_file()) == f"z_newer__from-{day(0)}__until-{day(3)}.wav", "of two that have started, the one that started last plays; one that is over never does")
     elif step == "off":
         check(player.calls == [], "Default picked: no song")
         check(on() == ["default"] and page.music_switch is None and page.slider is None, "the page shows Default on, the limited-time theme off, and no song card")
