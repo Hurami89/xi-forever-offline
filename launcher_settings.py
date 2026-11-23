@@ -156,6 +156,10 @@ S("main.GIL_RATE", "rules", "Loot and gil", RATE, "Gil from quests")
 S("map.ALL_MOBS_GIL_BONUS", "rules", "Loot and gil", NUMBER, "Gil from every monster", step=1,
   tip="Every monster drops this much gil for each of its levels, on top of what it carries anyway: at 5, a level 30 "
       "monster drops 150 gil more. 0 = off, the era: only beastmen and a few others carry gil. (VRTRA)")
+S("main.SEAL_DROP_MINUTES", "rules", "Loot and gil", NUMBER, "Wait between seals (minutes)", step=1,
+  tip="After a Beastmen's or Kindred's Seal drops, your party gets no other for this many minutes. 5 = as it has "
+      "been here, 0 = no wait: every monster that can drop one may. Made for worlds without an auction house, "
+      "where seals are the way to spells and gear. (delukard)")
 S("main.AH_PRICE_RATE", "rules", "Loot and gil", RATE, "Auction house prices",
   tip="What things cost on the auction house: the simulator's listings and the bot players' own sales. 1x = the "
       "prices as they are, lower is cheaper, higher is dearer. A change restocks the auction house at your next PLAY.")

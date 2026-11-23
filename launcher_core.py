@@ -775,6 +775,8 @@ RATE_FIELDS = [
     # (scripts/globals/experience_points.lua). The server reads the HP and MP multipliers from 0.1 to 2.
     ("main.EXP_CHAIN_TIME_MULTIPLIER",  "main.lua", "EXP_CHAIN_TIME_MULTIPLIER",   "Experience chain time",              1.0, 1.0, 5.0,   "float"),
     ("map.ALL_MOBS_GIL_BONUS",          "map.lua",  "ALL_MOBS_GIL_BONUS",          "Gil every monster drops, per level (0 = off)", 0, 0, 50, "int"),
+    # (2026-11-22, delukard) minutes a party waits between two seals (server: mob_entity.cpp specialDropCooldown)
+    ("main.SEAL_DROP_MINUTES",          "main.lua", "SEAL_DROP_MINUTES",           "Wait between seals, minutes (5 = as it was, 0 = none)", 5, 0, 5, "int"),
     ("map.SUBJOB_RATIO",                "map.lua",  "SUBJOB_RATIO",                "Support job level (1 = half, 2 = two thirds, 3 = equal)", 1, 1, 3, "int"),
     # (2026-11-22, delukard) your own HP and MP; squad mates follow (charutils.cpp, trustutils.cpp)
     ("map.PLAYER_HP_MULTIPLIER",        "map.lua",  "PLAYER_HP_MULTIPLIER",        "Your HP: you and your squad",        1.0, 0.5, 3.0,   "float"),

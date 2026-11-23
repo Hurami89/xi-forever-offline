@@ -2615,6 +2615,40 @@ class UpdatesTab(tk.Frame):
         tk.Button(box, text="Run setup again...", command=self.setup_again, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5,
                   activebackground=BORDER, activeforeground=FG).pack(anchor="w", padx=12, pady=(0, 12))
 
+    def build_clear_ah(self):
+        """(delukard, 2026-11-22) An empty auction house for a world that plays without one: switching the simulator
+        off only stops new stock, what it listed before stays."""
+        box = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+        box.pack(fill="x", padx=14, pady=(0, 6))
+        tk.Label(box, text="Auction house", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        tk.Label(box, text="Take everything the auction house simulator listed off the auction house, for a world that plays "
+                           "without one. What you or a bot player listed stays, and so does the sales history.",
+                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(2, 4))
+        tk.Button(box, text="Clear the auction house...", command=self.clear_auction_house, bg=PANEL2, fg=FG, relief="flat",
+                  padx=12, pady=5, activebackground=BORDER, activeforeground=FG).pack(anchor="w", padx=12, pady=(0, 12))
+
+    def clear_auction_house(self):
+        title = "Clear the auction house"
+        on = bool(self.app.rates.get("ah_sim", self.app.cfg.get("ah_sim", False)))
+        text = "Take every listing of the auction house simulator off the auction house?\n\nWhat you listed yourself stays."
+        if on:
+            text += ("\n\nThe simulator is switched ON (WORLD > Auction house), so it stocks the auction house again at "
+                     "the next PLAY. Switch it off first if you want it to stay empty.")
+        if not messagebox.askyesno(title, text, parent=self):
+            return
+        try:
+            import ah_sim
+            conn = sq.connect(self.app.cfg)
+            try:
+                count = ah_sim.clear_listings(conn)
+            finally:
+                conn.close()
+            messagebox.showinfo(title, f"{count} listing(s) were taken off the auction house." if count
+                                else "The simulator has nothing listed: the auction house was already clear of it.", parent=self)
+        except Exception as e:
+            messagebox.showerror(title, f"The database could not be reached ({e}).\n\nIf the servers are not running, press "
+                                        "PLAY, wait for the game window, and try again.", parent=self)
+
     def setup_again(self):
         if self.app.running:
             messagebox.showwarning("Close the game first", "The servers are running. Close the game (it stops the servers), "
@@ -2680,6 +2714,7 @@ class UpdatesTab(tk.Frame):
         self.player = bool(app.cfg.get("mariadb_dir"))      # a player install (first-run setup); else this is the dev PC
         if self.player:
             self.build_setup_again()
+        self.build_clear_ah()
         try:                                                # (2026-11-22, Sunie) the AI hood: only where its switch file is
             import launcher_hood
             if launcher_hood.is_on(HERE):
