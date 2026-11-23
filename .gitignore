@@ -26,6 +26,8 @@
 !/launcher_hood.py
 !/launcher_hd.py
 !/launcher_hd_gui.py
+# Stinkshell, the online chat room (off by default; its relay is dev/stinkshell/stinkshell_relay.py)
+!/launcher_stinkshell.py
 !/launcher_thirdparty.py
 !/launcher_setup.py
 !/launcher_update.py
@@ -132,6 +134,7 @@
 !/addons-src/squadpanel/
 !/addons-src/GambitsV2/
 !/addons-src/journal-era/
+!/addons-src/stinkshell/
 
 # ---- server modules (copies kept with the kit) ----
 !/squad-behavior/

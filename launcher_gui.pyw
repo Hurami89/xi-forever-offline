@@ -4310,7 +4310,28 @@ class App(tk.Tk):
         else:
             self.summary.set("World asleep")
             self.summary_dot.configure(fg=GREY)
+        self.stinkshell_tick()
         self.after(1000, self.lights)
+
+    def stinkshell_tick(self):
+        """(2026-11-23) Stinkshell, the online chat room: its bridge runs only while the stinkshell add-on is switched on
+        (OPTIONS > Addons; off by default). Checked every 5 seconds."""
+        self._stink_count = getattr(self, "_stink_count", 0) + 1
+        if self._stink_count % 5 or not self.ashita:
+            return
+        try:
+            import launcher_stinkshell as stink
+            on = stink.addon_on(self.ashita, self.cfg.get("ashita_boot", core.DEFAULT_BOOT))
+            bridge = getattr(self, "stink_bridge", None)
+            if on and bridge is None:
+                self.stink_bridge = stink.Bridge(HERE, self.ashita, log=lambda text: self.q.put(("log", text)))
+                self.stink_bridge.start()
+                self.q.put(("log", "Stinkshell is on: the chat room is connected through the internet."))
+            elif not on and bridge is not None:
+                bridge.stop()
+                self.stink_bridge = None
+        except Exception as e:
+            print("stinkshell:", e)
 
     # ----- buttons -----
     def start(self):

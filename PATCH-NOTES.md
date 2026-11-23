@@ -11,6 +11,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • CO-OP: your place is kept. When you go home from an open world, your place there stays for 90 days after your last visit: your linkshell, what you have on that world's auction house and in its delivery box, and your visiting name. Everything your character earned comes home with you, as always. "YOUR PLACES IN OPEN WORLDS" lists them, with VISIT AGAIN and FORGET.
 • CO-OP, for the host of an open world: KICK logs a visitor out of the game. BAN puts a visitor out and keeps that launcher from coming back (and its address too, if you say so); a banned visitor's character can still go home. PLACES shows the places kept for visitors who are home and your bans, with FORGET, BAN and LIFT BAN.
 • CO-OP: an open world checks a stranger's character before it comes in, and your launcher checks it again before it comes home. A character a server could not load safely is turned away and stays where it was; on the way home, TAKE BACK opens at once.
+• CO-OP: an open world (The Hub) has its own white linkshell, "Forever": everyone who logs in there gets a linkpearl in their bag once, to chat with everyone in that world. Put it on from the Linkshell menu. It stays in that world when you go home.
+• STINKSHELL (new add-on, off until you switch it on): one online chat room for every XI: Forever Offline player, whatever world you play in, in a window straight out of 1999. Your screen name is your character's name (the first player to use a name keeps it; anyone else gets a number after it). Switch "stinkshell" on at OPTIONS > Addons; it needs the internet and the launcher open. In the game: /stink opens or closes the window, /sl <text> says something without opening it. Be nice: moderators can mute, kick and ban.
 
 ### Changes
 • A yell ban or a yell wait no longer travels with a character between worlds: each world keeps its own.
@@ -18,6 +20,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ### Fixes
 • The server could crash when a field party out hunting was fighting one of Horro's slimes and the slime ran away: the party kept a handle on a monster the game had already deleted. Field parties now look their monster up again each time. (Stalwart Shield)
 • A squad Corsair set to the Support or Healer role never used Phantom Roll: every job ability the role rules did not know counted as a melee move, which those roles drop. Rolls now count as party buffs, so every role rolls, and the Conserve mode no longer holds them back for mana a roll does not use. (krazy)
+• Bot players in the world's own parties no longer stand up and sit down again and again when a cure will not go off: a resting healer stands up first and casts a moment later, and after two cures that never started it rests for 30 seconds instead of trying again. (K-Andy, Hasuko)
 • SYSTEM > GM and testing: "Start GM game" said the GM account was not set up when you had just set it up in the same launcher session. (Oldboy)
 
 ## v0.3.3 · 22 November 2026
