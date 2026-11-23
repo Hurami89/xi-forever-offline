@@ -1638,6 +1638,57 @@ def world_card(kit, world, post=None, timeout=6):
             "password": bool(greeting.get("password"))}
 
 
+FRIENDS_FILE = "friends.json"        # coop/: the friends' worlds this launcher went to with an invite code (newest first)
+FRIENDS_MOST = 8
+
+
+def remember_friend(kit, code, world_name, now=None):
+    """(2026-11-23, the user: "make the regular co-op as easy as joining the hub") a friend's world you went to once is
+    kept, so it gets a card with PLAY next time: no code to paste again. Kept only on this PC."""
+    code = re.sub(r"\s+", "", str(code or ""))
+    try:
+        invite = read_code(code)
+    except CoopError:
+        return
+    if invite.get("open"):
+        return
+    rows = [r for r in friends(kit) if r["code"] != code and r["invite"]["address"] != invite["address"]]
+    rows.insert(0, {"code": code, "name": pp.clean_world_name(world_name or invite["world"]), "last": int(now or time.time())})
+    path = os.path.join(kit, "coop", FRIENDS_FILE)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    keep = [{"code": r["code"], "name": r["name"], "last": r.get("last", 0)} for r in rows[:FRIENDS_MOST]]
+    with open(path + ".part", "w", encoding="utf-8", newline="\n") as handle:
+        json.dump({"friends": keep}, handle, indent=2)
+    os.replace(path + ".part", path)
+
+
+def friends(kit):
+    """[{code, name, last, invite}] of the friends' worlds kept by remember_friend, newest first."""
+    try:
+        with open(os.path.join(kit, "coop", FRIENDS_FILE), encoding="utf-8") as handle:
+            found = json.load(handle).get("friends") or []
+    except (OSError, ValueError, AttributeError):
+        return []
+    out = []
+    for row in found[:FRIENDS_MOST]:
+        try:
+            invite = read_code(row["code"])
+        except (CoopError, KeyError, TypeError):
+            continue
+        if not invite.get("open"):
+            out.append({"code": row["code"], "name": pp.clean_world_name(row.get("name") or invite["world"]),
+                        "last": int(row.get("last") or 0), "invite": invite})
+    return out
+
+
+def forget_friend(kit, code):
+    rows = [r for r in friends(kit) if r["code"] != code]
+    path = os.path.join(kit, "coop", FRIENDS_FILE)
+    with open(path + ".part", "w", encoding="utf-8", newline="\n") as handle:
+        json.dump({"friends": [{"code": r["code"], "name": r["name"], "last": r["last"]} for r in rows]}, handle, indent=2)
+    os.replace(path + ".part", path)
+
+
 def come_home_after_game(cfg, kit, charid, log=print, tries=8, wait=8, sleep=time.sleep, post=None, connect=None):
     """(2026-11-23, the user: no button to press) The game was closed after playing in another world: the character
     comes home by itself. The world may still think it is logged in for a few seconds, so it is asked again a few times.

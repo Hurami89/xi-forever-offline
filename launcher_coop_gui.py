@@ -234,6 +234,9 @@ class CoopTab(tk.Frame):
         self.hub_area.pack(fill="x", padx=14, pady=(4, 2))
         self.cards_area = tk.Frame(page, bg=BG)
         self.cards_area.pack(fill="x", padx=14, pady=(4, 2))
+        self.friends_area = tk.Frame(page, bg=BG)          # (2026-11-23) friends' worlds you went to: one click next time
+        self.friends_area.pack(fill="x", padx=14, pady=(4, 2))
+        self.friend_rows = co.friends(self.kit)
         self.world_rows = co.all_worlds(self.kit)
         self.cards = {}                  # link -> what its card shows (world_card), filled in the background
         self.card_images = {}
@@ -389,7 +392,7 @@ class CoopTab(tk.Frame):
         row = tk.Frame(parent, bg=BG)
         row.pack(fill="x", pady=(8, 2))
         self.button(row, "coop_test", self.test_connection, "TEST CONNECTION").pack(side="left")
-        self.visit_btn = self.button(row, "coop_visit", self.visit, "VISIT")
+        self.visit_btn = self.button(row, "coop_go", self.visit, "PLAY")
         self.visit_btn.pack(side="left", padx=8)
         self.info = tk.Text(parent, height=6, width=62, bg=PANEL, fg=DIM, relief="flat", font=(_UI_FONT, 9), wrap="word",
                             highlightbackground=BORDER, highlightthickness=1, state="disabled")
@@ -1176,6 +1179,7 @@ class CoopTab(tk.Frame):
         """The Hub on its own, then a card for every other open world: its banner, description, who is there, PLAY."""
         if not hasattr(self, "hub_area") or not self.hub_area.winfo_exists():
             return
+        self.show_friends()
         for area in (self.hub_area, self.cards_area):
             for child in area.winfo_children():
                 child.destroy()
@@ -1202,6 +1206,39 @@ class CoopTab(tk.Frame):
             self.world_card_widget(cell, world, big=False)
         grid.columnconfigure(0, weight=1, uniform="cards")
         grid.columnconfigure(1, weight=1, uniform="cards")
+
+    def friend_world(self, row):
+        return {"name": row["name"], "about": "", "official": False, "link": row["code"], "invite": row["invite"], "friend": True}
+
+    def show_friends(self):
+        area = self.friends_area
+        for child in area.winfo_children():
+            child.destroy()
+        area.configure(height=1)
+        head = tk.Frame(area, bg=BG)
+        head.pack(fill="x", pady=(8, 2))
+        tk.Label(head, text="YOUR FRIENDS' WORLDS", bg=BG, fg=GOLD, font=(_UI_FONT, 11, "bold")).pack(side="left")
+        tk.Label(head, text="same network, Tailscale or the internet: once you have been there, it is one click.", bg=BG,
+                 fg=DIM, font=SMALL).pack(side="left", padx=8)
+        if not self.friend_rows:
+            tk.Label(area, text="None yet. Paste a friend's invite code under VISIT A FRIEND below and press PLAY: next time "
+                     "their world is right here.", bg=BG, fg=DIM, font=SMALL, anchor="w").pack(fill="x", pady=4)
+            return
+        grid = tk.Frame(area, bg=BG)
+        grid.pack(fill="x")
+        for i, row in enumerate(self.friend_rows):
+            cell = tk.Frame(grid, bg=BG)
+            cell.grid(row=i // 2, column=i % 2, sticky="nsew", padx=(0 if i % 2 == 0 else 6, 0), pady=3)
+            self.world_card_widget(cell, self.friend_world(row), big=False)
+        grid.columnconfigure(0, weight=1, uniform="friends")
+        grid.columnconfigure(1, weight=1, uniform="friends")
+
+    def forget_friend(self, world):
+        if messagebox.askyesno("Forget", f"Take {world['name']} off YOUR FRIENDS' WORLDS?\n\nYou can always paste the invite code again.",
+                               parent=self):
+            co.forget_friend(self.kit, world["link"])
+            self.friend_rows = co.friends(self.kit)
+            self.show_friends()
 
     def banner_image(self, world, card, big):
         """The card's banner as a Tk picture: the world's own (from world_card), The Hub's from the kit, or None."""
@@ -1254,16 +1291,25 @@ class CoopTab(tk.Frame):
         go = tk.Button(text, text="PLAY" if not there else f"PLAY ({there['name']})", command=lambda w=world: self.play_world(w),
                        bg=GREEN if big else ACCENT, fg="#06121a", activebackground=GOLD, relief="flat", font=(_UI_FONT, 12 if big else 10, "bold"),
                        padx=18 if big else 12, pady=4 if big else 2, cursor="hand2")
-        go.pack(anchor="w", pady=(6, 0))
+        go.pack(side="left", anchor="w", pady=(6, 0)) if world.get("friend") else go.pack(anchor="w", pady=(6, 0))
         if card.get("up") is False and not there:
             go.configure(state="disabled")
+        if world.get("friend"):
+            forget = tk.Label(text, text="forget", bg=PANEL, fg=DIM, font=(_UI_FONT, 8, "underline"), cursor="hand2")
+            forget.pack(side="left", padx=10, pady=(6, 0))
+            forget.bind("<Button-1>", lambda e, w=world: self.forget_friend(w))
 
     def visiting(self, world):
         """The character of yours that is in that world right now (arrived), or None."""
-        pin = world["invite"].get("pin")
+        invite = world["invite"]
         for row in self.away_rows:
             host = row["host"]
-            if host.get("arrived") and host.get("pin") and host.get("pin") == pin:
+            if not host.get("arrived"):
+                continue
+            if invite.get("pin") and host.get("pin") == invite["pin"]:
+                return row
+            if not invite.get("pin") and not host.get("pin") and host.get("address") == invite["address"] \
+                    and int(host.get("port") or 0) == int(invite["port"]):
                 return row
         return None
 
@@ -1275,6 +1321,7 @@ class CoopTab(tk.Frame):
             rows = co.all_worlds(self.kit)
             official = [w for w in rows if w["official"]][:1]
             shown = official + [w for w in rows if w not in official][:WORLDS_SHOWN]
+            shown += [self.friend_world(row) for row in co.friends(self.kit)]
             return rows, {world["link"]: co.world_card(self.kit, world) for world in shown}
         except Exception:
             return None
@@ -1283,6 +1330,7 @@ class CoopTab(tk.Frame):
         self.looking = False
         if result and self.settings["enabled"] and getattr(self, "hub_area", None) is not None and self.hub_area.winfo_exists():
             self.world_rows, self.cards = result
+            self.friend_rows = co.friends(self.kit)
             self.show_worlds()
 
     # ----- (2026-11-23) one button: PLAY on a world takes the character there and starts the game -----
@@ -1305,6 +1353,18 @@ class CoopTab(tk.Frame):
             return
         name = self.character.get()
         invite = world["invite"]
+        if not invite.get("open"):                 # a friend's world (invite code): LAN, Tailscale or the internet
+            if self.needs_tailscale(invite):
+                return
+            code = world["link"]
+            self.note(f"{name} is travelling to {world['name']}. The game starts as soon as it arrives.")
+
+            def arrived(charid_, code=code, world_name=world["name"]):
+                co.remember_friend(self.kit, code, world_name)
+                self.friend_rows = co.friends(self.kit)
+                self.play_arrived(charid_)
+            self.arrive(lambda: co.start_visit(self.cfg, self.kit, invite, charid, log=self.log), charid, name, False, then=arrived)
+            return
         self.job(lambda: co.hello(invite), lambda greeting: self.play_open(invite, charid, name, greeting),
                  f"Looking for {world['name']}...")
 
@@ -1436,6 +1496,17 @@ class CoopTab(tk.Frame):
         self.job(work, self.say_info, "Looking for your friend's world...")
 
     def visit(self):
+        """PLAY under VISIT A FRIEND: the code or link in the box, then the same as PLAY on a card (2026-11-23)."""
+        try:
+            invite = self.read_code()
+        except co.CoopError as e:
+            messagebox.showwarning("Play", str(e), parent=self)
+            return
+        code = "".join(self.their_code.get().split())
+        self.play_world({"name": invite.get("world") or "your friend's world", "about": "", "official": False, "link": code,
+                         "invite": invite, "friend": not invite.get("open")})
+
+    def visit_old(self):
         charid = self.picked_character()
         if charid is None:
             messagebox.showinfo("Visit", "Pick the character that travels first.", parent=self)

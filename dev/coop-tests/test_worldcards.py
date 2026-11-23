@@ -154,6 +154,24 @@ class Lists(unittest.TestCase):
         self.assertEqual((card["up"], card["state"], card["banner"]), (False, "no answer right now", None))
 
 
+class Friends(unittest.TestCase):
+    def test_a_friends_world_is_kept_for_one_click(self):
+        kit = tempfile.mkdtemp()
+        code = co.make_invite("100.85.61.16", 54100, "ab" * 16, "DaBeej's world")
+        co.remember_friend(kit, code, "DaBeej's world", now=100)
+        co.remember_friend(kit, link(), "The Hub")                    # open worlds are not friends' worlds
+        rows = co.friends(kit)
+        self.assertEqual([(r["name"], r["invite"]["address"]) for r in rows], [("DaBeej's world", "100.85.61.16")])
+        newer = co.make_invite("100.85.61.16", 54100, "cd" * 16, "DaBeej's world")    # a new code for the same PC replaces it
+        co.remember_friend(kit, newer, "DaBeej's world", now=200)
+        self.assertEqual([r["code"] for r in co.friends(kit)], [newer])
+        for i in range(co.FRIENDS_MOST + 3):
+            co.remember_friend(kit, co.make_invite(f"192.168.1.{i + 2}", 54100, "ef" * 16, f"W{i}"), f"W{i}")
+        self.assertEqual(len(co.friends(kit)), co.FRIENDS_MOST)
+        co.forget_friend(kit, co.friends(kit)[0]["code"])
+        self.assertEqual(len(co.friends(kit)), co.FRIENDS_MOST - 1)
+
+
 class ComeHome(unittest.TestCase):
     def test_waits_while_the_world_still_sees_it_logged_in(self):
         calls = []
