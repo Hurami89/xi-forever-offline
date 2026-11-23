@@ -227,6 +227,16 @@ def explain_start_error(problem):
         return (text + "\n\nWhat this means: Windows has set aside the network port this server needs (Hyper-V, WSL "
                 "or Docker do that). To free it, open PowerShell as administrator and run these two lines, then press "
                 "PLAY again:\n\n    net stop winnat\n    net start winnat")
+    if "Injection failed" in text or "Failed to install Ashita into the remote process" in text:
+        # (2026-11-22, Telunian: "[E] Failed to install Ashita into the remote process! [E] Injection failed!") Ashita
+        # starts the game loader and then puts itself into it. When that second step is refused, it is nearly always
+        # security software stopping one program from reaching into another.
+        return (text + "\n\nWhat this means: Ashita started the game loader but was stopped from attaching to it. "
+                "That is nearly always security software. Add this folder and the Ashita folder to your antivirus' "
+                "exclusions (Windows Security > Virus & threat protection > Manage settings > Exclusions; other "
+                "antivirus programs have the same under their settings), or pause its real-time protection once to "
+                "see whether that is it, then press PLAY again. Windows' Smart App Control (Windows Security > App & "
+                "browser control) blocks it the same way.")
     if "Only one usage of each socket address" in text:
         return (text + "\n\nWhat this means: another program is already using the network port this server needs, "
                 "usually another FFXI server or a second copy of this one. Close it (or restart the PC) and press PLAY "

@@ -153,6 +153,12 @@ class StartTests(unittest.TestCase):
         self.assertTrue(blocked.startswith("xi_profile stopped unexpectedly."))
         self.assertIn("net stop winnat", blocked)
         self.assertIn("another program", core.explain_start_error(RuntimeError("bind: Only one usage of each socket address")))
+        # (2026-11-22, Telunian) Ashita could not attach to the game loader: say that it is security software
+        stopped = core.explain_start_error(RuntimeError("The game loader never started.\n\nAshita said:\n[E] Failed to install "
+                                                        "Ashita into the remote process!\n[E] Injection failed!"))
+        self.assertTrue(stopped.startswith("The game loader never started."))
+        self.assertIn("exclusions", stopped)
+        self.assertIn("Smart App Control", stopped)
 
     def test_tasklist_output_that_could_not_be_read(self):
         class Nothing:
