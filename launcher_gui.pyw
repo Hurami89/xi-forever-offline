@@ -1918,9 +1918,11 @@ class RatesTab(tk.Frame):
                        "given to them first. Off = gear has to be given once (trade it, or !squad give).",
                        variable=self.squad_all_gear, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[29], column=0, columnspan=2, sticky="w", padx=6, pady=2)
-        self.training_dummies = tk.BooleanVar(value=rates.get("training_dummies", False))
+        self.training_dummies = tk.BooleanVar(value=rates.get("training_dummies", True))
+        self.training_dummies_explicit = bool(rates.get("training_dummies_explicit", False))   # set once the player flips the switch
+        self.training_dummies.trace_add("write", lambda *_: setattr(self, "training_dummies_explicit", True))
         tk.Checkbutton(inner, text="Training dummies (for testing): !sandbox puts dummies of level 1 to 99 in Rolanberry "
-                       "Fields that never die and never attack, to try out squads and gambits. Off = no dummies.",
+                       "Fields that never die and never attack, to try out squads and gambits. On by default; off = no dummies.",
                        variable=self.training_dummies, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[27], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.short_quest_waits = tk.BooleanVar(value=rates.get("short_quest_waits", True))
@@ -2160,6 +2162,7 @@ class RatesTab(tk.Frame):
         rates["spell_scrolls"] = bool(self.spell_scrolls.get())
         rates["squad_keep_gear"] = bool(self.squad_keep_gear.get())
         rates["training_dummies"] = bool(self.training_dummies.get())
+        rates["training_dummies_explicit"] = bool(self.training_dummies_explicit)
         rates["bots_pass_loot"] = bool(self.bots_pass_loot.get())
         for k in core.EXTRAS_KEYS:
             rates[k] = bool(getattr(self, k).get())

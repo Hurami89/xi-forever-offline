@@ -15,6 +15,7 @@ KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS = [
     ("Buff range option (Rules page, map.lua key)", "dev/launcher-tests/test_buff_range.py"),
     ("Launcher settings page", "dev/launcher-tests/test_settings.py"),
+    ("Training dummies on by default (an explicit off is kept)", "dev/launcher-tests/test_training_dummies.py"),
     ("Revamped switch (greyed out without a package)", "dev/launcher-tests/test_revamped.py"),
     ("Revamped shell add-ons", "dev/revamped-tests/test_revamped_shells.py"),
     ("Third-party manager (downloads, checksums, versions, uninstall, old files)", "dev/thirdparty-tests/test_thirdparty.py"),

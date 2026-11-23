@@ -253,7 +253,7 @@ S("squad_all_gear", "rules", "Squad", SWITCH, "Squad gets all gear",
       "all of it for their job. Off = gear has to be given once (trade it, or !squad give).")
 S("training_dummies", "rules", "Squad", SWITCH, "Training dummies",
   tip="For testing: !sandbox puts dummies of level 1 to 99 in Rolanberry Fields that never die and never attack. "
-      "Off = no dummies.")
+      "On by default; off = no dummies.")
 
 # ---------------------------------------------------------------- Rules > Party buffs (2026-11-23)
 BUFF_RANGE_WARNING = ("Extended keeps the old party-wide reach: buffs land on every party member and squad mate at any distance. "
@@ -300,7 +300,7 @@ LAYOUT = {
 }
 
 # keys collect() returns that are not settings a person picks
-INTERNAL = {"bots_head_start_done", "claim_shield", "defaults_version"}
+INTERNAL = {"bots_head_start_done", "claim_shield", "defaults_version", "training_dummies_explicit"}
 
 
 def covered_keys():
