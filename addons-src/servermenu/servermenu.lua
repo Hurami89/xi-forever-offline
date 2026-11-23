@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26e';   -- (1.26e) Best gear now button (one-time auto-equip)
+addon.version = '1.26f';   -- (1.26f) Food button per mate; (1.26e) Best gear now button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1366,6 +1366,10 @@ local function squadTab()
                 imgui.SameLine(0, 6);
                 if button('Profile', 'sheet' .. mate.slot, 64, 0) then openSheet(mate.slot); end
                 tooltip('Opens his profile window: stats, HP/MP/TP, haste, jobs and equipment');
+                -- (1.26f, the user) the food menu: the game's own menu opens, as for !squad food <slot>
+                imgui.SameLine(0, 6);
+                if button('Food', 'food' .. mate.slot, 52, 0) then enqueue('/say !squad food ' .. mate.slot); end
+                tooltip('Choose what this mate eats. The game opens a menu: "As it comes" (its own pick by job and level) or a food of your choice. A food is unlocked once for about what it costs on the auction house, then it is free for every mate.');
 
                 gap(2);
                 dimText('Role'); imgui.SameLine(0, 8);
