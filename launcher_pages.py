@@ -372,6 +372,12 @@ class RulesPage(SettingsPage):
         self.profile.configure(values=core.list_profiles(G.HERE))
         self.profile.set(self.tab.profile.get())
 
+    def extend_card(self, name, card):
+        if name == "Party buffs":
+            # shown only while Extended is picked (refresh() puts it in and takes it out)
+            self.buff_warning = tk.Label(card.body, text=st.BUFF_RANGE_WARNING, bg=PANEL, fg=GOLD, font=(UI_FONT, 9),
+                                         anchor="w", justify="left", wraplength=300)
+
     def build_bottom(self):
         line = tk.Frame(self.body, bg=BG)
         line.pack(fill="x", pady=(2, 0))
@@ -400,6 +406,13 @@ class RulesPage(SettingsPage):
         for name, card in self.preset_cards.items():
             card.set_selected(name == now)
         self.custom_mark.configure(text="" if now else "YOUR OWN RATES")
+        warning = getattr(self, "buff_warning", None)
+        if warning is not None:
+            if rates.get("buff_range") == "extended":
+                if not warning.winfo_manager():
+                    warning.pack(fill="x", pady=(2, 0))
+            else:
+                warning.pack_forget()
         missing = st.missing_keys(rates)
         self.missing.configure(text=f"{len(missing)} newer setting(s) are only on the classic list for now." if missing else "")
 
@@ -1195,7 +1208,7 @@ class ListDownloads:
         """Newer version (when the last check found one), the install or update button, the item's own extra button, its home page."""
         app = self.app
         newest = self.newer.get(item["id"])
-        if newest and newest != version:
+        if newest and G.tp.is_newer(newest, version):
             tk.Label(parent, text=f"newer: {newest}", bg=bg, fg=GOLD, font=(UI_FONT, 8, "bold")).pack(side="left", padx=(0, 8))
         if item["source"]["type"] == "page":
             label = "Open download page"
@@ -1267,7 +1280,7 @@ def add_list_downloads(app):
     older = app.show_downloads
 
     def show_downloads(newer=None):         # after an install, an update or a version check: Get more and both lists again
-        if newer:
+        if newer is not None:               # (an empty answer clears the "newer" marks: nothing is newer any more)
             downloads.newer = dict(newer)
         older(newer)
         for lst in app.lists:

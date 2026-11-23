@@ -377,7 +377,8 @@ def list_plugins(ashita_dir):
 
 
 # ---------- what an addon or plugin is (for the Addons page) ----------
-OWN_ADDONS = {"gambits", "autobox", "followme", "servermenu", "squadpanel", "crystalboy", "tetramaster", "stinkshell", "autora"}
+OWN_ADDONS = {"gambits", "autobox", "followme", "servermenu", "squadpanel", "crystalboy", "tetramaster", "stinkshell", "autora",
+              "gambitsrevamped", "squadsrevamped"}
 PLUGIN_NOTES = {"addons": "Runs Lua addons (keep this on).", "thirdparty": "Lets third-party plugins load.",
                 "screenshot": "Screenshots without the interface.", "minimap": "A minimap on screen.",
                 "hardwaremouse": "Hardware mouse cursor.", "toon": "Cel-shaded look.", "winefix": "Fixes for Wine (Linux).",
@@ -831,6 +832,8 @@ RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # 
 BOTS_ROSTER_SAFE, BOTS_ONLINE_SAFE = 600, 550
 BOTS_ROSTER_MAX, BOTS_ONLINE_MAX = 2000, 1500
 RATE_DEFAULTS.update({"bots_growth": "realistic"})
+BUFF_RANGES = ("retail", "extended")   # party buffs on trusts, squad mates and pets: inside the effect's radius, or at any distance
+RATE_DEFAULTS.update({"buff_range": "retail"})   # map.lua TRUST_AOE_RANGE (newer servers only; older ones skip it)
 RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False})   # one-time bot head start (bots_growth.lua)
 RATE_DEFAULTS.update({"squad_all_gear": False})   # (Yache) every piece of gear counts as given to the squad (squad.lua squadAllGear)
 RATE_DEFAULTS.update({"bots_pass_loot": True})   # (delukard) bot players in your party pass every drop at once (bots.cpp)
@@ -838,7 +841,7 @@ RATE_DEFAULTS.update({"bots_pass_loot": True})   # (delukard) bot players in you
 # stories and gate travel (modules/custom/lua/extras.lua reads extras_config.lua; in game: !extras). All on by default.
 EXTRAS_KEYS = ("crowd_gates", "crowd_meet", "bot_social", "bot_memory", "bot_story", "bot_gates")
 RATE_DEFAULTS.update({key: True for key in EXTRAS_KEYS})
-RATE_DEFAULTS.update({"training_dummies": False})   # (Jon Tanta) !sandbox training dummies in Rolanberry Fields, a testing tool (squad_sandbox.lua)
+RATE_DEFAULTS.update({"training_dummies": True, "training_dummies_explicit": False})   # (Jon Tanta) !sandbox training dummies in Rolanberry Fields (squad_sandbox.lua). On by default since 0.3.3a; _explicit = the player chose the switch himself, so only then is a saved False kept
 RATE_DEFAULTS.update({"squad_keep_gear": False})   # gear given to the squad is unlocked and you keep the piece (squad.lua squadKeepGear)
 RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
 RATE_DEFAULTS.update({"short_quest_waits": True})   # Chocobo's Wounds 1 minute, Forge Your Destiny 1 hour (late/quest_waits.lua)
@@ -1021,7 +1024,7 @@ def write_crowds_config(server_dir, rates):
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
         f.write("return { call_cooldown_min = %d, spell_scrolls = %s, keep_gear = %s, training_dummies = %s, all_gear = %s }\n" % (
             clean_call_cooldown(rates.get("squad_call_cooldown", 5)), "true" if rates.get("spell_scrolls", False) else "false",
-            "true" if rates.get("squad_keep_gear", False) else "false", "true" if rates.get("training_dummies", False) else "false",
+            "true" if rates.get("squad_keep_gear", False) else "false", "true" if rates.get("training_dummies", True) else "false",
             "true" if rates.get("squad_all_gear", False) else "false"))
     with open(os.path.join(module_dir, "storage_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
@@ -1143,6 +1146,8 @@ def load_rates(here):
             rates["squad_chat"] = bool(saved["squad_chat"])
         if saved.get("bots_growth") in ("off", "realistic", "fast"):
             rates["bots_growth"] = saved["bots_growth"]
+        if saved.get("buff_range") in BUFF_RANGES:
+            rates["buff_range"] = saved["buff_range"]
         for key in ("bots_head_start", "bots_head_start_done"):
             if key in saved:
                 rates[key] = bool(saved[key])
@@ -1156,8 +1161,10 @@ def load_rates(here):
             rates["spell_scrolls"] = bool(saved["spell_scrolls"])
         if "squad_keep_gear" in saved:
             rates["squad_keep_gear"] = bool(saved["squad_keep_gear"])
-        if "training_dummies" in saved:
+        # on by default; a saved value only counts when the player chose it (an older rates.json holds the old default False without a choice)
+        if saved.get("training_dummies_explicit") is True and "training_dummies" in saved:
             rates["training_dummies"] = bool(saved["training_dummies"])
+            rates["training_dummies_explicit"] = True
         if "bots_pass_loot" in saved:
             rates["bots_pass_loot"] = bool(saved["bots_pass_loot"])
         for key in EXTRAS_KEYS:
@@ -1190,7 +1197,7 @@ def save_rates(here, rates):
 
 # --- Rate profiles (2026-11-18): save the Rates tab under a name, load it later, share it as a .txt file -----------
 PROFILE_DIR = "rate-profiles"
-PROFILE_SKIP = {"bots_head_start", "bots_head_start_done", "defaults_version"}   # (this PC's own one-time state)
+PROFILE_SKIP = {"bots_head_start", "bots_head_start_done", "defaults_version", "training_dummies_explicit"}   # (this PC's own one-time state)
 
 
 def profile_dir(here):
@@ -1273,12 +1280,14 @@ def apply_preset(rates, name):
     out["crowds"] = rates.get("crowds", True)
     for key, default in (("crowds_chat", True), ("crowds_chat_amount", "normal"), ("crowds_chat_ai", True),
                          ("crowds_field", True), ("crowds_field_parties", 1),
-                         ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"),
+                         ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"), ("buff_range", "retail"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
-                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False), ("training_dummies", False), ("bots_pass_loot", True), ("squad_all_gear", False),
+                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False), ("training_dummies", True), ("training_dummies_explicit", False), ("bots_pass_loot", True), ("squad_all_gear", False),
                          ("short_quest_waits", True), ("events", "date"), ("event_harvest", True), ("event_starlight", True), ("event_egg_hunt", True), ("event_horro", True)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
+    if out["buff_range"] not in BUFF_RANGES:
+        out["buff_range"] = "retail"
     for key in EXTRAS_KEYS:
         out[key] = rates.get(key, True)
     out["main.MAX_LEVEL"] = rates.get("main.MAX_LEVEL", 75)
@@ -1299,6 +1308,8 @@ LOGIN_EXPANSION_KEYS = {
 
 LOGIN_OPTIONAL_KEYS = {"TREASURES_OF_AHT_URGHAN", "TREASURES_OF_AHT_URHGAN"}   # two spellings: whichever the file has is used, no complaint about the other
 
+MAP_OPTIONAL_KEYS = {"TRUST_AOE_RANGE"}   # only in newer servers' settings/default/map.lua: skipped without a message when missing
+
 RATES_MARKER = "-- Generated by the XI: Forever Offline launcher (Rates tab) from settings/default/"
 OLD_RATES_MARKER = ("-- Generated by the FFXI Solo launcher (Rates tab) from settings/default/",
                     "-- Generated by the Phoenix Solo launcher (Rates tab) from settings/default/")   # files written by earlier versions
@@ -1307,6 +1318,8 @@ OLD_RATES_MARKER = ("-- Generated by the FFXI Solo launcher (Rates tab) from set
 def _format_number(value, kind):
     if kind == "bool":
         return "true" if value else "false"
+    if kind == "str":
+        return "'" + re.sub(r"[^A-Za-z0-9_ .-]", "", str(value)) + "'"
     return str(int(value)) if kind == "int" else ("%.3f" % value).rstrip("0").rstrip(".") if value != int(value) else "%d.0" % int(value)
 
 
@@ -1448,6 +1461,10 @@ def apply_rates(server_dir, rates):
     # chocobo digging (100 finds a day)
     wanted["map.lua"].append(("FISHING_DAILY_LIMITS", False, "bool"))
     wanted["main.lua"].append(("DIG_FATIGUE", 0, "int"))
+    # (2026-11-23) party buffs on trusts, squad mates and pets: 'retail' = inside the effect's radius, 'extended' = any
+    # distance. Servers from the release that added the key have it; older ones don't, and it is skipped without a message.
+    _buff = rates.get("buff_range")
+    wanted["map.lua"].append(("TRUST_AOE_RANGE", _buff if _buff in BUFF_RANGES else "retail", "str"))
     # (2026-11-20, Yumainai: the rank 2-3 dragon was not capped) the server default lifts the level cap of every mission
     # fight to the max level; on, they keep their era caps (era/lua/battlefields/mission_level_caps.lua: rank 2-3 at 25,
     # rank 5-1 at 50, Promathia 30 / 40 / 50 / 60 / 75), like every other capped battlefield
@@ -1474,9 +1491,9 @@ def apply_rates(server_dir, rates):
         with open(default_path, "r", encoding="utf-8-sig") as f:
             text = f.read()
         for key, value, kind in entries:
-            pattern = re.compile(r"(?m)^(\s*" + re.escape(key) + r"\s*=\s*)(-?\d[\d.]*|true|false)")
+            pattern = re.compile(r"(?m)^(\s*" + re.escape(key) + r"\s*=\s*)(-?\d[\d.]*|true|false|'[^'\n]*'|\"[^\"\n]*\")")
             text, count = pattern.subn(lambda m: m.group(1) + _format_number(value, kind), text, count=1)
-            if count == 0 and not (filename == "login.lua" and key in LOGIN_OPTIONAL_KEYS):
+            if count == 0 and not (filename == "login.lua" and key in LOGIN_OPTIONAL_KEYS) and not (filename == "map.lua" and key in MAP_OPTIONAL_KEYS):
                 messages.append(f"{filename}: setting {key} not found - left at the default")
         target = os.path.join(settings_dir, filename)
         base = os.path.join(settings_dir, ".launcher-base", filename)
