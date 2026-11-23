@@ -39,6 +39,14 @@
 !/launcher_coop_gui.py
 !/launcher_coop.py
 !/launcher_passport.py
+# open worlds (2026-11-23): a world that runs without the launcher's window (the hub, a rented server): start and
+# watch, first setup, nightly backups and its own updates; and the one command that installs it on a Linux server.
+# install-world.sh has to keep Unix line ends, which .gitattributes says.
+!/launcher_world.py
+!/launcher_world_setup.py
+!/launcher_world_keep.py
+!/install-world.sh
+!/.gitattributes
 # (2026-11-21) used by the launcher but never shipped before: item stacks (Egon's report), character transfer, patch notes page
 !/stack_mode.py
 !/char_import.py

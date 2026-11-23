@@ -2,6 +2,18 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.4 · 23 November 2026
+
+### New
+• CO-OP: open worlds (EXPERIMENTAL). A world can be open to anyone who has its link, not only to friends with an invite code. On the CO-OP page, "Who can come in" is Friends (invite code), as before, or Anyone (world link). An open world takes up to 64 visitors (you set the number), can have a PASSWORD, and has a world link to hand out with COPY LINK. The link is there once your game server has run (press PLAY once). Between friends everything works as it did.
+• CO-OP: visiting an open world. Paste a world link into "Code or link" and press VISIT. A world with a password asks for it. If your character's name is taken there, you pick a visiting name for that world; you still go home under your own. TEST CONNECTION now also says whether a world has a password and how long it keeps your place.
+• CO-OP: your place is kept. When you go home from an open world, your place there stays for 90 days after your last visit: your linkshell, what you have on that world's auction house and in its delivery box, and your visiting name. Everything your character earned comes home with you, as always. "YOUR PLACES IN OPEN WORLDS" lists them, with VISIT AGAIN and FORGET.
+• CO-OP, for the host of an open world: KICK logs a visitor out of the game. BAN puts a visitor out and keeps that launcher from coming back (and its address too, if you say so); a banned visitor's character can still go home. PLACES shows the places kept for visitors who are home and your bans, with FORGET, BAN and LIFT BAN.
+• CO-OP: an open world checks a stranger's character before it comes in, and your launcher checks it again before it comes home. A character a server could not load safely is turned away and stays where it was; on the way home, TAKE BACK opens at once.
+
+### Changes
+• A yell ban or a yell wait no longer travels with a character between worlds: each world keeps its own.
+
 ## v0.3.3 · 22 November 2026
 
 ### New
