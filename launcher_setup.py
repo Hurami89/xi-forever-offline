@@ -501,6 +501,44 @@ def ensure_triggers(cfg, server_dir, log=print, run=subprocess.run):
     return missing
 
 
+def module_sql_files(server_dir):
+    """The modules' own SQL files (modules/init.txt), in import order."""
+    base = os.path.join(server_dir, "modules") + os.sep
+    return [path for path in import_order(server_dir) if path.startswith(base)]
+
+
+def module_tables(server_dir):
+    """The tables the modules' SQL files create (squad_mate, guild_shop_state, ...)."""
+    import re
+    tables = []
+    for path in module_sql_files(server_dir):
+        try:
+            with open(path, encoding="utf-8", errors="replace") as handle:
+                text = handle.read()
+        except OSError:
+            continue
+        tables += re.findall(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?(\w+)`?", text, re.IGNORECASE)
+    return tables
+
+
+def ensure_module_tables(cfg, server_dir, log=print, run=subprocess.run):
+    """(2026-11-22, NRDTheGamer: the Squads page said "Table 'xiforever.squad_mate' doesn't exist") A setup whose
+    database import was cut short after the game's own tables leaves the modules' tables out, and nothing put them in
+    afterwards: no squad, no guild shop stock. When a table that a module's SQL file creates is missing, every module
+    SQL file is imported again (they are written to be imported at each update). Returns the tables that were missing."""
+    wanted = module_tables(server_dir)
+    if not wanted:
+        return []
+    mdb, port, pw = cfg["mariadb_dir"], int(cfg.get("db_port", 3306)), cfg["db_pass"]
+    have = set(sql(mdb, port, cfg.get("db_user", DB_USER), pw, "SHOW TABLES",
+                   database=cfg.get("db_name", DB_NAME), run=run).split())
+    missing = [name for name in wanted if name not in have]
+    if missing:
+        log("Database: tables are missing (" + ", ".join(missing) + "); importing the add-on data again...")
+        import_sql(mdb, port, pw, module_sql_files(server_dir), log=lambda m: None, run=run)
+    return missing
+
+
 def create_account(mariadb_dir, port, db_password, login, password, run=subprocess.run):
     """The player's game account. PASSWORD() is MariaDB's own hash: the login server accepts it and turns it into
     bcrypt the first time you log in (src/login/auth_session.cpp)."""

@@ -19,6 +19,11 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • AI chat model list: the lighter choice was "gemma4:4b", a model that doesn't exist, so picking it failed with "ollama pull ... failed". It is gemma4:e2b now, and a failed model download shows what Ollama itself said. (Yumainai)
 • "xi_profile stopped unexpectedly ... access a socket in a way forbidden by its access permissions": the launcher now says what it means (Windows set the port aside for Hyper-V, WSL or Docker) and the two commands that free it. (Tetazos)
 • Squad: a mate whose main job is level 1 keeps a level 1 support job, as a player does; it used to lose it. (wildthing; reported by Hammer)
+• SQUADS > Gear: a Warrior's Main list stopped at level 12, because the picker held the first 300 items counted from level 1 and a Warrior can use a lot of weapons. The list now starts from the highest level and holds 600. (Gilder)
+• The Squads page saying "Table 'xiforever.squad_mate' doesn't exist": a setup whose database import was cut short left the squad and guild shop tables out. PLAY now checks for them and puts them in. (NRDTheGamer)
+• SQUADS page: a mate's support job is shown from level 1 once you have support jobs, as it already works in the game. The page only showed it from level 18. (FalconX51, Meli)
+• The game closing at once with the loader's log saying "polcore (US) file ... doesn't exist": a European or Japanese game on a PC whose registry still holds another language's PlayOnline, even an uninstalled one. The launcher now tells the game loader and Ashita which game is yours. (Sirloinofbeef)
+• Home Point #1 in Port Windurst, Port San d'Oria, Bastok Markets and Port Bastok: a teleport from inside the same area still left you at today's spot, away from the crystal (v0.1.59's fix did not work in the game). The server now watches where the game puts you after such a jump and moves you to the crystal. (notsensible)
 
 ## v0.1.59 · 22 November 2026
 
