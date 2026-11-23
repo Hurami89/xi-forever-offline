@@ -30,6 +30,9 @@ Themes work the same way (launcher_theme.py). A theme is a .json in here with a 
                                        (of the songs in date, the one that started last plays)
     default.mp3                        (or default.wav) the launcher's own opening theme: it plays with the Default look, and with
                                        any theme that has no song of its own
+    music.json                         who made the songs: OPTIONS > Theme names the song that plays and its maker from it, and
+                                       shows its "credit" sentence. A new song needs a line in it (file name and title), in
+                                       CREDITS.md and in the patch notes
 OPTIONS > Theme has a switch for Default (the launcher's own look) and one for every theme, so each player picks (it takes a
 restart, which the launcher offers), plus the song on / off and its volume. With Default or another theme picked, the limited-time
 banners and song rest too. A pick holds back only the limited-time theme that was in date when it was made: the next one shows by

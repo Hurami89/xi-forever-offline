@@ -7,6 +7,8 @@ real install is read or changed): a limited-time theme in date, the music switch
 page wrote it ("limited_look": false), another theme picked, a pick made before the limited-time theme arrived, the classic look
 (the same choices in a strip on the banner), the date passed, the date passed with the earlier pick still there, and twice with
 the launcher's own opening theme (default.wav): Default picked during the limited-time theme, and no theme at all.
+Who made the songs (music.json in assets\\press): the song card names the song and its maker and carries the credit, and before
+anything is started the kit's own music.json is checked against the songs in its assets\\press (a song with no line there fails).
 No sound is made: the player is replaced by one that only notes what it was asked to do.
 Needs python3-tk, Pillow and a screen:
     xvfb-run -a -s "-screen 0 1500x1000x24" python3 dev/launcher-tests/test_limited_look.py [OUTDIR for screenshots]"""
@@ -33,6 +35,7 @@ OWN, OWN_HOVER = (10, 200, 220), (9, 90, 190)        # the colours of the look's
 USUAL = {"BG": "#0a1118", "GOLD": "#e6be64"}
 PLAIN = {"name": "Plain", "colours": {"BG": "#102018", "GOLD": "#80e060"}, "sound": "t_own.wav",       # a theme that is always there to pick,
          "font": {"family": "Galmuri11", "files": ["fonts/Galmuri11-Regular.ttf", "fonts/no-such-file.ttf"]}}   # with lettering of its own
+CREDIT = "All of the music is by T. B\u00e5rd, the test's Head of Music."
 WEARING = {"during": "event", "muted": "event", "classic": "event", "earlier": "event", "picked": "plain", "back": "plain"}   # other steps: its own look
 
 
@@ -48,9 +51,10 @@ def tone(path):
         w.writeframes(b"\x00\x00" * 800)
 
 
-def put_dated(press, offset, plain=False, own=False):
+def put_dated(press, offset, plain=False, own=False, credits=True):
     """The copy's own limited-time theme, banner and tune, dated `offset` days from today (any others are taken out first).
-    plain: also a theme with no date (always there to pick), with a tune of its own. own: also the launcher's own opening theme."""
+    plain: also a theme with no date (always there to pick), with a tune of its own. own: also the launcher's own opening theme.
+    credits: also a music.json that says who made them (the dated tune by a guest, the launcher's own with no title)."""
     for name in os.listdir(press):
         if os.path.isfile(os.path.join(press, name)) and (name.lower().endswith((".json", ".mp3", ".wav")) or "__until-" in name.lower()
                                                            or "__theme-t_plain" in name.lower()):
@@ -67,6 +71,43 @@ def put_dated(press, offset, plain=False, own=False):
         Image.new("RGB", (920, 368), (30, 90, 50)).save(os.path.join(press, "t_plain_banner__center__theme-t_plain.png"))      # that theme's own banner
     if own:
         tone(os.path.join(press, "default.wav"))
+    if credits:
+        notes = {"by": "T. B\u00e5rd", "credit": CREDIT,
+                 "songs": {f"T_Theme__until-{day(offset)}.WAV": {"title": "Event  Song", "by": "A Guest"}, "t_own.wav": "Own Song", "default.wav": ""}}
+        with open(os.path.join(press, "music.json"), "w", encoding="utf-8") as f:
+            json.dump(notes, f, ensure_ascii=False)
+
+
+def kit_music():
+    """The kit's own music.json against the songs in its assets\\press: what is wrong, one line each (none: every song is credited)."""
+    press = os.path.join(KIT, "assets", "press")
+    songs = sorted(n for n in os.listdir(press) if n.lower().endswith((".mp3", ".wav"))) if os.path.isdir(press) else []
+    path = os.path.join(press, "music.json")
+    if not os.path.isfile(path):
+        return [f"assets\\press has {len(songs)} song(s) and no music.json to say who made them"] if songs else []
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            notes = json.load(f)
+    except (OSError, ValueError) as e:
+        return [f"music.json cannot be read: {e}"]
+    if not isinstance(notes, dict) or not isinstance(notes.get("songs"), dict):
+        return ['music.json has no "songs" table']
+    wrong = []
+    listed = {str(name).lower(): entry for name, entry in notes["songs"].items()}
+    for song in songs:
+        if song.lower() not in listed:
+            wrong.append(f"{song} has no line in music.json")
+            continue
+        entry = listed[song.lower()]
+        by = entry.get("by") if isinstance(entry, dict) and entry.get("by") is not None else notes.get("by")
+        if not isinstance(by, str) or not by.strip():
+            wrong.append(f"music.json names nobody for {song}")
+    for name in listed:
+        if name not in [song.lower() for song in songs]:
+            wrong.append(f"music.json lists {name}, which is not in assets\\press")
+    if not isinstance(notes.get("credit"), str) or not notes["credit"].strip():
+        wrong.append('music.json has no "credit" sentence for the Theme page')
+    return wrong
 
 
 def make_copy():
@@ -311,6 +352,17 @@ def launch(work, step, out):
         check(list(page.theme_switches) == ["default", "t_look", "t_plain"] and on() == ["t_look"] and page.music_switch is not None and page.slider is not None
               and page.music_var.get() and pending() == "",
               "the page has a switch for Default, the limited-time theme (on) and the other theme, the song switch (on) and the volume slider")
+        check(page.song is not None and page.song.cget("text") == '"Event Song" by A Guest' and page.music_credit is not None
+              and page.music_credit.cget("text") == CREDIT,
+              f"the song card names the song and who made it, and carries the music credit ({page.song.cget('text') if page.song else None!r})")
+        check(theme.song_credit(os.path.join(press, "T_OWN.WAV")) == ("Own Song", "T. B\u00e5rd") and theme.song_line("default.wav") == "by T. B\u00e5rd"
+              and theme.song_credit("not-listed.mp3") == ("", "") and theme.song_line("not-listed.mp3") == "" and theme.song_line(None) == "",
+              "music.json: a title with the usual maker, a song with no title, and nobody is named for a song it does not list")
+        check(theme.song_line("a.mp3", {"songs": {"a.mp3": "Only A Title"}}) == '"Only A Title"'
+              and theme.song_line("a.mp3", {"by": "X", "songs": {"a.mp3": {"title": "T", "by": ""}}}) == '"T"'
+              and theme.song_credit("a.mp3", {"songs": ["a.mp3"]}) == ("", "") and theme.song_credit("a.mp3", {"by": 7, "songs": {"a.mp3": 9}}) == ("", "")
+              and theme.music_credit({"credit": 5}) == "" and theme.music_credit([]) == "" and theme.song_credit("a.mp3", []) == ("", ""),
+              "... and a music.json with odd contents names nobody")
         app.select_tab(app.page_index["Theme"])
         shot("look-theme-page")
         page.music_switch.toggle()
@@ -371,6 +423,12 @@ def launch(work, step, out):
         tone(os.path.join(press, f"z_over__from-{day(-5)}__until-{day(-1)}.wav"))
         tone(os.path.join(press, f"b_older__from-{day(-2)}__until-{day(3)}.wav"))
         check(os.path.basename(theme.music_file()) == f"z_newer__from-{day(0)}__until-{day(3)}.wav", "of two that have started, the one that started last plays; one that is over never does")
+        check(theme.song_line(theme.music_file()) == "" and theme.song_line(os.path.join(press, song)) == '"Event Song" by A Guest',
+              "a new song music.json does not list yet is credited to nobody (the listed one still is)")
+        with open(os.path.join(press, "music.json"), "w") as f:
+            f.write("{ not json")
+        check(theme.music_notes() == {} and theme.song_line(os.path.join(press, song)) == "" and theme.music_credit() == "",
+              "a music.json that cannot be read: no names, and nothing breaks")
     elif step == "off":
         check(player.calls == [], "Default picked: no song")
         check(on() == ["default"] and page.music_switch is None and page.slider is None, "the page shows Default on, the limited-time theme off, and no song card")
@@ -391,6 +449,8 @@ def launch(work, step, out):
             print("  note the kit has no assets\\press\\fonts\\Galmuri11-Regular.ttf: the font checks were skipped")
         check(player.calls == [("play", own_song)], f"the picked theme's own song plays, not the limited-time one's: {player.calls}")
         check(on() == ["t_plain"] and page.music_switch is not None, "the page shows the picked theme on, and its song card")
+        check(page.song is not None and page.song.cget("text") == '"Own Song" by T. B\u00e5rd' and page.music_credit is not None,
+              f"... which names that theme's song and who made it ({page.song.cget('text') if page.song else None!r})")
         app.select_tab(app.page_index["Theme"])
         shot("look-picked-page")
     elif step == "earlier":
@@ -402,12 +462,16 @@ def launch(work, step, out):
     elif step == "own-picked":
         check(player.calls == [("play", "default.wav")], f"Default picked during the limited-time theme: the launcher's own opening theme plays ({player.calls})")
         check(on() == ["default"] and page.music_switch is not None and page.slider is not None, "the page shows Default on, with the song card")
+        check(page.song is None and page.music_credit is None and theme.music_notes() == {},
+              "no music.json in assets\\press: the song card has no song line and no credit, and everything else is there")
         app.select_tab(app.page_index["Theme"])
         shot("look-own-picked")
     elif step == "own-only":
         check(player.calls == [("play", "default.wav")], f"no theme at all: the launcher's own opening theme plays ({player.calls})")
         check(page.theme_switches == {} and page.pending is None and page.music_switch is not None and page.slider is not None,
               "the Theme page is still there for the song (on / off, volume), with no themes to pick")
+        check(page.song is not None and page.song.cget("text") == "by T. B\u00e5rd" and page.music_credit.cget("text") == CREDIT,
+              "a song with no title: the card says who made it")
         app.select_tab(app.page_index["Theme"])
         shot("look-own-only")
         page.music_switch.toggle()
@@ -446,11 +510,17 @@ if __name__ == "__main__":
     work = make_copy()
     kit = os.path.join(work, "kit")
     press = os.path.join(kit, "assets", "press")
-    bad = 0
+    wrong = kit_music()
+    print("kit")
+    for line in wrong:
+        print("  FAIL " + line)
+    if not wrong:
+        print("  ok   every song in the kit's assets\\press has its line in music.json, which names who made it")
+    bad = 1 if wrong else 0
     try:
         for step in ("during", "muted", "off", "picked", "earlier", "classic", "after", "back", "own-picked", "own-only"):
             put_dated(press, -1 if step in ("after", "back", "own-only") else 3, plain=step in ("during", "picked", "earlier", "back"),
-                      own=step in ("own-picked", "own-only"))
+                      own=step in ("own-picked", "own-only"), credits=step != "own-picked")
             set_config(kit, theme_music=False if step == "muted" else None, limited_look=False if step == "off" else None,
                        theme="t_plain" if step in ("picked", "earlier", "back") else "default" if step == "own-picked" else None,
                        theme_event=f"t_look__until-{day(3)}" if step in ("picked", "back", "own-picked") else "t_old__until-2020-01-01" if step == "earlier" else None,

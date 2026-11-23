@@ -20,6 +20,8 @@ launcher opens. A limited-time theme also has the limited-time banners of its da
 (newer__from-2026-11-24__until-2026-12-02.mp3): from that day on it takes over from the one that was playing.
 default.mp3 (or default.wav) in assets\\press is the launcher's own opening theme: it plays with the Default look, and with any theme
 that has no song of its own.
+music.json in assets\\press says who made the songs: the Theme page names the song that plays and its maker from it, and shows its
+"credit" sentence. A new song needs a line there (and in CREDITS.md and the patch notes).
 
 The Theme page is there whenever there is something to choose (a theme to pick, or a song to switch off): a switch for Default (the
 launcher's own look) and one for every theme, the song on / off and its volume. The classic look has no such page: there the same sit in a small strip on the banner.
@@ -53,6 +55,7 @@ TINTED = ("ui", "buttons")       # the folders of assets whose pictures a look m
 BUTTON_KINDS = {"play": "play", "stop": "stop", "dual": "dualbox"}     # assets\\buttons\\<kind>\\ holds variants of these assets\\ui pictures
 SOUNDS = (".mp3", ".wav")
 OWN_SOUNDS = ("default.mp3", "default.wav")        # the launcher's own opening theme, in assets\\press (the first one that is there)
+MUSIC = "music.json"             # who made the songs, in assets\\press: see music_notes()
 VOLUME = 0.55
 DEFAULT = "default"              # the launcher's own look, as the Theme page and config.json call it
 PALETTE = ("BG", "PANEL", "PANEL2", "FG", "DIM", "BORDER", "LINE", "OFF", "GOLD", "GOLD_LIT", "GOLD_DIM", "PARCH", "ACCENT", "GREEN", "RED", "GREY")
@@ -504,6 +507,52 @@ def music_file():
     return own_sound()
 
 
+def music_notes():
+    """Who made the launcher's songs, from music.json in assets\\press: "credit" (a sentence for the Theme page), "by" (who made
+    every song that does not say otherwise) and "songs" (a song's file name: its title, or {"title": ..., "by": ...}). {} when the
+    file is missing or cannot be read."""
+    try:
+        with open(os.path.join(PRESS, MUSIC), encoding="utf-8-sig") as handle:
+            notes = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    return notes if isinstance(notes, dict) else {}
+
+
+def _words(value, most=200):
+    return " ".join(value.split())[:most] if isinstance(value, str) else ""
+
+
+def song_credit(path, notes=None):
+    """(title, who made it) of a song as music.json has it, '' for what it does not say. A song that is not listed there gets
+    neither: nobody is named for a song unless the file names them for it."""
+    notes = music_notes() if notes is None else notes
+    songs = notes.get("songs") if isinstance(notes, dict) else None
+    if not path or not isinstance(songs, dict):
+        return "", ""
+    name = os.path.basename(path).lower()
+    listed = [value for key, value in songs.items() if isinstance(key, str) and key.lower() == name]
+    if not listed:
+        return "", ""
+    entry = listed[0]
+    title, by = (entry.get("title"), entry.get("by")) if isinstance(entry, dict) else (entry, None)
+    return _words(title), _words(notes.get("by") if by is None else by)
+
+
+def song_line(path, notes=None):
+    """A song's line on the Theme page: '"A Place to Return" by JØ', just the title, 'by JØ', or '' (a song music.json does not list)."""
+    title, by = song_credit(path, notes)
+    if title and by:
+        return f'"{title}" by {by}'
+    return f'"{title}"' if title else f"by {by}" if by else ""
+
+
+def music_credit(notes=None):
+    """The sentence that credits the launcher's music ("credit" in music.json), or ''."""
+    notes = music_notes() if notes is None else notes
+    return _words(notes.get("credit"), 400) if isinstance(notes, dict) else ""
+
+
 def volume_now():
     try:
         return max(0.0, min(1.0, float(config().get("theme_volume", VOLUME))))
@@ -701,7 +750,7 @@ def add_page(app, tabs):
     w.page_header(page.body, "Theme", subtitle, note="").pack(fill="x")
     page.theme_vars, page.theme_switches = {}, {}
     page.music_var = tk.BooleanVar(app, c.music_on)
-    page.slider = page.percent = page.music_switch = page.pending = None
+    page.slider = page.percent = page.music_switch = page.pending = page.song = page.music_credit = None
     wrap = 940
     if len(c.themes) > 1:
         card = w.Card(page.body, "Look")
@@ -739,6 +788,13 @@ def add_page(app, tabs):
     if c.sound:
         card = w.Card(page.body, "Opening theme")
         card.pack(fill="x", pady=(10, 0))
+        try:                                           # the song's name and who made it (music.json)
+            notes = music_notes()
+            song, credit = song_line(c.sound, notes), music_credit(notes)
+        except Exception:
+            song = credit = ""
+        if song:
+            page.song = card.row("Song", lambda parent: tk.Label(parent, text=song, bg=w.PANEL, fg=w.GOLD, font=(w.UI_FONT, 10, "bold")))
         page.music_switch = card.row("Play the theme song when the launcher opens",
                                      lambda parent: w.Switch(parent, page.music_var, command=lambda: c.set_music(page.music_var.get())))
 
@@ -761,6 +817,8 @@ def add_page(app, tabs):
         w.button(bar, "Play it now", lambda: c.play(asked=True), small=True).pack(side="left")
         w.button(bar, "Stop", c.stop, small=True).pack(side="left", padx=8)
         card.note("It plays once when the launcher opens and stops when the game starts.", wrap=wrap)
+        if credit:
+            page.music_credit = card.note(credit, color=w.FG, wrap=wrap)
         c.changed.append(lambda: page.music_var.get() != c.music_on and page.music_var.set(c.music_on))
     if last:
         words = (f"After {last} {event['name']} goes away by itself." if len(c.themes) > 2
