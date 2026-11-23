@@ -2,6 +2,11 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.1 · 22 November 2026
+
+### Fixes
+• The Squads menu opens again. In v0.3.0 a click on the Squads button (or /menu) opened nothing and put a red "MESSAGE FROM DEAR IMGUI: Missing PopStyleColor()" box on the screen. A mistake in the new menu opacity setting. Until you have this update: click the Squads button once more (or type /menu) and the red box goes away; the !squad commands typed in the chat still work. Sorry about that. (Hasuko)
+
 ## v0.3.0 · 22 November 2026
 
 ### New

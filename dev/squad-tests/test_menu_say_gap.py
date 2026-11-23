@@ -76,6 +76,6 @@ lua.execute("fresh(); typing = function() return true end; add(70, '/say !squad 
 check("typing holds the line back and it goes afterwards", ev("#f == 0 and #g == 1"))
 
 check("the old 0.6 s wait after a refresh is gone", "S.sendGap" not in src)
-check("the version says so", "addon.version = '1.26h'" in src)
+check("the version note says so", "(1.26h) a click right after a refresh is no longer dropped" in src)
 print(f"{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

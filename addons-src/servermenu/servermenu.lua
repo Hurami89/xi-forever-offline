@@ -37,7 +37,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26h';   -- (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.26i';   -- (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1969,6 +1969,14 @@ local function setOpen(open)
     if open then ask(); end
 end
 
+-- (1.26g, K-Andy) how see-through the Squads button and the menu's background are: 10-100 percent.
+-- (1.26i) It has to stand ABOVE menuWindow: it stood below it, so the menu called a function that did not exist
+-- yet and the Squads menu never opened (Hasuko: a red 'Missing PopStyleColor' box after the v0.3.0 patch).
+local function opacityOf(key)
+    local v = tonumber(S.cfg[key] or '100') or 100;
+    return math.max(10, math.min(100, v)) / 100;
+end
+
 local function menuWindow()
     if not S.open[1] then return; end
     imgui.SetNextWindowSize({ px(620), px(560) }, G('ImGuiCond_FirstUseEver') or 4);
@@ -2017,12 +2025,6 @@ end
 local function xy(a, b)
     if type(a) == 'table' then return tonumber(a[1] or a.x), tonumber(a[2] or a.y); end
     return tonumber(a), tonumber(b);
-end
-
--- (1.26g, K-Andy) how see-through the Squads button and the menu's background are: 10-100 percent
-local function opacityOf(key)
-    local v = tonumber(S.cfg[key] or '100') or 100;
-    return math.max(10, math.min(100, v)) / 100;
 end
 
 local function buttonWindow()
