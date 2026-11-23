@@ -391,7 +391,15 @@
         "XISpeaks/companion/pocket-runtime/"
       ],
       "companion": "addons/XISpeaks/companion/XISpeaks-Companion.exe",
-      "check": "addons/XISpeaks/XISpeaks.lua"
+      "check": "addons/XISpeaks/XISpeaks.lua",
+      "fixups": [
+        [
+          "addons/XISpeaks/voice_ui.lua",
+          "imgui.BeginChild('npc_list', {0, 160}, true)",
+          "imgui.BeginChild('npc_list', {0, 160}, rawget(_G, 'ImGuiChildFlags_Borders') or 1)",
+          "/xis voices stopped with an error on this Ashita"
+        ]
+      ]
     },
     {
       "id": "tcrossbar",

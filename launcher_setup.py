@@ -1006,16 +1006,11 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         folder = os.path.join(kit, "downloads", "mariadb")
         os.makedirs(folder, exist_ok=True)
         path = os.path.join(folder, found["name"])
-        if IS_WINDOWS:
-            data = fetch(found["url"], timeout=1800)
-            if found.get("sha256"):
-                import hashlib
-                if hashlib.sha256(data).hexdigest() != found["sha256"].lower():
-                    raise RuntimeError("The MariaDB download does not match its published checksum.")
-            with open(path, "wb") as handle:
-                handle.write(data)
-        else:                                          # Linux: a bigger package, streamed to disk (resumable)
-            tp.download_file(found["url"], path, log=log, sha256=found.get("sha256"), fetch=fetch)
+        # (2026-11-23, Art-Machine: setup sat on "Downloading MariaDB" with no sign of life) streamed to disk on Windows
+        # too: a progress line every 10%, a stalled mirror gives up after 60 s instead of 30 minutes, a second try
+        # carries on from the part already downloaded, and a zip already in downloads\mariadb is used as it is.
+        log(f"   (from {found['url'].split('/')[2] if '//' in found['url'] else 'mariadb.org'}; about 100 MB on Windows)")
+        tp.download_file(found["url"], path, log=log, sha256=found.get("sha256"), fetch=fetch)
         unpack_package(path, mdb)
     if not IS_WINDOWS:
         still = fill_missing_libs(mdb, os.path.join(kit, *COMPAT_LIBS), log=log)

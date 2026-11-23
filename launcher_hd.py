@@ -232,7 +232,32 @@ def write_overlays(ashita, names):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="") as handle:
         handle.write(text.replace("\n", newline))
+    try:
+        fix_root(ashita)
+    except OSError:
+        pass
     return clean
+
+
+_ROOT = re.compile(r"(?mi)^([ \t]*root_path[ \t]*=[ \t]*)([^\r\n]*?)[ \t]*(?=\r?$)")
+
+
+def fix_root(ashita):
+    """(2026-11-23, Ryan: LoFi on but silent after moving the game's folder) a root_path in pivot.ini that points at a
+    folder that is gone (the old place of the kit) makes XIPivot load nothing. Points it at this kit's DATs folder.
+    True when the file was changed. A root_path that exists, or none, is left alone."""
+    text = _read_ini(ashita)
+    if not text:
+        return False
+    m = _ROOT.search(text)
+    old = m.group(2).strip().strip('"') if m else ""
+    # only a kit's own DATs folder (…/polplugins/DATs) that is gone: a folder the player chose is not touched
+    if not old or os.path.isdir(old) or not old.replace("\\", "/").rstrip("/").lower().endswith("polplugins/dats"):
+        return False
+    text = text[:m.start(2)] + dats_dir(ashita) + text[m.end(2):]
+    with open(ini_path(ashita), "w", encoding="utf-8", newline="") as handle:
+        handle.write(text)
+    return True
 
 
 # ---------------------------------------------------------------- the packs that are installed

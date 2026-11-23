@@ -1,5 +1,5 @@
 --[[
-stinkshell 1.0  (XI: Forever Offline, 2026-11-23)
+stinkshell 1.1  (XI: Forever Offline, 2026-11-23)
 An online chat room for players of every world, in a window that looks like 1999. Your screen name is your character's
 name (the first player to use a name keeps it; anyone else gets Name2). Off by default; it needs the internet and the
 launcher running, which carries the lines to chat.xiforever.com and back (launcher_stinkshell.py).
@@ -15,7 +15,7 @@ says) and people.txt (who is here). Nothing from the room is ever run as a comma
 
 addon.name    = 'stinkshell';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.0';
+addon.version = '1.1';
 addon.desc    = 'Online chat room for every XI: Forever Offline player, 1999 style. Needs the internet.';
 addon.link    = 'https://xiforever.com';
 
@@ -170,8 +170,8 @@ local function sameLine(spacing)
 end
 
 local function chatPane(width, height)
-    local flags = rawget(_G, 'ImGuiWindowFlags_HorizontalScrollbar') and 0 or 0;
-    imgui.BeginChild('stinkshell_chat', { width, height }, true, flags);
+    -- (2026-11-23, Hexblood, Rysan, Frost) Ashita's imgui takes child flags here, not true/false: 'no matching function call'
+    imgui.BeginChild('stinkshell_chat', { width, height }, rawget(_G, 'ImGuiChildFlags_Borders') or 1);
     for _, line in ipairs(S.lines) do
         if line.kind == 'say' then
             local mine = S.me ~= nil and line.screen == S.me;
@@ -192,7 +192,7 @@ local function chatPane(width, height)
 end
 
 local function peoplePane(width, height)
-    imgui.BeginChild('stinkshell_people', { width, height }, true);
+    imgui.BeginChild('stinkshell_people', { width, height }, rawget(_G, 'ImGuiChildFlags_Borders') or 1);
     colored(BLACK, 'People Here: ' .. #S.people);
     if imgui.Separator then imgui.Separator(); end
     for _, p in ipairs(S.people) do

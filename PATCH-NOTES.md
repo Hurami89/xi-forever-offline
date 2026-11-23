@@ -12,6 +12,12 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ### Fixes
 • CO-OP: TEST CONNECTION now also checks port 51240 (PlayOnline's chat, which the game loader passes on to the world), and a world set up on a Linux server opens it in that server's firewall. Without it the game stopped right after logging in with "Failed to reach the server on port 51240". (The Hub's visitors)
+• STINKSHELL: the window closed the game ("Ashita has crashed") as soon as it opened. Fixed in the add-on (1.1). (Hexblood, Rysan, Frost)
+• XISPEAKS: /xis voices closed the game on this Ashita. The launcher now fixes that line in the author's file after installing, and once more at PLAY for an install you already have. (XISpeaks testers)
+• Squad mates showing no armor, or the wrong outfit, after zoning, a Home Point warp or a re-call: the outfit is now sent again a few seconds after a mate comes out, so a client still loading the area draws it after all. (Jker_s81, Rysan, Meli, krazy)
+• Squad greetings: only the first mate you called used the lines you wrote in Squad > Greetings; the others used their built-in lines. A mate with its own greetings now always uses them. (Waxworks)
+• LoFi music and HD packs said On but did nothing after the game's folder was moved: XIPivot kept looking for them in the old folder. The launcher now points it at the new one by itself (at PLAY, and whenever you switch a pack). (Ryan)
+• Setup: step 4 looked frozen on "Downloading MariaDB" on Windows. It now shows the progress, gives up on a stalled download after a minute instead of half an hour, and the next try carries on where it stopped. (Art-Machine)
 
 ## v0.3.4 · 23 November 2026
 

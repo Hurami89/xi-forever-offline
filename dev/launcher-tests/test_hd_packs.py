@@ -125,6 +125,19 @@ class HdPacks(unittest.TestCase):
         self.assertNotIn("3=Skipped", text)
         self.assertNotIn("\r", text)                                         # the file's own line ends are kept
 
+    def test_moved_kit_root_path_is_fixed(self):
+        # (2026-11-23, Ryan) the kit moved: its old DATs folder in root_path is gone, so XIPivot loaded nothing
+        with open(hd.ini_path(self.ashita), "w", newline="") as handle:
+            handle.write("[settings]\r\nroot_path=Q:\\gone\\Ashita\\polplugins\\DATs\r\n\r\n[overlays]\r\n0=LoFi-FFXI\r\n")
+        self.assertTrue(hd.fix_root(self.ashita))
+        text = self.ini()
+        self.assertIn("root_path=" + hd.dats_dir(self.ashita) + "\r\n", text.replace("\n", "\r\n") if "\r" not in text else text)
+        self.assertEqual(hd.read_overlays(self.ashita), ["LoFi-FFXI"])
+        self.assertFalse(hd.fix_root(self.ashita))                         # now it exists: left alone
+        with open(hd.ini_path(self.ashita), "w", newline="") as handle:
+            handle.write("[settings]\nroot_path=Q:\\my\\mods\n")       # a folder the player chose: never touched
+        self.assertFalse(hd.fix_root(self.ashita))
+
     def test_no_sample_no_ini_gets_a_plain_one(self):
         os.remove(os.path.join(self.ashita, "config", "pivot", "pivot.sample.ini"))
         hd.write_overlays(self.ashita, ["A"])

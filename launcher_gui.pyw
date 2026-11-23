@@ -4413,6 +4413,18 @@ class App(tk.Tk):
                 gp.save(HERE, self.gamepad)
             except OSError:
                 pass
+        try:                                   # (2026-11-23) small fixes to downloaded add-ons (thirdparty.json "fixups")
+            for item in tp.load_manifest(HERE):
+                if item.get("fixups") and self.ashita:
+                    tp.apply_fixups(item, self.ashita, self.say)
+        except Exception:
+            pass
+        try:                                   # (2026-11-23) XIPivot's root_path left pointing at a folder that moved
+            import launcher_hd
+            if self.ashita and launcher_hd.fix_root(self.ashita):
+                self.say("XIPivot was looking for its packs in a folder that is gone (the game folder moved): fixed.")
+        except Exception:
+            pass
         self.running, self.stop_requested = True, False
         self.pending_visit = visit
         self.play_btn.configure(state="disabled")

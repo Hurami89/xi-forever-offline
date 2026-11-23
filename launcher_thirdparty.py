@@ -700,6 +700,30 @@ def extract_zip(archive_path, dest, keep=(), log=print):
     return written, kept
 
 
+def apply_fixups(item, root, log=print):
+    """(2026-11-23) Small fixes to another author's files after they are unpacked: item "fixups" = [[file, old text, new
+    text, why], ...], each one only where the old text is found (an author's newer release that fixed it is left alone).
+    XISpeaks beta 4: its NPC list window called imgui.BeginChild(..., true), which this Ashita refuses (krazy)."""
+    for fix in item.get("fixups", []):
+        try:
+            rel, old, new = fix[0], fix[1], fix[2]
+        except (IndexError, TypeError):
+            continue
+        parts = rel.replace("\\", "/").split("/")
+        if rel.startswith("/") or ".." in parts:
+            continue
+        path = os.path.join(root, *parts)
+        try:
+            with open(path, encoding="utf-8", newline="") as handle:
+                text = handle.read()
+        except OSError:
+            continue
+        if old in text:
+            with open(path, "w", encoding="utf-8", newline="") as handle:
+                handle.write(text.replace(old, new))
+            log(f"{item['name']}: fixed {rel} ({fix[3] if len(fix) > 3 else 'a small fix'}).")
+
+
 def check_free_space(item, folder, parts, free=None):
     """Big multi-file downloads: room for everything unpacked plus the biggest download (each is deleted after it is
     unpacked) plus 1 GB to spare. Raises with a plain message when there is not."""
@@ -743,6 +767,7 @@ def install(item, kit, ashita, fetch=_get, log=print, server=None, run=None):
             except OSError:
                 pass
         log(f"{item['name']}: {written} file(s) installed" + (f", {kept} of your own kept" if kept else "") + ".")
+        apply_fixups(item, root, log)
         state = load_state(kit)
         state[item["id"]] = {"version": found["version"], "file": ", ".join(p["name"] for p in found["parts"]),
                              "sha256": None, "from": found["url"], "at": time.strftime("%Y-%m-%d %H:%M")}
