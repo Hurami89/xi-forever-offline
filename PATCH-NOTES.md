@@ -4,6 +4,17 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ## v0.1.60 · 22 November 2026
 
+### New
+• Guild shops are always open: no closing hours and no weekly holiday. On by default; switch it off under RULES > Comforts > "Guild shops always open" for the era's opening hours. (Dugahst)
+• RULES > Battle, a new section. Out of era, so everything starts at the era's value. Support job level: half (75/37, the era), two thirds (75/50) or equal (75/75), and your squad mates follow it (Hexblood). Monster and notorious monster HP and MP, from 0.1x to 2x (Poptart). TP gain for you and your squad, and for monsters. EXPERIMENTAL: the support job level and the HP and MP multipliers have hardly been tried; tell us what breaks.
+• RULES > Loot and gil > "Gil from every monster": every monster drops gil by its level, on top of what it carries anyway. 0 = off, the era. (VRTRA)
+• RULES > Experience and fame > "Experience chain time": more time to reach the next monster and keep a chain going. 1x = the era. (Gilder)
+• Squad: choose what a mate eats. !squad food <slot> opens a menu: "As it comes" (its own pick by job and level, as before) or one of 38 foods. A food is unlocked once per character for what it costs on the auction house on average; after that it is free for every mate, like their food always was. !squad food <slot> auto goes back to its own pick. (Altair)
+• Squad: "Best gear now" in the Squads window (or !squad autoequip now [slot]): every mate puts on the best gear you gave the squad, once, right away. Auto-equip stays as it is, so you can still change any piece by hand afterwards. (FalconX51, Bigbadbill)
+• Era fishing (RULES > Skills and crafting > "Fishing minigame" off): the catch no longer comes up by itself. The bite line shows what is on the hook ("Something caught the hook!", "You feel something pulling at your line.", "Something clamps onto your line ferociously!"), then you reel in with confirm or let it go with cancel. The fishing screen opens while the game waits for you, but there is nothing to win in it: your skill decides the catch. (Dugahst)
+• Bot players understand auto-translate: phrases in your tells, party chat, linkshell chat and shouts reach them (and their chat AI) as words, not as symbols. (Sunie)
+• OPTIONS > Controller: "Target the nearest NPC" can be put on a button, and the launcher's setup no longer leaves out the newer button slots of today's game. Jump and Map follow once their slots are confirmed. (Frost, FalconX51)
+
 ### Fixes
 • Threw away the Forever Beta Shirt while it showed as a nameless Lv127 item? You get another one. After this update it is waiting in your delivery box, and the game tells you so when you log in. Once per character, and only if you have none left (bags, Mog House and delivery box all count).
 • The game or the server closing the moment it starts, without any message: the launcher now checks the Microsoft Visual C++ runtimes at setup and at every PLAY (the 32-bit one for the game loader and Ashita, the 64-bit one for the server and the database) and installs the current one when yours is missing or older than 14.40. Windows asks for permission once. Until now only the 64-bit one was looked at, and only whether it existed. (Leyna Crosse, Lion, RobinDesBois)

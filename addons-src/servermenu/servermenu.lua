@@ -35,7 +35,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26d';   -- (1.26d) Squad Role help from the server's real filter, and the gold healing note
+addon.version = '1.26e';   -- (1.26e) Best gear now button (one-time auto-equip)
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1251,6 +1251,13 @@ local function squadTab()
         end
         tooltip(on and 'Your mates wear the best gear you gave the squad, picked again each time they are called (click: choose by hand)'
             or 'Click: every mate puts on the best gear you gave the squad for its job and level. Turn it off again to fine-tune by hand.');
+        -- (1.26e, FalconX51) once, right now: the server's own pick without leaving auto-equip on
+        imgui.SameLine(0, 6);
+        if button('Best gear now', 'bestgear', 112, 26, nil) then
+            enqueue('/say !squad autoequip now');
+            ask(3);
+        end
+        tooltip('Every mate puts on the best gear you gave the squad, once, right now. Auto-equip stays as it is, so afterwards you can still change any piece by hand.');
     end
     if S.adv then
         imgui.SameLine(0, 6);

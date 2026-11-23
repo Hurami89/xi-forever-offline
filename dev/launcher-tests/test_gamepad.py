@@ -9,7 +9,10 @@ KIT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, KIT)
 import launcher_gamepad as g   # noqa: E402
 
-RETAIL_SETUP_E = "8,9,13,12,10,0,1,3,2,15,-1,-1,14,-33,-33,32,32,-36,-36,35,35,6,7,5,4,11,-1"
+# retail's "Alternate Setup E" (27 classic slots), then the five slots today's game added, left at "nothing"
+RETAIL_SETUP_E = "8,9,13,12,10,0,1,3,2,15,-1,-1,14,-33,-33,32,32,-36,-36,35,35,6,7,5,4,11,-1" + ",-1" * 5
+# Frost's own registry value (2026-11-22): Target Nearby NPC on RB (11), nothing on Take Screenshot
+FROST = "8,9,13,12,10,0,1,3,2,15,-1,-1,14,-33,-33,32,32,-36,-36,35,35,6,7,5,4,-1,-1,-1,11,-1,-1,-1"
 BOOT = """[ashita.boot]
 command   = .\\bootloader\\xiloader.exe --server 127.0.0.1
 
@@ -65,6 +68,13 @@ class Values(unittest.TestCase):
         v = g.clean({"type": "gamecube", "vibration": "yes", "buttons": None})
         self.assertEqual(v["type"], "xbox")
         self.assertEqual(len(g.pad_buttons(v).split(",")), g.SLOTS)
+
+    def test_target_nearest_npc_on_rb_is_frosts_registry_value(self):
+        v = g.clean({"managed": True, "buttons": {str(g.TARGET_NPC): 11, "25": -1}})
+        self.assertEqual(g.pad_buttons(v), FROST)
+        self.assertEqual(g.SLOTS, 32)
+        self.assertIn((g.TARGET_NPC, "Target the nearest NPC"), g.ACTIONS)
+        self.assertEqual(g.default_buttons(g.clean({}))[g.TARGET_NPC], g.NONE)      # nothing until the player picks
 
 
 class BootFile(unittest.TestCase):

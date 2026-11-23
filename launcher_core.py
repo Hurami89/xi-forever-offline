@@ -648,6 +648,20 @@ RATE_FIELDS = [
     ("main.GUILD_SHOPS_ALWAYS_STOCKED", "main.lua", "GUILD_SHOPS_ALWAYS_STOCKED",  "Guild shops never run out (1 = on)",  0,   0,   1,     "int"),
     ("map.FULL_MERITS",                 "map.lua",  "FULL_MERITS",                 "Every merit to its maximum (1 = on)", 0,   0,   1,     "int"),
     ("map.MAX_MERIT_POINTS",            "map.lua",  "MAX_MERIT_POINTS",            "Merit points you can hold",          30,  10,  99,    "int"),
+    # (2026-11-22, suggestions: Dugahst; the user: on by default) server: custom/late/comforts.lua
+    ("main.GUILD_SHOPS_ALWAYS_OPEN",    "main.lua", "GUILD_SHOPS_ALWAYS_OPEN",     "Guild shops always open (1 = on, 0 = era hours)", 1, 0, 1, "int"),
+    # (2026-11-22, suggestions: Hexblood, VRTRA, Poptart, Gilder) out of era, so the era's value by default. All but the
+    # chain time are the server's own settings (LandSandBoat), which had no line here; the chain time is ours
+    # (scripts/globals/experience_points.lua). The server reads the HP and MP multipliers from 0.1 to 2.
+    ("main.EXP_CHAIN_TIME_MULTIPLIER",  "main.lua", "EXP_CHAIN_TIME_MULTIPLIER",   "Experience chain time",              1.0, 1.0, 5.0,   "float"),
+    ("map.ALL_MOBS_GIL_BONUS",          "map.lua",  "ALL_MOBS_GIL_BONUS",          "Gil every monster drops, per level (0 = off)", 0, 0, 50, "int"),
+    ("map.SUBJOB_RATIO",                "map.lua",  "SUBJOB_RATIO",                "Support job level (1 = half, 2 = two thirds, 3 = equal)", 1, 1, 3, "int"),
+    ("map.MOB_HP_MULTIPLIER",           "map.lua",  "MOB_HP_MULTIPLIER",           "Monster HP",                         1.0, 0.1, 2.0,   "float"),
+    ("map.NM_HP_MULTIPLIER",            "map.lua",  "NM_HP_MULTIPLIER",            "Notorious monster HP",               1.0, 0.1, 2.0,   "float"),
+    ("map.MOB_MP_MULTIPLIER",           "map.lua",  "MOB_MP_MULTIPLIER",           "Monster MP",                         1.0, 0.1, 2.0,   "float"),
+    ("map.NM_MP_MULTIPLIER",            "map.lua",  "NM_MP_MULTIPLIER",            "Notorious monster MP",               1.0, 0.1, 2.0,   "float"),
+    ("map.PLAYER_TP_MULTIPLIER",        "map.lua",  "PLAYER_TP_MULTIPLIER",        "TP gain: you, your squad and pets",  1.0, 0.25, 3.0,  "float"),
+    ("map.MOB_TP_MULTIPLIER",           "map.lua",  "MOB_TP_MULTIPLIER",           "TP gain: monsters",                  1.0, 0.25, 3.0,  "float"),
     ("main.HOMEPOINT_TELEPORT",         "main.lua", "HOMEPOINT_TELEPORT",          "Home Point teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("main.ENABLE_SURVIVAL_GUIDE",      "main.lua", "ENABLE_SURVIVAL_GUIDE",       "Survival Guide teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("map.BASE_SPEED",                  "map.lua",  "BASE_SPEED",                  "Run speed (50 = retail)",               50,  40,  120,   "int"),
@@ -1265,6 +1279,14 @@ def apply_rates(server_dir, rates):
         _skill = 1.0
     wanted["map.lua"].append(("SKILLUP_AMOUNT_MULTIPLIER", max(1, int(_skill // 5)), "int"))
     wanted["map.lua"].append(("FISHING_ENABLE", True, "bool"))
+    # (2026-11-22, Poptart) "TP gain: you, your squad and pets" is one rule: squad mates (the server's trusts), pets and
+    # an adventuring fellow follow your own multiplier
+    try:
+        _tp = float(rates.get("map.PLAYER_TP_MULTIPLIER", 1.0))
+    except (TypeError, ValueError):
+        _tp = 1.0
+    for _key in ("TRUST_TP_MULTIPLIER", "PET_TP_MULTIPLIER", "FELLOW_TP_MULTIPLIER"):
+        wanted["map.lua"].append((_key, _tp, "float"))
     # (2026-11-20, the user: "there is no reason for a limit here") no daily limits on your own world: fishing (200
     # catches a day and the fatigue meter; needs the server from this release on, older ones skip the key) and
     # chocobo digging (100 finds a day)
