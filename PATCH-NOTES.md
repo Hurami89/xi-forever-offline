@@ -15,6 +15,11 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ### Changes
 • A yell ban or a yell wait no longer travels with a character between worlds: each world keeps its own.
 
+### Fixes
+• The server could crash when a field party out hunting was fighting one of Horro's slimes and the slime ran away: the party kept a handle on a monster the game had already deleted. Field parties now look their monster up again each time. (Stalwart Shield)
+• A squad Corsair set to the Support or Healer role never used Phantom Roll: every job ability the role rules did not know counted as a melee move, which those roles drop. Rolls now count as party buffs, so every role rolls, and the Conserve mode no longer holds them back for mana a roll does not use. (krazy)
+• SYSTEM > GM and testing: "Start GM game" said the GM account was not set up when you had just set it up in the same launcher session. (Oldboy)
+
 ## v0.3.3 · 22 November 2026
 
 ### New

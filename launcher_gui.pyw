@@ -4924,6 +4924,16 @@ class App(tk.Tk):
 
     def start_gm(self):
         """Opens the game as the GM account (set up on the Settings page). With the servers off it starts them too, like PLAY."""
+        if not self.cfg.get("ashita_boot_gm"):
+            # (2026-11-23, Oldboy: "The GM account is not set up yet" right after setting it up) 'Set up GM account' writes
+            # config.json from its own process; this window still had the settings it read when it opened
+            try:
+                fresh = core.load_config(os.path.join(HERE, "config.json"))
+                for key in ("ashita_boot_gm", "game_user_gm", "game_pass_gm"):
+                    if fresh.get(key) and not self.cfg.get(key):
+                        self.cfg[key] = fresh[key]
+            except Exception:
+                pass
         boot = self.cfg.get("ashita_boot_gm")
         path = os.path.join(self.ashita, "config", "boot", boot) if (self.ashita and boot) else ""
         if not path or not os.path.exists(path):
