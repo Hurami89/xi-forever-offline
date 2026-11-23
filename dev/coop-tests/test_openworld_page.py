@@ -3,7 +3,7 @@ process, a host's and a visitor's, each with its own scratch database and kit fo
 Every question box is answered by the test. Needs a display (on Linux: xvfb-run -a python test_openworld_page.py),
 tkinter, and what test_openservice.py needs.
 OPENWORLD_SHOTS=<folder> also saves pictures of the page (needs ImageMagick's "import")."""
-import json, os, shutil, subprocess, sys, tempfile, time, types, unittest
+import gc, json, os, shutil, subprocess, sys, tempfile, time, types, unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cooptest as ct
 import launcher_coop as co
@@ -30,6 +30,7 @@ for _name, _module in _before.items():
         sys.modules[_name] = _module
 
 ACC, CHAR = svc.ACC, svc.CHAR
+co.refresh_worlds = lambda kit, **_more: False      # (the tests never ask the real website for its list of worlds)
 SHOTS = os.environ.get("OPENWORLD_SHOTS")
 KEPT = {}
 
@@ -159,6 +160,8 @@ class Pages(unittest.TestCase):
         for frame in self.frames:
             frame.destroy()
         ROOT.update()
+        self.frames, self.host_page, self.home_page = [], None, None
+        gc.collect()                             # (the pages' Tk variables are let go here, in the window's own thread)
         for name, real in self._real.items():
             setattr(gui.simpledialog if name == "askstring" else gui.messagebox, name, real)
         svc.OpenWorld.tearDown(self)
@@ -504,6 +507,54 @@ class Pages(unittest.TestCase):
         host_page.ban()
         self.wait(lambda: "nothing was changed" in host_page.note_text.get())
         self.assertEqual(len(host_page.host.bans()), before)
+        self.no_errors()
+
+    # --- the list of open worlds (2026-11-23) ---
+    def test_the_listed_worlds_are_on_the_page_and_picking_one_fills_in_its_link(self):
+        host_page = self.open_the_world()
+        hub = host_page.invite_code.get()
+        self.assertTrue(hub.startswith(co.LINK_PREFIX))
+        nowhere = co.make_link("127.0.0.1", 9, co.read_code(hub)["pin"], "Nowhere")
+        with open(os.path.join(self.kit_home, co.WORLDS_FILE), "w", encoding="utf-8") as handle:
+            json.dump({"version": 1, "worlds": [{"name": "Nowhere", "link": nowhere},
+                                                {"name": "Test Hub", "official": True, "about": "The official world.", "link": hub}]}, handle)
+        page = self.page(self.kit_home, {"db_name": ct.HOME_DB, "server_dir": None})      # a launcher that starts with this list in its kit
+        try:
+            self.show(page)
+            self.wait(lambda: page.characters)
+            shown = texts(page)
+            self.assertIn("OPEN WORLDS", shown)
+            at = shown.index("Test Hub")
+            self.assertLess(at, shown.index("Nowhere"), "the official world is first")
+            self.assertEqual(shown[at + 1], " OFFICIAL ")
+            self.assertEqual(page.their_code.get(), "", "nothing is filled in before the player picks")
+            self.wait(lambda: "online: 0 of 12 visitors" in texts(page), seconds=40)     # the page looks by itself while it is on the screen
+            self.assertIn("no answer right now", texts(page))
+            self.assertEqual(self.home_page.last_worlds, 0, "a page that is not on the screen asks no world anything")
+            page.world_pick.set(hub)
+            page.picked_world()
+            self.assertEqual(page.their_code.get(), hub)
+            said = page.info.get("1.0", "end")
+            self.assertIn("Test Hub (the official world): The official world.", said)
+            self.assertIn("Press VISIT", said)
+            page.show_worlds()                                       # drawn again (as once a minute): the pick stays
+            self.assertEqual(page.world_pick.get(), hub)
+            page.test_connection()                                   # and the buttons below work on what was filled in
+            self.wait(lambda: "answered" in page.info.get("1.0", "end"))
+            self.assertIn("Test Hub answered. Visitors: 0 of 12.", page.info.get("1.0", "end"))
+            self.shot("visitor-open-worlds")
+        finally:
+            page.shutdown()
+        self.assertNotIn("OPEN WORLDS", texts(self.home_page), "a launcher without a list shows none")
+        fresh = os.path.join(self.tmp, "fresh")                      # co-op not switched on yet: the first page says the world is there
+        os.makedirs(fresh)
+        shutil.copy(os.path.join(self.kit_home, co.WORLDS_FILE), fresh)
+        intro = self.page(fresh, {"db_name": ct.HOME_DB, "server_dir": None})
+        try:
+            self.show(intro)
+            self.assertIn("Test Hub, the official world, is always online. Turn co-op on to visit it.", texts(intro))
+        finally:
+            intro.shutdown()
         self.no_errors()
 
 

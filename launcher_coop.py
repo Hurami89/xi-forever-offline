@@ -1345,6 +1345,95 @@ def place_link(place):
     return make_link(place["address"], place["port"], place["pin"], place["world"])
 
 
+# ----- the list of open worlds (2026-11-23): the project's own list, the official world (The Hub) first -----
+WORLDS_URL = "https://xiforever.com/worlds.json"     # the list on the project's website
+WORLDS_FILE = "worlds.json"                          # in the kit: the list it came with; in coop/: the one last read from the website
+WORLDS_FRESH_SECONDS = 600                           # the website is asked again when the copy here is older than this
+WORLDS_MOST = 50
+
+
+def read_worlds(text):
+    """The worlds in a worlds.json, the official ones first: [{name, about, official, link, invite}]. An entry that
+    is not the link of an open world is left out, and so is a second entry for the same world; a file that cannot be
+    read gives []."""
+    try:
+        found = json.loads(text)
+        found = found.get("worlds") if isinstance(found, dict) else None
+    except (TypeError, ValueError):
+        found = None
+    out, seen = [], set()
+    for world in found if isinstance(found, list) else []:
+        try:
+            link = re.sub(r"\s+", "", str(world["link"]))
+            invite = read_link(link)
+            name = pp.clean_world_name(world.get("name") or invite["world"])
+        except (AttributeError, KeyError, TypeError, ValueError, CoopError):
+            continue
+        if link in seen:
+            continue
+        seen.add(link)
+        about = " ".join("".join(c if c.isprintable() else " " for c in str(world.get("about") or "")).split())[:160]
+        out.append({"name": name, "about": about, "official": world.get("official") is True, "link": link, "invite": invite})
+        if len(out) >= WORLDS_MOST:
+            break
+    return sorted(out, key=lambda world: not world["official"])      # (the file's own order stays within each kind)
+
+
+def _worlds_path(kit):
+    return os.path.join(kit, "coop", WORLDS_FILE)
+
+
+def listed_worlds(kit):
+    """The open worlds this launcher can show without being given a link, the official ones first: from the list last
+    read from the website, else from the one the kit came with."""
+    for path in (_worlds_path(kit), os.path.join(kit, WORLDS_FILE)):
+        try:
+            with open(path, encoding="utf-8") as handle:
+                found = read_worlds(handle.read())
+        except (OSError, ValueError):
+            continue
+        if found:
+            return found
+    return []
+
+
+def refresh_worlds(kit, fetch=None, now=None):
+    """Reads the project's list from the website when the copy here is older than ten minutes, and keeps it in
+    coop/worlds.json. True when a new copy was kept. No internet, a file that cannot be read and an empty list all
+    leave what is here as it is."""
+    path = _worlds_path(kit)
+    try:
+        if 0 <= (now or time.time()) - os.path.getmtime(path) < WORLDS_FRESH_SECONDS:
+            return False
+    except OSError:
+        pass
+    try:
+        if fetch is None:
+            import launcher_thirdparty
+            fetch = launcher_thirdparty._get
+        data = fetch(WORLDS_URL, timeout=8)
+        text = data.decode("utf-8") if isinstance(data, (bytes, bytearray)) else str(data)
+        if len(text) > 200000 or not read_worlds(text):
+            return False
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path + ".part", "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+        os.replace(path + ".part", path)
+    except Exception:
+        return False
+    return True
+
+
+def world_state(world, timeout=6, post=None):
+    """A few words about a listed world right now: who is there, or that it does not answer."""
+    try:
+        greeting = hello(world["invite"], post=post, timeout=timeout)
+        line = f"online: {int(greeting.get('guests', 0))} of {int(greeting.get('max_guests', 0))} visitors"
+    except Exception:
+        return "no answer right now"
+    return line + (", has a password" if greeting.get("password") else "")
+
+
 # ----- the visitor's game: boot file and macros -----
 def visit_command(command, address, login, password, fingerprint=None):
     """An Ashita boot 'command' line pointed at the friend's server with the visitor's login."""

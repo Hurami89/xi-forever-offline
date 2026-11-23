@@ -47,6 +47,9 @@
 !/launcher_world_keep.py
 !/install-world.sh
 !/.gitattributes
+# the open worlds a launcher lists without being given a link (The Hub first). The kit ships this copy; launchers
+# read the current one from https://xiforever.com/worlds.json, so that is the copy to change when the hub moves
+!/worlds.json
 # (2026-11-21) used by the launcher but never shipped before: item stacks (Egon's report), character transfer, patch notes page
 !/stack_mode.py
 !/char_import.py

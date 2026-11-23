@@ -29,6 +29,8 @@ _UI_FONT = core.ui_fonts()[0]
 FONT, SMALL, BOLD = (_UI_FONT, 10), (_UI_FONT, 9), (_UI_FONT, 10, "bold")
 KEEP_SECONDS = 20                    # how often a visit is looked at (is the host there, time for a fresh copy...)
 GUESTS_SECONDS = 6                   # how often the host's list of visitors is refreshed
+WORLDS_SECONDS = 60                  # how often the listed open worlds are looked at, while this page is on the screen
+WORLDS_SHOWN = 5                     # how many of them the page shows
 CLOSE_GRACE_SECONDS = 60             # Stop hosting: visitors get this long to log out before they are packed for home
 TAILSCALE_URL = "https://tailscale.com/download"
 INTRO = ("Co-op lets a friend bring their own character into your world, or you into theirs. Whatever is earned on a "
@@ -79,6 +81,8 @@ class CoopTab(tk.Frame):
         self.images = {}
         self.away_rows, self.guest_rows, self.characters = [], [], []
         self.place_rows = []                 # the places open worlds keep for this player's characters
+        self.world_rows, self.world_states = [], {}      # the open worlds the project lists (The Hub first), and how each is doing
+        self.last_worlds, self.looking = 0, False
         self.closing_since, self.closing_job = None, False
         self.last_keep = self.last_guests = 0
         self.keeping = self.listing = False
@@ -158,7 +162,7 @@ class CoopTab(tk.Frame):
             self.after(300, self.pump)
 
     def fail(self, error):
-        self.keeping = self.listing = self.closing_job = False
+        self.keeping = self.listing = self.closing_job = self.looking = False
         if isinstance(error, (co.CoopError, pp.PassportError)):
             self.note(str(error))
             messagebox.showwarning("Co-op", str(error), parent=self)
@@ -206,6 +210,10 @@ class CoopTab(tk.Frame):
         tk.Label(row, text="Co-op", bg=BG, fg=FG, font=(_UI_FONT, 18, "bold")).pack(side="left")
         self.badge(row, "experimental", "EXPERIMENTAL").pack(side="left", padx=12)
         tk.Label(box, text=INTRO, bg=BG, fg=FG, font=FONT, wraplength=640, justify="left").pack(pady=(0, 16))
+        official = [world["name"] for world in co.listed_worlds(self.kit) if world["official"]]
+        if official:
+            tk.Label(box, text=f"{official[0]}, the official world, is always online. Turn co-op on to visit it.", bg=BG, fg=GOLD,
+                     font=BOLD, wraplength=640).pack(pady=(0, 14))
         self.button(box, "coop_on", self.turn_on, "TURN CO-OP ON").pack()
         tk.Label(box, textvariable=self.note_text, bg=BG, fg=GOLD, font=SMALL, wraplength=640).pack(pady=(12, 0))
 
@@ -308,6 +316,10 @@ class CoopTab(tk.Frame):
 
     def build_visit(self, parent):
         self.heading(parent, "coop_head_visit", "VISIT A FRIEND")
+        self.world_area = tk.Frame(parent, bg=BG)       # the open worlds the project lists, The Hub first (show_worlds)
+        self.world_area.pack(fill="x")
+        self.world_pick = tk.StringVar(value="none")
+        self.world_rows = co.listed_worlds(self.kit)
         row = self.field(parent, "Character")
         self.character = tk.StringVar()
         self.character_box = ttk.Combobox(row, textvariable=self.character, width=22, font=FONT, state="readonly")
@@ -342,6 +354,7 @@ class CoopTab(tk.Frame):
                      font=SMALL, anchor="w").pack(fill="x", pady=(2, 0))
             self.build_carry(parent)
         self.show_away()
+        self.show_worlds()
 
     # ----- one player, several PCs (2026-11-20): the character and its squad move, each PC keeps its own world -----
     def build_carry(self, parent):
@@ -1063,6 +1076,55 @@ class CoopTab(tk.Frame):
     def shutdown(self):
         self.stop_service()
 
+    # ----- the open worlds the project lists (2026-11-23): The Hub first; picking one fills in its link -----
+    def show_worlds(self):
+        area = self.world_area
+        for child in area.winfo_children():
+            child.destroy()
+        area.configure(height=1)                  # (an emptied frame keeps its old height otherwise)
+        rows = self.world_rows[:WORLDS_SHOWN]
+        if not rows:
+            return
+        tk.Label(area, text="OPEN WORLDS", bg=BG, fg=DIM, font=(_UI_FONT, 8, "bold"), anchor="w").pack(fill="x", pady=(0, 0))
+        box = tk.Frame(area, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+        box.pack(fill="x", pady=(2, 4))
+        if self.world_pick.get() not in [world["link"] for world in rows]:
+            self.world_pick.set("none")
+        for world in rows:
+            line = tk.Frame(box, bg=PANEL)
+            line.pack(fill="x", padx=4, pady=1)
+            tk.Radiobutton(line, text=world["name"], value=world["link"], variable=self.world_pick, command=self.picked_world, bg=PANEL,
+                           fg=FG, selectcolor=BG, activebackground=PANEL, activeforeground=FG, font=BOLD, anchor="w", highlightthickness=0,
+                           bd=0).pack(side="left")
+            if world["official"]:
+                tk.Label(line, text=" OFFICIAL ", bg=PANEL2, fg=GOLD, font=(_UI_FONT, 8, "bold")).pack(side="left", padx=(4, 0))
+            tk.Label(line, text=self.world_states.get(world["link"]) or world["about"][:58], bg=PANEL, fg=DIM, font=SMALL).pack(side="left", padx=6)
+        if len(self.world_rows) > WORLDS_SHOWN:
+            tk.Label(box, text=f"... and {len(self.world_rows) - WORLDS_SHOWN} more", bg=PANEL, fg=DIM, font=SMALL, anchor="w").pack(fill="x", padx=8)
+
+    def picked_world(self):
+        world = next((w for w in self.world_rows if w["link"] == self.world_pick.get()), None)
+        if world is None:
+            return
+        self.their_code.set(world["link"])
+        self.say_info(world["name"] + (" (the official world)" if world["official"] else "") + (": " + world["about"] if world["about"] else "")
+                      + "\n\nPress VISIT to go there with the character picked above, or TEST CONNECTION to look at it first.")
+
+    def look_at_worlds(self):
+        """(in the background) The list from the website when the copy here is old, and a few words on each world right now."""
+        try:
+            co.refresh_worlds(self.kit)
+            rows = co.listed_worlds(self.kit)
+            return rows, {world["link"]: co.world_state(world) for world in rows[:WORLDS_SHOWN]}
+        except Exception:
+            return None
+
+    def looked(self, result):
+        self.looking = False
+        if result and self.settings["enabled"] and self.world_area.winfo_exists():
+            self.world_rows, self.world_states = result
+            self.show_worlds()
+
     # ----- visiting -----
     def picked_character(self):
         return next((charid for charid, name in self.characters if name == self.character.get()), None)
@@ -1497,6 +1559,9 @@ class CoopTab(tk.Frame):
                 self.keeping, self.last_keep = True, now
                 rows = copy.deepcopy(self.away_rows)          # the background thread works on its own copy
                 self.job(lambda: self.keep_all(rows), self.kept)
+            if not self.looking and now - self.last_worlds >= WORLDS_SECONDS and self.winfo_viewable():
+                self.looking, self.last_worlds = True, now
+                self.job(self.look_at_worlds, self.looked)
             if not self.listing and now - self.last_guests >= GUESTS_SECONDS and self.host is not None and (self.host.running() or self.guest_rows):
                 self.listing, self.last_guests = True, now
                 self.job(self.host.guests, self.listed)
