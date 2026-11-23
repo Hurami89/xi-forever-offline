@@ -37,7 +37,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26i';   -- (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.26j';   -- (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1307,6 +1307,16 @@ local function squadTab()
         if button('Apply now', 'apply', 96, 0, 'selected') then applyNow(); end
         tooltip('Dismisses the squad and calls everyone again');
     end
+    -- (1.26j, Hasuko: "I'm a WHM. I shouldn't have to pull my weapon"; Yenkei) send the squad at your target while
+    -- you stay out of the fight. The server reads your target itself, so nothing is drawn and nothing stands you up.
+    gap(2);
+    if button('Attack my target', 'sqattack', 148, 26) then enqueue('/say !squad attack'); end
+    tooltip('Your squad attacks the monster you have targeted. You do not draw your weapon:\nstay back, sit and rest, heal. Bot players in your party go in too.\nIn a macro:  /say !squad attack');
+    imgui.SameLine(0, 6);
+    if button('Stop', 'sqstop', 64, 26) then enqueue('/say !squad stop'); end
+    tooltip('Calls your squad back from that fight.  In a macro:  /say !squad stop');
+    imgui.SameLine(0, 10);
+    dimText('they fight, you stay out of it');
     campRow();
     gap(4);
 

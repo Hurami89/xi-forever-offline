@@ -195,6 +195,17 @@ for name in names:
     check(f"tab {name}: nothing left pushed " + ev("W.state()"), ev("W.clean()"))
     check(f"tab {name}: no problem reported: " + str(ev("W.problem()")), ev("W.problem() == nil"))
 
+# (1.26j, Hasuko) Attack my target / Stop on the Squad tab
+lua.execute("W.click('Squad##tabSquad')")
+check("the Squad tab has Attack my target and Stop", ev("W.hasButton('Attack my target##sqattack') ~= nil and W.hasButton('Stop##sqstop') ~= nil"))
+lua.execute("W.sent = {}; W.click('Attack my target##sqattack'); for i = 1, 60 do W.frame() end")
+check("a click on Attack my target says !squad attack: " + str(list(ev("W.sent").values())),
+      ev("(function() for _, c in ipairs(W.sent) do if c == '/say !squad attack' then return true end end return false end)()"))
+lua.execute("W.sent = {}; W.click('Stop##sqstop'); for i = 1, 60 do W.frame() end")
+check("a click on Stop says !squad stop",
+      ev("(function() for _, c in ipairs(W.sent) do if c == '/say !squad stop' then return true end end return false end)()"))
+check("and the menu is still clean " + ev("W.state()"), ev("W.drew('Offline##servermenu') and W.clean() and W.problem() == nil"))
+
 lua.execute("W.command('/menu opacity menu 50'); W.alpha = {}; W.frame()")
 check("/menu opacity menu 50 hands 0.5 to the window", ev("#W.alpha == 1 and math.abs(W.alpha[1] - 0.5) < 0.001"))
 check("and the menu is still drawn and clean " + ev("W.state()"), ev("W.drew('Offline##servermenu') and W.clean() and W.problem() == nil"))
@@ -225,6 +236,6 @@ lua2.execute("W.command('/menu'); W.frame(); W.frame()")
 check("old order: opened again, 13 colours and 6 style values stay pushed on every frame (Hasuko's red box) " + ev2("W.state()"),
       ev2("W.colors >= 13 and W.vars >= 6"))
 
-check("the version says so", "addon.version = '1.26i'" in src)
+check("the version note says so", "(1.26i) the menu opens again" in src)
 print(f"{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

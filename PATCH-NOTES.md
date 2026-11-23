@@ -2,6 +2,11 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.2 · 22 November 2026
+
+### New
+• Squad: "Attack my target" and "Stop" in the Squads menu, and the commands !squad attack and !squad stop. Target a monster and your squad goes in without you drawing your weapon: stay back, sit and rest, stand up to heal. They fight it to the end and come back to you; Stop calls them back early. It also works on the move, and at a camp on anything within 20 yalms of it. Bot players in your party go in too. In a macro: /say !squad attack. (Hasuko, Yenkei)
+
 ## v0.3.1 · 22 November 2026
 
 ### Fixes
