@@ -385,6 +385,19 @@ PLUGIN_NOTES = {"addons": "Runs Lua addons (keep this on).", "thirdparty": "Lets
                 "nameplate": "Clearer name plates.", "movement": "Movement helper used by AutoBot."}
 
 
+# Ashita add-ons that do harm on this server; shown in red on the Addons page, and asked about before one is switched on.
+# chatfix (Unleashable, PikaFox, Bigbadbill, Neet): it is for servers that send chat in the old layout and shifts every
+# chat line by one letter. This server sends the new layout, so the first letter of every line is cut off, and the lines
+# our Squads menu and Gambits read from the server no longer match.
+ADDON_WARNINGS = {"chatfix": "Do not use here. It is for servers with the old chat layout: on XI: Forever Offline it cuts the "
+                             "first letter off every chat line, and the Squads menu and Gambits stop working."}
+
+
+def addon_warning(kind, name):
+    """The warning for an add-on that does harm on this server, or None."""
+    return ADDON_WARNINGS.get(str(name).lower()) if kind == "addon" else None
+
+
 def addon_info(ashita_dir, name):
     """name, version, author and description from the addon's own lua file (addon.version = '...' and so on)."""
     info = {"name": name, "version": "", "author": "", "desc": ""}

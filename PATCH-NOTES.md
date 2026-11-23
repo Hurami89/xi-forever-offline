@@ -9,6 +9,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ### Fixes
 • Updating no longer stops with "Access is denied ... .mp3" while the launcher's theme song is on. The launcher kept the song's file open, and Windows will not replace an open file. Now the song is stopped before an update, files that did not change are left alone, and a file that is held for a moment is tried again. If you are on v0.3.0 or v0.3.1 and the update stops with that message: close the launcher and open it again (it is the new version then), or switch the song off under Options > Theme before you update. (Hasuko, wildthing)
+• OPTIONS > Addons and Plugins: Ashita's chatfix add-on now carries a red "Do not use here" note, and the launcher asks before it is switched on. It is made for servers with the old chat layout; here it cuts the first letter off every chat line and the Squads menu and Gambits stop working. If your chat is missing first letters, switch chatfix off there. (Unleashable, PikaFox, Bigbadbill, Neet)
 
 ## v0.3.1 · 22 November 2026
 

@@ -438,9 +438,10 @@ class CheckList(tk.Frame):
                 gone = tk.Label(head, text="Remove", bg=PANEL, fg=DIM, font=(UI_FONT, 8, "underline"), cursor="hand2")
                 gone.pack(side="left", padx=(10, 0))
                 gone.bind("<Button-1>", lambda e, n=n, o=origin: self.remove(n, o))
-            if info["desc"]:
-                tk.Label(row, text=info["desc"], bg=PANEL, fg=DIM, font=(UI_FONT, 9), wraplength=720, justify="left",
-                         anchor="w").grid(row=1, column=1, sticky="w", pady=(0, 4))
+            warning = core.addon_warning(self.kind, n)       # (PikaFox, Neet) an add-on that does harm on this server
+            if warning or info["desc"]:
+                tk.Label(row, text=warning or info["desc"], bg=PANEL, fg=RED if warning else DIM, font=(UI_FONT, 9), wraplength=720,
+                         justify="left", anchor="w").grid(row=1, column=1, sticky="w", pady=(0, 4))
             row.columnconfigure(1, weight=1)
             if self.extra is not None:
                 self.extra.on_row(self, row, n)
@@ -448,6 +449,11 @@ class CheckList(tk.Frame):
             self.extra.more_rows(self, wanted, names)
 
     def toggle(self, name, var):
+        warning = core.addon_warning(self.kind, name)
+        if warning and var.get() and not messagebox.askyesno("Switch " + name + " on?", warning + "\n\nSwitch it on anyway?",
+                                                             default="no", icon="warning"):
+            var.set(False)
+            return
         try:
             self.scripts.set(self.kind, name, var.get())
         except Exception as e:
