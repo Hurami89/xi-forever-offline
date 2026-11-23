@@ -4385,6 +4385,9 @@ class App(tk.Tk):
             if visit == "cancel":
                 return
         if self.cfg.get("game_update_needed"):
+            if self.offer_game_files("Your game hasn't had its first update yet (Square Enix's installer puts in an "
+                                     "older version)."):
+                return
             if messagebox.askyesno("Update the game first", "Your game hasn't had its first update yet (Square Enix's "
                                    "installer puts in an older version). Show the steps?\n\nNo = play anyway.", parent=self):
                 PolUpdateGuide(self)
@@ -4428,6 +4431,10 @@ class App(tk.Tk):
         if not info.get("too_old"):
             return False
         have, need = lg.build_text(info["build"]), lg.MONTHS[lg.MIN_GAME_BUILD[1] - 1] + f" {lg.MIN_GAME_BUILD[0]}"
+        where = "XI: Forever Offline's copy of FINAL FANTASY XI" if info.get("copy") else "Your FINAL FANTASY XI"
+        if self.offer_game_files(f"{where} is the {have} version, older than the {need} update the server needs (older "
+                                 "games crash opening Equipment and can freeze at some NPCs)."):
+            return True
         if linux is not None:                 # Linux: the game is updated on the Windows PC, then copied over again
             if not info.get("copy"):
                 messagebox.showinfo("Update FINAL FANTASY XI", f"Your FINAL FANTASY XI is the {have} version, older than "
@@ -4478,6 +4485,52 @@ class App(tk.Tk):
             self.age_checked = False                                    # ask again after the update
             return True
         return False
+
+    def offer_game_files(self, why):
+        """(2026-11-23) Offers to bring the game up to date from XI: Forever Offline's own release of the game files
+        (launcher_gamefiles.py). True when the update was started (PLAY waits for it); False when the release can't be
+        reached or the player said no, so the PlayOnline ways are offered as before."""
+        try:
+            import launcher_game as lg
+            import launcher_gamefiles as gf
+            ffxi, viewer = self.cfg.get("ffxi_client_dir", ""), lg.viewer_dir(self.cfg)
+            if not ffxi or not viewer or not os.path.isdir(ffxi):
+                return False
+            manifest = gf.fetch_manifest(context=tp.ssl_context(), timeout=10)
+        except Exception:
+            return False
+        most = sum(b["size"] for b in manifest["bundles"]) / 2**30
+        if not messagebox.askyesno("Update FINAL FANTASY XI", f"{why}\n\nDownload the newest game files from XI: "
+                                   f"Forever Offline now? Only the files that changed are downloaded (at most "
+                                   f"{most:.1f} GB). Your era files and your game settings stay.\n\nNo = other ways "
+                                   "to update.", parent=self):
+            return False
+        self.play_btn.configure(state="disabled")
+        self.progress.start(14)
+
+        def work():
+            done = False
+            try:
+                gf.update(HERE, ffxi, viewer, log=self.say, context=tp.ssl_context(), manifest=manifest)
+                done = True
+                self.say("The game is up to date. Press PLAY.")
+            except Exception as e:
+                self.say(f"Could not update the game: {e}  Press PLAY to try again (finished parts are kept).")
+
+            def finish():
+                self.progress.stop()
+                self.play_btn.configure(state="normal")
+                self.age_checked = False
+                if done:
+                    self.cfg.pop("game_update_needed", None)
+                    try:
+                        save_config_value("game_update_needed", None)
+                    except (OSError, ValueError):
+                        pass
+            self.after(0, finish)
+
+        threading.Thread(target=work, daemon=True).start()
+        return True
 
     def refresh_game_copy(self, retail):
         import launcher_game as lg

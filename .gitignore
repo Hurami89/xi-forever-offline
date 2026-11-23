@@ -36,6 +36,7 @@
 !/launcher_contrib.py
 !/contributors.json
 !/launcher_game.py
+!/launcher_gamefiles.py
 !/launcher_client.py
 # co-op (experimental): the CO-OP page, the service two launchers talk through, and character passports
 !/launcher_coop_gui.py

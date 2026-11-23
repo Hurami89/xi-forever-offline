@@ -919,7 +919,7 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
                 raise RuntimeError("FINAL FANTASY XI isn't installed yet. Finish Square Enix's installer (it may still be "
                                    "open), then press Install again; the download is kept.")
         choices["ffxi_dir"] = found
-        extra_cfg["game_update_needed"] = True
+        extra_cfg["game_update_needed"] = not update_game_files(kit, found, log=log, context=tp.ssl_context())
     if not valid_ffxi(choices.get("ffxi_dir")):
         raise RuntimeError("That folder is not FINAL FANTASY XI (FFXiMain.dll is missing). Install the game first.")
     if game == "copy":
@@ -1134,6 +1134,26 @@ def existing_case(base, rel):
                 pass
         path = candidate
     return path
+
+
+def update_game_files(kit, ffxi_dir, log=print, context=None, update=None):
+    """(2026-11-23) Square Enix's installer puts in the April 2019 game: bring it up to date from XI: Forever Offline's
+    own release of the game files (launcher_gamefiles.py). True when the game is up to date; False (with a message)
+    when it couldn't be done, so the PlayOnline login and update stays the way to update it."""
+    import launcher_game as lg
+    import launcher_gamefiles as gf
+    log("   Updating the game to the newest version (only the files that changed since Square Enix's installer)...")
+    try:
+        lang = lg.detect_lang(ffxi_dir)
+        viewer = lg.find_viewer(ffxi_dir, lang)
+        if not viewer:
+            raise RuntimeError("the PlayOnline folder that goes with the game wasn't found")
+        (update or gf.update)(kit, ffxi_dir, viewer, log=log, context=context)
+        return True
+    except Exception as problem:
+        log(f"   The game couldn't be updated from XI: Forever Offline's download ({problem}). PlayOnline can update it "
+            "instead; the launcher shows you how. Or press Install again to try the download again: finished parts are kept.")
+        return False
 
 
 # ----- Phoenix's Era-DATs (the same steps and backup layout as install-era-dats.ps1 / restore-original-dats.ps1) -----
