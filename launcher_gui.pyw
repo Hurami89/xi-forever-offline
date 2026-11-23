@@ -3926,6 +3926,8 @@ class App(tk.Tk):
         With the CO-OP button in the bottom bar the window is a little wider, so the bar fits."""
         page = self.tabs.tab(getattr(self, "current_index", 0), "text").strip() if self.tabs.tabs() else ""
         width, height = (1100 if getattr(self, "coop_tab", None) is not None else 980), 810
+        if page.upper().startswith("CO-OP") or page.lower().startswith("co-op"):     # (2026-11-23) the worlds page is roomier
+            width, height = 1240, 900
         if linux is not None:     # the Steam Deck's screen is 1280 x 800: never taller (or wider) than the screen
             width = min(width, self.winfo_screenwidth())
             height = min(height, self.winfo_screenheight() - (0 if linux.in_game_mode() else 40))
@@ -4812,7 +4814,13 @@ class App(tk.Tk):
             self.launch_ashita()
         finally:
             self.visit_mode = False
-        self.say(f"{visit['name']} stays in {world} until you press COME HOME on the CO-OP page.")
+        # (2026-11-23, the user: "when you log out it takes your character back, I don't want you to have to press a
+        #  button") the game closed: the character comes home by itself
+        if getattr(self, "coop_tab", None) is not None and self.cfg.get("coop_auto_home", True):
+            self.say(f"Bringing {visit['name']} home from {world}...")
+            self.coop_tab.home_after_game(visit)
+        else:
+            self.say(f"{visit['name']} stays in {world} until you press COME HOME on the CO-OP page.")
 
     def wait_for_map(self):
         """Waits for the map server to say it is ready, showing the seconds so far. It waits as long as the map log keeps growing (the first

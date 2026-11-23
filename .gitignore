@@ -173,6 +173,10 @@
 !/assets/item-icons/
 !/assets/promo/
 !/assets/faces/
+# the banners on the CO-OP page's world cards (The Hub's; the 1920 one stays on the dev PC)
+!/assets/worlds/
+/assets/worlds/*
+!/assets/worlds/hub_banner.jpg
 
 # ---- tests ----
 !/dev/

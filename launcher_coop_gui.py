@@ -18,6 +18,11 @@ import launcher_coop as co
 import launcher_core as core
 import launcher_passport as pp
 
+try:                                 # banners on the OPEN WORLDS cards (Pillow ships with the launcher)
+    from PIL import Image, ImageTk
+except Exception:
+    Image = ImageTk = None
+
 BG, PANEL, PANEL2, FG, DIM = "#0a1118", "#101c28", "#162634", "#e9f1f5", "#8aa0ad"
 BORDER, GOLD, GREEN, RED, ACCENT = "#1d3445", "#e6be64", "#3ecf6e", "#e5534b", "#35c4e0"
 try:        # a limited-time look (a dated .json in assets\press) stands in for these colours while it is in date: launcher_theme.py
@@ -30,7 +35,11 @@ FONT, SMALL, BOLD = (_UI_FONT, 10), (_UI_FONT, 9), (_UI_FONT, 10, "bold")
 KEEP_SECONDS = 20                    # how often a visit is looked at (is the host there, time for a fresh copy...)
 GUESTS_SECONDS = 6                   # how often the host's list of visitors is refreshed
 WORLDS_SECONDS = 60                  # how often the listed open worlds are looked at, while this page is on the screen
-WORLDS_SHOWN = 5                     # how many of them the page shows
+WORLDS_SHOWN = 12                    # how many of them the page shows (2026-11-23: cards with banners)
+CARD_BANNER = (320, 80)              # an OPEN WORLDS card's banner; The Hub's is HUB_BANNER
+HUB_BANNER = (560, 140)
+HOME_TRIES = 8                       # closing the game in another world: the character is asked home this many times...
+HOME_WAIT = 8                        # ...this many seconds apart (the world may still see it logged in for a moment)
 CLOSE_GRACE_SECONDS = 60             # Stop hosting: visitors get this long to log out before they are packed for home
 TAILSCALE_URL = "https://tailscale.com/download"
 INTRO = ("Co-op lets a friend bring their own character into your world, or you into theirs. Whatever is earned on a "
@@ -190,7 +199,46 @@ class CoopTab(tk.Frame):
         self.badge(top, "experimental", "EXPERIMENTAL").pack(side="left", padx=10)
         tk.Label(top, text="Same version on both PCs. Squad mates travel with their character.", bg=BG, fg=DIM, font=SMALL).pack(side="left")
         tk.Button(top, text="Turn co-op off", command=self.turn_off, bg=PANEL, fg=DIM, relief="flat", padx=8, font=SMALL).pack(side="right")
-        columns = tk.Frame(self.body, bg=BG)
+        tk.Label(self.body, textvariable=self.note_text, bg=BG, fg=GOLD, font=SMALL, anchor="w", justify="left",
+                 wraplength=1140).pack(fill="x", padx=16, pady=(0, 2), side="bottom")
+        # (2026-11-23, the user: "separate the hub, make the window a little bigger, a third section with the available
+        #  worlds, their description and banner") one page that scrolls: The Hub, OPEN WORLDS, then your world and friends
+        holder = tk.Frame(self.body, bg=BG)
+        holder.pack(fill="both", expand=True)
+        canvas = tk.Canvas(holder, bg=BG, highlightthickness=0, bd=0)
+        bar = ttk.Scrollbar(holder, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=bar.set)
+        bar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        page = tk.Frame(canvas, bg=BG)
+        window = canvas.create_window((0, 0), window=page, anchor="nw")
+        page.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(window, width=e.width))
+
+        def wheel(event):
+            if canvas.winfo_exists() and str(event.widget).startswith(str(canvas)):
+                canvas.yview_scroll(-1 if (getattr(event, "delta", 0) > 0 or getattr(event, "num", 0) == 4) else 1, "units")
+        for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            canvas.bind_all(sequence, wheel, add="+")
+        self.page_canvas = canvas
+
+        row = tk.Frame(page, bg=BG)
+        row.pack(fill="x", padx=16, pady=(6, 2))
+        tk.Label(row, text="Your character", bg=BG, fg=FG, font=BOLD).pack(side="left")
+        self.character = tk.StringVar()
+        self.character_box = ttk.Combobox(row, textvariable=self.character, width=22, font=FONT, state="readonly")
+        self.character_box.pack(side="left", padx=8)
+        tk.Label(row, text="PLAY on a world takes this character there and starts the game. Close the game: it comes home "
+                           "with everything it earned.", bg=BG, fg=DIM, font=SMALL).pack(side="left", padx=6)
+        self.hub_area = tk.Frame(page, bg=BG)
+        self.hub_area.pack(fill="x", padx=14, pady=(4, 2))
+        self.cards_area = tk.Frame(page, bg=BG)
+        self.cards_area.pack(fill="x", padx=14, pady=(4, 2))
+        self.world_rows = co.all_worlds(self.kit)
+        self.cards = {}                  # link -> what its card shows (world_card), filled in the background
+        self.card_images = {}
+        tk.Frame(page, bg=BORDER, height=1).pack(fill="x", padx=14, pady=(10, 0))
+        columns = tk.Frame(page, bg=BG)
         columns.pack(fill="both", expand=True, padx=8)
         left = tk.Frame(columns, bg=BG)
         left.pack(side="left", fill="both", expand=True, padx=(6, 8))
@@ -199,8 +247,7 @@ class CoopTab(tk.Frame):
         right.pack(side="left", fill="both", expand=True, padx=(8, 6))
         self.build_host(left)
         self.build_visit(right)
-        tk.Label(self.body, textvariable=self.note_text, bg=BG, fg=GOLD, font=SMALL, anchor="w", justify="left",
-                 wraplength=1040).pack(fill="x", padx=16, pady=(2, 6))
+        self.show_worlds()
 
     def build_intro(self):
         box = tk.Frame(self.body, bg=BG)
@@ -274,6 +321,24 @@ class CoopTab(tk.Frame):
         self.max_box = ttk.Spinbox(row, from_=1, to=co.MAX_OPEN_GUESTS if self.settings.get("open") else co.MAX_GUESTS,
                                    textvariable=self.max_guests, width=3, font=FONT, state="readonly")
         self.max_box.pack(side="left", padx=6)
+        # (2026-11-23) an open world's card in everyone's OPEN WORLDS: its description, its banner, and whether it is listed
+        self.card_box = tk.Frame(parent, bg=BG)
+        row = self.field(self.card_box, "About my world")
+        self.about = tk.StringVar(value=self.settings.get("about", ""))
+        self.entry(row, self.about, 40, fill=True)
+        self.about.trace_add("write", lambda *_a: self.about_changed())
+        row = self.field(self.card_box, "Banner")
+        self.banner_note = tk.Label(row, text="", bg=BG, fg=DIM, font=SMALL)
+        tk.Button(row, text="Choose a picture...", command=self.choose_banner, bg=PANEL, fg=FG, relief="flat", padx=8,
+                  font=SMALL).pack(side="left")
+        tk.Button(row, text="Remove", command=lambda: self.choose_banner(remove=True), bg=PANEL, fg=DIM, relief="flat", padx=8,
+                  font=SMALL).pack(side="left", padx=6)
+        self.banner_note.pack(side="left", padx=4)
+        self.listed = tk.BooleanVar(value=self.settings.get("listed", True))
+        tk.Checkbutton(self.card_box, text="List my world in everyone's OPEN WORLDS (needs an address on the internet)",
+                       variable=self.listed, command=self.listed_changed, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG,
+                       activeforeground=FG, font=SMALL, anchor="w", highlightthickness=0).pack(fill="x")
+        self.show_banner_note()
         row = tk.Frame(parent, bg=BG)
         row.pack(fill="x", pady=(8, 2))
         self.host_btn = self.button(row, "coop_host", self.start_hosting, "START HOSTING")
@@ -316,14 +381,8 @@ class CoopTab(tk.Frame):
 
     def build_visit(self, parent):
         self.heading(parent, "coop_head_visit", "VISIT A FRIEND")
-        self.world_area = tk.Frame(parent, bg=BG)       # the open worlds the project lists, The Hub first (show_worlds)
-        self.world_area.pack(fill="x")
-        self.world_pick = tk.StringVar(value="none")
-        self.world_rows = co.listed_worlds(self.kit)
-        row = self.field(parent, "Character")
-        self.character = tk.StringVar()
-        self.character_box = ttk.Combobox(row, textvariable=self.character, width=22, font=FONT, state="readonly")
-        self.character_box.pack(side="left")
+        tk.Label(parent, text="A friend's invite code, or the link of a world that is not listed above.", bg=BG, fg=DIM,
+                 font=SMALL, anchor="w").pack(fill="x")
         row = self.field(parent, "Code or link")
         self.their_code = tk.StringVar()
         self.entry(row, self.their_code, 30, fill=True)
@@ -354,7 +413,6 @@ class CoopTab(tk.Frame):
                      font=SMALL, anchor="w").pack(fill="x", pady=(2, 0))
             self.build_carry(parent)
         self.show_away()
-        self.show_worlds()
 
     # ----- one player, several PCs (2026-11-20): the character and its squad move, each PC keeps its own world -----
     def build_carry(self, parent):
@@ -799,6 +857,10 @@ class CoopTab(tk.Frame):
         for choice in self.who_buttons:           # who can come in is chosen before hosting starts
             choice.configure(state="disabled" if busy else "normal")
         self.max_box.configure(to=co.MAX_OPEN_GUESTS if is_open else co.MAX_GUESTS)
+        if is_open:
+            self.card_box.pack(fill="x", pady=(2, 2), after=self.max_box.master)
+        else:
+            self.card_box.pack_forget()
         for widget in (self.host_btn, self.stop_btn, self.host_badge):
             widget.pack_forget()
         (self.stop_btn if hosting else self.host_btn).pack(side="left")
@@ -849,6 +911,39 @@ class CoopTab(tk.Frame):
             self.note("World link copied. Anyone who has it can visit: post it where your players are."
                       if self.invite_code.get().startswith(co.LINK_PREFIX) else
                       "Invite code copied. Paste it to your friend (a Discord message is fine).")
+
+    def about_changed(self):
+        self.settings["about"] = co.clean_about(self.about.get())
+        try:
+            co.save_settings(self.kit, self.settings)
+        except OSError:
+            pass
+
+    def listed_changed(self):
+        self.settings["listed"] = bool(self.listed.get())
+        try:
+            co.save_settings(self.kit, self.settings)
+        except OSError:
+            pass
+
+    def show_banner_note(self):
+        self.banner_note.configure(text="set (640 x 160)" if co.banner_hash(self.kit) else "none: the card shows your world's name")
+
+    def choose_banner(self, remove=False):
+        if remove:
+            co.set_banner(self.kit, None)
+        else:
+            path = filedialog.askopenfilename(parent=self, title="A banner for your world (shown 640 x 160)",
+                                              filetypes=[("Pictures", "*.png *.jpg *.jpeg *.webp *.bmp *.gif"), ("All files", "*.*")])
+            if not path:
+                return
+            try:
+                co.set_banner(self.kit, path)
+            except Exception as e:
+                messagebox.showwarning("Banner", f"That picture could not be used ({type(e).__name__}).", parent=self)
+                return
+        self.show_banner_note()
+        self.note("Banner saved: players see it on your world's card." if not remove else "Banner removed.")
 
     def who_changed(self):
         """Friends or everyone: the visitor limit follows (6 between friends), and the page shows that kind's buttons."""
@@ -1078,52 +1173,220 @@ class CoopTab(tk.Frame):
 
     # ----- the open worlds the project lists (2026-11-23): The Hub first; picking one fills in its link -----
     def show_worlds(self):
-        area = self.world_area
-        for child in area.winfo_children():
-            child.destroy()
-        area.configure(height=1)                  # (an emptied frame keeps its old height otherwise)
-        rows = self.world_rows[:WORLDS_SHOWN]
-        if not rows:
+        """The Hub on its own, then a card for every other open world: its banner, description, who is there, PLAY."""
+        if not hasattr(self, "hub_area") or not self.hub_area.winfo_exists():
             return
-        tk.Label(area, text="OPEN WORLDS", bg=BG, fg=DIM, font=(_UI_FONT, 8, "bold"), anchor="w").pack(fill="x", pady=(0, 0))
-        box = tk.Frame(area, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
-        box.pack(fill="x", pady=(2, 4))
-        if self.world_pick.get() not in [world["link"] for world in rows]:
-            self.world_pick.set("none")
-        for world in rows:
-            line = tk.Frame(box, bg=PANEL)
-            line.pack(fill="x", padx=4, pady=1)
-            tk.Radiobutton(line, text=world["name"], value=world["link"], variable=self.world_pick, command=self.picked_world, bg=PANEL,
-                           fg=FG, selectcolor=BG, activebackground=PANEL, activeforeground=FG, font=BOLD, anchor="w", highlightthickness=0,
-                           bd=0).pack(side="left")
-            if world["official"]:
-                tk.Label(line, text=" OFFICIAL ", bg=PANEL2, fg=GOLD, font=(_UI_FONT, 8, "bold")).pack(side="left", padx=(4, 0))
-            tk.Label(line, text=self.world_states.get(world["link"]) or world["about"][:58], bg=PANEL, fg=DIM, font=SMALL).pack(side="left", padx=6)
-        if len(self.world_rows) > WORLDS_SHOWN:
-            tk.Label(box, text=f"... and {len(self.world_rows) - WORLDS_SHOWN} more", bg=PANEL, fg=DIM, font=SMALL, anchor="w").pack(fill="x", padx=8)
+        for area in (self.hub_area, self.cards_area):
+            for child in area.winfo_children():
+                child.destroy()
+        mine = co.server_fingerprint(self.cfg.get("server_dir"))          # your own open world is not a place to visit
+        rows = [w for w in self.world_rows if not mine or w["invite"].get("pin") != mine]
+        official = [w for w in rows if w["official"]][:1]
+        others = [w for w in rows if w not in official][:WORLDS_SHOWN]
+        for world in official:
+            self.world_card_widget(self.hub_area, world, big=True)
+        head = tk.Frame(self.cards_area, bg=BG)
+        head.pack(fill="x", pady=(8, 2))
+        tk.Label(head, text="OPEN WORLDS", bg=BG, fg=GOLD, font=(_UI_FONT, 11, "bold")).pack(side="left")
+        tk.Label(head, text="worlds other players opened to everyone. Their rules, your character.", bg=BG, fg=DIM,
+                 font=SMALL).pack(side="left", padx=8)
+        if not others:
+            tk.Label(self.cards_area, text="No other open worlds right now. Yours can be the first: HOST MY WORLD below, "
+                     "Anyone (world link), and tick \"List my world\".", bg=BG, fg=DIM, font=SMALL, anchor="w").pack(fill="x", pady=4)
+            return
+        grid = tk.Frame(self.cards_area, bg=BG)
+        grid.pack(fill="x")
+        for i, world in enumerate(others):
+            cell = tk.Frame(grid, bg=BG)
+            cell.grid(row=i // 2, column=i % 2, sticky="nsew", padx=(0 if i % 2 == 0 else 6, 0), pady=3)
+            self.world_card_widget(cell, world, big=False)
+        grid.columnconfigure(0, weight=1, uniform="cards")
+        grid.columnconfigure(1, weight=1, uniform="cards")
 
-    def picked_world(self):
-        world = next((w for w in self.world_rows if w["link"] == self.world_pick.get()), None)
-        if world is None:
-            return
-        self.their_code.set(world["link"])
-        self.say_info(world["name"] + (" (the official world)" if world["official"] else "") + (": " + world["about"] if world["about"] else "")
-                      + "\n\nPress VISIT to go there with the character picked above, or TEST CONNECTION to look at it first.")
+    def banner_image(self, world, card, big):
+        """The card's banner as a Tk picture: the world's own (from world_card), The Hub's from the kit, or None."""
+        size = HUB_BANNER if big else CARD_BANNER
+        path = card.get("banner")
+        if not path and world["official"]:
+            path = os.path.join(self.kit, "assets", "worlds", "hub_banner.jpg")
+        if not path or Image is None or not os.path.exists(path):
+            return None
+        key = (path, size)
+        if key not in self.card_images:
+            try:
+                with Image.open(path) as picture:
+                    picture = picture.convert("RGB")
+                    picture.thumbnail(size)
+                    self.card_images[key] = ImageTk.PhotoImage(picture)
+            except Exception:
+                self.card_images[key] = None
+        return self.card_images[key]
+
+    def world_card_widget(self, parent, world, big):
+        card = self.cards.get(world["link"]) or {"state": "looking...", "up": None, "name": world["name"], "about": world["about"],
+                                                  "banner": None, "password": False}
+        box = tk.Frame(parent, bg=PANEL, highlightbackground=GOLD if big else BORDER, highlightthickness=1)
+        box.pack(fill="x")
+        image = self.banner_image(world, card, big)
+        if image is not None:
+            tk.Label(box, image=image, bg=PANEL, bd=0).pack(side="left", padx=6, pady=6)
+        else:
+            w, h = HUB_BANNER if big else CARD_BANNER
+            plate = tk.Canvas(box, width=w, height=h, bg=PANEL2, highlightthickness=1, highlightbackground=BORDER, bd=0)
+            plate.create_text(w // 2, h // 2, text=card["name"], fill=GOLD, font=(_UI_FONT, 16 if big else 12, "bold"), width=w - 20)
+            plate.pack(side="left", padx=6, pady=6)
+        text = tk.Frame(box, bg=PANEL)
+        text.pack(side="left", fill="both", expand=True, padx=(4, 8), pady=6)
+        line = tk.Frame(text, bg=PANEL)
+        line.pack(fill="x")
+        tk.Label(line, text=card["name"], bg=PANEL, fg=FG, font=(_UI_FONT, 14 if big else 11, "bold"), anchor="w").pack(side="left")
+        if world["official"]:
+            tk.Label(line, text=" OFFICIAL ", bg=PANEL2, fg=GOLD, font=(_UI_FONT, 8, "bold")).pack(side="left", padx=6)
+        if card.get("password"):
+            tk.Label(line, text=" PASSWORD ", bg=PANEL2, fg=DIM, font=(_UI_FONT, 8, "bold")).pack(side="left", padx=2)
+        if card["about"]:
+            tk.Label(text, text=card["about"], bg=PANEL, fg=DIM, font=SMALL, anchor="w", justify="left",
+                     wraplength=420 if big else 200).pack(fill="x", pady=(2, 0))
+        there = self.visiting(world)
+        state = f"{there['name']} is there" if there else card["state"]
+        colour = GREEN if (there or card.get("up")) else (DIM if card.get("up") is None else RED)
+        tk.Label(text, text="\u25cf " + state, bg=PANEL, fg=colour, font=SMALL, anchor="w").pack(fill="x", pady=(4, 0))
+        go = tk.Button(text, text="PLAY" if not there else f"PLAY ({there['name']})", command=lambda w=world: self.play_world(w),
+                       bg=GREEN if big else ACCENT, fg="#06121a", activebackground=GOLD, relief="flat", font=(_UI_FONT, 12 if big else 10, "bold"),
+                       padx=18 if big else 12, pady=4 if big else 2, cursor="hand2")
+        go.pack(anchor="w", pady=(6, 0))
+        if card.get("up") is False and not there:
+            go.configure(state="disabled")
+
+    def visiting(self, world):
+        """The character of yours that is in that world right now (arrived), or None."""
+        pin = world["invite"].get("pin")
+        for row in self.away_rows:
+            host = row["host"]
+            if host.get("arrived") and host.get("pin") and host.get("pin") == pin:
+                return row
+        return None
 
     def look_at_worlds(self):
-        """(in the background) The list from the website when the copy here is old, and a few words on each world right now."""
+        """(in the background) The lists from the website and the hub when the copies here are old, and each world's card."""
         try:
             co.refresh_worlds(self.kit)
-            rows = co.listed_worlds(self.kit)
-            return rows, {world["link"]: co.world_state(world) for world in rows[:WORLDS_SHOWN]}
+            co.refresh_directory(self.kit)
+            rows = co.all_worlds(self.kit)
+            official = [w for w in rows if w["official"]][:1]
+            shown = official + [w for w in rows if w not in official][:WORLDS_SHOWN]
+            return rows, {world["link"]: co.world_card(self.kit, world) for world in shown}
         except Exception:
             return None
 
     def looked(self, result):
         self.looking = False
-        if result and self.settings["enabled"] and self.world_area.winfo_exists():
-            self.world_rows, self.world_states = result
+        if result and self.settings["enabled"] and getattr(self, "hub_area", None) is not None and self.hub_area.winfo_exists():
+            self.world_rows, self.cards = result
             self.show_worlds()
+
+    # ----- (2026-11-23) one button: PLAY on a world takes the character there and starts the game -----
+    def play_world(self, world):
+        if getattr(self.app, "running", False):
+            messagebox.showinfo("Play", "Press STOP first: your own world closes while you play in another one.", parent=self)
+            return
+        there = self.visiting(world)
+        if there is not None:
+            return self.go_play(there)
+        charid = self.picked_character()
+        if charid is None:
+            messagebox.showinfo("Play", "Pick your character at the top of the page first.", parent=self)
+            return
+        busy = next((row for row in self.away_rows if row["charid"] == charid), None)
+        if busy is not None:
+            where = busy["host"].get("world", {}).get("name") or "another world"
+            messagebox.showinfo("Play", f"{busy['name']} is in {where} right now. Pick another character, or play there first "
+                                "(closing the game brings it home).", parent=self)
+            return
+        name = self.character.get()
+        invite = world["invite"]
+        self.job(lambda: co.hello(invite), lambda greeting: self.play_open(invite, charid, name, greeting),
+                 f"Looking for {world['name']}...")
+
+    def play_open(self, invite, charid, name, greeting):
+        world = (greeting.get("world") or {}).get("name") or invite["world"] or "that world"
+        if not greeting.get("open"):
+            messagebox.showinfo("Play", f"{world} is not taking visitors right now.", parent=self)
+            return
+        password = None
+        if greeting.get("password"):
+            password = simpledialog.askstring("World password", f"{world} asks for a password.", show="*", parent=self)
+            if not password:
+                return
+        self.note(f"{name} is travelling to {world}. The game starts as soon as it arrives.")
+        self.arrive(lambda: co.start_visit(self.cfg, self.kit, invite, charid, log=self.log, password=password), charid, name, True,
+                    then=self.play_arrived)
+
+    def play_arrived(self, charid):
+        """The character arrived: start the game there (the page's visit list is read again first)."""
+        def done(away):
+            self.away_rows = away
+            self.show_away()
+            self.show_worlds()
+            row = next((r for r in away if r["charid"] == charid and r["host"].get("arrived")), None)
+            if row is not None:
+                self.go_play(row)
+
+        def work():
+            conn = self.connect()
+            try:
+                return pp.away_list(conn)
+            finally:
+                conn.close()
+        self.job(work, done)
+
+    def go_play(self, row):
+        if getattr(self.app, "running", False):
+            return
+        self.app.visit = row
+        self.app.go("Play")
+        self.app.start()
+
+    def home_after_game(self, visit):
+        """Called by the launcher (in its worker thread) when the game closed after playing in another world: the
+        character comes home by itself. Things left on that world's auction house or in its delivery box: the player is
+        asked in the window (they can go back for them)."""
+        try:
+            result = co.come_home_after_game(self.cfg, self.kit, visit["charid"], log=self.log, tries=HOME_TRIES, wait=HOME_WAIT)
+        except co.CoopError as e:
+            text = (f"{visit['name']} stays in that world for now: {e} It comes home the next time the world answers "
+                    "(or press COME HOME below).")
+            self.q.put((lambda r: self.came_home(None, r), text, None))
+            return
+        self.q.put((lambda r, v=visit: self.came_home(v, r), result, None))
+
+    def came_home(self, visit, result):
+        """In the window: what home_after_game found."""
+        if visit is None:
+            self.note(str(result))
+            self.refresh()
+            return
+        if result is None:
+            self.note(f"{visit['name']} still looked logged in there. Press COME HOME below in a moment.")
+            self.refresh()
+            return
+        if isinstance(result, co.Refused):
+            if result.code == "holdings":
+                left = result.extra.get("holdings", {})
+                if messagebox.askyesno("Things left behind", f"{visit['name']} still has {left.get('auctions', 0)} auction(s) running and "
+                                       f"{left.get('delivery', 0)} item(s) in the delivery box in that world. They do not travel.\n\n"
+                                       "Yes = come home without them\nNo = stay there (press PLAY on that world to go back for them)",
+                                       parent=self):
+                    def work():
+                        return co.come_home(self.cfg, self.kit, visit["charid"], force=True, log=self.log)
+                    self.job(work, self.welcome_home, f"Bringing {visit['name']} home...")
+                else:
+                    self.refresh()
+            else:
+                self.note(f"{visit['name']} still looked logged in there. Press COME HOME below in a moment.")
+                self.refresh()
+            return
+        self.welcome_home(result)
 
     # ----- visiting -----
     def picked_character(self):
@@ -1226,7 +1489,7 @@ class CoopTab(tk.Frame):
             return
         self.arrive(lambda: co.start_visit(self.cfg, self.kit, invite, charid, log=self.log, password=password), charid, name, True)
 
-    def arrive(self, work, charid, name, is_open):
+    def arrive(self, work, charid, name, is_open, then=None):
         """Runs the trip in the background. An open world may answer that the name is taken there or that the
         password is wrong: the character stays packed, the player is asked, and the arrival is tried again."""
         def guarded():
@@ -1238,10 +1501,13 @@ class CoopTab(tk.Frame):
                 raise
 
         def again(**more):
-            self.arrive(lambda: co.finish_arrival(self.cfg, self.kit, charid, log=self.log, **more), charid, name, True)
+            self.arrive(lambda: co.finish_arrival(self.cfg, self.kit, charid, log=self.log, **more), charid, name, True, then=then)
 
         def done(result):
             self.refresh()
+            if not isinstance(result, co.Refused) and then is not None:
+                then(charid)
+                return
             if not isinstance(result, co.Refused):
                 there = result.get("world", {}).get("name", "the other world")
                 known = f" as {result['local']}" if result.get("local") and result["local"] != name else ""

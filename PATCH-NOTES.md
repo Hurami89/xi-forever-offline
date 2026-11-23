@@ -2,6 +2,16 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.5 · 23 November 2026
+
+### New
+• CO-OP, redone: a bigger page in three parts. The Hub on its own at the top, then OPEN WORLDS, a card for every world other players opened to everyone (its banner, its description, how many people are there), then your own world and visiting friends.
+• One button: PLAY on a world takes your character there and starts the game. Close the game (log out) and your character comes home by itself, with everything it earned. No VISIT and no COME HOME to press. You are only asked when it has to: a world's password, a name that is taken there, or things you left on that world's auction house or in its delivery box.
+• Your world in everyone's OPEN WORLDS: on the CO-OP page, HOST MY WORLD, Anyone (world link), write a line in "About my world", pick a banner (any picture, shown 640 x 160) and leave "List my world" ticked. It lists itself while it is open. Only worlds at an internet address can be listed (not a home network or Tailscale), and each card comes from the world itself, checked against its key.
+
+### Fixes
+• CO-OP: TEST CONNECTION now also checks port 51240 (PlayOnline's chat, which the game loader passes on to the world), and a world set up on a Linux server opens it in that server's firewall. Without it the game stopped right after logging in with "Failed to reach the server on port 51240". (The Hub's visitors)
+
 ## v0.3.4 · 23 November 2026
 
 ### New

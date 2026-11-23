@@ -50,7 +50,8 @@ CHECKPOINT_SECONDS = 300             # a visitor's launcher fetches a fresh copy
 CHECKPOINT_MIN_SECONDS = 60          # ...and the host makes one at most this often per visitor
 TAKE_BACK_HOURS = 24                 # the host must be out of reach this long before "take back" is offered
 MAX_BODY = 48 * 1024 * 1024
-GAME_PORTS = (("log in", 54231), ("lobby", 54230), ("lobby view", 54001), ("search", 54002), ("profile", 51220))
+GAME_PORTS = (("log in", 54231), ("lobby", 54230), ("lobby view", 54001), ("search", 54002), ("profile", 51220),
+              ("chat", 51240))      # (2026-11-23) xiloader 3 relays PlayOnline's chat (IRC) to the server's 51240: closed = "Failed to reach the server on port 51240"
 FIREWALL_RULE = "XI Forever Offline co-op"
 SERVER_PROGRAMS = ("xi_connect", "xi_map", "xi_search", "xi_profile")
 VISIT_BOOT = "xiforever-coop.ini"
@@ -92,12 +93,15 @@ def load_settings(kit):
     except (OSError, ValueError):
         pass
     out = {"enabled": False, "hosting": False, "mode": "lan", "address": "", "port": PORT, "secret": "",
-           "max_guests": 3, "zoneip_set": "", "backup_done": False, "open": False, "password": ""}
+           "max_guests": 3, "zoneip_set": "", "backup_done": False, "open": False, "password": "",
+           "about": "", "listed": True}
     if isinstance(data, dict):
         out.update({k: v for k, v in data.items() if k in out})
     if out["mode"] not in MODES:
         out["mode"] = "lan"
     out["open"] = out["open"] is True
+    out["listed"] = out["listed"] is not False
+    out["about"] = clean_about(out["about"])
     if not re.fullmatch(r"(?:[0-9a-f]{32}\$[0-9a-f]{64})?", str(out["password"])):
         out["password"] = ""
     try:
@@ -307,6 +311,24 @@ class Host:
         self.tls = None                      # open worlds: the game server's own certificate, for visitors' launchers
         self.registrations, self.addresses, self.swept = {}, {}, 0
         self.out = {}                        # banned visitors still in the game: {guest id: (first asked out, last asked out)}
+        self.announcer, self.announced, self.announce_note = None, 0, ""
+
+    def announce_loop(self):
+        """(2026-11-23) An open world with "list my world" on tells the worlds list (hub.xiforever.com/worlds) its link
+        every few minutes while it is open, so it shows in every player's OPEN WORLDS. The list checks the world itself."""
+        while self.server is not None:
+            try:
+                if self.settings.get("open") and self.settings.get("listed") and self.open_for_arrivals():
+                    link = self.link()
+                    if link and time.time() - self.announced >= ANNOUNCE_SECONDS:
+                        self.announced = time.time()
+                        note = announce_world(link)
+                        if note != self.announce_note:
+                            self.announce_note = note
+                            self.log("Co-op: " + note)
+            except Exception:
+                pass
+            time.sleep(15)
 
     # --- listening ---
     def start(self):
@@ -372,6 +394,9 @@ class Host:
         self.server.handle_error = lambda *_args: None        # (a visitor that hangs up mid-request is nothing to print)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
+        if self.announcer is None:
+            self.announcer = threading.Thread(target=self.announce_loop, daemon=True)
+            self.announcer.start()
 
     def stop(self):
         if self.server is not None:
@@ -444,6 +469,9 @@ class Host:
                 reply, out = self._arrive(request, blob), b""
             elif kind == "open" and op == "hello":
                 reply, out = self._hello(), b""
+            elif kind == "open" and op == "banner":        # (2026-11-23) the world's own banner, for the OPEN WORLDS cards
+                data = banner_bytes(self.kit) if self.settings.get("open") else b""
+                reply, out = {"ok": True, "sha": hashlib.sha256(data).hexdigest() if data else ""}, data
             elif kind == "open" and op == "register":
                 reply, out = self._register(request, client), b""
             elif kind == "visitor" and op == "arrive":
@@ -488,7 +516,8 @@ class Host:
                 "guests": len(guests), "max_guests": int(self.settings["max_guests"]), "open": self.open_for_arrivals(),
                 "rules": world_rules(self.kit), "fingerprint": self.fingerprint(),
                 "open_world": bool(self.settings.get("open")), "password": bool(self.settings.get("password")),
-                "keep_days": pp.LOCKER_DAYS if self.settings.get("open") else 0}
+                "keep_days": pp.LOCKER_DAYS if self.settings.get("open") else 0,
+                "about": clean_about(self.settings.get("about")), "banner": banner_hash(self.kit) if self.settings.get("open") else ""}
 
     def fingerprint(self):
         """The game server's key, so a visitor's game loader knows it is talking to the right server."""
@@ -1432,6 +1461,203 @@ def world_state(world, timeout=6, post=None):
     except Exception:
         return "no answer right now"
     return line + (", has a password" if greeting.get("password") else "")
+
+
+# ----- worlds that list themselves, with their own banner (2026-11-23, the user: "automatic") -----
+DIRECTORY_URL = "https://hub.xiforever.com/worlds"   # the worlds list on the hub (dev/worldlist/worldlist_service.py)
+DIRECTORY_FILE = "directory.json"                    # coop/: the list last read from it
+ANNOUNCE_SECONDS = 300
+BANNER_FILE = "banner.png"                           # coop/banner.png: this world's banner, as the host chose it
+BANNER_SIZE = (640, 160)                             # what the cards show (larger pictures are shrunk to fit)
+BANNER_MOST = 400 * 1024
+ABOUT_MOST = 160
+
+
+def clean_about(text):
+    """A world's description: one line of printable text, at most 160 characters."""
+    return " ".join("".join(c if c.isprintable() else " " for c in str(text or "")).split())[:ABOUT_MOST]
+
+
+def _banner_path(kit):
+    return os.path.join(kit, "coop", BANNER_FILE)
+
+
+def set_banner(kit, picture):
+    """Makes coop/banner.png from a picture the host picked (any size: shrunk and cropped to 640 x 160). None removes it."""
+    path = _banner_path(kit)
+    if picture is None:
+        if os.path.exists(path):
+            os.remove(path)
+        return None
+    from PIL import Image
+    with Image.open(picture) as image:
+        image = image.convert("RGB")
+        w, h = BANNER_SIZE
+        scale = max(w / image.width, h / image.height)
+        image = image.resize((max(w, round(image.width * scale)), max(h, round(image.height * scale))), Image.LANCZOS)
+        left, top = (image.width - w) // 2, (image.height - h) // 2
+        image = image.crop((left, top, left + w, top + h))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        image.save(path + ".part", "PNG", optimize=True)
+    if os.path.getsize(path + ".part") > BANNER_MOST:
+        from PIL import Image as _I
+        with _I.open(path + ".part") as again:
+            again.convert("P", palette=_I.ADAPTIVE, colors=200).save(path + ".part", "PNG", optimize=True)
+    os.replace(path + ".part", path)
+    return path
+
+
+def banner_bytes(kit):
+    try:
+        with open(_banner_path(kit), "rb") as handle:
+            data = handle.read(BANNER_MOST + 1)
+        return data if 0 < len(data) <= BANNER_MOST else b""
+    except OSError:
+        return b""
+
+
+def banner_hash(kit):
+    data = banner_bytes(kit)
+    return hashlib.sha256(data).hexdigest() if data else ""
+
+
+def banner_cache(kit, sha):
+    return os.path.join(kit, "coop", "banners", sha + ".png")
+
+
+def fetch_banner(kit, invite, sha, post=None, timeout=12):
+    """A listed world's banner, asked from the world itself (its key checked against its link) and kept in coop/banners.
+    Returns the file, or None. A picture that is not the one the world named, too big, or not a picture is not kept."""
+    if not re.fullmatch(r"[0-9a-f]{64}", str(sha or "")):
+        return None
+    path = banner_cache(kit, sha)
+    if os.path.exists(path):
+        return path
+    try:
+        reply, data = call(invite, "open", OPEN_KEY, {"op": "banner"}, timeout=timeout, post=post)
+    except CoopError:
+        return None
+    if not data or len(data) > BANNER_MOST or hashlib.sha256(data).hexdigest() != sha:
+        return None
+    try:
+        import io
+        from PIL import Image
+        with Image.open(io.BytesIO(data)) as image:
+            image.verify()
+            if image.format != "PNG" or image.width > 2000 or image.height > 1000:
+                return None
+    except Exception:
+        return None
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".part", "wb") as handle:
+        handle.write(data)
+    os.replace(path + ".part", path)
+    return path
+
+
+def _http_json(url, body=None, timeout=10, fetch=None):
+    if fetch is not None:
+        return json.loads(fetch(url, body))
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    request = urllib.request.Request(url, data=data, method="POST" if data else "GET",
+                                     headers={"Content-Type": "application/json", "User-Agent": "XI-Forever-Offline-launcher"})
+    try:
+        import launcher_thirdparty
+        context = launcher_thirdparty.ssl_context()
+    except Exception:
+        context = None
+    with urllib.request.urlopen(request, timeout=timeout, context=context) as response:
+        return json.loads(response.read(400000) or b"{}")
+
+
+def announce_world(link, fetch=None):
+    """Tells the worlds list this world is open. Returns a line for the log (only logged when it changes)."""
+    try:
+        answer = _http_json(DIRECTORY_URL + "/announce", {"link": link}, fetch=fetch)
+    except Exception as e:
+        return f"the worlds list could not be reached ({type(e).__name__}); your world is not listed for now."
+    if answer.get("ok"):
+        return "your world is listed in everyone's OPEN WORLDS."
+    return "the worlds list did not list your world: " + str(answer.get("error") or "no reason given")[:200]
+
+
+def refresh_directory(kit, fetch=None, now=None):
+    """The worlds that listed themselves, read from the hub when the copy here is older than WORLDS_FRESH_SECONDS."""
+    path = os.path.join(kit, "coop", DIRECTORY_FILE)
+    try:
+        if 0 <= (now or time.time()) - os.path.getmtime(path) < WORLDS_FRESH_SECONDS:
+            return False
+    except OSError:
+        pass
+    try:
+        answer = _http_json(DIRECTORY_URL, fetch=fetch)
+        worlds = answer.get("worlds") if isinstance(answer, dict) else None
+        if not isinstance(worlds, list):
+            return False
+        text = json.dumps({"worlds": [{"link": str(w.get("link", ""))} for w in worlds[:WORLDS_MOST] if isinstance(w, dict)]})
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path + ".part", "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+        os.replace(path + ".part", path)
+        return True
+    except Exception:
+        return False
+
+
+def all_worlds(kit):
+    """OPEN WORLDS: the project's own list (The Hub first), then the worlds that listed themselves."""
+    out = listed_worlds(kit)
+    seen = {world["link"] for world in out} | {world["invite"]["pin"] for world in out}
+    try:
+        with open(os.path.join(kit, "coop", DIRECTORY_FILE), encoding="utf-8") as handle:
+            extra = read_worlds(handle.read())
+    except (OSError, ValueError):
+        extra = []
+    for world in extra:
+        if world["link"] in seen or world["invite"]["pin"] in seen:
+            continue
+        world["official"] = False
+        out.append(world)
+        seen |= {world["link"], world["invite"]["pin"]}
+    return out[:WORLDS_MOST]
+
+
+def world_card(kit, world, post=None, timeout=6):
+    """What an OPEN WORLDS card shows right now: {"state", "name", "about", "banner" (a file or None), "up", "password"}."""
+    try:
+        greeting = hello(world["invite"], post=post, timeout=timeout)
+    except Exception:
+        return {"state": "no answer right now", "up": False, "name": world["name"], "about": world["about"], "banner": None,
+                "password": False}
+    name = pp.clean_world_name(((greeting.get("world") or {}).get("name")) or world["name"])
+    about = clean_about(greeting.get("about")) or world["about"]
+    banner = fetch_banner(kit, world["invite"], greeting.get("banner"), post=post) if greeting.get("banner") else None
+    guests, most = int(greeting.get("guests", 0)), int(greeting.get("max_guests", 0))
+    state = f"{guests} of {most} here" if greeting.get("open") else "not taking visitors right now"
+    return {"state": state, "up": bool(greeting.get("open")), "name": name, "about": about, "banner": banner,
+            "password": bool(greeting.get("password"))}
+
+
+def come_home_after_game(cfg, kit, charid, log=print, tries=8, wait=8, sleep=time.sleep, post=None, connect=None):
+    """(2026-11-23, the user: no button to press) The game was closed after playing in another world: the character
+    comes home by itself. The world may still think it is logged in for a few seconds, so it is asked again a few times.
+    Returns the result of come_home, a Refused for things left behind (the player is asked), or None (still there)."""
+    for attempt in range(tries):
+        try:
+            return come_home(cfg, kit, charid, log=log, post=post, connect=connect)
+        except Refused as e:
+            if e.code == "online" and attempt + 1 < tries:
+                sleep(wait)
+                continue
+            if e.code in ("holdings", "online"):
+                return e
+            raise
+        except Unreachable:
+            if attempt + 1 < tries:
+                sleep(wait)
+                continue
+            raise
+    return None
 
 
 # ----- the visitor's game: boot file and macros -----

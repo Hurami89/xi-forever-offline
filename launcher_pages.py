@@ -22,6 +22,7 @@ NAV_BUTTONS = (("home", "HOME", ("Play",)), ("world", "WORLD", ("World",)), ("ru
                ("options", "OPTIONS", ("Graphics", "Shaders", "Controller", "Addons", "Plugins", "Other", "Theme")),
                ("coop", "CO-OP", ("Co-op",)), ("system", "SYSTEM", ("Settings", "Patch notes", "Characters", "Era", "About")))
 WINDOW = (1100, 810)            # one size for every page
+COOP_WINDOW = (1240, 900)       # ...but the CO-OP page
 BANNER = (800, 320)             # the Play page's picture (the classic page: 920 x 368)
 DISCORD = "https://discord.gg/2bh3QYPptz"       # the invite in README.md
 
@@ -1390,6 +1391,12 @@ SUBNAV_NAMES = {"Other": "Get more"}
 
 def fit_window(app):
     width, height = WINDOW
+    try:                        # (2026-11-23) the CO-OP page (The Hub, the OPEN WORLDS cards) is a little roomier
+        page = app.tabs.tab(getattr(app, "current_index", 0), "text").strip().lower() if app.tabs.tabs() else ""
+        if page.startswith("co-op"):
+            width, height = COOP_WINDOW
+    except Exception:
+        pass
     if G.linux is not None:     # the Steam Deck's screen is 1280 x 800: never taller (or wider) than the screen
         width = min(width, app.winfo_screenwidth())
         height = min(height, app.winfo_screenheight() - (0 if G.linux.in_game_mode() else 40))

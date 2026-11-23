@@ -160,7 +160,7 @@ main() {
   local port
   port="$(sed -n 's/.*"port": *\([0-9][0-9]*\).*/\1/p' "$dir/coop.json" 2>/dev/null | head -n1)"
   port="${port:-54100}"
-  local tcp="54230 54231 54001 54002 51220 $port" udp="54230" p
+  local tcp="54230 54231 54001 54002 51220 51240 $port" udp="54230" p
   if [ "$with_firewall" -eq 1 ]; then
     if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
       for p in $tcp; do ufw allow "$p/tcp" >/dev/null; done
