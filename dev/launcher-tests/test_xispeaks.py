@@ -75,7 +75,8 @@ class XISpeaksTests(unittest.TestCase):
         for rel in ("XISpeaks.lua", "companion/XISpeaks-Companion.exe", "companion/voices/a.wav", "companion/voices/b.wav"):
             self.assertTrue(os.path.isfile(os.path.join(root, rel)), rel)
         self.assertEqual(open(mine).read(), "MINE")
-        self.assertEqual(os.listdir(os.path.join(kit, "downloads", "xispeaks")), [])        # each zip deleted after
+        folder = os.path.join(kit, "downloads", "xispeaks")
+        self.assertEqual(os.listdir(folder) if os.path.isdir(folder) else [], [])        # each zip deleted after
         self.assertEqual(tp.status(self.item, kit, ashita), (True, "v1.0.0-beta.4"))
         self.assertTrue(any("part 3 of 3" in line for line in lines))
 

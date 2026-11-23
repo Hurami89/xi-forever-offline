@@ -21,6 +21,7 @@ TESTS = [
     ("Start-up check for newer versions", "dev/launcher-tests/test_start_checks.py"),
     ("Launcher update", "dev/update-tests/test_update.py"),
     ("HD texture packs (upstream v0.3.3, still green)", "dev/launcher-tests/test_hd_packs.py"),
+    ("XISpeaks download (upstream, still green with downloads cleanup)", "dev/launcher-tests/test_xispeaks.py"),
 ]
 SERVER_TESTS = [
     ("Squad auto-equip with all gear (needs a server folder)", "dev/squad-tests/test_all_gear_autoequip.py"),
