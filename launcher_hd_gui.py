@@ -40,7 +40,7 @@ def open_window(parent, kit, ashita, boot_ini, look, say=None, running=None, cor
 
     win = tk.Toplevel(parent)
     _OPEN["win"] = win
-    win.title("HD texture packs")
+    win.title("HD texture packs and music")
     win.configure(bg=BG)
     win.geometry("760x720")
     win.minsize(640, 520)
@@ -64,7 +64,7 @@ def open_window(parent, kit, ashita, boot_ini, look, say=None, running=None, cor
         return tk.Button(master, text=text, command=command, relief="flat", padx=10, bg=ACCENT if strong else PANEL,
                          fg="white" if strong else FG, activebackground=PANEL, activeforeground=FG, **kw)
 
-    label(win, "HD texture packs", font=(FONT, 14, "bold")).pack(fill="x", padx=14, pady=(12, 0))
+    label(win, "HD texture packs and music", font=(FONT, 14, "bold")).pack(fill="x", padx=14, pady=(12, 0))
     label(win, "Experimental. Sharper textures made by players, loaded through XIPivot: your FINAL FANTASY XI folder is not "
                "changed, and a pack comes out again with one click. You download the pack from Nexus Mods (a free account "
                "there is enough); this window does the rest.", fg=DIM, wraplength=720, font=(FONT, 9)).pack(fill="x", padx=14, pady=(2, 8))
@@ -79,6 +79,18 @@ def open_window(parent, kit, ashita, boot_ini, look, say=None, running=None, cor
         label(text, pack["name"], bg=PANEL, font=(FONT, 10, "bold")).pack(fill="x")
         label(text, "by " + pack["by"] + ".  " + pack["note"], bg=PANEL, fg=DIM, font=(FONT, 9), wraplength=520).pack(fill="x")
         button(row, "Open its page", lambda url=pack["url"]: webbrowser.open(url), strong=True).pack(side="right", padx=8)
+    have = {p["name"].lower() for p in hd.installed(ashita)} if ashita else set()
+    for pack in hd.DIRECT:
+        row = tk.Frame(win, bg=PANEL)
+        row.pack(fill="x", padx=14, pady=2)
+        text = tk.Frame(row, bg=PANEL)
+        text.pack(side="left", fill="x", expand=True, padx=8, pady=5)
+        label(text, pack["name"], bg=PANEL, font=(FONT, 10, "bold")).pack(fill="x")
+        label(text, "by " + pack["by"] + ".  " + pack["note"], bg=PANEL, fg=DIM, font=(FONT, 9), wraplength=520).pack(fill="x")
+        if pack["folder"].lower() in have:
+            label(row, "installed (see 3.)", bg=PANEL, fg=GREEN, font=(FONT, 9, "bold")).pack(side="right", padx=8)
+        else:
+            button(row, "Download", lambda p=pack: fetch_direct(p), strong=True).pack(side="right", padx=8)
     more = label(win, "All FFXI mods on Nexus Mods", fg=ACCENT, cursor="hand2", font=(FONT, 9, "underline"))
     more.pack(anchor="w", padx=14, pady=(2, 8))
     more.bind("<Button-1>", lambda e: webbrowser.open(hd.NEXUS))
@@ -199,6 +211,34 @@ def open_window(parent, kit, ashita, boot_ini, look, say=None, running=None, cor
                 lines.put(("done", f"{name} was removed ({gb(freed)} freed)."))
             except Exception as e:
                 lines.put(("failed", f"Could not remove {name}: {e}"))
+        threading.Thread(target=work, daemon=True).start()
+
+    def fetch_direct(pack):
+        if state["busy"]:
+            return
+        if not hd.pivot_installed(ashita):
+            messagebox.showinfo(pack["name"], "XIPivot is not installed yet. Install it first: OPTIONS > Get more, "
+                                              "the XIPivot row, Install. Then come back here.", parent=win)
+            return
+        if running():
+            messagebox.showinfo(pack["name"], "Close the game first, then download it.", parent=win)
+            return
+        if pack["folder"].lower() in {p["name"].lower() for p in hd.installed(ashita)}:
+            messagebox.showinfo(pack["name"], "It is already installed: see 3. Your packs.", parent=win)
+            return
+        if not messagebox.askyesno(pack["name"], f"Download {pack['name']} from its author's GitHub page and install it?\n\n"
+                                                 f"{pack['note']}", parent=win):
+            return
+        state["busy"] = True
+        refresh()
+        tell(f"Downloading {pack['name']}...")
+
+        def work():
+            try:
+                hd.download_direct(pack, kit, ashita, log=lambda text: lines.put(("line", text)))
+                lines.put(("done", f"{pack['name']} is installed, switched off. Turn it on in 3. Your packs (from the next PLAY)."))
+            except Exception as e:
+                lines.put(("failed", f"{pack['name']}: not installed ({e})"))
         threading.Thread(target=work, daemon=True).start()
 
     def choose_file():

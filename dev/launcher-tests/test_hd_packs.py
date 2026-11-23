@@ -425,7 +425,7 @@ class HdPacks(unittest.TestCase):
         gui = open(os.path.join(KIT, "launcher_gui.pyw"), encoding="utf-8").read()
         row = gui[gui.index("    def show_downloads(self, newer=None):"):gui.index("    def open_hd_packs(self):")]
         self.assertIn('if item["id"] == "xipivot":', row)
-        self.assertIn('text="HD texture packs..."', row)
+        self.assertIn('text="HD packs and music..."', row)
         self.assertIn("command=self.open_hd_packs", row)
         opener = gui[gui.index("    def open_hd_packs(self):"):gui.index("    def toggle_polplugin(self, item, on):")]
         self.assertIn("launcher_hd_gui.open_window(", opener)
@@ -443,7 +443,7 @@ class HdPacks(unittest.TestCase):
         items = manifest["items"] if isinstance(manifest, dict) else manifest
         pivot = next(i for i in items if i["id"] == "xipivot")
         self.assertEqual(pivot["check"], "polplugins/pivot.dll")              # what pivot_installed looks for
-        self.assertIn("HD texture packs...", pivot["note"])
+        self.assertIn("HD packs and music...", pivot["note"])
 
     # ---------------------------------------------------------------- the real packs, when they are on this PC
     def test_real_downloads_are_recognised(self):

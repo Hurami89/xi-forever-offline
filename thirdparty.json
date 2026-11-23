@@ -466,7 +466,7 @@
         ]
       ],
       "polplugin": "pivot",
-      "note": "Loads DAT mods (UI, textures, music) from Ashita/polplugins/DATs without changing your game files. Off until you turn it on here; the change applies at the next PLAY. For HD texture packs press \"HD texture packs...\": it installs a pack you downloaded from Nexus Mods.",
+      "note": "Loads DAT mods (UI, textures, music) from Ashita/polplugins/DATs without changing your game files. Off until you turn it on here; the change applies at the next PLAY. For HD texture packs press \"HD packs and music...\": it installs a pack you downloaded from Nexus Mods, and downloads the LoFi FFXI music for you (off until you turn it on).",
       "check": "polplugins/pivot.dll"
     },
     {

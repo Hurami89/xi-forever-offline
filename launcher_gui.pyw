@@ -4032,7 +4032,7 @@ class App(tk.Tk):
             link.grid(row=row * 2, column=3, sticky="w", padx=10, pady=(6, 0))
             link.bind("<Button-1>", lambda e, url=item["homepage"]: self.open_url(url))
             if item["id"] == "xipivot":             # (2026-11-22) HD texture packs: what most players want XIPivot for
-                tk.Button(self.dl_rows, text="HD texture packs...", relief="flat", bg=PANEL, fg=GOLD, padx=10,
+                tk.Button(self.dl_rows, text="HD packs and music...", relief="flat", bg=PANEL, fg=GOLD, padx=10,
                           command=self.open_hd_packs).grid(row=row * 2 + 1, column=3, sticky="w", padx=10)
             info = f"by {item['author']} - license: {item['license']}" + (f" - {item['note']}" if item.get("note") else "")
             # (the description spans the name and status columns only: across all four it was drawn over the

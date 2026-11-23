@@ -135,6 +135,7 @@
 !/addons-src/GambitsV2/
 !/addons-src/journal-era/
 !/addons-src/stinkshell/
+!/addons-src/autora/
 
 # ---- server modules (copies kept with the kit) ----
 !/squad-behavior/

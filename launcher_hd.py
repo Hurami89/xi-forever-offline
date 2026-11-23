@@ -36,6 +36,16 @@ KNOWN = (
      "note": "Zone and character textures. NextHD is the sharper one, NextLore stays closer to the original look. "
              "About 3.6 GB to download and 7 GB unpacked."},
 )
+# (2026-11-23, datadecay) Packs whose authors publish them openly on GitHub: the launcher downloads these itself (pinned
+# to one commit, straight from the author's page, never rehosted), installs them switched OFF, and the player turns them
+# on in the packs window.
+DIRECT = (
+    {"id": "lofi", "name": "LoFi FFXI music", "folder": "LoFi-FFXI", "repo": "CatsAndBoats/LoFi-FFXI",
+     "ref": "7ec7a317e10ac103754460a753e354f0b7c736ed", "url": "https://github.com/CatsAndBoats/LoFi-FFXI",
+     "by": "Spaceroast (the remixes), converted for XIPivot by CatsAndBoats",
+     "note": "Lo-fi remixes of the game's music: towns, areas, battles, the Mog House. About 430 MB. Installed switched off; "
+             "turn it on below. Support Spaceroast: open.spotify.com/artist/1EPZJb9PkAT60jX4vWvg8u"},
+)
 ARCHIVES = (".zip", ".rar", ".7z")
 PACK_DIR = re.compile(r"^(rom\d?|sound\d?)$", re.I)        # the game-data folders XIPivot overlays
 NEXUS_NAME = re.compile(r"^(?P<name>.+?)-(?P<mod>\d+)(?:-[0-9A-Za-z]+)*-(?P<time>\d{9,11})$")
@@ -430,7 +440,7 @@ def _take(items, target, era, move_files):
     return total, files, left
 
 
-def install(source, ashita, kit=None, log=print, run=None, tools=None, free=None, tick=None):
+def install(source, ashita, kit=None, log=print, run=None, tools=None, free=None, tick=None, switch_on=True, name=None):
     """Installs the pack(s) in an archive (.zip, .rar, .7z) or a folder into polplugins/DATs and lists them in
     pivot.ini. Returns [{name, files, bytes, left_out}]. XIPivot itself is switched on by the caller (the boot file).
     tick: called every couple of seconds while a .rar / .7z unpacks (for a "still working" line)."""
@@ -462,6 +472,8 @@ def install(source, ashita, kit=None, log=print, run=None, tools=None, free=None
             infos = {info.filename: info for info in archive.infolist() if not info.is_dir()}
             roots = pack_roots(list(infos))
             names = root_names(roots, source)
+            if name and len(roots) == 1:
+                names = {root: folder_name(name) for root in roots}
             for root, items in roots.items():
                 log(f"Unpacking {names[root]} ({len(items)} files)...")
                 target = os.path.join(dats, names[root])
@@ -500,9 +512,30 @@ def install(source, ashita, kit=None, log=print, run=None, tools=None, free=None
             shutil.rmtree(temp, ignore_errors=True)
     if not done:
         raise RuntimeError("No game-data folders (ROM, ROM2... or sound) were found in there, so this is not a texture pack XIPivot can load.")
-    current = read_overlays(ashita)
-    write_overlays(ashita, current + [d["name"] for d in done if d["name"].lower() not in [c.lower() for c in current]])
+    if switch_on:
+        current = read_overlays(ashita)
+        write_overlays(ashita, current + [d["name"] for d in done if d["name"].lower() not in [c.lower() for c in current]])
     for d in done:
         era_note = f", {d['left_out']} left out so the era files win" if d["left_out"] else ""
         log(f"{d['name']}: {d['files']} files, {d['bytes'] / (1 << 30):.1f} GB{era_note}.")
+    return done
+
+
+def download_direct(pack, kit, ashita, log=print, fetch=None):
+    """A DIRECT pack: downloads the author's GitHub archive of the pinned commit into <kit>/downloads/packs, unpacks it
+    into polplugins/DATs/<folder> switched off (not in pivot.ini), and deletes the download. Returns install()'s list."""
+    import launcher_thirdparty as tp
+    if not ashita or not os.path.isdir(ashita):
+        raise RuntimeError("Ashita's folder was not found. Run the first-time setup first.")
+    url = f"https://github.com/{pack['repo']}/archive/{pack['ref']}.zip"
+    path = os.path.join(kit, "downloads", "packs", pack["folder"] + "-" + pack["ref"][:8] + ".zip")
+    log(f"{pack['name']}: downloading from {pack['url']}...")
+    tp.download_file(url, path, log=log, fetch=fetch)
+    try:
+        done = install(path, ashita, kit, log=log, switch_on=False, name=pack["folder"])
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
     return done
