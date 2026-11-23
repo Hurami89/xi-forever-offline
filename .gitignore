@@ -28,6 +28,7 @@
 !/launcher_hd_gui.py
 # Stinkshell, the online chat room (off by default; its relay is dev/stinkshell/stinkshell_relay.py)
 !/launcher_stinkshell.py
+!/launcher_revamped.py
 !/launcher_thirdparty.py
 !/launcher_setup.py
 !/launcher_update.py
