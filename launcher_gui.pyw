@@ -4031,11 +4031,34 @@ class App(tk.Tk):
             link = tk.Label(self.dl_rows, text="home page", bg=BG, fg=ACCENT, cursor="hand2")
             link.grid(row=row * 2, column=3, sticky="w", padx=10, pady=(6, 0))
             link.bind("<Button-1>", lambda e, url=item["homepage"]: self.open_url(url))
+            if item["id"] == "xipivot":             # (2026-11-22) HD texture packs: what most players want XIPivot for
+                tk.Button(self.dl_rows, text="HD texture packs...", relief="flat", bg=PANEL, fg=GOLD, padx=10,
+                          command=self.open_hd_packs).grid(row=row * 2 + 1, column=3, sticky="w", padx=10)
             info = f"by {item['author']} - license: {item['license']}" + (f" - {item['note']}" if item.get("note") else "")
             # (the description spans the name and status columns only: across all four it was drawn over the
             #  buttons in column 2 of this row, e.g. XIPivot's on/off switch, sparkiie 2026-11-17)
             tk.Label(self.dl_rows, text=info, bg=BG, fg=DIM, font=(UI_FONT, 9), anchor="w", wraplength=520,
                      justify="left").grid(row=row * 2 + 1, column=0, columnspan=2, sticky="w")
+
+    def open_hd_packs(self):
+        """(2026-11-22, the user) HD texture packs through XIPivot: the player downloads a pack from Nexus Mods himself;
+        the window (launcher_hd_gui.py) finds the file, unpacks it into Ashita's XIPivot folder and switches it on."""
+        try:
+            import launcher_hd_gui
+            window = launcher_hd_gui.open_window(
+                self, HERE, self.ashita, self.boot_ini,
+                {"bg": BG, "panel": PANEL, "fg": FG, "dim": DIM, "accent": ACCENT, "green": GREEN, "red": RED, "gold": GOLD, "font": UI_FONT},
+                say=self.say, running=lambda: bool(getattr(self, "running", False)), core=core)
+
+            def closed(event):                      # XIPivot's own switch on this page may have changed meanwhile
+                if event.widget is window:
+                    try:
+                        self.show_downloads()
+                    except Exception:
+                        pass
+            window.bind("<Destroy>", closed, add="+")
+        except Exception as e:
+            messagebox.showerror("HD texture packs", f"The HD texture packs window could not be opened: {e}")
 
     def toggle_polplugin(self, item, on):
         try:

@@ -434,7 +434,7 @@
         ]
       ],
       "polplugin": "pivot",
-      "note": "Loads DAT mods (UI, textures, music) from Ashita/polplugins/DATs without changing your game files. Off until you turn it on here; the change applies at the next PLAY.",
+      "note": "Loads DAT mods (UI, textures, music) from Ashita/polplugins/DATs without changing your game files. Off until you turn it on here; the change applies at the next PLAY. For HD texture packs press \"HD texture packs...\": it installs a pack you downloaded from Nexus Mods.",
       "check": "polplugins/pivot.dll"
     },
     {

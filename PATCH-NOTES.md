@@ -4,6 +4,9 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ## v0.3.3 · 22 November 2026
 
+### New
+• HD texture packs (experimental): OPTIONS > Get more > XIPivot > "HD texture packs...". Sharper textures made by players (AshenbubsHD, NextGames HD and others on Nexus Mods), loaded through XIPivot: your FINAL FANTASY XI folder is not changed. The window opens the pack's page on Nexus Mods and you download it there with your own free account (Nexus does not let a program do that for free accounts, and the packs may not be passed on by us). The launcher does the rest: it finds the file in your Downloads (.zip, .rar or .7z, or a folder you unpacked), puts only the game data into Ashita's XIPivot folder, switches XIPivot on and lists the pack. Each pack has On/Off, Up/Down (the higher one wins) and Remove. Where a pack holds a file our era set replaces, the era file wins. The packs are big (7 to 26 GB unpacked); if the screen goes black when you change areas the game ran out of memory, so switch the biggest pack off. Changes count from the next PLAY.
+
 ### Fixes
 • Squad auto-equip works with RULES > Squad > "Squad gets all gear". It only chose from gear that was given to the squad, so with that switch on (nothing has to be given) it did nothing. Now it chooses from everything the mate's job can wear at its level and puts on the best rated piece for each slot. It leaves out what adds nothing for the job (costumes, fishing rods, pearls), bows and guns for jobs with no skill in them, other races' gear and the game masters' Judge's set. Gear you gave is still chosen as before. The lines it says now name where the choice was made from.
 
