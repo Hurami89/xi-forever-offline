@@ -7,6 +7,9 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ### New
 • Squad: "Attack my target" and "Stop" in the Squads menu, and the commands !squad attack and !squad stop. Target a monster and your squad goes in without you drawing your weapon: stay back, sit and rest, stand up to heal. They fight it to the end and come back to you; Stop calls them back early. It also works on the move, and at a camp on anything within 20 yalms of it. Bot players in your party go in too. In a macro: /say !squad attack. (Hasuko, Yenkei)
 
+### Fixes
+• Updating no longer stops with "Access is denied ... .mp3" while the launcher's theme song is on. The launcher kept the song's file open, and Windows will not replace an open file. Now the song is stopped before an update, files that did not change are left alone, and a file that is held for a moment is tried again. If you are on v0.3.0 or v0.3.1 and the update stops with that message: close the launcher and open it again (it is the new version then), or switch the song off under Options > Theme before you update. (Hasuko, wildthing)
+
 ## v0.3.1 · 22 November 2026
 
 ### Fixes

@@ -16,6 +16,7 @@ import shutil
 import sys
 import time
 import zipfile
+import zlib
 
 KIT_REPO = "Hurami89/xi-forever-offline"
 SERVER_REPO = "Hurami89/xi-forever-offline-server"
@@ -155,12 +156,53 @@ def _unpack_tar(tar_path, dest, keep=(), log=print):
     return count
 
 
+SOUNDS = (".mp3", ".wav", ".ogg")                 # a song the launcher (or a second launcher window) may be playing
+REPLACE_TRIES, REPLACE_WAIT = 10, 0.3             # a file held for a moment (a virus scanner, a song just stopped)
+
+
+def _same(path, info):
+    """True when the file on disk already is what the zip holds (size and checksum): nothing to write."""
+    try:
+        if os.path.getsize(path) != info.file_size:
+            return False
+        crc = 0
+        with open(path, "rb") as handle:
+            for block in iter(lambda: handle.read(1 << 20), b""):
+                crc = zlib.crc32(block, crc)
+        return (crc & 0xFFFFFFFF) == info.CRC
+    except OSError:
+        return False
+
+
+def _into_place(part, target, sleep=time.sleep):
+    """Renames the finished .part over its target. Windows refuses while another program has the target open (Hasuko,
+    2026-11-22: "Access is denied ... xifo_theme...mp3": the launcher itself was playing that song), or for a moment
+    while a virus scanner reads the new file: tried a few times. Returns False for a sound file that stays held (the
+    old one is kept, the rest of the update goes on); anything else that stays held stops the update, saying why."""
+    for attempt in range(REPLACE_TRIES):
+        try:
+            os.replace(part, target)
+            return True
+        except PermissionError:
+            if attempt + 1 < REPLACE_TRIES:
+                sleep(REPLACE_WAIT)
+    try:
+        os.remove(part)
+    except OSError:
+        pass
+    if target.lower().endswith(SOUNDS):
+        return False
+    raise RuntimeError(f"Windows would not let the update replace {target}: another program has it open "
+                       "(a second launcher window, the game, an editor). Close it and press Update again.")
+
+
 def _unpack(zip_path, dest, keep=(), log=print, running_exe=None):
     """Unpacks the zip's single top folder over dest. A file in keep is never replaced. The running exe is renamed
-    out of the way first (Windows lets a running program be renamed, not replaced)."""
+    out of the way first (Windows lets a running program be renamed, not replaced). A file that already is what the
+    zip holds is left alone, so a file some program has open only matters when it really changed."""
     if not zip_path.lower().endswith(".zip"):
         return _unpack_tar(zip_path, dest, keep=keep, log=log)
-    count = 0
+    count, same, held = 0, 0, []
     with zipfile.ZipFile(zip_path) as archive:
         for info in archive.infolist():
             head, _, rest = info.filename.partition("/")
@@ -172,6 +214,9 @@ def _unpack(zip_path, dest, keep=(), log=print, running_exe=None):
             if rest in keep:
                 continue
             target = os.path.join(dest, *parts)
+            if _same(target, info):
+                same += 1
+                continue
             if running_exe and os.path.normcase(os.path.abspath(target)) == os.path.normcase(os.path.abspath(running_exe)):
                 old = target[:-4] + ".old.exe"
                 if os.path.exists(old):
@@ -183,9 +228,13 @@ def _unpack(zip_path, dest, keep=(), log=print, running_exe=None):
             os.makedirs(os.path.dirname(target), exist_ok=True)
             with archive.open(info) as src, open(target + ".part", "wb") as out:
                 shutil.copyfileobj(src, out)
-            os.replace(target + ".part", target)
-            count += 1
-    log(f"{count} files updated.")
+            if _into_place(target + ".part", target):
+                count += 1
+            else:
+                held.append(rest)
+    log(f"{count} files updated" + (f", {same} already up to date." if same else "."))
+    for rest in held:
+        log(f"Left as it was (it is being played; it is replaced at the next update): {rest}")
     return count
 
 

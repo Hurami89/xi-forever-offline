@@ -3104,6 +3104,11 @@ class UpdatesTab(tk.Frame):
         for button in self.buttons:
             button.configure(state="disabled")
         cfg = self.app.cfg
+        try:        # (Hasuko: "Update stopped: [WinError 5] Access is denied ... xifo_theme...mp3") the theme song's file stays
+            import launcher_theme               # open while it plays and after it ends, and Windows will not replace an open
+            launcher_theme.PLAYER.stop()        # file. Stopped here, on the window's own thread (the player belongs to it).
+        except Exception:
+            pass
 
         def work():
             restart = False
