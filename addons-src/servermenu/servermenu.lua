@@ -37,7 +37,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26j';   -- (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.26k';   -- (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1273,8 +1273,8 @@ local function squadTab()
             ask(1.5);
         end
         -- (1.26g, FalconX51; the user: one button, lit while it is on) best gear once = on, then off again
-        tooltip(on and 'Lit: your mates wear the best gear you gave the squad and pick again each time they are called.\nClick to switch it off: they keep what they wear now, and you can change any piece by hand.'
-            or 'Click: every mate puts on the best gear you gave the squad for its job and level, and the button lights up.\nFor best gear just once, click it again: the gear stays and the choice is yours again.');
+        tooltip(on and 'Lit: your mates wear the best gear you gave the squad and pick again each time they are called.\nClick to switch it off: they keep what they wear now, and you can change any piece by hand.\nWith the launcher\'s "Squad gets all gear" on, the choice is from everything their jobs can wear.'
+            or 'Click: every mate puts on the best gear you gave the squad for its job and level, and the button lights up.\nFor best gear just once, click it again: the gear stays and the choice is yours again.\nWith the launcher\'s "Squad gets all gear" on, the choice is from everything their jobs can wear.');
     end
     if S.adv then
         imgui.SameLine(0, 6);

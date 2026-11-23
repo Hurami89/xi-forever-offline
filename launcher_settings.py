@@ -249,7 +249,8 @@ S("squad_keep_gear", "rules", "Squad", SWITCH, "Keep gear you give",
       "Off = the squad takes the piece (one-of-a-kind gear is always kept).")
 S("squad_all_gear", "rules", "Squad", SWITCH, "Squad gets all gear",
   tip="Every piece of gear counts as given to your squad: mates can wear anything their job and level allow, "
-      "without trading it to them first. Off = gear has to be given once (trade it, or !squad give).")
+      "without trading it to them first. With Auto-equip on (the Squads menu in game) they then put on the best of "
+      "all of it for their job. Off = gear has to be given once (trade it, or !squad give).")
 S("training_dummies", "rules", "Squad", SWITCH, "Training dummies",
   tip="For testing: !sandbox puts dummies of level 1 to 99 in Rolanberry Fields that never die and never attack. "
       "Off = no dummies.")

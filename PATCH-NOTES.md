@@ -2,6 +2,11 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.3 · 22 November 2026
+
+### Fixes
+• Squad auto-equip works with RULES > Squad > "Squad gets all gear". It only chose from gear that was given to the squad, so with that switch on (nothing has to be given) it did nothing. Now it chooses from everything the mate's job can wear at its level and puts on the best rated piece for each slot. It leaves out what adds nothing for the job (costumes, fishing rods, pearls), bows and guns for jobs with no skill in them, other races' gear and the game masters' Judge's set. Gear you gave is still chosen as before. The lines it says now name where the choice was made from.
+
 ## v0.3.2 · 22 November 2026
 
 ### New
