@@ -434,6 +434,10 @@ class CheckList(tk.Frame):
             if extra:
                 tk.Label(head, text=extra, bg=PANEL, fg=DIM, font=(UI_FONT, 9)).pack(side="left", padx=(8, 0))
             tk.Label(head, text=origin, bg=PANEL, fg=self.TAG_COLORS.get(origin, DIM), font=(UI_FONT, 8, "bold")).pack(side="left", padx=(10, 0))
+            if core.can_remove(self.kind, n, origin):       # (lilibun, 2026-11-22) what you downloaded or added can go again
+                gone = tk.Label(head, text="Remove", bg=PANEL, fg=DIM, font=(UI_FONT, 8, "underline"), cursor="hand2")
+                gone.pack(side="left", padx=(10, 0))
+                gone.bind("<Button-1>", lambda e, n=n, o=origin: self.remove(n, o))
             if info["desc"]:
                 tk.Label(row, text=info["desc"], bg=PANEL, fg=DIM, font=(UI_FONT, 9), wraplength=720, justify="left",
                          anchor="w").grid(row=1, column=1, sticky="w", pady=(0, 4))
@@ -448,6 +452,22 @@ class CheckList(tk.Frame):
             self.scripts.set(self.kind, name, var.get())
         except Exception as e:
             messagebox.showerror("Could not save", str(e))
+        self.reload()
+
+    def remove(self, name, origin):
+        """(lilibun, 2026-11-22) Takes an addon or plugin you downloaded or added out of Ashita again: its folder (or
+        .dll) and its load line in every script. Its settings stay. Ashita's own addons and ours have no Remove."""
+        ashita = self.scripts.ashita
+        size = core.size_text(core.path_size(core.item_path(ashita, self.kind, name)))
+        again = ("You can install it again from this page." if origin == "download"
+                 else "To get it back you need your own copy of it.")
+        if not messagebox.askyesno("Remove " + name, f"Remove the {self.kind} {name} from Ashita ({size})?\n\n"
+                                                     f"Its settings are kept. {again}"):
+            return
+        try:
+            core.remove_item(ashita, HERE, self.kind, name, origin)
+        except Exception as e:
+            messagebox.showerror("Could not remove", str(e))
         self.reload()
 
 
@@ -3953,6 +3973,13 @@ class App(tk.Tk):
             if item.get("patch") and installed:
                 tk.Button(self.dl_rows, text="Apply era edits", relief="flat", bg=PANEL, fg=FG, padx=10,
                           command=lambda i=item: self.apply_download_patch(i)).grid(row=row * 2 + 1, column=2, sticky="w")
+            # (lilibun, 2026-11-22) the two big ones can be taken out again: the AI model, and the Ollama this launcher installed
+            if installed and item["source"]["type"] == "ollama_model":
+                tk.Button(self.dl_rows, text="Remove", relief="flat", bg=PANEL, fg=FG, padx=10,
+                          command=lambda i=item: self.remove_ai_model(i)).grid(row=row * 2 + 1, column=2, sticky="w")
+            if installed and item["id"] == "ollama":
+                tk.Button(self.dl_rows, text="Remove", relief="flat", bg=PANEL, fg=FG, padx=10,
+                          command=lambda i=item: self.remove_ollama(i)).grid(row=row * 2 + 1, column=2, sticky="w")
             link = tk.Label(self.dl_rows, text="home page", bg=BG, fg=ACCENT, cursor="hand2")
             link.grid(row=row * 2, column=3, sticky="w", padx=10, pady=(6, 0))
             link.bind("<Button-1>", lambda e, url=item["homepage"]: self.open_url(url))
@@ -3970,6 +3997,53 @@ class App(tk.Tk):
             self.say(f"{item['name']} is now {'on' if on else 'off'} (from the next PLAY).")
         except Exception as e:
             self.say(f"Could not change {item['name']} ({e}).")
+        self.show_downloads()
+
+    def remove_ai_model(self, item):
+        """(lilibun, 2026-11-22) ollama rm: gives back the disk space of the AI model (several GB)."""
+        model = item["source"]["model"]
+        if self.running:
+            messagebox.showinfo("Remove " + item["name"], "Close the game first: the AI chat may be using the model.")
+            return
+        if not messagebox.askyesno("Remove " + item["name"],
+                                   f"Delete the AI model {model} from this PC?\n\nIt frees several GB. Squad and town chat "
+                                   "then use their short built-in lines until a model is installed again."):
+            return
+        self.say(f"Removing the AI model {model}...")
+
+        def work():
+            try:
+                tp.remove_model(model)
+                done = f"The AI model {model} was removed."
+            except Exception as e:
+                done = f"The AI model was not removed: {e}"
+            self.say(done)
+            self.after(0, self.show_downloads)
+            self.after(0, lambda: messagebox.showinfo("Remove " + item["name"], done))
+        threading.Thread(target=work, daemon=True).start()
+
+    def remove_ollama(self, item):
+        """(lilibun, 2026-11-22) Takes out the Ollama this launcher installed: Windows opens Ollama's own uninstaller,
+        Linux deletes the copy in the install folder. The models it downloaded only when you say so."""
+        if self.running:
+            messagebox.showinfo("Remove Ollama", "Close the game first.")
+            return
+        if not messagebox.askyesno("Remove Ollama", "Remove Ollama, the local AI program, from this PC?\n\nSquad and town chat then "
+                                                    "use their short built-in lines. On Windows, Ollama's own uninstaller "
+                                                    "opens and you finish it there."):
+            return
+        size = core.path_size(tp.ollama_models_dir())
+        models = size > 0 and messagebox.askyesno("Remove Ollama", f"Also delete the AI models it downloaded ({core.size_text(size)})?"
+                                                                   "\n\nChoose No if you use Ollama for other things too.")
+        try:
+            self.unload_ollama()
+            ours = getattr(self, "ollama_proc", None)
+            if ours is not None and ours.poll() is None:
+                ours.terminate()
+            self.ollama_proc = None
+            tp.remove_ollama(HERE, models=models, log=self.say)
+        except Exception as e:
+            messagebox.showerror("Remove Ollama", str(e))
         self.show_downloads()
 
     def open_url(self, url):

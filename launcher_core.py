@@ -432,6 +432,112 @@ def remember_added(kit_dir, names):
         json.dump(sorted(have), handle, indent=1)
 
 
+def forget_added(kit_dir, name):
+    have = {n for n in added_items(kit_dir) if n.lower() != name.lower()}
+    if have != added_items(kit_dir):
+        with open(os.path.join(kit_dir, "added-addons.json"), "w", encoding="utf-8") as handle:
+            json.dump(sorted(have), handle, indent=1)
+
+
+# ---------- taking an addon or plugin out again (lilibun, 2026-11-22) ----------
+def can_remove(kind, name, origin):
+    """Only what the player got himself: a download from the list, or one he added. Ashita's own and ours stay."""
+    return origin in ("download", "added by you") and not (kind == "addon" and name.lower() in OWN_ADDONS)
+
+
+def item_path(ashita_dir, kind, name):
+    """The addon's folder or the plugin's .dll as it is spelled on disk, or None. Never a path outside addons / plugins."""
+    if not ashita_dir or not name or name in (".", "..") or any(c in name for c in "/\\:"):
+        return None
+    folder = os.path.join(ashita_dir, "addons" if kind == "addon" else "plugins")
+    wanted = name.lower() if kind == "addon" else name.lower() + ".dll"
+    try:
+        for entry in os.listdir(folder):
+            if entry.lower() == wanted:
+                path = os.path.join(folder, entry)
+                if os.path.islink(path):
+                    return None
+                return path if (os.path.isdir(path) if kind == "addon" else os.path.isfile(path)) else None
+    except OSError:
+        pass
+    return None
+
+
+def path_size(path):
+    """Bytes in a file or in everything under a folder (0 when it is not there)."""
+    if not path or not os.path.exists(path):
+        return 0
+    if os.path.isfile(path):
+        return os.path.getsize(path)
+    total = 0
+    for folder, _dirs, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.path.getsize(os.path.join(folder, name))
+            except OSError:
+                pass
+    return total
+
+
+def size_text(size):
+    for unit, step in (("GB", 1 << 30), ("MB", 1 << 20), ("KB", 1 << 10)):
+        if size >= step:
+            return f"{size / step:.1f} {unit}"
+    return f"{size} bytes"
+
+
+def forget_load_lines(ashita_dir, kind, name):
+    """Takes the "/addon load x" or "/load x" line for it out of every script in Ashita's scripts folder, so no game
+    window tries to load something that is gone. Returns the scripts it changed."""
+    rx = ADDON_RE if kind == "addon" else PLUGIN_RE
+    folder = os.path.join(ashita_dir, "scripts")
+    changed = []
+    try:
+        scripts = sorted(f for f in os.listdir(folder) if f.lower().endswith(".txt"))
+    except OSError:
+        return changed
+    for script in scripts:
+        path = os.path.join(folder, script)
+        try:
+            with open(path, "r", encoding="utf-8-sig") as handle:
+                lines = handle.read().splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        kept = [line for line in lines
+                if not (rx.match(line) and not line.lstrip().startswith("#") and rx.match(line).group(1).lower() == name.lower())]
+        if len(kept) != len(lines):
+            with open(path, "w", encoding="utf-8", newline="\r\n") as handle:
+                handle.write("\n".join(kept).rstrip("\n") + "\n")
+            changed.append(script)
+    return changed
+
+
+def remove_item(ashita_dir, kit_dir, kind, name, origin):
+    """Removes an addon (its folder) or a plugin (its .dll) the player downloaded or added, and its load lines. Its
+    settings (config/addons/<name>) stay, so installing it again brings them back. Returns the bytes freed."""
+    if not can_remove(kind, name, origin):
+        raise RuntimeError(f"{name} belongs to {origin}: it stays. Switch it off instead.")
+    path = item_path(ashita_dir, kind, name)
+    if path is None:
+        raise RuntimeError(f"{name} was not found in Ashita's {'addons' if kind == 'addon' else 'plugins'} folder.")
+    freed = path_size(path)
+    try:
+        if kind == "addon":
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+    except OSError as error:
+        raise RuntimeError(f"{name} could not be removed ({error}). If the game is running, close it and try again.")
+    forget_load_lines(ashita_dir, kind, name)
+    forget_added(kit_dir, name)
+    try:
+        import launcher_thirdparty
+        launcher_thirdparty.forget_place(kit_dir, kind, name)
+    except Exception:
+        pass
+    return freed
+
+
 def _backup(path, backups, name):
     stamp = __import__("time").strftime("%Y%m%d-%H%M%S")
     dest = os.path.join(backups, f"{name}-{stamp}")
@@ -660,6 +766,8 @@ RATE_FIELDS = [
     ("map.MAX_MERIT_POINTS",            "map.lua",  "MAX_MERIT_POINTS",            "Merit points you can hold",          30,  10,  99,    "int"),
     # (2026-11-22, Velderen; the user: yes, off by default) the auction house answers in every area, for the ahgo add-on
     ("map.AH_ANYWHERE",                 "map.lua",  "AH_ANYWHERE",                 "Auction house from anywhere (1 = on)", 0,  0,   1,     "int"),
+    # (2026-11-22, sparkiie; the user: a comfort switch, off = as it is today) Fafnir, Adamantoise and Behemoth by timer
+    ("main.LAND_KINGS_TIMED",           "main.lua", "LAND_KINGS_TIMED",            "Land kings on a timer (1 = on, 0 = called at the ???)", 0, 0, 1, "int"),
     # (2026-11-22, suggestions: Dugahst; the user: on by default) server: custom/late/comforts.lua
     ("main.GUILD_SHOPS_ALWAYS_OPEN",    "main.lua", "GUILD_SHOPS_ALWAYS_OPEN",     "Guild shops always open (1 = on, 0 = era hours)", 1, 0, 1, "int"),
     # (2026-11-22, suggestions: Hexblood, VRTRA, Poptart, Gilder) out of era, so the era's value by default. All but the
@@ -668,6 +776,9 @@ RATE_FIELDS = [
     ("main.EXP_CHAIN_TIME_MULTIPLIER",  "main.lua", "EXP_CHAIN_TIME_MULTIPLIER",   "Experience chain time",              1.0, 1.0, 5.0,   "float"),
     ("map.ALL_MOBS_GIL_BONUS",          "map.lua",  "ALL_MOBS_GIL_BONUS",          "Gil every monster drops, per level (0 = off)", 0, 0, 50, "int"),
     ("map.SUBJOB_RATIO",                "map.lua",  "SUBJOB_RATIO",                "Support job level (1 = half, 2 = two thirds, 3 = equal)", 1, 1, 3, "int"),
+    # (2026-11-22, delukard) your own HP and MP; squad mates follow (charutils.cpp, trustutils.cpp)
+    ("map.PLAYER_HP_MULTIPLIER",        "map.lua",  "PLAYER_HP_MULTIPLIER",        "Your HP: you and your squad",        1.0, 0.5, 3.0,   "float"),
+    ("map.PLAYER_MP_MULTIPLIER",        "map.lua",  "PLAYER_MP_MULTIPLIER",        "Your MP: you and your squad",        1.0, 0.5, 3.0,   "float"),
     ("map.MOB_HP_MULTIPLIER",           "map.lua",  "MOB_HP_MULTIPLIER",           "Monster HP",                         1.0, 0.1, 2.0,   "float"),
     ("map.NM_HP_MULTIPLIER",            "map.lua",  "NM_HP_MULTIPLIER",            "Notorious monster HP",               1.0, 0.1, 2.0,   "float"),
     ("map.MOB_MP_MULTIPLIER",           "map.lua",  "MOB_MP_MULTIPLIER",           "Monster MP",                         1.0, 0.1, 2.0,   "float"),

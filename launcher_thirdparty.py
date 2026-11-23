@@ -133,6 +133,112 @@ def status(item, kit, ashita, state=None, server=None):
     return False, ""
 
 
+# ----- taking things out again (lilibun, 2026-11-22) -----
+def forget(kit, item_id):
+    """The launcher no longer counts this download as installed."""
+    state = load_state(kit)
+    if item_id in state:
+        del state[item_id]
+        _save_state(kit, state)
+        return True
+    return False
+
+
+def place(item):
+    """("addon", "cadence"), ("plugin", "nameplate"), or None: which list row a download is, from the file the launcher
+    looks for (addons/<name>/<name>.lua or plugins/<name>.dll)."""
+    parts = str(item.get("check") or "").replace("\\", "/").split("/")
+    if item.get("into", "ashita") != "ashita":
+        return None
+    if len(parts) == 3 and parts[0] == "addons" and parts[2].lower().endswith(".lua"):
+        return "addon", parts[1].lower()
+    if len(parts) == 2 and parts[0] == "plugins" and parts[1].lower().endswith(".dll"):
+        return "plugin", parts[1][:-4].lower()
+    return None
+
+
+def forget_place(kit, kind, name):
+    """After an addon or plugin was removed: the download it came from shows as "not installed" again."""
+    try:
+        items = load_manifest(kit)
+    except Exception:
+        return False
+    done = False
+    for item in items:
+        if place(item) == (kind, name.lower()):
+            done = forget(kit, item["id"]) or done
+    return done
+
+
+def ollama_models_dir():
+    """Where Ollama keeps the models it downloaded."""
+    return os.environ.get("OLLAMA_MODELS") or os.path.join(os.path.expanduser("~"), ".ollama", "models")
+
+
+def ollama_uninstaller():
+    """Ollama's own uninstaller on Windows (next to ollama.exe), or None."""
+    if PLATFORM != "windows":
+        return None
+    exe = find_ollama()
+    folders = ([os.path.dirname(exe)] if exe else []) + [os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama")]
+    for folder in folders:
+        guess = os.path.join(folder, "unins000.exe")
+        if os.path.isfile(guess):
+            return guess
+    return None
+
+
+def remove_model(model, run=None, start=None, wait=5):
+    """ollama rm <model>: gives back the disk space of one AI model. Ollama has to be running for it, so it is started
+    when it is not. Raises with Ollama's own words when it says no."""
+    import subprocess
+    exe = find_ollama()
+    if not exe:
+        raise RuntimeError("Ollama is not installed, so there is no model to remove.")
+    run = run or subprocess.run
+    if run([exe, "list"], capture_output=True, text=True, errors="replace", timeout=20, creationflags=NO_WINDOW).returncode != 0:
+        if start is None:
+            subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=NO_WINDOW,
+                             **({} if os.name == "nt" else {"start_new_session": True}))
+        else:
+            start()
+        time.sleep(wait)
+    out = run([exe, "rm", model], capture_output=True, text=True, errors="replace", timeout=120, creationflags=NO_WINDOW)
+    if out.returncode != 0:
+        said = [l.strip() for l in ((out.stderr or "") + "\n" + (out.stdout or "")).splitlines() if l.strip()]
+        raise RuntimeError(f"ollama rm {model} did not work." + (f"\n\nOllama said: {said[-1][:300]}" if said else ""))
+    return model
+
+
+def remove_ollama(kit, models=False, run=None, log=print):
+    """Takes Ollama out: on Windows its own uninstaller is started (you finish it in its window); on Linux the copy in
+    the install folder is deleted. models=True also deletes every model Ollama downloaded. Returns what was done."""
+    import subprocess
+    done = []
+    if PLATFORM == "windows":
+        uninstaller = ollama_uninstaller()
+        if uninstaller:
+            (run or subprocess.Popen)([uninstaller])
+            done.append("uninstaller")
+            log("Ollama's own uninstaller is open: finish it there.")
+        else:
+            log("Ollama's uninstaller was not found: remove Ollama under Windows Settings > Apps > Installed apps.")
+    else:
+        folder = os.path.join(kit, "ollama")
+        if os.path.isdir(folder) and not os.path.islink(folder):
+            shutil.rmtree(folder)
+            done.append("folder")
+            log("Ollama was removed from the install folder.")
+    if models:
+        folder = ollama_models_dir()
+        if os.path.isdir(folder) and not os.path.islink(folder) and os.path.basename(folder.rstrip("/\\")).lower() == "models":
+            shutil.rmtree(folder, ignore_errors=True)
+            done.append("models")
+            log("The downloaded AI models were deleted.")
+    forget(kit, "ollama")
+    return done
+
+
 # ----- finding the download -----
 _SSL_CONTEXT = None
 

@@ -111,6 +111,12 @@ S("map.SUBJOB_RATIO", "rules", "Battle", RATE, "Support job level (experimental)
   special={1: "half", 2: "two thirds", 3: "equal"},
   tip="How high your support job goes next to your main job. Half = the era (75/37). Two thirds = 75/50. "
       "Equal = 75/75. Your squad mates follow it too. Experimental: the game was never balanced for it. (Hexblood)")
+S("map.PLAYER_HP_MULTIPLIER", "rules", "Battle", RATE, "Your HP (experimental)",
+  tip="Your own HP and your squad mates', before gear, food and traits are added. 1x = the era, 0.5x = half, "
+      "up to 3x. Bot players and monsters keep theirs. Experimental. (delukard)")
+S("map.PLAYER_MP_MULTIPLIER", "rules", "Battle", RATE, "Your MP (experimental)",
+  tip="Your own MP and your squad mates', before gear, food and traits are added. 1x = the era, up to 3x. "
+      "A job without MP still has none. Experimental. (delukard)")
 S("map.MOB_HP_MULTIPLIER", "rules", "Battle", RATE, "Monster HP (experimental)",
   tip="The HP of ordinary monsters. 1x = the era, 0.5x = half, 2x = double (the most the server takes). "
       "Experimental. (Poptart)")
@@ -207,6 +213,11 @@ S("map.AH_ANYWHERE", "rules", "Comforts", FLAG, "Auction house from anywhere",
   tip="For the ahgo add-on (OPTIONS > Addons): its /ah command opens the auction house wherever you stand, and with "
       "this on you can bid and sell there from any area. Off = the era: the auction house only answers in areas "
       "that have one, so /ah works in the cities and nowhere else. (Velderen)")
+S("main.LAND_KINGS_TIMED", "rules", "Comforts", FLAG, "Land kings on a timer",
+  tip="Fafnir, Adamantoise and Behemoth. Off = as it has been here: you call one at its ??? with the item "
+      "(Honey Wine, Blue Pondweed, Beastly Shank). On = the era: the ??? is gone, a king appears by itself 21 to 24 "
+      "hours after the last one fell, and from the fourth kill in a row Nidhogg, Aspidochelone or King Behemoth "
+      "can come in its place. The hours count while the servers are off too. (sparkiie)")
 S("map.MAX_MERIT_POINTS", "rules", "Comforts", NUMBER, "Merit points you can hold", step=5,
   tip="30 = the default here (the earliest era held 10). Up to 99.")
 
