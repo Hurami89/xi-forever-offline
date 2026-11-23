@@ -18,7 +18,6 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Squad food: any food can join the menu. Trade one to a mate and it is unlocked for the whole squad (that one is the price), under "Foods you gave" in !squad food <slot>; it works as the real item. A food from the list traded the same way is unlocked without the gil. (FalconX51)
 • !squad attack and !squad stop also order the bot players in your party. (Yenkei)
 • GM characters: !squad setlevel <slot> <job> <level> sets a squad mate's level in a job. (ChazDingle)
-• Warp Ring for conquest points (RULES, off by default): your nation's Conquest Overseers offer it for 5,000 points before their usual list. (Yumainai)
 • Graphics: draw distance for scenery and for characters (through Ashita's drawdistance add-on; 0 = the game's own). (Dugahst)
 • SYSTEM > Updates: "Repair..." installs the newest launcher and server again over what you have (database update included), for an update that stopped halfway. (Reika, Ryan)
 

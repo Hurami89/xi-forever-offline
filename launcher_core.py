@@ -860,8 +860,6 @@ RATE_FIELDS = [
     ("main.SQUAD_UNLIMITED_JUICE",      "main.lua", "SQUAD_UNLIMITED_JUICE",       "Squad mates: unlimited juice (1 = on)", 0, 0, 1, "int"),
     # (2026-11-23, Meli; the user: mates can be raised) server: trust_entity.cpp Die, squad.lua xi.squad.onRaised
     ("main.SQUAD_MATES_RAISABLE",       "main.lua", "SQUAD_MATES_RAISABLE",        "Fallen squad mates can be Raised (1 = on)", 1, 0, 1, "int"),
-    # (2026-11-23, Yumainai; the user: yes, an option) server: custom/late/warp_ring.lua
-    ("main.CONQUEST_WARP_RING",         "main.lua", "CONQUEST_WARP_RING",          "Warp Ring for conquest points (1 = on)", 0, 0, 1, "int"),
     # (2026-11-22, suggestions: Hexblood, VRTRA, Poptart, Gilder) out of era, so the era's value by default. All but the
     # chain time are the server's own settings (LandSandBoat), which had no line here; the chain time is ours
     # (scripts/globals/experience_points.lua). The server reads the HP and MP multipliers from 0.1 to 2.
