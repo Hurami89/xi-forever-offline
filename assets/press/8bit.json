@@ -8,5 +8,6 @@
     "ACCENT": "#5cd8fc", "GREEN": "#58f89c", "RED": "#fc5c5c", "GREY": "#4c549c"
   },
   "art": {"folder": "8bit-ui"},
+  "sound": "beyond_the_veil.mp3",
   "font": {"family": "Galmuri11", "files": ["fonts/Galmuri11-Regular.ttf", "fonts/Galmuri11-Bold.ttf"]}
 }
