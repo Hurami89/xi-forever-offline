@@ -23,10 +23,12 @@ Themes work the same way (launcher_theme.py). A theme is a .json in here with a 
     windurst.json                      (no date in the name) a theme that is always there to pick; never on unless a player picks it
     theme__until-2026-12-02.mp3        the limited-time theme's song: played once when the launcher opens (.mp3 or .wav); it stops
                                        when the game starts
+    default.mp3                        (or default.wav) the launcher's own opening theme: it plays with the Default look, and with
+                                       any theme that has no song of its own
 OPTIONS > Theme has a switch for Default (the launcher's own look) and one for every theme, so each player picks (it takes a
 restart, which the launcher offers), plus the song on / off and its volume. With Default or another theme picked, the limited-time
 banners and song rest too. A pick holds back only the limited-time theme that was in date when it was made: the next one shows by
-itself again, and the pick is back once it has gone. The page is there whenever there is a theme to pick. (The classic look,
+itself again, and the pick is back once it has gone. The page is there whenever there is a theme to pick or a song to switch off. (The classic look,
 "classic_ui": true, has no such page: there the same choices sit in a small strip on the banner.) config.json keeps them as "theme",
 "theme_event", "theme_music" and "theme_volume".
 A theme's .json holds "name" (what the page calls it), "colours" (the names at the top of launcher_widgets.py: BG, PANEL, GOLD ...;

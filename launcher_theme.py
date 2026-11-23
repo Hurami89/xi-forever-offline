@@ -12,9 +12,11 @@ What a theme's .json may hold:
     "sound"     its own opening theme: the name of a .mp3 / .wav in assets\\press
 A dated .mp3 / .wav (theme__until-2026-12-02.mp3) is the opening theme of the limited-time theme of those days: played once when the
 launcher opens. A limited-time theme also has the limited-time banners of its days.
+default.mp3 (or default.wav) in assets\\press is the launcher's own opening theme: it plays with the Default look, and with any theme
+that has no song of its own.
 
-The Theme page is there whenever there is something to choose: a switch for Default (the launcher's own look) and one for every
-theme, the song on / off and its volume. The classic look has no such page: there the same sit in a small strip on the banner.
+The Theme page is there whenever there is something to choose (a theme to pick, or a song to switch off): a switch for Default (the
+launcher's own look) and one for every theme, the song on / off and its volume. The classic look has no such page: there the same sit in a small strip on the banner.
 config.json keeps the choices:
     "theme": "default" or a theme's short name (its file name without the date)      what was picked; nothing = no pick
     "theme_event": the limited-time theme that was in date when the pick was made: a pick holds back that one only, so the next
@@ -43,6 +45,7 @@ UNTIL_TAG = "__until-"
 TINTED = ("ui", "buttons")       # the folders of assets whose pictures a look may replace or tint
 BUTTON_KINDS = {"play": "play", "stop": "stop", "dual": "dualbox"}     # assets\\buttons\\<kind>\\ holds variants of these assets\\ui pictures
 SOUNDS = (".mp3", ".wav")
+OWN_SOUNDS = ("default.mp3", "default.wav")        # the launcher's own opening theme, in assets\\press (the first one that is there)
 VOLUME = 0.55
 DEFAULT = "default"              # the launcher's own look, as the Theme page and config.json call it
 PALETTE = ("BG", "PANEL", "PANEL2", "FG", "DIM", "BORDER", "LINE", "OFF", "GOLD", "GOLD_LIT", "GOLD_DIM", "PARCH", "ACCENT", "GREEN", "RED", "GREY")
@@ -380,18 +383,28 @@ PLAYER = Player()
 atexit.register(PLAYER.stop)
 
 
+def own_sound():
+    """The launcher's own opening theme (default.mp3 or default.wav in assets\\press), or None."""
+    for name in OWN_SOUNDS:
+        path = os.path.join(PRESS, name)
+        if os.path.isfile(path):
+            return path
+    return None
+
+
 def music_file():
-    """The opening theme of the look worn this time, or None: the file the theme names itself ("sound", in assets\\press); else, for a
-    limited-time theme (and when nothing is themed at all: no limited-time theme in date, the launcher in its own look), the first
-    dated .mp3 / .wav in assets\\press."""
+    """The opening theme that goes with the look worn this time, or None. In order: the file the theme names itself ("sound", in
+    assets\\press); for a limited-time theme, or the launcher's own look while no limited-time theme is in date, the first dated
+    .mp3 / .wav in assets\\press; otherwise the launcher's own opening theme (default.mp3 / default.wav)."""
     if LOOK is not None and isinstance(LOOK.get("sound"), str):
         path = os.path.join(PRESS, os.path.basename(LOOK["sound"]))
         if path.lower().endswith(SOUNDS) and os.path.isfile(path):
             return path
     if (LOOK is not None and LOOK.get("until")) or (LOOK is None and event_look() is None):
         found = dated(SOUNDS)
-        return found[0] if found else None
-    return None
+        if found:
+            return found[0]
+    return own_sound()
 
 
 def volume_now():
@@ -649,8 +662,9 @@ def add_page(app, tabs):
         card.note("It plays once when the launcher opens and stops when the game starts.", wrap=wrap)
         c.changed.append(lambda: page.music_var.get() != c.music_on and page.music_var.set(c.music_on))
     if last:
-        words = (f"After {last} the launcher goes back to normal by itself, and this page goes away." if len(c.themes) == 2
-                 else f"After {last} {event['name']} goes away by itself.")
+        words = (f"After {last} {event['name']} goes away by itself." if len(c.themes) > 2
+                 else f"After {last} the launcher goes back to normal by itself." if own_sound()
+                 else f"After {last} the launcher goes back to normal by itself, and this page goes away.")
         tk.Label(page.body, text=words, bg=w.BG, fg=w.DIM, font=(w.UI_FONT, 9), anchor="w").pack(fill="x", pady=(12, 0))
     tabs.add(page, text="  Theme  ")
     page.controls = c

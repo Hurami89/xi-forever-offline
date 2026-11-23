@@ -2,10 +2,11 @@
 limited-time theme (it turns itself on, with a dated .mp3 / .wav as its opening theme, and is gone by itself the day after its
 date); an undated one is always there to pick. OPTIONS > Theme has a switch for Default and one for every theme.
 
-Starts the real launcher eight times from a COPY of the kit (stand-in config, database driver and addons folder; nothing of the
+Starts the real launcher ten times from a COPY of the kit (stand-in config, database driver and addons folder; nothing of the
 real install is read or changed): a limited-time theme in date, the music switched off, Default picked the way the first Theme
 page wrote it ("limited_look": false), another theme picked, a pick made before the limited-time theme arrived, the classic look
-(the same choices in a strip on the banner), the date passed, and the date passed with the earlier pick still there.
+(the same choices in a strip on the banner), the date passed, the date passed with the earlier pick still there, and twice with
+the launcher's own opening theme (default.wav): Default picked during the limited-time theme, and no theme at all.
 No sound is made: the player is replaced by one that only notes what it was asked to do.
 Needs python3-tk, Pillow and a screen:
     xvfb-run -a -s "-screen 0 1500x1000x24" python3 dev/launcher-tests/test_limited_look.py [OUTDIR for screenshots]"""
@@ -46,9 +47,9 @@ def tone(path):
         w.writeframes(b"\x00\x00" * 800)
 
 
-def put_dated(press, offset, plain=False):
+def put_dated(press, offset, plain=False, own=False):
     """The copy's own limited-time theme, banner and tune, dated `offset` days from today (any others are taken out first).
-    plain: also a theme with no date (always there to pick), with a tune of its own."""
+    plain: also a theme with no date (always there to pick), with a tune of its own. own: also the launcher's own opening theme."""
     for name in os.listdir(press):
         if os.path.isfile(os.path.join(press, name)) and (name.lower().endswith((".json", ".mp3", ".wav")) or "__until-" in name.lower()):
             os.remove(os.path.join(press, name))
@@ -61,6 +62,8 @@ def put_dated(press, offset, plain=False):
         with open(os.path.join(press, "t_plain.json"), "w") as f:
             json.dump(PLAIN, f)
         tone(os.path.join(press, "t_own.wav"))
+    if own:
+        tone(os.path.join(press, "default.wav"))
 
 
 def make_copy():
@@ -219,7 +222,8 @@ def launch(work, step, out):
     pages = sys.modules.get("launcher_pages")
     check(pages is None or pages.GOLD == want["GOLD"], "... and launcher_pages picked them up from launcher_widgets")
     check((tk.PhotoImage is theme.TintedPhotoImage) == themed, "the tinted picture loader is " + ("in place" if themed else "not in place"))
-    check((theme.music_file() is not None) == bool(wearing), "there is " + ("an" if wearing else "no") + " opening theme for this look")
+    has_song = bool(wearing) or step in ("own-picked", "own-only")
+    check((theme.music_file() is not None) == has_song, "there is " + ("an" if has_song else "no") + " opening theme for this look")
 
     app = gui.App()
 
@@ -354,6 +358,27 @@ def launch(work, step, out):
     elif step == "back":
         check(player.calls == [("play", own_song)] and list(page.theme_switches) == ["default", "t_plain"] and on() == ["t_plain"],
               "the limited-time theme has gone: the earlier pick is back, and the page offers Default and that theme")
+    elif step == "own-picked":
+        check(player.calls == [("play", "default.wav")], f"Default picked during the limited-time theme: the launcher's own opening theme plays ({player.calls})")
+        check(on() == ["default"] and page.music_switch is not None and page.slider is not None, "the page shows Default on, with the song card")
+        app.select_tab(app.page_index["Theme"])
+        shot("look-own-picked")
+    elif step == "own-only":
+        check(player.calls == [("play", "default.wav")], f"no theme at all: the launcher's own opening theme plays ({player.calls})")
+        check(page.theme_switches == {} and page.pending is None and page.music_switch is not None and page.slider is not None,
+              "the Theme page is still there for the song (on / off, volume), with no themes to pick")
+        app.select_tab(app.page_index["Theme"])
+        shot("look-own-only")
+        page.music_switch.toggle()
+        settle(0.2)
+        check(player.calls[-1] == ("stop",) and get_config(kit).get("theme_music") is False, "its switch stops it and is remembered")
+        worn = theme.LOOK
+        theme.LOOK = {"key": "x", "id": "x", "until": "", "colours": {}}
+        plain_song = os.path.basename(theme.music_file() or "")
+        theme.LOOK = {"key": "y", "id": "y__until-2999-01-01", "until": "2999-01-01", "colours": {}}
+        event_song = os.path.basename(theme.music_file() or "")
+        theme.LOOK = worn
+        check(plain_song == "default.wav" and event_song == "default.wav", "a theme with no song of its own plays the launcher's own opening theme")
     elif step == "classic":
         labels = [w for w in strip.winfo_children() if isinstance(w, tk.Label)] if strip is not None else []
         texts = [str(w.cget("text")) for w in labels]
@@ -382,11 +407,12 @@ if __name__ == "__main__":
     press = os.path.join(kit, "assets", "press")
     bad = 0
     try:
-        for step in ("during", "muted", "off", "picked", "earlier", "classic", "after", "back"):
-            put_dated(press, -1 if step in ("after", "back") else 3, plain=step in ("during", "picked", "earlier", "back"))
+        for step in ("during", "muted", "off", "picked", "earlier", "classic", "after", "back", "own-picked", "own-only"):
+            put_dated(press, -1 if step in ("after", "back", "own-only") else 3, plain=step in ("during", "picked", "earlier", "back"),
+                      own=step in ("own-picked", "own-only"))
             set_config(kit, theme_music=False if step == "muted" else None, limited_look=False if step == "off" else None,
-                       theme="t_plain" if step in ("picked", "earlier", "back") else None,
-                       theme_event=f"t_look__until-{day(3)}" if step in ("picked", "back") else "t_old__until-2020-01-01" if step == "earlier" else None,
+                       theme="t_plain" if step in ("picked", "earlier", "back") else "default" if step == "own-picked" else None,
+                       theme_event=f"t_look__until-{day(3)}" if step in ("picked", "back", "own-picked") else "t_old__until-2020-01-01" if step == "earlier" else None,
                        theme_volume=None, classic_ui=True if step == "classic" else None)
             print(step)
             bad += subprocess.run([sys.executable, os.path.abspath(__file__), "--launch", work, step, out]).returncode != 0
