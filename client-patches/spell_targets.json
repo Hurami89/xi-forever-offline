@@ -1,0 +1,7 @@
+{
+  "about": "Spells a player can aim at a squad mate. To the game a squad mate is an NPC in your party (like a Trust), and it only lets you pick one as the target of a spell whose own target list includes NPCs. Cure, Protect, Shell and Haste have that; these do not. The launcher adds the NPC target to each spell listed here, in the game's spell table (the mgc_ part of ROM/118/114.DAT). 'targets' is what the spell has before the change (1 = yourself, 4 = party member); a spell with any other value is left alone.",
+  "spells": [
+    { "id": 578, "name": "Wild Carrot", "targets": 5 },
+    { "id": 593, "name": "Magic Fruit", "targets": 5 }
+  ]
+}
