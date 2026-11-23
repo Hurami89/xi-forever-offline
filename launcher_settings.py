@@ -203,6 +203,10 @@ S("main.GUILD_SHOPS_ALWAYS_STOCKED", "rules", "Comforts", FLAG, "Guild shops nev
 S("map.FULL_MERITS", "rules", "Comforts", FLAG, "Full merits",
   tip="Every merit can be raised to its own maximum. Off = the era's group limits (for example only one attribute "
       "to 5/5, and only a few combat skills to 8/8).")
+S("map.AH_ANYWHERE", "rules", "Comforts", FLAG, "Auction house from anywhere",
+  tip="For the ahgo add-on (OPTIONS > Addons): its /ah command opens the auction house wherever you stand, and with "
+      "this on you can bid and sell there from any area. Off = the era: the auction house only answers in areas "
+      "that have one, so /ah works in the cities and nowhere else. (Velderen)")
 S("map.MAX_MERIT_POINTS", "rules", "Comforts", NUMBER, "Merit points you can hold", step=5,
   tip="30 = the default here (the earliest era held 10). Up to 99.")
 

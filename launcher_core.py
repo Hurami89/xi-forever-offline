@@ -658,6 +658,8 @@ RATE_FIELDS = [
     ("main.GUILD_SHOPS_ALWAYS_STOCKED", "main.lua", "GUILD_SHOPS_ALWAYS_STOCKED",  "Guild shops never run out (1 = on)",  0,   0,   1,     "int"),
     ("map.FULL_MERITS",                 "map.lua",  "FULL_MERITS",                 "Every merit to its maximum (1 = on)", 0,   0,   1,     "int"),
     ("map.MAX_MERIT_POINTS",            "map.lua",  "MAX_MERIT_POINTS",            "Merit points you can hold",          30,  10,  99,    "int"),
+    # (2026-11-22, Velderen; the user: yes, off by default) the auction house answers in every area, for the ahgo add-on
+    ("map.AH_ANYWHERE",                 "map.lua",  "AH_ANYWHERE",                 "Auction house from anywhere (1 = on)", 0,  0,   1,     "int"),
     # (2026-11-22, suggestions: Dugahst; the user: on by default) server: custom/late/comforts.lua
     ("main.GUILD_SHOPS_ALWAYS_OPEN",    "main.lua", "GUILD_SHOPS_ALWAYS_OPEN",     "Guild shops always open (1 = on, 0 = era hours)", 1, 0, 1, "int"),
     # (2026-11-22, suggestions: Hexblood, VRTRA, Poptart, Gilder) out of era, so the era's value by default. All but the
