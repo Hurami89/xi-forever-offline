@@ -37,7 +37,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26g';   -- (1.26g) opacity for the Squads button and the menu; one gear button; (1.26f) Food button
+addon.version = '1.26h';   -- (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -337,9 +337,16 @@ local function actionsWatchdog(t)
     if S.want and next(S.want) ~= nil and S.wantAt and t - S.wantAt > 40 then S.want = {}; S.tries = {}; end
 end
 
+-- (1.26h) the menu's own refreshes (the mate list, a mate's sheet, the Actions check): nobody waits for these
+local function isRefresh(command)
+    return command:find('^/say !squad panel') ~= nil or command:find('^/say !squad sheet') ~= nil or command == '/say !actions';
+end
+
+local SAY_GAP = 2.2;   -- seconds the game needs between two chat lines, or it drops the second and shows it as ">> /say ..."
+
 local function pump(t)
     actionsWatchdog(t);
-    if t - S.lastSend < (S.sendGap or 0.6) then return; end
+    if t - S.lastSend < 0.6 then return; end
     -- Actions clicks: one `!actions` check after the last click settles (the server also checks every 2 s on its own)
     if S.actKick and t >= S.actKick then
         local pending = false;
@@ -349,9 +356,21 @@ local function pump(t)
             S.queue[#S.queue + 1] = { at = t, command = '/say !actions' };
         end
     end
-    local pick = nil;                                   -- the first command that is due (a later "ask again" does not hold up a click)
-    for i, item in ipairs(S.queue) do if item.at <= t then pick = i; break; end end
+    -- the first command that is due; a click goes before any of the menu's own refreshes
+    local pick, refresh = nil, nil;
+    for i, item in ipairs(S.queue) do
+        if item.at <= t then
+            if not isRefresh(item.command) then pick = i; break; end
+            refresh = refresh or i;
+        end
+    end
+    pick = pick or refresh;
     if not pick then return; end
+    -- (1.26h, Dugahst: "all the buttons randomly do it": the click showed up as ">> /say !squad camp start" and nothing
+    -- happened) The game drops a chat line that follows another too closely, whatever the first one was. A click used
+    -- to wait only after another click, so one that came right after a refresh of the menu was lost. Now every line
+    -- the menu says waits its turn after the last one it said, refreshes included.
+    if S.queue[pick].command:find('^/say ') and t - (S.lastSay or -1000) < SAY_GAP then return; end
     local chat = chatManager();
     if chat == nil or typing(chat) then return; end
     local first = table.remove(S.queue, pick);
@@ -361,8 +380,9 @@ local function pump(t)
         if (name:gsub('[^%w_]', '_')) ~= first.who then return; end
     end
     S.lastSend = t;
+    if first.command:find('^/say ') then S.lastSay = t; end
     -- the game drops chat lines sent close together: every Squads action (call, dismiss, switches, options) goes out 2.2 seconds after the one before, however fast you click
-    S.sendGap = (first.command:find('^/say !') and not first.command:find('^/say !squad panel')) and 2.2 or 0.6;
+    -- (1.26h: that wait is SAY_GAP above, and it counts from any line the menu said)
     S.hideUntil = t + 6;   -- (1.25: was 2.5 s; a busy server answers later than that)
     -- (1.26c) every /autobox line this menu sends is counted, so the command event can tell ours from the player's
     -- even when the game runs a queued command later than the next one is sent

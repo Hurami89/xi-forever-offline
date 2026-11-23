@@ -3861,6 +3861,10 @@ class App(tk.Tk):
         if linux is not None:     # the Steam Deck's screen is 1280 x 800: never taller (or wider) than the screen
             width = min(width, self.winfo_screenwidth())
             height = min(height, self.winfo_screenheight() - (0 if linux.in_game_mode() else 40))
+            if linux.in_game_mode():
+                # (2026-11-22, Sunie) Game Mode stretches any window over the whole screen, so a window of another
+                # shape was drawn stretched, with parts off the panel. Be exactly the screen's size there.
+                width, height = self.winfo_screenwidth(), self.winfo_screenheight()
         # (2026-11-22, Starfret: a window made bigger by hand snapped back on every page) after the first fit only grow it
         if getattr(self, "_fitted", False):
             try:
@@ -4534,6 +4538,12 @@ class App(tk.Tk):
             except Exception:
                 pass
         self.apply_gamepad()                   # the visit's boot file is a copy of yours too
+        if self.cfg.get("mariadb_dir"):        # (2026-11-22) a player install: our game-file changes before a visit as well
+            try:                               # (spells you can aim at a squad mate, item entries), in case an update
+                import launcher_client         # came in since the last PLAY in your own world. Never stops the visit.
+                launcher_client.apply_all(HERE, self.cfg.get("ffxi_client_dir", ""), self.cfg.get("server_dir", ""), log=self.say)
+            except Exception:
+                pass
         self.launch_boot = co.write_visit_boot(self.ashita, self.cfg.get("ashita_boot", core.DEFAULT_BOOT), host)
         self.visit_mode = True
         try:
