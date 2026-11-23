@@ -4129,6 +4129,9 @@ class App(tk.Tk):
         if self.dl_busy:
             self.say("A download is already running.")
             return
+        # (2026-11-23) a big download (XISpeaks, about 2.9 GB) asks first, so nobody fetches gigabytes by one stray click
+        if item.get("confirm") and not messagebox.askyesno("Downloads", item["confirm"]):
+            return
         if item.get("into") == "server" and self.running:
             messagebox.showinfo("Downloads", "Stop the servers first (close the game), then update the server.")
             return
@@ -4311,7 +4314,46 @@ class App(tk.Tk):
             self.summary.set("World asleep")
             self.summary_dot.configure(fg=GREY)
         self.stinkshell_tick()
+        self.companion_tick()
         self.after(1000, self.lights)
+
+    def companion_tick(self):
+        """(2026-11-23, XISpeaks) Downloads with a "companion" program (thirdparty.json): it runs while the world is up and
+        the item's add-on is ticked on the Addons page, and is closed when either stops. Started at most 3 times per
+        session, so a companion that keeps failing is not restarted forever. Checked every 5 seconds."""
+        if getattr(self, "_stink_count", 0) % 5 or not self.ashita:
+            return
+        try:
+            procs = self.__dict__.setdefault("companions", {})
+            tries = self.__dict__.setdefault("companion_tries", {})
+            items = [i for i in tp.load_manifest(HERE) if i.get("companion")]
+            if not items and not procs:
+                return
+            on = core.ScriptManager(self.ashita, self.cfg.get("ashita_boot", core.DEFAULT_BOOT)).enabled("addon") if items else set()
+            for item in items:
+                place = tp.place(item)
+                exe = os.path.join(self.ashita, *item["companion"].split("/"))
+                proc = procs.get(item["id"])
+                alive = proc is not None and proc.poll() is None
+                want = bool(self.running) and place is not None and place[1] in on and os.path.isfile(exe)
+                if want and not alive and tries.get(item["id"], 0) < 3:
+                    tries[item["id"]] = tries.get(item["id"], 0) + 1
+                    procs[item["id"]] = subprocess.Popen([exe], cwd=os.path.dirname(exe),
+                                                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                    self.q.put(("log", f"{item['name']}: started its voice program."))
+                elif not want and alive:
+                    proc.terminate()
+                    procs.pop(item["id"], None)
+        except Exception as e:
+            print("companion:", e)
+
+    def stop_companions(self):
+        for proc in list(getattr(self, "companions", {}).values()):
+            try:
+                if proc.poll() is None:
+                    proc.terminate()
+            except Exception:
+                pass
 
     def stinkshell_tick(self):
         """(2026-11-23) Stinkshell, the online chat room: its bridge runs only while the stinkshell add-on is switched on
@@ -4463,6 +4505,7 @@ class App(tk.Tk):
             if not self.coop_tab.may_close():      # visitors' characters are still in this world
                 return
             self.coop_tab.shutdown()
+        self.stop_companions()
         # (2026-11-21, Tasou: "Squad gets all gear" was unticked again after a restart) the Rules page is kept on quit too,
         # not only when PLAY is pressed
         try:

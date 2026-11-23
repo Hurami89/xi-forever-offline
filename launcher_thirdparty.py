@@ -352,6 +352,25 @@ def resolve(item, fetch=_get):
             path = "releases/latest" if tag == "latest" else "releases/tags/" + tag
             release = json.loads(fetch(API + source["repo"] + "/" + path))
         assets = {a["name"]: a["browser_download_url"] for a in release.get("assets", [])}
+        sizes = {a["name"]: int(a.get("size") or 0) for a in release.get("assets", [])}
+        if source.get("assets"):                     # (XISpeaks, 2026-11-23) one program in several files, all needed
+            sums = {}
+            if source.get("sha256sums"):
+                for line in fetch(assets[source["sha256sums"]]).decode("utf-8", "replace").splitlines():
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        sums[os.path.basename(parts[-1].lstrip("*"))] = parts[0].lower()
+            parts = []
+            for pattern in source["assets"]:
+                found_names = sorted(n for n in assets if re.search(pattern, n))
+                if not found_names:
+                    raise RuntimeError(f"{item['name']}: no file matching {pattern} in release {release.get('tag_name')}")
+                name = found_names[0]
+                if source.get("sha256sums") and name not in sums:
+                    raise RuntimeError(f"{item['name']}: {name} is not listed in {source['sha256sums']}")
+                parts.append({"name": name, "url": assets[name], "sha256": sums.get(name), "size": sizes.get(name, 0)})
+            return {"version": release.get("tag_name", tag), "url": parts[0]["url"], "name": parts[0]["name"],
+                    "sha256": parts[0]["sha256"], "parts": parts}
         names = [n for n in assets if re.search(source["asset"], n)]
         if not names:
             raise RuntimeError(f"{item['name']}: no file matching {source['asset']} in release {release.get('tag_name')}")
@@ -653,6 +672,50 @@ def _extract_with_system_tar(archive_path, dest):
         raise RuntimeError("Unpacking failed: " + (done.stderr or "")[-300:])
 
 
+def extract_zip(archive_path, dest, keep=(), log=print):
+    """Unpacks a .zip into dest file by file (a big archive never sits in memory). Paths outside dest are refused;
+    files under a `keep` folder that already exist (your own settings) are left alone. Returns (written, kept)."""
+    real = os.path.realpath(dest)
+    written = kept = 0
+    with zipfile.ZipFile(archive_path) as archive:
+        for info in archive.infolist():
+            name = info.filename.replace("\\", "/")
+            parts = name.split("/")
+            if name.startswith("/") or ".." in parts or ":" in parts[0]:
+                raise RuntimeError(f"refusing a path outside the folder: {info.filename}")
+            target = os.path.realpath(os.path.join(dest, *[p for p in parts if p]))
+            if not target.startswith(real + os.sep):
+                raise RuntimeError(f"refusing a path outside the folder: {info.filename}")
+            if name.endswith("/"):
+                os.makedirs(target, exist_ok=True)
+                continue
+            if keep and name.startswith(keep) and os.path.exists(target):
+                kept += 1
+                continue
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with archive.open(info) as source, open(target + ".part", "wb") as out:
+                shutil.copyfileobj(source, out, 1 << 20)
+            os.replace(target + ".part", target)
+            written += 1
+    return written, kept
+
+
+def check_free_space(item, folder, parts, free=None):
+    """Big multi-file downloads: room for everything unpacked plus the biggest download (each is deleted after it is
+    unpacked) plus 1 GB to spare. Raises with a plain message when there is not."""
+    total = sum(p.get("size", 0) for p in parts)
+    need = int(total * item.get("unpacked_factor", 1.1)) + max([p.get("size", 0) for p in parts] or [0]) + (1 << 30)
+    if free is None:
+        probe = folder
+        while probe and not os.path.exists(probe):
+            probe = os.path.dirname(probe)
+        free = shutil.disk_usage(probe or ".").free
+    if total and free < need:
+        raise RuntimeError(f"not enough free disk space: it needs about {need / 2**30:.1f} GB, "
+                           f"and {free / 2**30:.1f} GB is free on that drive.")
+    return need
+
+
 def install(item, kit, ashita, fetch=_get, log=print, server=None, run=None):
     """Downloads and installs one item. Returns the version installed."""
     if item["source"]["type"] == "ollama_model":
@@ -662,6 +725,29 @@ def install(item, kit, ashita, fetch=_get, log=print, server=None, run=None):
     if not root:
         raise RuntimeError("Set the " + ("server" if item.get("into") == "server" else "Ashita") + " folder first.")
     found = resolve(item, fetch)
+    if item.get("unpack") == "zips" and found.get("parts"):     # several big .zip files, streamed to disk one by one
+        dest = os.path.join(root, *item.get("unpack_to", "").split("/")) if item.get("unpack_to") else root
+        check_free_space(item, dest, found["parts"])
+        keep = tuple(item.get("keep", []))
+        written = kept = 0
+        for number, part in enumerate(found["parts"], 1):
+            log(f"{item['name']}: downloading part {number} of {len(found['parts'])}, {part['name']}"
+                + (f" ({part['size'] / 2**20:.0f} MB)" if part.get("size") else "") + "...")
+            path = download_file(part["url"], os.path.join(kit, "downloads", item["id"], part["name"]), log=log,
+                                 sha256=part.get("sha256"), fetch=None if fetch is _get else fetch)
+            log(f"{item['name']}: unpacking part {number}...")
+            w, k = extract_zip(path, dest, keep=keep, log=log)
+            written, kept = written + w, kept + k
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        log(f"{item['name']}: {written} file(s) installed" + (f", {kept} of your own kept" if kept else "") + ".")
+        state = load_state(kit)
+        state[item["id"]] = {"version": found["version"], "file": ", ".join(p["name"] for p in found["parts"]),
+                             "sha256": None, "from": found["url"], "at": time.strftime("%Y-%m-%d %H:%M")}
+        _save_state(kit, state)
+        return found["version"]
     log(f"{item['name']}: downloading {found['name']} ({found['version']})...")
     if item.get("unpack") == "tree":                # big Linux tools (Proton, umu, Ollama): streamed, unpacked whole
         path = download_file(found["url"], os.path.join(kit, "downloads", item["id"], found["name"]), log=log,
