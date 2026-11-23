@@ -7,6 +7,7 @@ HERE = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.
 sys.path.insert(0, HERE)
 import launcher_core as core
 import launcher_gamepad as gp
+import launcher_revamped as rv
 
 IS_WINDOWS = os.name == "nt"
 UI_FONT, MONO_FONT = core.ui_fonts()
@@ -899,6 +900,8 @@ class HoverTip:
             self.tip = None
 
 
+REVAMPED_GREY_TIP = "Comes with Gambits Revamped / Squads Revamped"
+
 # Squad faces: the game's face numbers 0-15 are 1A, 1B, 2A ... 8B (char_entity.h CharFace)
 FACE_LABELS = [f"{i // 2 + 1}{'AB'[i % 2]}  ({i + 1})" for i in range(16)]
 FACE_FILES = {1: "Hm", 2: "Hf", 3: "Em", 4: "Ef", 5: "Tm", 6: "Tf", 7: "M", 8: "G"}  # race id -> assets\faces prefix
@@ -1773,7 +1776,7 @@ class RatesTab(tk.Frame):
         for k in (3, 1, 4, 5, 34, 35, 6, 7, 8, 9, 10, 11, 12, 13, 14, 28, 36, 37, 38, 39):   # (28: bots pass all loot)
             R[k], row = row, row + 1
         row = header("Squad and AI", row)
-        for k in (15, 16, 19, 26, 29, 27, 21, 22, 17):   # (26: squad gear, you keep the item; 29: all gear; 27: training dummies)
+        for k in (15, 16, 19, 26, 29, 27, 21, 22, 17, 40):   # (26: squad gear, you keep the item; 29: all gear; 27: training dummies; 40: buff range)
             R[k], row = row, row + 1
         self.all_crafts = tk.BooleanVar(value=rates.get("all_crafts", True))
         tk.Checkbutton(inner, text="Every craft can reach 100 (off = only one, like the retail rule)", variable=self.all_crafts, bg=BG, fg=FG,
@@ -1844,6 +1847,10 @@ class RatesTab(tk.Frame):
         self.squad_call_cooldown = tk.StringVar(value=str(rates.get("squad_call_cooldown", 5)))
         ttk.Spinbox(inner, from_=0, to=30, increment=1, textvariable=self.squad_call_cooldown, width=8).grid(
             row=R[16], column=1, padx=6, pady=2)
+        tk.Label(inner, text="Buff range (retail or extended)", bg=BG, fg=FG, anchor="w", width=38).grid(row=R[40], column=0, sticky="w", padx=6, pady=2)
+        self.buff_range = tk.StringVar(value=rates.get("buff_range", "retail") if rates.get("buff_range") in core.BUFF_RANGES else "retail")
+        ttk.Combobox(inner, values=list(core.BUFF_RANGES), state="readonly", textvariable=self.buff_range, width=8).grid(
+            row=R[40], column=1, padx=6, pady=2)
         # One time per server: once a PLAY has used it, the switch is gone for good
         self.head_start_done = bool(rates.get("bots_head_start_done", False))
         self.bots_head_start = tk.BooleanVar(value=bool(rates.get("bots_head_start", False)) and not self.head_start_done)
@@ -1911,9 +1918,11 @@ class RatesTab(tk.Frame):
                        "given to them first. Off = gear has to be given once (trade it, or !squad give).",
                        variable=self.squad_all_gear, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[29], column=0, columnspan=2, sticky="w", padx=6, pady=2)
-        self.training_dummies = tk.BooleanVar(value=rates.get("training_dummies", False))
+        self.training_dummies = tk.BooleanVar(value=rates.get("training_dummies", True))
+        self.training_dummies_explicit = bool(rates.get("training_dummies_explicit", False))   # set once the player flips the switch
+        self.training_dummies.trace_add("write", lambda *_: setattr(self, "training_dummies_explicit", True))
         tk.Checkbutton(inner, text="Training dummies (for testing): !sandbox puts dummies of level 1 to 99 in Rolanberry "
-                       "Fields that never die and never attack, to try out squads and gambits. Off = no dummies.",
+                       "Fields that never die and never attack, to try out squads and gambits. On by default; off = no dummies.",
                        variable=self.training_dummies, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[27], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.short_quest_waits = tk.BooleanVar(value=rates.get("short_quest_waits", True))
@@ -2041,7 +2050,7 @@ class RatesTab(tk.Frame):
                  "event_harvest", "event_starlight", "event_egg_hunt", "event_horro") + tuple(core.EXTRAS_KEYS)
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
-                 ("bots_growth", "bots_growth"), ("squad_call_cooldown", "squad_call_cooldown"))
+                 ("bots_growth", "bots_growth"), ("buff_range", "buff_range"), ("squad_call_cooldown", "squad_call_cooldown"))
 
     def apply_values(self, values):
         """Puts a whole set of settings (a loaded profile) into the tab. Nothing is saved until PLAY."""
@@ -2139,6 +2148,8 @@ class RatesTab(tk.Frame):
         rates["bots"] = bool(self.bots.get())
         growth = self.bots_growth.get()
         rates["bots_growth"] = growth if growth in ("off", "realistic", "fast") else "realistic"
+        buff = self.buff_range.get()
+        rates["buff_range"] = buff if buff in core.BUFF_RANGES else "retail"
         for key, var, lo, hi, default in (("bots_roster", self.bots_roster, 0, 600, 100), ("bots_online", self.bots_online, 0, 550, 50)):
             try:
                 rates[key] = max(lo, min(hi, int(float(var.get()))))
@@ -2151,6 +2162,7 @@ class RatesTab(tk.Frame):
         rates["spell_scrolls"] = bool(self.spell_scrolls.get())
         rates["squad_keep_gear"] = bool(self.squad_keep_gear.get())
         rates["training_dummies"] = bool(self.training_dummies.get())
+        rates["training_dummies_explicit"] = bool(self.training_dummies_explicit)
         rates["bots_pass_loot"] = bool(self.bots_pass_loot.get())
         for k in core.EXTRAS_KEYS:
             rates[k] = bool(getattr(self, k).get())
@@ -2623,6 +2635,52 @@ class UpdatesTab(tk.Frame):
         tk.Button(box, text="Run setup again...", command=self.setup_again, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5,
                   activebackground=BORDER, activeforeground=FG).pack(anchor="w", padx=12, pady=(0, 12))
 
+    # (2026-11-23) the Revamped switch: old Squads / old Gambits off, the Revamped versions on (launcher_revamped.py)
+    def build_revamped(self):
+        box = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+        box.pack(fill="x", padx=14, pady=(0, 6))
+        tk.Label(box, text="Revamped Squads and Gambits", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        self.revamped_text = tk.StringVar()
+        tk.Label(box, textvariable=self.revamped_text, bg=PANEL, fg=DIM, wraplength=880, justify="left",
+                 font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(2, 4))
+        bar = tk.Frame(box, bg=PANEL)
+        bar.pack(anchor="w", padx=12, pady=(0, 12))
+        self.revamped_buttons = []
+        for text, value in (("Use the Revamped versions", "revamped"), ("Use the old versions", "stock")):
+            button = tk.Button(bar, text=text, command=lambda v=value: self.revamped_switch(v), bg=PANEL2, fg=FG, relief="flat",
+                               padx=12, pady=5, activebackground=BORDER, activeforeground=FG, disabledforeground=DIM)
+            button.pack(side="left", padx=(0, 8))
+            # (v0.3.3a) greyed out until a Revamped package is installed; the tip says where it comes from
+            HoverTip(button, lambda b=button: REVAMPED_GREY_TIP if str(b.cget("state")) == "disabled" else None)
+            self.revamped_buttons.append(button)
+        self.revamped_refresh()
+
+    def revamped_refresh(self):
+        kit, ashita = HERE, self.app.ashita
+        found = rv.detected(ashita)
+        if not found:
+            self.revamped_text.set("No Revamped Squads or Gambits package is installed, so nothing to switch. The old ones stay as they are.")
+            for button in self.revamped_buttons:
+                button.configure(state="disabled")
+            return
+        names = ", ".join("%s: %s" % (rv.TABLE[c]["label"], {"revamped": "Revamped", "stock": "old"}.get(rv.choice(kit, c), "not chosen")) for c in found)
+        self.revamped_text.set("Revamped is installed. Now: " + names + ". The old add-ons stay installed with their settings; "
+                               "only their lines in the start script are switched, and the change applies at the next launch.")
+        for button in self.revamped_buttons:
+            button.configure(state="normal")
+
+    def revamped_switch(self, value):
+        found = rv.detected(self.app.ashita)
+        if not found:
+            return
+        try:
+            done = rv.choose(HERE, self.app.ashita, found, value)
+        except Exception as e:
+            messagebox.showerror("Revamped", "Could not change the start script: %s" % e)
+            return
+        self.revamped_refresh()
+        messagebox.showinfo("Revamped", ("Done. " if done else "Already set. ") + "Takes effect the next time the game starts.")
+
     def build_clear_ah(self):
         """(delukard, 2026-11-22) An empty auction house for a world that plays without one: switching the simulator
         off only stops new stock, what it listed before stays."""
@@ -2722,6 +2780,8 @@ class UpdatesTab(tk.Frame):
         self.player = bool(app.cfg.get("mariadb_dir"))      # a player install (first-run setup); else this is the dev PC
         if self.player:
             self.build_setup_again()
+        if app.ashita and os.path.isdir(app.ashita):
+            self.build_revamped()
         self.build_clear_ah()
         try:                                                # (2026-11-22, Sunie) the AI hood: only where its switch file is
             import launcher_hood
@@ -3051,16 +3111,25 @@ class UpdatesTab(tk.Frame):
         self.test_builds = tk.BooleanVar(value=bool(self.app.cfg.get("test_builds", False)))
         tk.Checkbutton(bar, text="Get test builds (pre-releases)", variable=self.test_builds, command=self.save_test_builds,
                        bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG).pack(side="left", padx=(8, 0))
+        tk.Label(bar, text="Beta groups:", bg=BG, fg=DIM).pack(side="left", padx=(14, 4))
+        groups = self.app.cfg.get("beta_groups") or ""
+        self.beta_groups = tk.StringVar(value=", ".join(groups) if isinstance(groups, list) else str(groups))
+        entry = tk.Entry(bar, textvariable=self.beta_groups, width=24, bg=PANEL, fg=FG, insertbackground=FG, relief="flat")
+        entry.pack(side="left")
+        entry.bind("<FocusOut>", lambda _e: self.save_test_builds())
+        entry.bind("<Return>", lambda _e: self.save_test_builds())
         self.update_info = None
 
     def save_test_builds(self):
         import json
         self.app.cfg["test_builds"] = bool(self.test_builds.get())
+        self.app.cfg["beta_groups"] = [g.strip() for g in self.beta_groups.get().split(",") if g.strip()]
         try:
             path = os.path.join(HERE, "config.json")
             with open(path, encoding="utf-8-sig") as handle:
                 cfg = json.load(handle)
             cfg["test_builds"] = self.app.cfg["test_builds"]
+            cfg["beta_groups"] = self.app.cfg["beta_groups"]
             with open(path, "w", encoding="utf-8") as handle:
                 json.dump(cfg, handle, indent=2)
         except (OSError, ValueError) as e:
@@ -3519,6 +3588,7 @@ class App(tk.Tk):
         self.build_ui()
         self.after(200, self.pump)
         self.after(1000, self.lights)
+        self.after(1800, self.revamped_prompt)
         self.after(PICTURE_SECONDS * 1000, self.next_picture)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         if self.cfg.get("game_update_needed"):     # installed with Square Enix's installer: its first update comes first
@@ -3985,6 +4055,7 @@ class App(tk.Tk):
         scroll.pack(side="right", fill="y")
         self.dl_busy = False
         self.show_downloads()
+        self.after(5000, self.check_downloads_quietly)
 
     def show_downloads(self, newer=None):
         for widget in self.dl_rows.winfo_children():
@@ -4004,7 +4075,7 @@ class App(tk.Tk):
             tk.Label(self.dl_rows, text=item["name"], bg=BG, fg=FG, font=(UI_FONT, 10, "bold"), anchor="w").grid(
                 row=row * 2, column=0, sticky="w", pady=(6, 0))
             text = ("installed " + version) if installed else "not installed"
-            if newer and newer.get(item["id"]) and newer[item["id"]] != version:
+            if newer and newer.get(item["id"]) and tp.is_newer(newer[item["id"]], version):
                 text += f"  (newer: {newer[item['id']]})"
             tk.Label(self.dl_rows, text=text, bg=BG, fg=GREEN if installed else DIM, anchor="w").grid(
                 row=row * 2, column=1, sticky="w", padx=10, pady=(6, 0))
@@ -4032,6 +4103,9 @@ class App(tk.Tk):
                           command=lambda i=item: self.remove_ollama(i)).grid(row=row * 2 + 1, column=2, sticky="w")
             link = tk.Label(self.dl_rows, text="home page", bg=BG, fg=ACCENT, cursor="hand2")
             link.grid(row=row * 2, column=3, sticky="w", padx=10, pady=(6, 0))
+            if installed and not item.get("required") and (state.get(item["id"]) or {}).get("files"):
+                tk.Button(self.dl_rows, text="Uninstall", relief="flat", bg=PANEL, fg=FG, padx=10,
+                          command=lambda i=item: self.uninstall_download(i)).grid(row=row * 2, column=4, sticky="w", pady=(6, 0))
             link.bind("<Button-1>", lambda e, url=item["homepage"]: self.open_url(url))
             if item["id"] == "xipivot":             # (2026-11-22) HD texture packs: what most players want XIPivot for
                 tk.Button(self.dl_rows, text="HD packs and music...", relief="flat", bg=PANEL, fg=GOLD, padx=10,
@@ -4150,7 +4224,9 @@ class App(tk.Tk):
         def work():
             # (Altair 2026-11-19: Reinstall / update showed nothing, its lines only went to the LOGS panel on the Play page)
             try:
-                version = tp.install(item, HERE, self.ashita, log=self.say, server=self.cfg.get("server_dir"))
+                version = tp.install(item, HERE, self.ashita, log=self.say, server=self.cfg.get("server_dir"),
+                                     keep_download=bool(self.cfg.get("keep_downloads", False)),
+                                     remove_old=bool(self.cfg.get("remove_old_files", True)))
                 done = f"{item['name']} {version} is ready."
             except Exception as e:
                 done = f"{item['name']}: not installed ({e})."
@@ -4159,6 +4235,19 @@ class App(tk.Tk):
             self.after(0, self.show_downloads)
             self.after(0, lambda: messagebox.showinfo("Add-ons", done))
         threading.Thread(target=work, daemon=True).start()
+
+    def uninstall_download(self, item):
+        if self.running:
+            messagebox.showinfo("Downloads", "Close the game first.")
+            return
+        if not messagebox.askyesno("Downloads", f"Remove {item['name']}? The files it installed are copied to backups\\thirdparty first; "
+                                   "your own settings and files are left alone."):
+            return
+        try:
+            tp.uninstall(item, HERE, self.ashita, server=self.cfg.get("server_dir"), log=self.say)
+        except Exception as e:
+            messagebox.showinfo("Downloads", f"{item['name']}: not removed ({e}).")
+        self.show_downloads()
 
     def apply_download_patch(self, item):
         try:
@@ -4185,16 +4274,37 @@ class App(tk.Tk):
                 self.say(f"Era-DATs: not installed ({e}).")
         threading.Thread(target=work, daemon=True).start()
 
-    def check_download_updates(self):
+    def check_download_updates(self, quiet=False):
+        """The "Check for newer versions" button (always asks GitHub), and the quiet check at launcher start (quiet=True:
+        asks at most every 6 hours, speaks only in the log, never in a pop-up)."""
         def work():
-            newer = {}
-            for item in tp.load_manifest(HERE):
-                tag = tp.latest_version(item)
-                if tag:
-                    newer[item["id"]] = tag
-            self.say("Checked the release pages for newer versions.")
-            self.after(0, lambda: self.show_downloads(newer))
+            try:
+                items = tp.load_manifest(HERE)
+                versions = tp.installed_versions(items, HERE, self.ashita, self.cfg.get("server_dir"))
+                newer, problems, asked = tp.check_downloads(HERE, items, versions, force=not quiet)
+            except Exception as e:
+                newer, problems, asked = {}, [f"The check stopped: {e}"], True
+            for line in problems:                 # (a limit GitHub sets, no network, ...) said out loud, never "nothing newer"
+                self.say(line)
+            if quiet:
+                if newer:
+                    names = {i["id"]: i["name"] for i in items}
+                    self.say("Newer versions are out for: " + ", ".join(names.get(k, k) for k in newer)
+                             + " (Downloads: Reinstall / update).")
+            else:
+                self.say("Checked the release pages for newer versions." if not problems else
+                         "The check for newer versions could not be finished (see above).")
+                if problems:
+                    self.after(0, lambda: messagebox.showinfo("Check for newer versions", "\n\n".join(problems)))
+            if not quiet or asked or newer:
+                self.after(0, lambda: self.show_downloads(newer))
         threading.Thread(target=work, daemon=True).start()
+
+    def check_downloads_quietly(self):
+        """At launcher start (player installs, like the launcher's own update check): are there newer versions of the
+        downloads the player has installed? Off with "check_downloads_on_start": false in config.json."""
+        if self.cfg.get("check_downloads_on_start", True) and self.cfg.get("mariadb_dir"):
+            self.check_download_updates(quiet=True)
 
     def add_note(self, tabs, title, text):
         page = tk.Frame(tabs, bg=BG)
@@ -4645,6 +4755,11 @@ class App(tk.Tk):
             _upd.prune_updates(HERE, log=self.say)
         except Exception as e:
             self.say(f"Could not tidy the old update downloads ({e}).")
+        try:                                  # downloads/<id> folders an install left behind (nothing touched them for 7 days)
+            if not cfg.get("keep_downloads"):
+                tp.prune_downloads(HERE, log=self.say)
+        except Exception as e:
+            self.say(f"Could not tidy the old downloads ({e}).")
 
         try:                                  # (2026-11-19) Gambits -> autobox, GambitsV2 -> Gambits: once, every install
             import launcher_setup as _names
@@ -4880,6 +4995,7 @@ class App(tk.Tk):
             except Exception as e:
                 self.say(f"Could not apply the graphics settings ({e}) - starting with the boot file as it is.")
         self.apply_gamepad()
+        self.apply_revamped()
         self.say("Starting the game through Ashita...")
         alog = open(os.path.join(LOGS, "ashita.log"), "wb")
         self.logfiles.append(alog)
@@ -4908,6 +5024,35 @@ class App(tk.Tk):
             time.sleep(2)
         self.say("Game closed.")
         self.explain_quick_close(began)
+
+    def apply_revamped(self):
+        """Before every game start: the start scripts follow the saved Revamped choice (launcher_revamped.py)."""
+        try:
+            for line in rv.apply(HERE, self.ashita):
+                self.say("Revamped switch: " + line)
+        except Exception as e:
+            self.say("Could not apply the Revamped choice (%s) - starting with the scripts as they are." % e)
+
+    def revamped_prompt(self):
+        """Once, at launcher start, when a Revamped package (not just a shell) is installed and nothing was chosen."""
+        try:
+            if not self.ashita:
+                return
+            ask = rv.to_ask(HERE, self.ashita)
+            if not ask:
+                return
+            if messagebox.askyesno("Revamped", rv.question(ask) + "\n\nYes: the old ones stop loading and the Revamped ones load at every "
+                                   "start (the old add-ons stay installed). No: nothing changes and this is not asked again; "
+                                   "SYSTEM has a button to switch later."):
+                for line in rv.choose(HERE, self.ashita, ask, "revamped"):
+                    print("Revamped switch: " + line)
+            else:
+                rv.declined(HERE, self.ashita)
+            page = getattr(self, "updates_tab", None)
+            if page is not None and hasattr(page, "revamped_refresh"):
+                page.revamped_refresh()
+        except Exception as e:
+            print("Revamped question skipped: %s" % e)
 
     def apply_game_lang(self, boot):
         """(2026-11-22, Sirloinofbeef) Windows: an EU or JP game is named to the loader and Ashita in the boot file, so
@@ -5035,6 +5180,7 @@ class App(tk.Tk):
             linux.start_game(HERE, self.cfg, self.ashita, boot, log)
             return
         self.apply_game_lang(boot)
+        self.apply_revamped()
         subprocess.Popen([cli, boot], cwd=self.ashita, stdout=log, stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
 
     def apply_gamepad(self):
