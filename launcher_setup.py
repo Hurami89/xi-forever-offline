@@ -639,6 +639,46 @@ def write_config(kit, values):
     return cfg
 
 
+# ----- the first-time setup, run again on an install (Sunie, 2026-11-22: "restart installation") -----
+# SYSTEM > Settings > "Run setup again..." opens the setup window with this install's folders filled in. Every step of
+# run_setup keeps what is already there (the database and its tables, the account, Ashita's boot file and script, the
+# server's network settings, the Rules), so the only thing that had to change is the end: config.json is updated,
+# not written new. The database folder is never asked for and never moves.
+def same_path(a, b):
+    if not a or not b:
+        return False
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
+def again_choices(kit, cfg):
+    """What the setup window starts from when it is run again: this install's own folders, account and world."""
+    layout = default_layout(kit)
+    return {"ffxi_dir": cfg.get("ffxi_client_dir") or "", "ashita_dir": cfg.get("ashita_dir") or layout["ashita_dir"],
+            "server_dir": cfg.get("server_dir") or layout["server_dir"],
+            "mariadb_dir": cfg.get("mariadb_dir") or layout["mariadb_dir"],
+            "login": cfg.get("game_user") or "player1", "password": cfg.get("game_pass") or "",
+            "world": cfg.get("world") or "living"}
+
+
+def update_config(kit, values, drop=()):
+    """config.json of an existing install with these values changed and everything else as it was. The file from
+    before is kept next to it as config.json.before-setup-again (the newest one only)."""
+    target = os.path.join(kit, "config.json")
+    with open(target, encoding="utf-8-sig") as handle:
+        text = handle.read()
+    cfg = json.loads(text)
+    with open(target + ".before-setup-again", "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+    cfg.update(values)
+    for key in drop:
+        cfg.pop(key, None)
+    tmp = target + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
+        json.dump(cfg, handle, indent=2)
+    os.replace(tmp, target)
+    return cfg
+
+
 # ----- the kit's own addons -----
 # (2026-11-19) "Gambits" is now the squad Rule Set editor (wildcabbagepatch's Gambits v2, first shipped as GambitsV2);
 # the addon that had the name before (your own character's rules, Parser, EXP Watch, Enemy Info) is "autobox".
@@ -830,18 +870,31 @@ def install_free_games(kit, crystalboy_cfg):
 
 
 # ----- the whole setup -----
-def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen=subprocess.Popen):
+def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen=subprocess.Popen, again=None):
     """choices: ffxi_dir, ashita_dir, server_dir, mariadb_dir, world, population, interface, extras (list of
-    thirdparty ids), login, password. Every step can be run again: what is already there is kept."""
+    thirdparty ids), login, password. Every step can be run again: what is already there is kept.
+    again: the install's config.json when setup is run again from the launcher (see update_config above); the
+    database stays where it is, and the account, the world and the Rules are not touched."""
     import launcher_core as core
     fetch = fetch or tp._get
     items = {item["id"]: item for item in tp.load_manifest(kit)}
+    if again:
+        start = again_choices(kit, again)
+        choices["mariadb_dir"] = start["mariadb_dir"]
+        choices["login"], choices["password"], choices["world"] = start["login"], start["password"], start["world"]
+        log("Setup again: your world, characters and settings are kept.")
     ashita, server, mdb = choices["ashita_dir"], choices["server_dir"], choices["mariadb_dir"]
 
     log("1/9 Final Fantasy XI...")
     game = choices.get("game", "existing")      # copy | existing | official (launcher_game.py)
-    extra_cfg = {}
-    if not IS_WINDOWS:                          # Linux: the game comes from a folder (copied from a Windows PC)
+    extra_cfg, drop_cfg = {}, []
+    # setup again with the game folder this install already uses: nothing about the game is changed (and a copy in
+    # the kit's Game folder is never copied onto itself)
+    same_game = bool(again) and same_path(choices.get("ffxi_dir"), again.get("ffxi_client_dir")) and valid_ffxi(choices.get("ffxi_dir"))
+    if same_game:
+        log("   The game folder is the one already in use.")
+        game = "same"
+    elif not IS_WINDOWS:                        # Linux: the game comes from a folder (copied from a Windows PC)
         import launcher_game as lg
         import launcher_linux as ll
         ffxi, viewer = ll.find_game_parts(choices.get("ffxi_dir"))
@@ -879,6 +932,18 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
         paths = lg.copy_install(choices["ffxi_dir"], viewer, os.path.join(kit, "Game"), log=log)
         choices["ffxi_dir"] = paths["ffxi"]
         extra_cfg.update({"game_copy": True, "pol_dir": paths["viewer"], "pol_lang": lang})
+    elif again and game == "existing":
+        # setup again, pointed at another installed game: the same as SYSTEM > Settings > "Change game folder"
+        # (at PLAY the launcher points PlayOnline at these folders). Without a PlayOnlineViewer next to it, it is
+        # used the way a first-time "use my installed FFXI" is: through PlayOnline's own settings.
+        import launcher_game as lg
+        try:
+            ffxi, viewer = lg.pick_game_folder(choices["ffxi_dir"], again.get("pol_lang") or "US")
+            choices["ffxi_dir"] = ffxi
+            extra_cfg.update({"game_copy": True, "pol_dir": viewer})
+        except ValueError:
+            extra_cfg["game_copy"] = False
+            drop_cfg.append("pol_dir")
 
     log("2/9 The game server...")
     if not valid_server(server):
@@ -1010,11 +1075,18 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
     rates = core.apply_world(dict(core.RATE_DEFAULTS), choices["world"], choices["population"])
     if not os.path.exists(core.rates_path(kit)):
         core.save_rates(kit, rates)
-    cfg = write_config(kit, {
-        "server_dir": server, "ffxi_client_dir": choices["ffxi_dir"], "ashita_dir": ashita, "ashita_boot": BOOT_NAME,
-        "db_name": DB_NAME, "db_user": DB_USER, "db_pass": keys["xi"], "db_port": keys["port"],
-        "game_user": choices["login"], "game_pass": choices["password"],
-        "mariadb_dir": mdb, "mariadb_service": "", "world": choices["world"], **extra_cfg})
+    if again:
+        # only where things are; the account, the database login and the world stay as config.json has them
+        values = {"server_dir": server, "ffxi_client_dir": choices["ffxi_dir"], "ashita_dir": ashita, **extra_cfg}
+        if not same_path(ashita, again.get("ashita_dir")):
+            values["ashita_boot"] = BOOT_NAME
+        cfg = update_config(kit, values, drop=drop_cfg)
+    else:
+        cfg = write_config(kit, {
+            "server_dir": server, "ffxi_client_dir": choices["ffxi_dir"], "ashita_dir": ashita, "ashita_boot": BOOT_NAME,
+            "db_name": DB_NAME, "db_user": DB_USER, "db_pass": keys["xi"], "db_port": keys["port"],
+            "game_user": choices["login"], "game_pass": choices["password"],
+            "mariadb_dir": mdb, "mariadb_service": "", "world": choices["world"], **extra_cfg})
     if not IS_WINDOWS:                                    # the game's own Windows folder in Proton (PLAY tries again)
         import launcher_linux as ll
         try:

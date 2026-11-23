@@ -2555,6 +2555,35 @@ class UpdatesTab(tk.Frame):
         tk.Button(box, text="Change game folder...", command=self.change_game_folder, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5,
                   activebackground=BORDER, activeforeground=FG).pack(anchor="w", padx=12, pady=(0, 12))
 
+    # (2026-11-22, Sunie: "restart installation") the first-time setup again, on this install: other folders, or
+    # whatever is missing filled in. The world is never touched (launcher_setup.run_setup, again=...).
+    def build_setup_again(self):
+        box = tk.Frame(self, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+        box.pack(fill="x", padx=14, pady=(0, 6))
+        tk.Label(box, text="First-time setup", bg=PANEL, fg=FG, font=(UI_FONT, 12, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        tk.Label(box, text="Point the launcher at other folders (game, Ashita, server) or let setup fill in what is missing, "
+                           "without starting over. Your world, characters, squad and settings are kept.",
+                 bg=PANEL, fg=DIM, wraplength=880, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=12, pady=(2, 4))
+        tk.Button(box, text="Run setup again...", command=self.setup_again, bg=PANEL2, fg=FG, relief="flat", padx=12, pady=5,
+                  activebackground=BORDER, activeforeground=FG).pack(anchor="w", padx=12, pady=(0, 12))
+
+    def setup_again(self):
+        if self.app.running:
+            messagebox.showwarning("Close the game first", "The servers are running. Close the game (it stops the servers), "
+                                   "then run setup again.", parent=self)
+            return
+        if not messagebox.askyesno("Run setup again", "The launcher closes and the first-time setup opens with this install's "
+                                   "folders filled in.\n\nYour world, characters, squad and settings are kept. Nothing "
+                                   "changes until you press Install there: closing that window leaves everything as it is."
+                                   "\n\nGo on?", parent=self):
+            return
+        try:
+            extra = {} if IS_WINDOWS else {"start_new_session": True}
+            cmd = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, os.path.join(HERE, "launcher_gui.pyw")]
+            subprocess.Popen(cmd + ["--setup-again"], cwd=HERE, **extra)
+        finally:
+            self.app.on_close()
+
     def change_game_folder(self):
         chosen = filedialog.askdirectory(parent=self, title="Pick the FINAL FANTASY XI folder",
                                          initialdir=self.app.cfg.get("ffxi_client_dir") or None)
@@ -2601,6 +2630,15 @@ class UpdatesTab(tk.Frame):
         if IS_WINDOWS:
             self.build_game_folder()
         self.player = bool(app.cfg.get("mariadb_dir"))      # a player install (first-run setup); else this is the dev PC
+        if self.player:
+            self.build_setup_again()
+        try:                                                # (2026-11-22, Sunie) the AI hood: only where its switch file is
+            import launcher_hood
+            if launcher_hood.is_on(HERE):
+                launcher_hood.build_box(self, app, HERE, {"bg": BG, "panel": PANEL, "panel2": PANEL2, "fg": FG, "dim": DIM,
+                                                          "border": BORDER, "gold": GOLD, "font": UI_FONT, "mono": MONO_FONT})
+        except Exception:
+            pass
         self.buttons = []
         if linux is not None:
             self.build_linux()
@@ -5133,12 +5171,15 @@ class SetupWizard(tk.Tk):
               ("momentum", "Momentum: EXP and merit tracking (loads switched off)", False),
               ("ffxiport", "FFXIPort: a teleport window, /port (loads switched off)", False), ("vanafish", "VanaFish: fishing bot, /vanafish (loads switched off)", False), ("vanacam", "VanaCam: camera presets and combat distance (loads switched off)", False), ("autobot", "AutoBot: for a second (dualbox) character", False))
 
-    def __init__(self):
+    def __init__(self, again=None):
         super().__init__()
         linux_look(self)
         import launcher_setup
         self.setup = launcher_setup
-        self.title("XI: Forever Offline - first-time setup")
+        # (2026-11-22, Sunie) again: this install's config.json when setup is run again from SYSTEM > Settings. The
+        # folders start as they are now, the world and account pages are left out, and nothing of the world changes.
+        self.again = again if (again and hasattr(launcher_setup, "again_choices")) else None
+        self.title("XI: Forever Offline - setup, again" if self.again else "XI: Forever Offline - first-time setup")
         self.geometry("760x600")
         self.configure(bg=BG)
         icon = load_image(os.path.join("ui", "icon.png"))
@@ -5181,7 +5222,31 @@ class SetupWizard(tk.Tk):
         self.next_btn = tk.Button(nav, text="Next", command=self.next, bg=ACCENT, fg="white", relief="flat", padx=18)
         self.next_btn.pack(side="right")
         self.pages = [self.page_folders, self.page_world, self.page_account, self.page_install]
+        if self.again:
+            self.start_again()
+            self.pages = [self.page_folders, self.page_world, self.page_install]
         self.show(0)
+
+    def start_again(self):
+        """Setup run again: the pages start from what this install has now."""
+        start = self.setup.again_choices(HERE, self.again)
+        self.ffxi.set(start["ffxi_dir"])
+        self.game.set("existing")                 # the game where it is; a new copy only when the player picks it
+        self.ashita.set(start["ashita_dir"])
+        self.server.set(start["server_dir"])
+        self.world.set(start["world"])
+        self.login.set(start["login"])
+        self.password.set(start["password"])
+        self.mariadb_dir = start["mariadb_dir"]
+        try:                                      # tick what this install has, so nothing is added or asked twice
+            import launcher_thirdparty as tp
+            items = {item["id"]: item for item in tp.load_manifest(HERE)}
+            have = lambda iid: bool(iid in items and tp.status(items[iid], HERE, start["ashita_dir"])[0])
+            for key, var in self.extras.items():
+                var.set(have(key))
+            self.interface.set("xiuiplus" if have("xiuiplus") else "xiui" if have("xiui") else "none")
+        except Exception:
+            pass
 
     def fit(self):
         """Make the window tall enough for the page it shows (never taller than the screen)."""
@@ -5201,6 +5266,11 @@ class SetupWizard(tk.Tk):
         for widget in self.body.winfo_children():
             widget.destroy()
         self.step_title.configure(text=title)
+        if getattr(self, "again", None) and title.startswith("1."):
+            tk.Label(self.body, text="Setup again: your world, characters, squad and settings stay as they are. Choose the "
+                                     "folders to use from now on. What is already in them is kept; what is missing is "
+                                     "downloaded and set up. The old folders are not deleted.",
+                     bg=BG, fg=GOLD, wraplength=720, justify="left").pack(anchor="w", pady=(0, 6))
 
     def text(self, words, fg=None):
         tk.Label(self.body, text=words, bg=BG, fg=fg or DIM, wraplength=720, justify="left").pack(anchor="w", pady=(0, 6))
@@ -5268,16 +5338,20 @@ class SetupWizard(tk.Tk):
         self.text(f"The database is kept in {self.mariadb_dir}.")
 
     def page_world(self):
-        self.clear("2. Your world")
+        self.clear("2. Interface and add-ons" if self.again else "2. Your world")
         import launcher_core as lc
-        for key, (label, about) in lc.WORLDS.items():
+        if self.again:
+            self.text("Your world and its rules stay as they are (change them on the launcher's WORLD and RULES pages). "
+                      "These are for the Ashita folder you chose: what it already has is ticked.")
+        for key, (label, about) in ({} if self.again else lc.WORLDS).items():
             tk.Radiobutton(self.body, text=label, value=key, variable=self.world, bg=BG, fg=FG, selectcolor=PANEL,
                            activebackground=BG, activeforeground=FG, font=(UI_FONT, 10, "bold")).pack(anchor="w")
             tk.Label(self.body, text=about, bg=BG, fg=DIM, font=(UI_FONT, 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
         row = tk.Frame(self.body, bg=BG)
         row.pack(anchor="w", pady=(10, 2))
-        tk.Label(row, text="Population:", bg=BG, fg=FG).pack(side="left")
-        for key, (label, crowd, _roster, online) in lc.POPULATIONS.items():
+        if not self.again:
+            tk.Label(row, text="Population:", bg=BG, fg=FG).pack(side="left")
+        for key, (label, crowd, _roster, online) in ({} if self.again else lc.POPULATIONS).items():
             tk.Radiobutton(row, text=f"{label} ({crowd}/town, {online} bots)", value=key, variable=self.population,
                            bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG).pack(side="left", padx=4)
         row = tk.Frame(self.body, bg=BG)
@@ -5305,7 +5379,7 @@ class SetupWizard(tk.Tk):
         self.text("Login: 3-16 letters and numbers. You make your character in the game after the first login.")
 
     def page_install(self):
-        self.clear("4. Install")
+        self.clear("3. Set up" if self.again else "4. Install")
         self.log_box = tk.Text(self.body, height=20, bg=PANEL, fg=FG, relief="flat", font=(MONO_FONT, 9), wrap="word")
         self.log_box.pack(fill="both", expand=True)
         self.log_box.insert("end", "Press Install to start.\n")
@@ -5336,6 +5410,8 @@ class SetupWizard(tk.Tk):
         if self.page == 0:
             if self.game.get() != "official" and not self.setup.valid_ffxi(self.ffxi.get()):
                 return "Choose the FINAL FANTASY XI folder (the one with FFXiMain.dll in it), or pick the Square Enix download."
+        if self.again:                           # no account page: the account stays as it is
+            return None
         if self.page == 2 and not self.setup.valid_login(self.login.get()):
             return "The login must be 3-16 letters and numbers."
         if self.page == 2 and len(self.password.get()) < 6:
@@ -5355,7 +5431,8 @@ class SetupWizard(tk.Tk):
         def work():
             try:
                 import launcher_thirdparty
-                cfg = self.setup.run_setup(HERE, choices, launcher_thirdparty, log=lambda m: self.q.put(("log", m)))
+                cfg = self.setup.run_setup(HERE, choices, launcher_thirdparty, log=lambda m: self.q.put(("log", m)),
+                                           **({"again": self.again} if self.again else {}))
                 if self.deck:
                     try:
                         boot = os.path.join(cfg["ashita_dir"], "config", "boot", cfg.get("ashita_boot", core.DEFAULT_BOOT))
@@ -5477,6 +5554,14 @@ def main():
             wizard.mainloop()
             if not wizard.done or not os.path.exists(os.path.join(HERE, "config.json")):
                 return
+        elif "--setup-again" in sys.argv[1:]:      # SYSTEM > Settings > "Run setup again..." (the launcher restarted itself)
+            try:
+                wizard = SetupWizard(again=core.load_config(os.path.join(HERE, "config.json")))
+                wizard.mainloop()
+            except Exception:                      # whatever happens there, the launcher still opens
+                os.makedirs(LOGS, exist_ok=True)
+                with open(os.path.join(LOGS, "setup-again-error.log"), "w") as f:
+                    f.write(traceback.format_exc())
         app = App()
         bring_to_front(app)
         try:                                      # the opening theme of a limited-time look, while one is in date

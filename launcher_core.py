@@ -662,6 +662,15 @@ RATE_FIELDS = [
     ("map.NM_MP_MULTIPLIER",            "map.lua",  "NM_MP_MULTIPLIER",            "Notorious monster MP",               1.0, 0.1, 2.0,   "float"),
     ("map.PLAYER_TP_MULTIPLIER",        "map.lua",  "PLAYER_TP_MULTIPLIER",        "TP gain: you, your squad and pets",  1.0, 0.25, 3.0,  "float"),
     ("map.MOB_TP_MULTIPLIER",           "map.lua",  "MOB_TP_MULTIPLIER",           "TP gain: monsters",                  1.0, 0.25, 3.0,  "float"),
+    # (2026-11-22, Poptart; the user: the one "damage taken" rule and the per-type ones as well) The damage taken rule
+    # is ours (server: custom/late/comforts.lua); the five powers are the server's own settings.
+    ("main.PLAYER_DAMAGE_TAKEN_MULTIPLIER", "main.lua", "PLAYER_DAMAGE_TAKEN_MULTIPLIER", "Damage you and your squad take", 1.0, 0.5, 2.0, "float"),
+    ("main.WEAPON_SKILL_POWER",         "main.lua", "WEAPON_SKILL_POWER",          "Weapon skill damage",                1.0, 0.25, 3.0,  "float"),
+    ("main.ELEMENTAL_POWER",            "main.lua", "ELEMENTAL_POWER",             "Elemental magic damage",             1.0, 0.25, 3.0,  "float"),
+    ("main.DIVINE_POWER",               "main.lua", "DIVINE_POWER",                "Divine magic damage",                1.0, 0.25, 3.0,  "float"),
+    ("main.NINJUTSU_POWER",             "main.lua", "NINJUTSU_POWER",              "Ninjutsu damage",                    1.0, 0.25, 3.0,  "float"),
+    ("main.BLUE_POWER",                 "main.lua", "BLUE_POWER",                  "Blue magic damage",                  1.0, 0.25, 3.0,  "float"),
+    ("main.DARK_POWER",                 "main.lua", "DARK_POWER",                  "Dark magic damage",                  1.0, 0.25, 3.0,  "float"),
     ("main.HOMEPOINT_TELEPORT",         "main.lua", "HOMEPOINT_TELEPORT",          "Home Point teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("main.ENABLE_SURVIVAL_GUIDE",      "main.lua", "ENABLE_SURVIVAL_GUIDE",       "Survival Guide teleports (1 = on, 0 = classic)", 1, 0, 1, "int"),
     ("map.BASE_SPEED",                  "map.lua",  "BASE_SPEED",                  "Run speed (50 = retail)",               50,  40,  120,   "int"),

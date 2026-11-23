@@ -588,6 +588,30 @@ def wait_for_slot(priority: bool = False) -> None:
         time.sleep(max(0.1, 60 - (now - SAY_TIMES[0]) + 0.2))
 
 
+def hood(source, model, messages, reply, seconds):
+    """(Sunie, 2026-11-22) "Peek under the AI hood". While the switch file ai-hood.on is in the kit folder, every
+    prompt goes to logs/ai-hood.log in full, with the model's reply. No such file (everyone else): nothing happens."""
+    try:
+        import os
+        kit = str(BASE.parent)
+        if not os.path.exists(os.path.join(kit, "ai-hood.on")):
+            return
+        path = os.path.join(kit, "logs", "ai-hood.log")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if os.path.exists(path) and os.path.getsize(path) > 4_000_000:      # one older file is kept
+            os.replace(path, path + ".1")
+        parts = [f"===== {time.strftime('%H:%M:%S')}  {source}  |  model {model}  |  {seconds:.1f}s ====="]
+        for message in messages:
+            parts.append(f"--- {message.get('role', '?')} ---")
+            parts.append(str(message.get("content", "")).rstrip())
+        parts.append("--- reply ---")
+        parts.append(str(reply if reply is not None else "(no reply)").rstrip())
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write("\n".join(parts) + "\n\n")
+    except Exception:
+        pass
+
+
 def call_ollama(
     messages: list[dict],
     num_predict: int | None = None,
@@ -638,11 +662,14 @@ def call_ollama(
             body = json.loads(response.read().decode("utf-8"))
         content = body.get("message", {}).get("content")
         log(f"ollama {time.time() - started:.1f}s, {len(str(content or ''))} chars")
+        hood("squad chat", model, messages, content, time.time() - started)
         return content
     except urllib.error.URLError as exc:
         log(f"ollama connection failed: {exc}")
+        hood("squad chat", model, messages, f"(no reply: {exc})", time.time() - started)
     except (ValueError, OSError, TimeoutError) as exc:
         log(f"ollama request failed: {exc}")
+        hood("squad chat", model, messages, f"(no reply: {exc})", time.time() - started)
     return None
 
 

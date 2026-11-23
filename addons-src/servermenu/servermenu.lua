@@ -15,6 +15,8 @@ One menu for XI: Forever Offline, opened from a small Squads button on the scree
   /menu              open or close the menu (also /smenu)
   /menu button       show the button again after hiding it      /menu resetbutton   put it back in its first place
   /menu scale <n>    size of our windows (0.75-3, 1 = normal; for 4K screens)
+  /menu opacity <10-100>        how see-through the Squads button is (also on its right-click menu; solid under the mouse)
+  /menu opacity menu <10-100>   how see-through the menu's background is
   /sq                open the menu on the Squad tab              /sq refresh         ask the server again
   /sq sheet [slot]   open a mate's profile window (also the Profile button on their row)
   /menu gambits      open the menu on Dualbox with its Gambits section showing
@@ -35,7 +37,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26f';   -- (1.26f) Food button per mate; (1.26e) Best gear now button
+addon.version = '1.26g';   -- (1.26g) opacity for the Squads button and the menu; one gear button; (1.26f) Food button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -206,7 +208,8 @@ local S = {
     -- diagnostics
     spell = { 'Dia' },
     -- the button
-    cfg = { button_x = '18', button_y = '240', button_locked = 'false', button_hidden = 'false', button_wide = 'false', tab = 'Squad', spell = 'Dia', scale = '1' },
+    cfg = { button_x = '18', button_y = '240', button_locked = 'false', button_hidden = 'false', button_wide = 'false', tab = 'Squad', spell = 'Dia', scale = '1',
+            button_opacity = '100', menu_opacity = '100' },   -- (1.26g, K-Andy) percent; /menu opacity
     cfgDirty = false, cfgSavedAt = -1000, buttonPos = nil, dragging = false, dragFrom = nil, dragMoved = false,
 };
 
@@ -1249,15 +1252,9 @@ local function squadTab()
             S.autoEquip = not on;
             ask(1.5);
         end
-        tooltip(on and 'Your mates wear the best gear you gave the squad, picked again each time they are called (click: choose by hand)'
-            or 'Click: every mate puts on the best gear you gave the squad for its job and level. Turn it off again to fine-tune by hand.');
-        -- (1.26e, FalconX51) once, right now: the server's own pick without leaving auto-equip on
-        imgui.SameLine(0, 6);
-        if button('Best gear now', 'bestgear', 112, 26, nil) then
-            enqueue('/say !squad autoequip now');
-            ask(3);
-        end
-        tooltip('Every mate puts on the best gear you gave the squad, once, right now. Auto-equip stays as it is, so afterwards you can still change any piece by hand.');
+        -- (1.26g, FalconX51; the user: one button, lit while it is on) best gear once = on, then off again
+        tooltip(on and 'Lit: your mates wear the best gear you gave the squad and pick again each time they are called.\nClick to switch it off: they keep what they wear now, and you can change any piece by hand.'
+            or 'Click: every mate puts on the best gear you gave the squad for its job and level, and the button lights up.\nFor best gear just once, click it again: the gear stays and the choice is yours again.');
     end
     if S.adv then
         imgui.SameLine(0, 6);
@@ -1966,6 +1963,7 @@ local function menuWindow()
                                 { 'ImGuiCol_HeaderHovered', { 0.26, 0.29, 0.38, 1 } }, { 'ImGuiCol_Separator', { 0.32, 0.34, 0.42, 0.55 } },
                                 { 'ImGuiCol_Text', C.text } });
     local flags = (G('ImGuiWindowFlags_NoTitleBar') or 0) + (G('ImGuiWindowFlags_NoCollapse') or 0);
+    if has('SetNextWindowBgAlpha') and opacityOf('menu_opacity') < 1 then imgui.SetNextWindowBgAlpha(opacityOf('menu_opacity')); end
     if imgui.Begin('XI: Forever Offline##servermenu', S.open, flags) then
         scaleWindow();
         colorText(C.gold, 'SQUADS');
@@ -2001,12 +1999,21 @@ local function xy(a, b)
     return tonumber(a), tonumber(b);
 end
 
+-- (1.26g, K-Andy) how see-through the Squads button and the menu's background are: 10-100 percent
+local function opacityOf(key)
+    local v = tonumber(S.cfg[key] or '100') or 100;
+    return math.max(10, math.min(100, v)) / 100;
+end
+
 local function buttonWindow()
     if S.cfg.button_hidden == 'true' then return; end
     local x, y = tonumber(S.cfg.button_x) or 18, tonumber(S.cfg.button_y) or 240;
     imgui.SetNextWindowPos({ x, y }, S.dragging and (G('ImGuiCond_Always') or 1) or (S.placeButton and (G('ImGuiCond_Always') or 1)) or (G('ImGuiCond_FirstUseEver') or 4));
     S.placeButton = false;
-    local vars = pushVars({ { 'ImGuiStyleVar_WindowRounding', 7 }, { 'ImGuiStyleVar_WindowPadding', { 3, 3 } }, { 'ImGuiStyleVar_FrameRounding', 6 } });
+    -- the whole button fades to its opacity; under the mouse (or while dragged) it is solid, so it is easy to find
+    local fade = (S.buttonHot or S.dragging) and 1 or opacityOf('button_opacity');
+    local vars = pushVars({ { 'ImGuiStyleVar_WindowRounding', 7 }, { 'ImGuiStyleVar_WindowPadding', { 3, 3 } }, { 'ImGuiStyleVar_FrameRounding', 6 },
+                            { 'ImGuiStyleVar_Alpha', fade } });
     local colors = pushColors({ { 'ImGuiCol_WindowBg', { 0.05, 0.06, 0.09, 0.70 } }, { 'ImGuiCol_Border', { 0.89, 0.74, 0.40, 0.55 } },
                                 { 'ImGuiCol_Button', { 0.13, 0.16, 0.26, 0.95 } }, { 'ImGuiCol_ButtonHovered', { 0.22, 0.27, 0.42, 1 } },
                                 { 'ImGuiCol_ButtonActive', { 0.30, 0.36, 0.55, 1 } }, { 'ImGuiCol_Text', C.gold } });
@@ -2019,6 +2026,7 @@ local function buttonWindow()
     if imgui.Begin('##servermenu_button', { true }, flags) then
         scaleWindow();
         local clicked = imgui.Button('Squads##sm_open', { px(76), px(30) });
+        S.buttonHot = has('IsItemHovered') and imgui.IsItemHovered() or false;
         -- dragging the button moves it (unless locked); a drag is not a click
         if S.cfg.button_locked ~= 'true' and has('IsItemActive') and has('IsMouseDragging') and has('GetMouseDragDelta') then
             if imgui.IsItemActive() and imgui.IsMouseDragging(0, 3) then
@@ -2043,6 +2051,11 @@ local function buttonWindow()
             if has('MenuItem') then
                 if imgui.MenuItem(S.cfg.button_locked == 'true' and 'Unlock position' or 'Lock position') then
                     setCfg('button_locked', S.cfg.button_locked == 'true' and 'false' or 'true');
+                end
+                for _, pct in ipairs({ 100, 75, 50, 25 }) do
+                    if imgui.MenuItem(string.format('Opacity %d%%%s', pct, tonumber(S.cfg.button_opacity or '100') == pct and '   (now)' or '')) then
+                        setCfg('button_opacity', pct);
+                    end
                 end
                 if imgui.MenuItem('Hide button  (/menu button brings it back)') then
                     setCfg('button_hidden', 'true');
@@ -2785,6 +2798,19 @@ ashita.events.register('command', 'servermenu_command', function (e)
         setCfg('button_x', 18); setCfg('button_y', 240); setCfg('button_hidden', 'false'); setCfg('button_locked', 'false');
         S.placeButton = true;
         say('the FFXI button is back in its first place.');
+    elseif sub == 'opacity' then
+        -- /menu opacity <10-100>: the Squads button.  /menu opacity menu <10-100>: the menu's background.
+        local what, v = 'button_opacity', tonumber(args[3] or '');
+        if string.lower(tostring(args[3] or '')) == 'menu' then what, v = 'menu_opacity', tonumber(args[4] or ''); end
+        if string.lower(tostring(args[3] or '')) == 'button' then v = tonumber(args[4] or ''); end
+        if v then
+            v = math.floor(math.max(10, math.min(100, v)));
+            setCfg(what, v);
+            say(string.format('%s opacity is now %d%%.', what == 'menu_opacity' and 'menu background' or 'Squads button', v));
+        else
+            say(string.format('/menu opacity <10-100>   the Squads button (solid under the mouse). Now: %d%%   |   /menu opacity menu <10-100>   the menu\'s background. Now: %d%%',
+                math.floor(opacityOf('button_opacity') * 100 + 0.5), math.floor(opacityOf('menu_opacity') * 100 + 0.5)));
+        end
     elseif sub == 'scale' then
         local v = tonumber(args[3] or '');
         if v then
@@ -2802,7 +2828,7 @@ ashita.events.register('command', 'servermenu_command', function (e)
         setTab(sub:sub(1, 1):upper() .. sub:sub(2));
         setOpen(true);
     elseif sub == 'help' then
-        say('/menu  open or close  |  /menu squad|dualbox  |  /menu gambits (dualbox)  |  /menu button  |  /menu resetbutton  |  /menu scale <0.75-3>  |  /sq');
+        say('/menu  open or close  |  /menu squad|dualbox  |  /menu gambits (dualbox)  |  /menu button  |  /menu resetbutton  |  /menu scale <0.75-3>  |  /menu opacity <10-100>  |  /sq');
     else
         setOpen(not S.open[1]);
     end

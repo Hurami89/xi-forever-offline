@@ -86,6 +86,8 @@ SECTION_NOTES = {
     "Conquest": "The other nations and the beastmen act while you are away, so regions can change hands.",
     "Seasonal events": "Harvest Festival, Starlight, Egg Hunt, Horro's Visit.",
     "Battle": "Out of era. 1x and half are the era's values; the lines marked experimental have not been tried much.",
+    "Damage": "Out of era and experimental. 1x is the era. Plain melee hits have no line of their own: to hit harder "
+              "across the board, lower the monster HP under Battle (half the HP is double the damage).",
 }
 
 # ---------------------------------------------------------------- Rules: how fast and how forgiving
@@ -122,6 +124,24 @@ S("map.PLAYER_TP_MULTIPLIER", "rules", "Battle", RATE, "TP gain: you and your sq
   tip="How fast you, your squad mates and pets gain TP. 1x = the era.")
 S("map.MOB_TP_MULTIPLIER", "rules", "Battle", RATE, "TP gain: monsters",
   tip="How fast monsters gain TP, so how often they use their special attacks. 1x = the era.")
+# (2026-11-22, Poptart; the user: the one "damage taken" rule and the per-type ones as well) Damage: what you take, and
+# what each kind of attack of yours deals. A monster's own spells and special attacks are not touched by the "you deal"
+# lines (server: scripts/globals/spells/damage_spell.lua, calculateSkillTypeMultiplier).
+S("main.PLAYER_DAMAGE_TAKEN_MULTIPLIER", "rules", "Damage", RATE, "Damage you and your squad take",
+  tip="Every hit, spell and breath that lands on you or a squad mate. 1x = the era, 0.5x = half, 2x = double. It sits "
+      "apart from the damage reduction on gear, so gear still counts in full. Bot players and trusts are not changed. (Poptart)")
+S("main.WEAPON_SKILL_POWER", "rules", "Damage", RATE, "You deal: weapon skills",
+  tip="Damage of your and your squad's weapon skills. 1x = the era.")
+S("main.ELEMENTAL_POWER", "rules", "Damage", RATE, "You deal: elemental magic",
+  tip="Damage of elemental magic (Fire, Stone, Thunder and the like) cast by you, your squad, trusts and pets. 1x = the era.")
+S("main.DARK_POWER", "rules", "Damage", RATE, "You deal: dark magic",
+  tip="Damage of dark magic (Bio, Drain and the like) cast by you, your squad, trusts and pets. 1x = the era.")
+S("main.DIVINE_POWER", "rules", "Damage", RATE, "You deal: divine magic",
+  tip="Damage of divine magic (Banish, Holy) cast by you, your squad, trusts and pets. 1x = the era.")
+S("main.NINJUTSU_POWER", "rules", "Damage", RATE, "You deal: ninjutsu",
+  tip="Damage of ninjutsu (Katon, Hyoton and the like) cast by you, your squad and trusts. 1x = the era.")
+S("main.BLUE_POWER", "rules", "Damage", RATE, "You deal: blue magic",
+  tip="Damage of blue magic. 1x = the era.")
 S("main.ENABLE_COP", "rules", "Expansions", FLAG, "Chains of Promathia")
 S("main.ENABLE_TOAU", "rules", "Expansions", FLAG, "Treasures of Aht Urhgan")
 S("map.DROP_RATE_MULTIPLIER", "rules", "Loot and gil", RATE, "Monster item drops")
@@ -240,7 +260,7 @@ S("main.SPARKS_RATE", "era", "Out-of-era content", RATE, "RoE sparks", dev=True,
 # which sections sit in which column of a page, left to right
 LAYOUT = {
     "world": (("Town crowds", "Field parties"), ("Bot players", "Auction house", "Conquest"), ("AI chat", "Seasonal events")),
-    "rules": (("Experience and fame", "Notorious monsters", "Battle", "Expansions"), ("Loot and gil", "Travel", "Squad"),
+    "rules": (("Experience and fame", "Notorious monsters", "Battle", "Damage"), ("Loot and gil", "Travel", "Squad", "Expansions"),
               ("Skills and crafting", "Comforts", "Tetra Master")),
     "squad": (("Squad rules",),),
     "era": (("Era",), ("Later expansions",), ("Out-of-era content",)),
