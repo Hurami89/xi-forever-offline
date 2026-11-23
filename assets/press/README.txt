@@ -14,6 +14,10 @@ A one-time banner: put __once in the file name (party__once.png, or party__top__
 only: first thing on the Home page, until it is clicked or the launcher is closed. After that it is back to the usual pictures, and it never
 joins the rotation. config.json remembers which ones have been shown ("banners_seen"); take a name out of that list to see it once more.
 
+Limited-time banners: put __until- and a date in the file name (party__until-2026-12-02.jpg; year-month-day). Up to and including that day
+those pictures take the place of the usual ones: while at least one is in date, only they are shown. The day after, the usual pictures are
+back by themselves and the dated ones are simply skipped, so nothing has to be removed. The date is the one on the player's own PC.
+
 This needs Pillow. If the launcher's status line says so, run once in PowerShell:
     python -m pip install pillow
 

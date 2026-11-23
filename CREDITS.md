@@ -69,6 +69,7 @@ Gambits began as the TitanGambits engine and was brought here by its author.
 - Cinzel font: Natanael Gama (SIL Open Font License).
 - Kanit font (the lettering on the XIFO banner): Cadson Demak (SIL Open Font License).
 - Righteous font (the neon sign on the XIFO banner): Astigmatic (SIL Open Font License).
+- DotGothic16 font (the pixel and Japanese lettering on the vaporwave banners): Fontworks (SIL Open Font License).
 
 ## Crystal Boy mini games
 

@@ -67,6 +67,7 @@ NAV_BUTTONS = (("home", "HOME", ("Play",)), ("squad", "SQUADS", ("Squad",)), ("c
 PRESS_ANCHOR = 0.38      # press pictures are wider than the frame is tall: keep the part 38% of the way down (sky and skyline are above, people below)
 PRESS_NOTE = ""
 ONCE_TAG = "__once"      # a press picture with this in its name (xifo__once.png) is a one-time banner: see load_once
+UNTIL_TAG = "__until-"   # ... and one with __until-2026-12-02 in its name is a limited-time banner: see press_names
 
 
 def fit_picture(img, width, height, anchor=0.5):
@@ -83,10 +84,38 @@ def fit_picture(img, width, height, anchor=0.5):
 def press_anchor(name):
     """A picture called  castle__top.jpg  keeps its top, castle__bottom.jpg its bottom, castle__center.jpg its middle."""
     stem = os.path.splitext(name)[0].lower().replace(ONCE_TAG, "")
+    cut = stem.find(UNTIL_TAG)
+    if cut >= 0:
+        stem = stem[:cut] + stem[cut + len(UNTIL_TAG) + 10:]
     for tag, value in (("__top", 0.0), ("__center", 0.5), ("__middle", 0.5), ("__bottom", 1.0)):
         if stem.endswith(tag):
             return value
     return PRESS_ANCHOR
+
+
+def press_today():
+    """Today on this PC, written 2026-12-02 (a function of its own so the tests can pick the day)."""
+    return time.strftime("%Y-%m-%d")
+
+
+def press_until(name):
+    """The last day a limited-time picture is shown: the date after __until- in its name (party__until-2026-12-02.jpg). "" for a usual
+    picture, "0" (always over) when the date cannot be read."""
+    low = name.lower()
+    cut = low.find(UNTIL_TAG)
+    if cut < 0:
+        return ""
+    day = low[cut + len(UNTIL_TAG):cut + len(UNTIL_TAG) + 10]
+    return day if len(day) == 10 and day[4] == "-" and day[7] == "-" and (day[:4] + day[5:7] + day[8:]).isdigit() else "0"
+
+
+def press_names(names):
+    """Which of the pictures in assets\\press are in the rotation today. Limited-time pictures (__until-DATE in the name) that are still in
+    date take the place of the usual ones: while there is at least one, only they are shown, and the day after the date the usual ones are
+    back by themselves. A limited-time picture that is over is never shown; one-time pictures (__once) are never in the rotation."""
+    names = sorted(n for n in names if n.lower().endswith((".png", ".jpg", ".jpeg")) and ONCE_TAG not in n.lower())
+    today = press_today()
+    return [n for n in names if press_until(n) >= today] or [n for n in names if not press_until(n)]
 
 
 def load_press():
@@ -95,7 +124,7 @@ def load_press():
     global PRESS_NOTE
     folder = os.path.join(ASSETS, "press")
     try:
-        names = sorted(n for n in os.listdir(folder) if n.lower().endswith((".png", ".jpg", ".jpeg")) and ONCE_TAG not in n.lower())
+        names = press_names(os.listdir(folder))
     except OSError:
         return []
     if not names:
@@ -122,7 +151,8 @@ def load_once(cfg):
     seen = {str(s).lower() for s in (cfg.get("banners_seen") or [])}
     try:
         names = sorted(n for n in os.listdir(folder)
-                       if n.lower().endswith((".png", ".jpg", ".jpeg")) and ONCE_TAG in n.lower() and n.lower() not in seen)
+                       if n.lower().endswith((".png", ".jpg", ".jpeg")) and ONCE_TAG in n.lower() and n.lower() not in seen
+                       and (not press_until(n) or press_until(n) >= press_today()))
     except OSError:
         return None, None
     for name in names:
@@ -452,7 +482,8 @@ class ItemPicker(tk.Toplevel):
         if locked_only and not self.rows and not self.search.get():
             self.info.configure(text="No unlocked items for this slot yet. In game, use  !squad give <item>  to add items to your squad's collection.")
         else:
-            self.info.configure(text=f"{len(self.rows)} item(s)" + (" (showing the first 300)" if len(self.rows) >= 300 else ""))
+            self.info.configure(text=f"{len(self.rows)} item(s)" + (" (the highest levels; type part of a name to find others)"
+                                                                 if len(self.rows) >= sq.SEARCH_LIMIT else ""))
         self.preview_item_id = None
         self.stats.configure(text="")
         self.preview_name.configure(text="Select an item to see its icon.", fg=DIM)
@@ -4298,6 +4329,11 @@ class App(tk.Tk):
                 launcher_setup.ensure_triggers(cfg, cfg["server_dir"], log=self.say)
             except Exception as e:
                 self.say(f"Could not check the database triggers ({e}) - starting anyway.")
+            try:                              # (2026-11-22) squad and guild shop tables a cut-short setup left out
+                if launcher_setup.ensure_module_tables(cfg, cfg["server_dir"], log=self.say):
+                    self.say("Database: the missing tables are in place.")
+            except Exception as e:
+                self.say(f"Could not check the add-on tables ({e}) - starting anyway.")
         else:
             svc = cfg.get("mariadb_service", "MariaDB")
             if not core.ensure_service(svc):
@@ -4476,6 +4512,7 @@ class App(tk.Tk):
         self.logfiles.append(alog)
         boot = getattr(self, "launch_boot", None) or cfg.get("ashita_boot", core.DEFAULT_BOOT)      # the GM game starts with its own boot file
         self.launch_boot = None
+        self.apply_game_lang(boot)
         if cfg.get("game_copy"):     # our own copy of the game: point PlayOnline at it until every game window closes
             import launcher_game as lg
             if lg.start_switch(HERE, cfg, run_elevated, is_running=lambda: core.is_running("xiloader")):
@@ -4498,6 +4535,17 @@ class App(tk.Tk):
             time.sleep(2)
         self.say("Game closed.")
         self.explain_quick_close(began)
+
+    def apply_game_lang(self, boot):
+        """(2026-11-22, Sirloinofbeef) Windows: an EU or JP game is named to the loader and Ashita in the boot file, so
+        leftovers of another language's PlayOnline in the registry can't be picked in its place (launcher_game.py)."""
+        try:
+            import launcher_game as lg
+            lang = lg.install_lang(self.cfg)
+            if lg.apply_boot_lang(os.path.join(self.ashita, "config", "boot", boot), lang):
+                self.say(f"PlayOnline language: {lang}.")
+        except Exception as e:
+            self.say(f"Could not set the PlayOnline language ({e}).")
 
     def explain_quick_close(self, began, appdata=None):
         """(2026-11-22) A game that closes within a minute of starting says nothing about why: the loader's own log does.
@@ -4613,6 +4661,7 @@ class App(tk.Tk):
         if linux is not None:
             linux.start_game(HERE, self.cfg, self.ashita, boot, log)
             return
+        self.apply_game_lang(boot)
         subprocess.Popen([cli, boot], cwd=self.ashita, stdout=log, stderr=subprocess.STDOUT, creationflags=core.NO_WINDOW)
 
     def apply_gamepad(self):
