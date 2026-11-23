@@ -1,17 +1,33 @@
-"""Limited-time looks for the launcher: its colours, the tint of its painted buttons and an opening theme.
+"""Themes for the launcher: its colours, its own buttons and an opening theme, picked on the Theme page (OPTIONS > Theme).
 
-Everything is a dated file in assets\\press, named like the limited-time banners (name__until-YEAR-MONTH-DAY):
-    vaporwave__until-2026-12-02.json    the look: colours for the launcher's palette, and its own buttons ("art": a folder of pictures
-                                        that stand in for the ones in assets\\ui, name for name; or a tint for the usual ones)
-    theme__until-2026-12-02.mp3         the opening theme: played once when the launcher opens (.mp3 or .wav); a MUSIC switch sits on the banner
-Up to and including the date in the name they are used; the day after, the launcher has its own look again and is silent, by itself.
-config.json:  "limited_look": false  turns the look and the music off on this PC;  "theme_music": false  is the MUSIC switch.
+A theme is a .json in assets\\press with a "colours" table. Two kinds, told apart by the file's name:
+    vaporwave__until-2026-12-02.json    a limited-time theme (named like the limited-time banners, name__until-YEAR-MONTH-DAY): it
+                                        turns itself on when it arrives and is gone, by itself, the day after its date
+    windurst.json                       a theme that is always there to pick; it is never on unless the player picks it
+What a theme's .json may hold:
+    "name"      what the Theme page calls it (otherwise the file's name)
+    "colours"   the launcher's palette: BG, PANEL, GOLD ... (the names at the top of launcher_widgets.py); names left out stay as usual
+    "art"       its own buttons: {"folder": "vaporwave-ui"}, a folder in assets\\press whose pictures stand in for the ones in
+                assets\\ui, name for name (or a tint for the usual ones: {"ramp": [...], "mix": 0.7})
+    "sound"     its own opening theme: the name of a .mp3 / .wav in assets\\press
+A dated .mp3 / .wav (theme__until-2026-12-02.mp3) is the opening theme of the limited-time theme of those days: played once when the
+launcher opens. A limited-time theme also has the limited-time banners of its days.
+
+The Theme page is there whenever there is something to choose: a switch for Default (the launcher's own look) and one for every
+theme, the song on / off and its volume. The classic look has no such page: there the same sit in a small strip on the banner.
+config.json keeps the choices:
+    "theme": "default" or a theme's short name (its file name without the date)      what was picked; nothing = no pick
+    "theme_event": the limited-time theme that was in date when the pick was made: a pick holds back that one only, so the next
+                   limited-time theme shows by itself again, and the pick is back when it has gone
+    "theme_music": false    the song is off          "theme_volume": 0.0 to 1.0    how loud it is
+("limited_look": false, written by the first Theme page for "off", still counts as Default.)
 
 The three files that define the launcher's colours (launcher_gui.pyw, launcher_widgets.py, launcher_coop_gui.py) each call colours()
-right after their own, and launcher_gui's main() calls start(app). Nothing in here can stop the launcher: any problem at all means the
-usual look and no sound."""
+right after their own, launcher_pages.build() calls add_page(app, tabs) and launcher_gui's main() calls start(app). Nothing in here
+can stop the launcher: any problem at all means the usual look and no sound."""
 import atexit
 import ctypes
+import datetime
 import json
 import os
 import shutil
@@ -19,6 +35,7 @@ import subprocess
 import sys
 import time
 import tkinter as tk
+from tkinter import messagebox
 
 HERE = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))  # the kit folder
 PRESS = os.path.join(HERE, "assets", "press")
@@ -27,6 +44,9 @@ TINTED = ("ui", "buttons")       # the folders of assets whose pictures a look m
 BUTTON_KINDS = {"play": "play", "stop": "stop", "dual": "dualbox"}     # assets\\buttons\\<kind>\\ holds variants of these assets\\ui pictures
 SOUNDS = (".mp3", ".wav")
 VOLUME = 0.55
+DEFAULT = "default"              # the launcher's own look, as the Theme page and config.json call it
+PALETTE = ("BG", "PANEL", "PANEL2", "FG", "DIM", "BORDER", "LINE", "OFF", "GOLD", "GOLD_LIT", "GOLD_DIM", "PARCH", "ACCENT", "GREEN", "RED", "GREY")
+OWN = {}                         # the launcher's own colours, noted as its files hand them to colours(): what Default looks like
 
 
 def today():
@@ -62,42 +82,113 @@ def config():
         return {}
 
 
-def save(key, value):
-    """Changes one value in config.json and keeps the rest (None takes the key out), the way the launcher itself does."""
+def save_all(changes):
+    """Changes values in config.json and keeps the rest (None takes a key out), the way the launcher itself does."""
     path = os.path.join(HERE, "config.json")
     with open(path, encoding="utf-8-sig") as handle:
         cfg = json.load(handle)
-    if value is None:
-        cfg.pop(key, None)
-    else:
-        cfg[key] = value
+    for key, value in changes.items():
+        if value is None:
+            cfg.pop(key, None)
+        else:
+            cfg[key] = value
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(cfg, handle, indent=2)
+
+
+def save(key, value):
+    save_all({key: value})
 
 
 def is_colour(value):
     return isinstance(value, str) and len(value) == 7 and value[0] == "#" and all(c in "0123456789abcdefABCDEF" for c in value[1:])
 
 
-def load_look():
-    """The look in date today: the first dated .json in assets\\press that holds a "colours" table. None when there is none (or it is switched off)."""
-    if config().get("limited_look") is False:
-        return None
-    for path in dated((".json",)):
+def key_of(name):
+    """A theme's short name, from its file: 'vaporwave' for vaporwave__until-2026-12-02.json."""
+    stem = os.path.splitext(os.path.basename(name))[0]
+    cut = stem.lower().find(UNTIL_TAG)
+    return (stem if cut < 0 else stem[:cut]).strip().lower()
+
+
+def looks():
+    """Every theme there is to pick today: each .json in assets\\press with a "colours" table whose date, if its name has one, has not
+    passed. The limited-time ones (dated) first, then the others, by name."""
+    try:
+        names = [n for n in os.listdir(PRESS) if n.lower().endswith(".json") and (not until(n) or until(n) >= today())]
+    except OSError:
+        return []
+    found = []
+    for name in sorted(names, key=lambda n: (not until(n), n.lower())):
         try:
-            with open(path, encoding="utf-8-sig") as handle:
+            with open(os.path.join(PRESS, name), encoding="utf-8-sig") as handle:
                 look = json.load(handle)
         except (OSError, ValueError):
             continue
-        if isinstance(look, dict) and isinstance(look.get("colours"), dict):
-            look["colours"] = {k: v.lower() for k, v in look["colours"].items() if is_colour(v)}
-            look["file"] = os.path.basename(path)
+        key = key_of(name)
+        if not isinstance(look, dict) or not isinstance(look.get("colours"), dict) or not key or key == DEFAULT or any(key == other["key"] for other in found):
+            continue
+        look["colours"] = {k: v.lower() for k, v in look["colours"].items() if is_colour(v)}
+        look["file"], look["key"], look["id"], look["until"] = name, key, os.path.splitext(name)[0].lower(), until(name)
+        if not isinstance(look.get("name"), str) or not look["name"].strip():
+            look["name"] = key.replace("_", " ").replace("-", " ").title()
+        found.append(look)
+    return found
+
+
+def event_look(found=None):
+    """The limited-time theme in date today (the first dated one), or None."""
+    for look in (looks() if found is None else found):
+        if look["until"]:
             return look
     return None
 
 
+def picked(cfg, event):
+    """What this PC picked on the Theme page, as it counts today: 'default', a theme's short name, or None (no pick: a limited-time
+    theme shows by itself, otherwise the launcher's own look). A pick made before today's limited-time theme arrived does not hold
+    it back: that theme shows by itself once, and the pick is back when it has gone."""
+    pick = cfg.get("theme")
+    if not isinstance(pick, str) or not pick.strip():
+        return DEFAULT if cfg.get("limited_look") is False else None        # how the first Theme page wrote "off"
+    if event is not None and cfg.get("theme_event") != event["id"]:
+        return None
+    return pick.strip().lower()
+
+
+def load_look():
+    """The look the launcher wears this time: the theme picked on the Theme page, else the limited-time one in date, else None (its own)."""
+    found = looks()
+    event = event_look(found)
+    pick = picked(config(), event)
+    if pick == DEFAULT:
+        return None
+    for look in found:
+        if look["key"] == pick:
+            return look
+    return event
+
+
+def switched_off():
+    """True when a limited-time theme is in date and this PC wears another one (picked on the Theme page): its banners rest with it."""
+    event = event_look()
+    return event is not None and (LOOK is None or LOOK.get("id") != event["id"])
+
+
+def themes():
+    """What the Theme page offers: Default (the launcher's own look), then every theme there is today."""
+    return [{"key": DEFAULT, "name": "Default", "until": "", "colours": dict(OWN)}] + looks()
+
+
 def colours(names):
-    """The look's colours for the names this file defines (BG, PANEL, GOLD ...): {} when no look is in date, so nothing changes."""
+    """The worn look's colours for the names this file defines (BG, PANEL, GOLD ...): {} when the launcher wears its own, so nothing
+    changes. On the way it notes the file's own colours (OWN): the Theme page shows them beside Default."""
+    try:
+        for key in PALETTE:
+            if key not in OWN and is_colour(names.get(key)):
+                OWN[key] = names[key].lower()
+    except Exception:
+        pass
     if LOOK is None:
         return {}
     return {key: value for key, value in LOOK["colours"].items() if key in names}
@@ -256,6 +347,14 @@ class Player:
             self.stop()
         return False
 
+    def volume(self, level):
+        """Louder or quieter while it plays (Windows; elsewhere the new level counts from the next time)."""
+        try:
+            if os.name == "nt" and self.open:
+                self._mci(f"setaudio {self.ALIAS} volume to {int(max(0.0, min(1.0, level)) * 1000)}")
+        except Exception:
+            pass
+
     def playing(self):
         try:
             if os.name == "nt":
@@ -282,62 +381,324 @@ atexit.register(PLAYER.stop)
 
 
 def music_file():
-    """The opening theme in date today (the first dated .mp3 / .wav in assets\\press), or None."""
-    if config().get("limited_look") is False:
+    """The opening theme of the look worn this time, or None: the file the theme names itself ("sound", in assets\\press); else, for a
+    limited-time theme (and when nothing is themed at all: no limited-time theme in date, the launcher in its own look), the first
+    dated .mp3 / .wav in assets\\press."""
+    if LOOK is not None and isinstance(LOOK.get("sound"), str):
+        path = os.path.join(PRESS, os.path.basename(LOOK["sound"]))
+        if path.lower().endswith(SOUNDS) and os.path.isfile(path):
+            return path
+    if (LOOK is not None and LOOK.get("until")) or (LOOK is None and event_look() is None):
+        found = dated(SOUNDS)
+        return found[0] if found else None
+    return None
+
+
+def volume_now():
+    try:
+        return max(0.0, min(1.0, float(config().get("theme_volume", VOLUME))))
+    except (TypeError, ValueError):
+        return VOLUME
+
+
+def restart(app):
+    """Opens the launcher again and closes this one (the way it restarts itself after an update)."""
+    extra = {} if os.name == "nt" else {"start_new_session": True}
+    command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, os.path.join(HERE, "launcher_gui.pyw")]
+    subprocess.Popen(command, cwd=HERE, **extra)
+    app.on_close()
+
+
+def last_day_text(day):
+    """'2 December' for 2026-12-02 ('' if it cannot be read)."""
+    try:
+        when = datetime.date.fromisoformat(day)
+        return f"{when.day} {when.strftime('%B')}"
+    except (TypeError, ValueError):
+        return ""
+
+
+def swatch(parent, theme, bg, edge):
+    """Five small squares of a theme's colours (Default: the launcher's own), to see what one looks like before picking it."""
+    shades = dict(OWN)
+    shades.update(theme.get("colours") or {})
+    canvas = tk.Canvas(parent, width=5 * 15 + 1, height=16, bg=bg, highlightthickness=0)
+    for i, key in enumerate(("BG", "PANEL2", "GOLD", "ACCENT", "FG")):
+        canvas.create_rectangle(i * 15, 0, i * 15 + 15, 15, fill=shades.get(key, bg), outline=edge)
+    return canvas
+
+
+class Slider(tk.Canvas):
+    """A small volume slider: a line and a knob. Click or drag; `moved` hears every change, `released` the last one."""
+
+    def __init__(self, parent, value, moved, released, bg, line, knob, width=66, height=16):
+        tk.Canvas.__init__(self, parent, width=width, height=height, bg=bg, highlightthickness=0, cursor="hand2")
+        self.value, self.moved, self.released, self.line, self.knob = value, moved, released, line, knob
+        self.pad = 8
+        self.bind("<Button-1>", self.drag)
+        self.bind("<B1-Motion>", self.drag)
+        self.bind("<ButtonRelease-1>", lambda _e: self.released(self.value))
+        self.draw()
+
+    def draw(self):
+        self.delete("all")
+        w, h = int(self["width"]), int(self["height"])
+        x = self.pad + (w - 2 * self.pad) * self.value
+        self.create_line(self.pad, h // 2, w - self.pad, h // 2, fill=self.line, width=3)
+        self.create_line(self.pad, h // 2, x, h // 2, fill=self.knob, width=3)
+        self.create_oval(x - 6, h // 2 - 6, x + 6, h // 2 + 6, fill=self.knob, outline=self.knob)
+
+    def drag(self, event):
+        w = int(self["width"])
+        self.value = max(0.0, min(1.0, (event.x - self.pad) / float(w - 2 * self.pad)))
+        self.draw()
+        self.moved(self.value)
+
+
+class Controls:
+    """What the Theme page (or, in the classic look, the strip on the banner) does: which theme, the song, its volume."""
+
+    def __init__(self, app):
+        self.app = app
+        self.themes = themes()                         # Default first, then every theme there is today
+        self.event = event_look(self.themes[1:])       # the limited-time one, if one is in date
+        self.worn = LOOK["key"] if LOOK is not None else DEFAULT       # what the launcher wears this time
+        self.pick = self.worn                          # what is picked: it counts from the next start
+        self.sound = music_file()                      # the worn look's opening theme
+        self.music_on = config().get("theme_music") is not False
+        self.changed = []                              # things to redraw after a change
+
+    def there(self):
+        return len(self.themes) > 1 or self.sound is not None
+
+    def theme(self, key):
+        return next((theme for theme in self.themes if theme["key"] == key), None)
+
+    def name(self, key):
+        return (self.theme(key) or {}).get("name") or key
+
+    def following(self, key):
+        """The theme after this one in the list (the classic strip steps through them)."""
+        keys = [theme["key"] for theme in self.themes]
+        return keys[(keys.index(key) + 1) % len(keys)] if key in keys else DEFAULT
+
+    def refresh(self):
+        for redraw in self.changed:
+            try:
+                redraw()
+            except Exception:
+                pass
+
+    def remember(self, changes):
+        try:
+            save_all(changes)
+        except Exception:
+            pass                                      # not remembered, but it does what was asked now
+
+    def watch(self):
+        if not PLAYER.playing():
+            return
+        if getattr(self.app, "running", False):       # the game has its own music
+            PLAYER.stop()
+            return
+        self.app.after(500, self.watch)
+
+    def play(self, asked=False):
+        """The opening theme: by itself only when the music is on and the theme is the one worn; `asked` is the page's own Play button."""
+        if not self.sound or getattr(self.app, "running", False):
+            return False
+        if not asked and not (self.music_on and self.pick == self.worn):
+            return False
+        if PLAYER.play(self.sound, volume_now()):
+            self.app.after(500, self.watch)
+            return True
+        return False
+
+    def stop(self):
+        PLAYER.stop()
+
+    def set_music(self, on):
+        self.music_on = bool(on)
+        self.remember({"theme_music": None if self.music_on else False})
+        if self.music_on:
+            self.play()
+        else:
+            PLAYER.stop()
+        self.refresh()
+
+    def volume_moved(self, level):
+        PLAYER.volume(level)
+
+    def volume_set(self, level):
+        self.remember({"theme_volume": round(level, 2)})
+        self.refresh()
+
+    def set_theme(self, key):
+        """Picks a theme. The whole launcher changes, so it counts from the next start; it offers to restart right away."""
+        if key == self.pick or self.theme(key) is None:
+            self.refresh()
+            return
+        self.pick = key
+        by_itself = self.event["key"] if self.event is not None else DEFAULT
+        if key == by_itself:                          # what the launcher wears with no pick at all: nothing to keep
+            self.remember({"theme": None, "theme_event": None, "limited_look": None})
+        else:
+            self.remember({"theme": key, "theme_event": self.event["id"] if self.event is not None else None, "limited_look": None})
+        if key != self.worn:
+            PLAYER.stop()
+        self.refresh()
+        if key == self.worn:                          # back to the one it wears already: nothing to restart for
+            return
+        name = self.name(key)
+        try:
+            if getattr(self.app, "running", False):
+                messagebox.showinfo("XI: Forever Offline", f"{name} is the theme from the next time you open the launcher.")
+            elif messagebox.askyesno("XI: Forever Offline", f"{name} is the theme from the next time the launcher opens.\n\nRestart the launcher now?"):
+                restart(self.app)
+        except Exception:
+            pass
+
+
+_CONTROLS = None
+
+
+def controls(app):
+    global _CONTROLS
+    if _CONTROLS is None or _CONTROLS.app is not app:
+        _CONTROLS = Controls(app)
+    return _CONTROLS
+
+
+def add_page(app, tabs):
+    """OPTIONS > Theme, in the launcher's newer look: made whenever there is a theme to pick or an opening theme to switch off. A
+    switch for Default and one for every theme (one is on at a time), the song on or off, its volume. Returns the page (None when
+    there is nothing to choose)."""
+    c = controls(app)
+    if not c.there():
         return None
-    found = dated(SOUNDS)
-    return found[0] if found else None
+    import launcher_widgets as w
+    event = c.event
+    last = last_day_text(event["until"]) if event is not None else ""
+    song_last = last_day_text(until(os.path.basename(c.sound))) if c.sound else ""
+    page = w.ScrollPage(tabs)
+    subtitle = "Pick the launcher's look." if len(c.themes) > 1 else "The launcher's opening theme" + (f", here until {song_last}." if song_last else ".")
+    if last:
+        subtitle += f" {event['name']} is here until {last}."
+    w.page_header(page.body, "Theme", subtitle, note="").pack(fill="x")
+    page.theme_vars, page.theme_switches = {}, {}
+    page.music_var = tk.BooleanVar(app, c.music_on)
+    page.slider = page.percent = page.music_switch = page.pending = None
+    wrap = 940
+    if len(c.themes) > 1:
+        card = w.Card(page.body, "Look")
+        card.pack(fill="x", pady=(14, 0))
+        for theme in c.themes:
+            key = theme["key"]
+            var = page.theme_vars[key] = tk.BooleanVar(app, key == c.pick)
+            line = tk.Frame(card.body, bg=w.PANEL)
+            line.pack(fill="x", pady=3)
+            switch = page.theme_switches[key] = w.Switch(line, var, command=lambda key=key, var=var: c.set_theme(key if var.get() else DEFAULT))
+            switch.pack(side="right")
+            swatch(line, theme, w.PANEL, w.LINE).pack(side="left", padx=(0, 10))
+            tk.Label(line, text=theme["name"], bg=w.PANEL, fg=w.FG, font=(w.UI_FONT, 10), anchor="w").pack(side="left")
+            about = "The launcher's own look" if key == DEFAULT else f"Limited time: until {last_day_text(theme['until'])}" if theme["until"] else ""
+            if about:
+                tk.Label(line, text=about, bg=w.PANEL, fg=w.DIM, font=(w.UI_FONT, 9), anchor="w").pack(side="left", padx=(12, 0))
+        words = "A theme changes the launcher's colours and buttons, and the launcher restarts to change it."
+        if event is not None:
+            words += (" A limited-time theme turns itself on when it arrives, brings its own banners and opening song, and goes away by "
+                      "itself after its last day.")
+        about_themes = card.note(words, wrap=wrap)
+        page.pending = tk.Label(card.body, bg=w.PANEL, fg=w.GOLD, font=(w.UI_FONT, 9), anchor="w", justify="left", wraplength=wrap)
+
+        def show_pick():
+            for key, var in page.theme_vars.items():
+                if bool(var.get()) != (key == c.pick):
+                    var.set(key == c.pick)
+            if c.pick == c.worn:
+                page.pending.pack_forget()
+            else:
+                page.pending.configure(text=f"{c.name(c.pick)} is picked: the launcher wears it the next time it opens.")
+                page.pending.pack(fill="x", pady=(0, 2), before=about_themes)
+
+        c.changed.append(show_pick)
+    if c.sound:
+        card = w.Card(page.body, "Opening theme")
+        card.pack(fill="x", pady=(10, 0))
+        page.music_switch = card.row("Play the theme song when the launcher opens",
+                                     lambda parent: w.Switch(parent, page.music_var, command=lambda: c.set_music(page.music_var.get())))
+
+        def volume_row(parent):
+            box = tk.Frame(parent, bg=w.PANEL)
+            page.percent = tk.Label(box, bg=w.PANEL, fg=w.DIM, font=(w.UI_FONT, 9), width=5, anchor="e")
+            page.percent.pack(side="right")
+            page.slider = Slider(box, volume_now(), lambda level: (c.volume_moved(level), show_percent()), c.volume_set, w.PANEL, w.LINE, w.GOLD, width=220, height=20)
+            page.slider.pack(side="right")
+            return box
+
+        def show_percent():
+            if page.percent is not None and page.slider is not None:
+                page.percent.configure(text=f"{int(round(page.slider.value * 100))}%")
+
+        card.row("Volume", volume_row)
+        show_percent()
+        bar = tk.Frame(card.body, bg=w.PANEL)
+        bar.pack(fill="x", pady=(8, 2))
+        w.button(bar, "Play it now", lambda: c.play(asked=True), small=True).pack(side="left")
+        w.button(bar, "Stop", c.stop, small=True).pack(side="left", padx=8)
+        card.note("It plays once when the launcher opens and stops when the game starts.", wrap=wrap)
+        c.changed.append(lambda: page.music_var.get() != c.music_on and page.music_var.set(c.music_on))
+    if last:
+        words = (f"After {last} the launcher goes back to normal by itself, and this page goes away." if len(c.themes) == 2
+                 else f"After {last} {event['name']} goes away by itself.")
+        tk.Label(page.body, text=words, bg=w.BG, fg=w.DIM, font=(w.UI_FONT, 9), anchor="w").pack(fill="x", pady=(12, 0))
+    tabs.add(page, text="  Theme  ")
+    page.controls = c
+    app.theme_page = page
+    return page
 
 
 def start(app):
-    """Called once the launcher's window is up: plays the opening theme (once, not while the game is running) and puts a small MUSIC
-    switch on the banner. The music stops when the game starts or the switch is turned off; the switch is remembered in config.json."""
-    path = music_file()
-    if not path:
+    """Called once the launcher's window is up: plays the opening theme (once, not while the game is running; it stops when the game
+    starts). In the classic look, which has no Theme page, it also puts the same choices in a small strip on the banner (a click on
+    THEME steps to the next theme). Returns the controls (None when there is nothing to choose)."""
+    c = controls(app)
+    if not c.there():
         return None
-    names = colours({"PANEL": 1, "GOLD": 1, "DIM": 1}) if LOOK else {}
-    panel, lit, dim = names.get("PANEL", "#101c28"), names.get("GOLD", "#e6be64"), names.get("DIM", "#8aa0ad")
-    state = {"on": config().get("theme_music") is not False}
-    label = None
+    c.strip = None
     stage = getattr(app, "stage", None)
-    if stage is not None:
-        label = tk.Label(stage, bg=panel, font=("Segoe UI" if os.name == "nt" else "DejaVu Sans", 8, "bold"), padx=7, pady=2, cursor="hand2")
-        label.place(relx=1.0, rely=1.0, anchor="se", x=-6, y=-6)
-        label.lift()
+    if getattr(app, "theme_page", None) is None and stage is not None:
+        names = (LOOK or {}).get("colours", {})
+        panel, lit, dim, line = names.get("PANEL", "#101c28"), names.get("GOLD", "#e6be64"), names.get("DIM", "#8aa0ad"), names.get("BORDER", "#1d3445")
+        font = ("Segoe UI" if os.name == "nt" else "DejaVu Sans", 8, "bold")
+        strip = tk.Frame(stage, bg=panel, padx=4, pady=1)
+        music = theme = None
+        if c.sound:
+            music = tk.Label(strip, bg=panel, font=font, padx=4, cursor="hand2")
+            music.pack(side="left")
+            music.bind("<Button-1>", lambda _e: c.set_music(not c.music_on))
+            Slider(strip, volume_now(), c.volume_moved, c.volume_set, panel, line, lit).pack(side="left", padx=(0, 6))
+        if len(c.themes) > 1:
+            theme = tk.Label(strip, bg=panel, font=font, padx=4, cursor="hand2")
+            theme.pack(side="left")
+            theme.bind("<Button-1>", lambda _e: c.set_theme(c.following(c.pick)))
 
-    def show():
-        if label is not None:
-            label.configure(text="♪ MUSIC ON" if state["on"] else "♪ MUSIC OFF", fg=lit if state["on"] else dim)
+        def show():
+            if music is not None:
+                music.configure(text="♪ MUSIC ON" if c.music_on else "♪ MUSIC OFF", fg=lit if c.music_on else dim)
+            if theme is not None:
+                theme.configure(text="THEME: " + c.name(c.pick).upper(), fg=dim if c.pick == DEFAULT else lit)
 
-    def watch():
-        if not PLAYER.playing():
-            return
-        if getattr(app, "running", False):            # the game has its own music
-            PLAYER.stop()
-            return
-        app.after(500, watch)
-
-    def play():
-        if state["on"] and not getattr(app, "running", False) and PLAYER.play(path):
-            app.after(500, watch)
-
-    def toggle(_event=None):
-        state["on"] = not state["on"]
-        try:
-            save("theme_music", None if state["on"] else False)
-        except Exception:
-            pass                                      # not remembered, but it does what was asked now
-        if state["on"]:
-            play()
+        if strip.winfo_children():
+            strip.place(relx=1.0, rely=1.0, anchor="se", x=-6, y=-6)
+            strip.lift()
+            c.changed.append(show)
+            show()
+            c.strip = strip
         else:
-            PLAYER.stop()
-        show()
-
-    if label is not None:
-        label.bind("<Button-1>", toggle)
-    show()
-    app.after(700, play)
-    return toggle
+            strip.destroy()
+    app.after(700, c.play)
+    return c
 
 
 # ---------- set up when the launcher first asks for it ----------

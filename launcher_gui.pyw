@@ -114,13 +114,23 @@ def press_until(name):
     return day if len(day) == 10 and day[4] == "-" and day[7] == "-" and (day[:4] + day[5:7] + day[8:]).isdigit() else "0"
 
 
+def press_limited_on():
+    """False when a limited-time theme is in date and this PC picked Default or another theme (OPTIONS > Theme): its banners rest too."""
+    try:
+        import launcher_theme
+        return not launcher_theme.switched_off()
+    except Exception:
+        return True
+
+
 def press_names(names):
     """Which of the pictures in assets\\press are in the rotation today. Limited-time pictures (__until-DATE in the name) that are still in
     date take the place of the usual ones: while there is at least one, only they are shown, and the day after the date the usual ones are
     back by themselves. A limited-time picture that is over is never shown; one-time pictures (__once) are never in the rotation."""
     names = sorted(n for n in names if n.lower().endswith((".png", ".jpg", ".jpeg")) and ONCE_TAG not in n.lower())
     today = press_today()
-    return [n for n in names if press_until(n) >= today] or [n for n in names if not press_until(n)]
+    limited = [n for n in names if press_until(n) >= today] if press_limited_on() else []
+    return limited or [n for n in names if not press_until(n)]
 
 
 def load_press():

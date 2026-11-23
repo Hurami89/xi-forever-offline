@@ -1,9 +1,12 @@
-"""Limited-time looks (launcher_theme.py): a dated .json in assets\\press gives the launcher its colours and tints its painted
-buttons, a dated .mp3 / .wav is the opening theme; the day after the date both are gone by themselves.
+"""Themes (launcher_theme.py): a .json in assets\\press gives the launcher its colours and its own buttons. A dated one is a
+limited-time theme (it turns itself on, with a dated .mp3 / .wav as its opening theme, and is gone by itself the day after its
+date); an undated one is always there to pick. OPTIONS > Theme has a switch for Default and one for every theme.
 
-Starts the real launcher four times from a COPY of the kit (stand-in config, database driver and addons folder; nothing of the
-real install is read or changed): with a look in date, with the music switched off, with "limited_look": false, and with the
-date passed. No sound is made: the player is replaced by one that only notes what it was asked to do.
+Starts the real launcher eight times from a COPY of the kit (stand-in config, database driver and addons folder; nothing of the
+real install is read or changed): a limited-time theme in date, the music switched off, Default picked the way the first Theme
+page wrote it ("limited_look": false), another theme picked, a pick made before the limited-time theme arrived, the classic look
+(the same choices in a strip on the banner), the date passed, and the date passed with the earlier pick still there.
+No sound is made: the player is replaced by one that only notes what it was asked to do.
 Needs python3-tk, Pillow and a screen:
     xvfb-run -a -s "-screen 0 1500x1000x24" python3 dev/launcher-tests/test_limited_look.py [OUTDIR for screenshots]"""
 import datetime
@@ -27,24 +30,37 @@ LOOK = {"name": "Test look",
         "art": {"folder": "t-ui", "ramp": [[0, "#100020"], [0.5, "#ff40c0"], [1, "#ffffff"]], "mix": 0.8}}
 OWN, OWN_HOVER = (10, 200, 220), (9, 90, 190)        # the colours of the look's own stand-in pictures
 USUAL = {"BG": "#0a1118", "GOLD": "#e6be64"}
+PLAIN = {"name": "Plain", "colours": {"BG": "#102018", "GOLD": "#80e060"}, "sound": "t_own.wav"}      # a theme that is always there to pick
+WEARING = {"during": "event", "muted": "event", "classic": "event", "earlier": "event", "picked": "plain", "back": "plain"}   # other steps: its own look
 
 
 def day(offset):
     return (datetime.date.today() + datetime.timedelta(days=offset)).isoformat()
 
 
-def put_dated(press, offset):
-    """The copy's own look and theme tune, dated `offset` days from today (any others are taken out first)."""
-    for name in os.listdir(press):
-        if name.lower().endswith((".json", ".mp3", ".wav")):
-            os.remove(os.path.join(press, name))
-    with open(os.path.join(press, f"t_look__until-{day(offset)}.json"), "w") as f:
-        json.dump(LOOK, f)
-    with wave.open(os.path.join(press, f"t_theme__until-{day(offset)}.wav"), "wb") as w:
+def tone(path):
+    with wave.open(path, "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(8000)
         w.writeframes(b"\x00\x00" * 800)
+
+
+def put_dated(press, offset, plain=False):
+    """The copy's own limited-time theme, banner and tune, dated `offset` days from today (any others are taken out first).
+    plain: also a theme with no date (always there to pick), with a tune of its own."""
+    for name in os.listdir(press):
+        if os.path.isfile(os.path.join(press, name)) and (name.lower().endswith((".json", ".mp3", ".wav")) or "__until-" in name.lower()):
+            os.remove(os.path.join(press, name))
+    with open(os.path.join(press, f"t_look__until-{day(offset)}.json"), "w") as f:
+        json.dump(LOOK, f)
+    from PIL import Image
+    Image.new("RGB", (920, 368), (240, 60, 160)).save(os.path.join(press, f"t_banner__until-{day(offset)}.png"))
+    tone(os.path.join(press, f"t_theme__until-{day(offset)}.wav"))
+    if plain:
+        with open(os.path.join(press, "t_plain.json"), "w") as f:
+            json.dump(PLAIN, f)
+        tone(os.path.join(press, "t_own.wav"))
 
 
 def make_copy():
@@ -128,6 +144,9 @@ class QuietPlayer:
         self.on = True
         return True
 
+    def volume(self, level):
+        self.calls.append(("volume", round(level, 2)))
+
     def playing(self):
         return self.on
 
@@ -166,13 +185,23 @@ def launch(work, step, out):
         sys.exit(1)
     player = QuietPlayer()
     theme.PLAYER = player
-    themed = step in ("during", "muted")
-    want = {k: v.lower() for k, v in LOOK["colours"].items()} if themed else USUAL
+    wearing = WEARING.get(step)
+    themed = wearing == "event"                                # the limited-time theme, with its own pictures
+    want = {k: v.lower() for k, v in LOOK["colours"].items()} if themed else dict(USUAL, **PLAIN["colours"]) if wearing == "plain" else USUAL
+    event_id = f"t_look__until-{day(3)}"
 
     if step == "during":
         check(theme.until("a__until-2026-12-02.json") == "2026-12-02" and theme.until("a.json") == "" and theme.until("a__until-soon.mp3") == "0",
               "the last day is read from a file's name")
-        check(theme.LOOK is not None and theme.LOOK.get("name") == "Test look", "the dated .json is the look")
+        check(theme.LOOK is not None and theme.LOOK.get("name") == "Test look" and theme.LOOK["key"] == "t_look" and theme.LOOK["id"] == event_id,
+              "the dated .json is the look, by itself")
+        check([t["key"] for t in theme.themes()] == ["default", "t_look", "t_plain"] and theme.themes()[0]["colours"].get("GOLD") == USUAL["GOLD"],
+              "the themes to pick: Default (in the launcher's own colours), the limited-time one, then the one with no date")
+        check(theme.key_of("Vaporwave__until-2026-12-02.json") == "vaporwave" and theme.key_of("windurst.json") == "windurst", "a theme's short name is its file name without the date")
+        gone = {"until": "x", "id": "new__until-2030-01-01", "key": "new"}
+        check(theme.picked({}, None) is None and theme.picked({"limited_look": False}, gone) == "default" and theme.picked({"theme": "a"}, None) == "a"
+              and theme.picked({"theme": "a"}, gone) is None and theme.picked({"theme": "a", "theme_event": gone["id"]}, gone) == "a",
+              "a pick counts unless it was made before today's limited-time theme arrived")
         check("NOT_A_NAME" not in theme.colours(vars(gui)) and "BAD" not in theme.LOOK["colours"], "names the launcher does not have, and values that are no colour, are left out")
         luts = theme._luts(LOOK["art"]["ramp"])
         check([t[0] for t in luts] == [0x10, 0x00, 0x20] and [t[255] for t in luts] == [255, 255, 255] and len(luts[0]) == 256, "the tint's ramp runs from its first colour to its last")
@@ -184,13 +213,13 @@ def launch(work, step, out):
         check(theme.Player().play(os.path.join(kit, "no-such-file.mp3")) in (True, False), "the real player never raises, whatever it is given")
 
     check(all(getattr(gui, k) == v for k, v in want.items() if hasattr(gui, k)) and gui.BG == want["BG"],
-          f"launcher_gui's colours are {'the look' if themed else 'its own'}'s (BG {gui.BG}, GOLD {gui.GOLD})")
+          f"launcher_gui's colours are {'the limited-time theme' if themed else 'the picked theme' if wearing else 'its own'}'s (BG {gui.BG}, GOLD {gui.GOLD})")
     check(widgets is not None and widgets.BG == want["BG"] and widgets.GOLD == want["GOLD"], "... and launcher_widgets' (the newer pages)")
     check(coop is None or (coop.BG == want["BG"] and coop.GOLD == want["GOLD"]), "... and the Co-op page's")
     pages = sys.modules.get("launcher_pages")
     check(pages is None or pages.GOLD == want["GOLD"], "... and launcher_pages picked them up from launcher_widgets")
     check((tk.PhotoImage is theme.TintedPhotoImage) == themed, "the tinted picture loader is " + ("in place" if themed else "not in place"))
-    check((theme.music_file() is not None) == themed, "there is " + ("an" if themed else "no") + " opening theme today")
+    check((theme.music_file() is not None) == bool(wearing), "there is " + ("an" if wearing else "no") + " opening theme for this look")
 
     app = gui.App()
 
@@ -224,32 +253,120 @@ def launch(work, step, out):
     check(isinstance(tk.PhotoImage(file=os.path.join(kit, "assets", "ui", "t_gold.png")).subsample(2), theme._RealPhotoImage), "it is still a real Tk picture (subsample works)")
     check("launcher_theme.start(app)" in open(os.path.join(kit, "launcher_gui.pyw"), encoding="utf-8").read(), "launcher_gui's main() starts the opening theme")
 
-    toggle = theme.start(app)
+    asked, restarts = [], []
+    theme.messagebox.askyesno = lambda *a, **k: (asked.append("ask"), step == "during")[1]      # "Restart now?": yes in the first start only
+    theme.messagebox.showinfo = lambda *a, **k: asked.append("info")
+    theme.restart = lambda _app: restarts.append("restart")
+    page = getattr(app, "theme_page", None)
+    c = theme.start(app)
     settle(1.3)
-    labels = [c for c in app.stage.winfo_children() if isinstance(c, tk.Label) and "MUSIC" in str(c.cget("text"))]
+    press = os.path.join(kit, "assets", "press")
+    pictures = sorted(n for n in os.listdir(press) if n.lower().endswith((".png", ".jpg", ".jpeg")) and "__once" not in n.lower())
+    limited = [n for n in pictures if "__until-" in n.lower() and n.lower().split("__until-", 1)[1][:10] >= day(0)]
+    usual = [n for n in pictures if "__until-" not in n.lower()]
+    check(len(app.heroes) == (len(limited) if themed else len(usual)),
+          f"the banners are {'the limited-time ones' if themed else 'the usual ones'} ({len(app.heroes)} loaded; {len(limited)} in date, {len(usual)} usual)")
+    groups = {g["title"]: [name for name, _ in g["members"]] for g in getattr(app, "nav_groups", [])}
+    strip = getattr(c, "strip", None) if c else None
+    song, own_song = f"t_theme__until-{day(3)}.wav", "t_own.wav"
+
+    def on():
+        return sorted(key for key, var in page.theme_vars.items() if var.get())
+
+    def pending():
+        return page.pending.cget("text") if page.pending.winfo_manager() else ""
+
+    if step not in ("classic", "after"):
+        check(page is not None and "Theme" in app.page_index and "Theme" in groups.get("OPTIONS", []) and "MORE" not in groups,
+              f"there is a Theme page under OPTIONS ({groups.get('OPTIONS')})")
+        check(strip is None, "... and nothing on the banner")
     if step == "during":
-        check(player.calls == [("play", f"t_theme__until-{day(3)}.wav")], f"the opening theme was started once: {player.calls}")
-        check(len(labels) == 1 and labels[0].cget("text").endswith("MUSIC ON"), "the MUSIC switch is on the banner and says ON")
-        shot("look-during")
-        toggle()
+        check(player.calls == [("play", song)], f"the opening theme was started once: {player.calls}")
+        check(list(page.theme_switches) == ["default", "t_look", "t_plain"] and on() == ["t_look"] and page.music_switch is not None and page.slider is not None
+              and page.music_var.get() and pending() == "",
+              "the page has a switch for Default, the limited-time theme (on) and the other theme, the song switch (on) and the volume slider")
+        app.select_tab(app.page_index["Theme"])
+        shot("look-theme-page")
+        page.music_switch.toggle()
         settle(0.2)
-        check(player.calls[-1] == ("stop",) and get_config(kit).get("theme_music") is False and labels[0].cget("text").endswith("MUSIC OFF"),
-              "a click on the switch stops the music, says OFF and is remembered in config.json")
-        toggle()
+        check(player.calls[-1] == ("stop",) and get_config(kit).get("theme_music") is False and not page.music_var.get(),
+              "the song switch off: the song stops, and it is remembered in config.json")
+        page.music_switch.toggle()
         settle(0.2)
-        check(player.calls[-1][0] == "play" and "theme_music" not in get_config(kit), "a second click plays it again and takes the note out of config.json")
+        check(player.calls[-1][0] == "play" and "theme_music" not in get_config(kit), "on again: it plays, and the note is out of config.json")
+        slider = page.slider
+        slider.drag(type("Click", (), {"x": int(slider["width"]) - 1})())
+        slider.released(slider.value)
+        check(player.calls[-1] == ("volume", 1.0) and get_config(kit).get("theme_volume") == 1.0 and page.percent.cget("text") == "100%",
+              "the slider at its right end: full volume at once, remembered, and the page says 100%")
+        slider.drag(type("Click", (), {"x": 8 + (int(slider["width"]) - 16) // 4})())
+        slider.released(slider.value)
+        check(0.2 <= get_config(kit).get("theme_volume") <= 0.3 and player.calls[-1][0] == "volume", f"a quarter of the way along: {get_config(kit).get('theme_volume')}")
+        check(theme.volume_now() == get_config(kit)["theme_volume"], "the next start plays at that volume")
         app.running = True
         settle(1.0)
-        check(player.calls[-1] == ("stop",) and not player.on, "it stops when the game is running")
+        check(player.calls[-1] == ("stop",) and not player.on, "the song stops when the game is running")
         count = len(player.calls)
         settle(1.2)
         check(len(player.calls) == count, "... and stays stopped")
+        page.theme_switches["default"].toggle()
+        cfg = get_config(kit)
+        check(cfg.get("theme") == "default" and cfg.get("theme_event") == event_id and on() == ["default"] and asked[-1] == "info" and not restarts,
+              "Default switched on while the game runs: the other switch goes off, it is remembered (for this limited-time theme), no restart")
+        check("Default" in pending(), f"... and the page says it is from the next start ({pending()!r})")
+        shot("look-default-picked")
+        app.running = False
+        notes = len(asked)
+        page.theme_switches["default"].toggle()
+        check(on() == ["default"] and get_config(kit).get("theme") == "default" and len(asked) == notes, "switching the picked one off leaves it on: one theme is always on")
+        page.theme_switches["t_look"].toggle()
+        cfg = get_config(kit)
+        check("theme" not in cfg and "theme_event" not in cfg and on() == ["t_look"] and len(asked) == notes and pending() == "",
+              "back to the theme it wears: nothing kept in config.json, nothing asked, nothing to restart for")
+        page.theme_switches["t_plain"].toggle()
+        cfg = get_config(kit)
+        check(cfg.get("theme") == "t_plain" and cfg.get("theme_event") == event_id and on() == ["t_plain"] and asked[-1] == "ask" and restarts == ["restart"],
+              "the other theme switched on with the game closed: remembered, it asks, and restarts the launcher on Yes")
+        page.theme_switches["t_plain"].toggle()
+        check(get_config(kit).get("theme") == "default" and on() == ["default"] and restarts == ["restart"] * 2, "a theme switched off is Default switched on")
     elif step == "muted":
         check(player.calls == [], "music switched off earlier: nothing is played")
-        check(len(labels) == 1 and labels[0].cget("text").endswith("MUSIC OFF"), "the switch is there and says OFF")
+        check(page.music_var.get() is False and on() == ["t_look"], "the page shows the song off and the theme on")
+        c.play(asked=True)
+        check(player.calls == [("play", song)], "'Play it now' still plays it")
+    elif step == "off":
+        check(player.calls == [], "Default picked: no song")
+        check(on() == ["default"] and page.music_switch is None and page.slider is None, "the page shows Default on, the limited-time theme off, and no song card")
+        app.select_tab(app.page_index["Theme"])
+        shot("look-off-page")
+        page.theme_switches["t_look"].toggle()
+        cfg = get_config(kit)
+        check("limited_look" not in cfg and "theme" not in cfg and on() == ["t_look"] and asked == ["ask"] and not restarts and "Test look" in pending(),
+              "its switch turns it on for the next start (the old note is out of config.json); No to the restart leaves this window as it is")
+    elif step == "picked":
+        check(player.calls == [("play", own_song)], f"the picked theme's own song plays, not the limited-time one's: {player.calls}")
+        check(on() == ["t_plain"] and page.music_switch is not None, "the page shows the picked theme on, and its song card")
+        app.select_tab(app.page_index["Theme"])
+        shot("look-picked-page")
+    elif step == "earlier":
+        check(player.calls == [("play", song)] and on() == ["t_look"] and get_config(kit).get("theme") == "t_plain",
+              "a pick from before the limited-time theme arrived: the limited-time theme shows by itself, and the pick is kept for later")
+    elif step == "back":
+        check(player.calls == [("play", own_song)] and list(page.theme_switches) == ["default", "t_plain"] and on() == ["t_plain"],
+              "the limited-time theme has gone: the earlier pick is back, and the page offers Default and that theme")
+    elif step == "classic":
+        labels = [w for w in strip.winfo_children() if isinstance(w, tk.Label)] if strip is not None else []
+        texts = [str(w.cget("text")) for w in labels]
+        check(page is None and not getattr(app, "new_ui", False), "the classic look has no Theme page")
+        check(texts == ["♪ MUSIC ON", "THEME: TEST LOOK"], f"... so the choices sit in a strip on the banner ({texts})")
+        check(player.calls == [("play", song)], "the opening theme plays there too")
+        labels[-1].event_generate("<Button-1>")
+        settle(0.2)
+        check(get_config(kit).get("theme") == "default" and str(labels[-1].cget("text")) == "THEME: DEFAULT" and asked == ["ask"],
+              "a click on THEME steps to the next theme (here Default) and offers the restart")
     else:
-        check(toggle is None and player.calls == [] and not labels, "no music, no switch")
-        shot("look-" + step)
+        check(c is None and page is None and "Theme" not in app.page_index and player.calls == [], "the date has passed: no song, no Theme page")
+        shot("look-after")
     app.destroy()
     sys.exit(1 if fails else 0)
 
@@ -265,9 +382,12 @@ if __name__ == "__main__":
     press = os.path.join(kit, "assets", "press")
     bad = 0
     try:
-        for step in ("during", "muted", "off", "after"):
-            put_dated(press, -1 if step == "after" else 3)
-            set_config(kit, theme_music=False if step == "muted" else None, limited_look=False if step == "off" else None)
+        for step in ("during", "muted", "off", "picked", "earlier", "classic", "after", "back"):
+            put_dated(press, -1 if step in ("after", "back") else 3, plain=step in ("during", "picked", "earlier", "back"))
+            set_config(kit, theme_music=False if step == "muted" else None, limited_look=False if step == "off" else None,
+                       theme="t_plain" if step in ("picked", "earlier", "back") else None,
+                       theme_event=f"t_look__until-{day(3)}" if step in ("picked", "back") else "t_old__until-2020-01-01" if step == "earlier" else None,
+                       theme_volume=None, classic_ui=True if step == "classic" else None)
             print(step)
             bad += subprocess.run([sys.executable, os.path.abspath(__file__), "--launch", work, step, out]).returncode != 0
     finally:

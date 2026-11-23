@@ -19,7 +19,7 @@ from launcher_widgets import LINE as LINE_COLOUR
 # the page buttons along the bottom: (picture in assets\ui, name, the pages it opens)
 NAV_BUTTONS = (("home", "HOME", ("Play",)), ("world", "WORLD", ("World",)), ("rules", "RULES", ("Rules",)),
                ("squad", "SQUADS", ("Squad",)),
-               ("options", "OPTIONS", ("Graphics", "Shaders", "Controller", "Addons", "Plugins", "Other")),
+               ("options", "OPTIONS", ("Graphics", "Shaders", "Controller", "Addons", "Plugins", "Other", "Theme")),
                ("coop", "CO-OP", ("Co-op",)), ("system", "SYSTEM", ("Settings", "Patch notes", "Characters", "Era", "About")))
 WINDOW = (1100, 810)            # one size for every page
 BANNER = (800, 320)             # the Play page's picture (the classic page: 920 x 368)
@@ -1480,6 +1480,11 @@ def build(app, tabs):
         style_older_pages(app)
     except Exception:
         log_problem("The older pages could not be restyled")
+    try:                                # OPTIONS > Theme: the switches of a limited-time look, only while one is in date (launcher_theme.py)
+        import launcher_theme
+        launcher_theme.add_page(app, tabs)
+    except Exception:
+        log_problem("The Theme page could not be made")
     app.build_nav = lambda: build_nav(app)
     app.show_subnav = lambda group, index: show_subnav(app, group, index)
     app.fit_window = lambda: fit_window(app)
