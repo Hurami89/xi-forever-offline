@@ -13,6 +13,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Squad: a "Spells and abilities" button on a mate's profile window (the Profile button on its row in the Squads menu) opens a list of every spell it can cast right now, with the MP, and every job ability it can use, with the level. Shown while the mate is called. (Frost)
 • Ephemeral Moogles: the crafting guilds' crystal-storage moogles are there, on by default. Trade them crystals or clusters to store, talk to one to take them out. RULES, "Ephemeral Moogles keep your crystals" (1 = on, 0 = off). (Gilder, stanky kong)
 • Bot players: the roster can go up to 2000 and bots online up to 1500 for strong PCs. Past the usual 600 / 550 the launcher asks first, with a warning. Bots online are at most 60% of the roster (now said next to the setting), so 500 online needs a roster of about 840. (Meli)
+• Squad mates can be Raised: a mate that falls stays where it fell, in your party, for 5 minutes. Raise, Raise II, Raise III or Arise brings it back at once with 10 / 25 / 50 / 100% HP, no call wait. Nobody raises it: it leaves as before, and calling it again works any time. RULES, "Fallen squad mates can be Raised" (1 = on). (Meli)
+• Squad camp: the monster your puller brings back is the whole squad's fight even while you rest or keep your weapon away. Everyone stands up and goes in, and the tank provokes it. (Eureka629)
 • SYSTEM > Updates: "Repair..." installs the newest launcher and server again over what you have (database update included), for an update that stopped halfway. (Reika, Ryan)
 
 ### Fixes
