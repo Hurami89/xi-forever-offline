@@ -1409,7 +1409,9 @@ class SquadTab(tk.Frame):
         if sub:
             text += f"  /  {sq.JOBS[sub - 1]} {sub_level}"
         self.summary.configure(text=text)
-        for job in range(1, 16):
+        # (2026-11-22, krazy: "Cor not gaining EXP": his Corsair levelled in game and this tab kept showing 1) the list
+        # stopped at Summoner: Blue Mage, Corsair and Puppetmaster (16-18) never got their level and exp filled in
+        for job in range(1, len(sq.JOBS) + 1):
             level, exp = m["jobs"].get(job, (1, 0))
             locked = job not in self.unlocked and job not in m["jobs"]
             self.level_vars[job].set(level)
@@ -1588,7 +1590,7 @@ class SquadTab(tk.Frame):
         if self.player:
             return
         def go():
-            for job in range(1, 16):
+            for job in range(1, len(sq.JOBS) + 1):      # (was 1-15: the three Aht Urhgan jobs were never saved)
                 if job not in self.unlocked and job not in self.mate["jobs"]:
                     continue
                 level = int(self.level_vars[job].get())

@@ -72,6 +72,16 @@ check('camp: a full bot does not sit by itself', camp_sit_fn(False, True, False)
 check('camp: it stays down while you rest and gets up when you stand, once full', camp_up_fn(True, True) is False and camp_up_fn(True, False) is True
       and camp_up_fn(False, False) is False)
 
+# a bot that sits only for company still cures and buffs (2026-11-22: before it sat with you it stood and cured you)
+act = re.search(r'if partyPlay and \((not st\.resting or emergency or \(leaderRests and full\))\) then', bots)
+check('the condition for acting while sitting is where it was', act is not None)
+lua.execute('function acts(resting, emergency, leaderRests, full) local st = { resting = resting } return (%s) and true or false end' % act.group(1))
+acts = lua.globals().acts
+check('standing: it acts, as always', acts(False, False, False, False) is True)
+check('sitting with you, full: it still cures and buffs', acts(True, False, True, True) is True)
+check('sitting because it needs the rest: only an emergency gets it up, as before', acts(True, False, True, False) is False and acts(True, True, True, False) is True)
+check('sitting by itself, low: only an emergency', acts(True, False, False, False) is False and acts(True, True, False, False) is True)
+
 squad = read('modules', 'custom', 'lua', 'squad.lua')
 check('squad mates: sit with you whenever you /heal and nobody fights, full or not',
       'local resting = master:getAnimation() == xi.animation.HEALING and not mob:isEngaged() and not master:isEngaged()' in squad)
