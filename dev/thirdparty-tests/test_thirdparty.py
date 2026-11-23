@@ -34,7 +34,8 @@ class ThirdPartyTests(unittest.TestCase):
         for item in self.items.values():
             for key in ("id", "name", "author", "license", "homepage", "source"):
                 self.assertIn(key, item, item.get("id"))
-            if item["source"]["type"] not in ("page", "installer", "ollama_model"):
+            # (items unpacked whole, "unpack": "tree" or "zips" (umu, Proton, XISpeaks), say where with unpack_to instead)
+            if item["source"]["type"] not in ("page", "installer", "ollama_model") and not item.get("unpack"):
                 self.assertTrue(item.get("files"), item["id"])
 
     def test_release_with_checksum(self):
