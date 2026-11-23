@@ -783,6 +783,12 @@ RATE_FIELDS = [
     ("main.LAND_KINGS_TIMED",           "main.lua", "LAND_KINGS_TIMED",            "Land kings on a timer (1 = on, 0 = called at the ???)", 0, 0, 1, "int"),
     # (2026-11-22, suggestions: Dugahst; the user: on by default) server: custom/late/comforts.lua
     ("main.GUILD_SHOPS_ALWAYS_OPEN",    "main.lua", "GUILD_SHOPS_ALWAYS_OPEN",     "Guild shops always open (1 = on, 0 = era hours)", 1, 0, 1, "int"),
+    # (2026-11-23, Gilder, stanky kong; the user: on by default) Seekers of Adoulin's crystal storage at the crafting guilds
+    # (server: zoneutils.cpp InsertNPCs); an older server without the key ignores it
+    ("main.EPHEMERAL_MOOGLES",          "main.lua", "EPHEMERAL_MOOGLES",           "Ephemeral Moogles keep your crystals (1 = on)", 1, 0, 1, "int"),
+    # (2026-11-23, Frost, Syfin; the user: off by default) squad_juice.lua: a mate out of the juices you traded it drinks
+    # one for its level, free
+    ("main.SQUAD_UNLIMITED_JUICE",      "main.lua", "SQUAD_UNLIMITED_JUICE",       "Squad mates: unlimited juice (1 = on)", 0, 0, 1, "int"),
     # (2026-11-22, suggestions: Hexblood, VRTRA, Poptart, Gilder) out of era, so the era's value by default. All but the
     # chain time are the server's own settings (LandSandBoat), which had no line here; the chain time is ours
     # (scripts/globals/experience_points.lua). The server reads the HP and MP multipliers from 0.1 to 2.
@@ -821,6 +827,9 @@ RATE_DEFAULTS.update({"crowds": True, "crowds_per_zone": 15})   # ambient crowds
 RATE_DEFAULTS.update({"crowds_chat": True, "crowds_chat_amount": "normal", "crowds_chat_ai": True})   # crowd chat (crowds_chat.lua)
 RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # field parties (crowds_field.lua)
 RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
+# (2026-11-23, Meli; the user: allowed, with a warning) the usual top values, and how far a strong PC may go past them
+BOTS_ROSTER_SAFE, BOTS_ONLINE_SAFE = 600, 550
+BOTS_ROSTER_MAX, BOTS_ONLINE_MAX = 2000, 1500
 RATE_DEFAULTS.update({"bots_growth": "realistic"})
 RATE_DEFAULTS.update({"bots_head_start": False, "bots_head_start_done": False})   # one-time bot head start (bots_growth.lua)
 RATE_DEFAULTS.update({"squad_all_gear": False})   # (Yache) every piece of gear counts as given to the squad (squad.lua squadAllGear)
@@ -1001,8 +1010,8 @@ def write_crowds_config(server_dir, rates):
         growth = growth if growth in ("off", "realistic", "fast") else "realistic"
         head_start = bool(rates.get("bots_head_start")) and not rates.get("bots_head_start_done")
         f.write("return { enabled = %s, roster = %d, online = %d, growth = '%s', head_start = %s, pass_loot = %s }\n" % (
-            "true" if rates.get("bots", True) else "false", max(0, min(600, int(rates.get("bots_roster", 100) or 0))),
-            max(0, min(550, int(rates.get("bots_online", 50) or 0))), growth, "true" if head_start else "false",
+            "true" if rates.get("bots", True) else "false", max(0, min(BOTS_ROSTER_MAX, int(rates.get("bots_roster", 100) or 0))),
+            max(0, min(BOTS_ONLINE_MAX, int(rates.get("bots_online", 50) or 0))), growth, "true" if head_start else "false",
             "true" if rates.get("bots_pass_loot", True) else "false"))
     with open(os.path.join(module_dir, "extras_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
@@ -1163,7 +1172,7 @@ def load_rates(here):
         for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro"):
             if k in saved:
                 rates[k] = bool(saved[k])
-        for key, lo, hi in (("bots_roster", 0, 600), ("bots_online", 0, 550)):
+        for key, lo, hi in (("bots_roster", 0, BOTS_ROSTER_MAX), ("bots_online", 0, BOTS_ONLINE_MAX)):
             if key in saved:
                 try:
                     rates[key] = max(lo, min(hi, int(saved[key])))

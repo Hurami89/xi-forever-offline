@@ -68,8 +68,12 @@ def check(kit, server, test_builds, fetch):
         have = installed_version(folder) if folder else None
         release = newest_release(repo, test_builds, fetch)
         tag = release.get("tag_name") if release else None
+        # (2026-11-23, Ryan: "Launcher: you have ?" after an update stopped halfway, and Update now did nothing) a players'
+        # launcher (the built program) with no VERSION.txt is a copy that lost it: the newest one is offered. A copy
+        # run from the source (a developer's) still never updates itself.
+        lost = key == "kit" and have is None and getattr(sys, "frozen", False) and bool(folder)
         out[key] = {"installed": have, "newest": tag, "notes": (release or {}).get("body", ""), "release": release,
-                    "newer": bool(tag and have and version_key(tag) > version_key(have))}
+                    "newer": bool(tag and ((have and version_key(tag) > version_key(have)) or lost))}
     return out
 
 

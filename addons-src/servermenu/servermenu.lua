@@ -37,7 +37,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.26k';   -- (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.26l';   -- (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -200,6 +200,7 @@ local S = {
     open = { false }, tab = 'Squad',
     -- squad
     mates = {}, incoming = nil, waitUntil = 0, hideUntil = 0, lastAsk = -1000, lastSend = -1000, queue = {}, pendingApply = false, more = {},
+    actionsOpen = { false }, actionsFresh = false,
     sheetOpen = { false }, sheetFresh = false, profile = nil, profileIncoming = nil, sheetSlot = nil, sheetWaitUntil = 0, lastSheetAsk = -1000,
     -- dualbox
     duoHold = false, duo = nil, duoRead = -1000, duoSeq = 0, duoPending = nil, duoSentSeq = nil, duoSentAt = -1000, duoGambits = false,
@@ -645,7 +646,26 @@ local function onSheetLine(text)
         end
     elseif key == 'note' then
         data.note = rest;
+    elseif key == 'spell' or key == 'ability' then
+        -- (1.26l, Frost) a called mate's spells (name | MP) and job abilities (name | level)
+        local name, value = rest:match('^([^|]+)|(%d+)$');
+        if name then
+            local field = (key == 'spell') and 'spells' or 'abilities';
+            data[field] = data[field] or {};
+            data[field][#data[field] + 1] = { name, tonumber(value) or 0 };
+        end
     end
+end
+
+-- "cure_ii" / "Cure II" / "provoke" -> "Cure II", "Provoke"
+local ROMAN = { i = 'I', ii = 'II', iii = 'III', iv = 'IV', v = 'V', vi = 'VI' };
+local function prettyName(text)
+    local words = {};
+    for word in tostring(text or ''):gsub('_', ' '):gmatch('%S+') do
+        local lower = word:lower();
+        words[#words + 1] = ROMAN[lower] or (lower:sub(1, 1):upper() .. lower:sub(2));
+    end
+    return table.concat(words, ' ');
 end
 
 -- role, mode, job and sub apply when a mate is called, so they leave a "press Apply now" banner
@@ -2692,6 +2712,19 @@ local function renderSheet()
                 wrapped('Jobs: ' .. table.concat(parts, ', '), C.text);
             end
 
+            -- (1.26l, Frost) what this mate can cast and use, in a window of its own
+            do
+                local nSpells, nAbilities = d.spells and #d.spells or 0, d.abilities and #d.abilities or 0;
+                local label = (nSpells + nAbilities > 0) and string.format('Spells and abilities (%d / %d)', nSpells, nAbilities)
+                    or 'Spells and abilities';
+                if button(label, 'sheetactions', 0, 0, S.actionsOpen[1] and 'on' or nil) then
+                    S.actionsOpen[1] = not S.actionsOpen[1];
+                    S.actionsFresh = S.actionsOpen[1];
+                end
+                tooltip('The spells and job abilities this mate can use right now (its jobs and levels). Only while it is called.');
+                gap(2);
+            end
+
             if has('Separator') then imgui.Separator(); end
             colorText(C.gold, 'Equipped items');
             gap(2);
@@ -2723,11 +2756,75 @@ local function renderSheet()
     if vars > 0 then imgui.PopStyleVar(vars); end
 end
 
+-- (1.26l, Frost) the Spells and abilities window, next to the profile; it follows the sheet that is open
+local function renderActions()
+    if not imgui or not S.actionsOpen[1] or not S.sheetOpen[1] then return; end
+    local d = S.profile;
+    if S.actionsFresh then
+        S.actionsFresh = false;
+        if has('SetNextWindowFocus') then imgui.SetNextWindowFocus(); end
+    end
+    if has('SetNextWindowSize') and G('ImGuiCond_FirstUseEver') then
+        imgui.SetNextWindowSize({ px(360), px(460) }, G('ImGuiCond_FirstUseEver'));
+    end
+    local title = 'Spells and abilities###sm_actions';
+    if d and d.hdr then title = string.format('%s: spells and abilities###sm_actions', d.hdr.name); end
+    local colors = pushColors({ { 'ImGuiCol_WindowBg', C.panel }, { 'ImGuiCol_Border', C.line }, { 'ImGuiCol_Text', C.text } });
+    local vars = pushVars({ { 'ImGuiStyleVar_WindowRounding', 6 }, { 'ImGuiStyleVar_WindowPadding', { 12, 10 } }, { 'ImGuiStyleVar_ItemSpacing', { 8, 4 } } });
+    if imgui.Begin(title, S.actionsOpen, G('ImGuiWindowFlags_NoCollapse') or 0) then
+        scaleWindow();
+        if d == nil or d.hdr == nil then
+            dimText('Asking the server...');
+        elseif not d.vitals then
+            wrappedColored(C.faint, 'Call ' .. tostring(d.hdr.name) .. ' to see the spells and abilities they can use now.');
+        else
+            local width = contentWidth();
+            local valueX = math.max(px(200), (width > 0 and width or px(330)) - px(70));
+            colorText(C.gold, 'Spells');
+            gap(2);
+            if not d.spells or #d.spells == 0 then
+                tint(C.faint, 'None at this job and level.');
+                newLine();
+            else
+                for _, sp in ipairs(d.spells) do
+                    tint(C.text, prettyName(sp[1]));
+                    imgui.SameLine(valueX, 0);
+                    tint(C.dim, sp[2] > 0 and (tostring(sp[2]) .. ' MP') or '');
+                    newLine();
+                end
+            end
+            gap(4);
+            if has('Separator') then imgui.Separator(); end
+            colorText(C.gold, 'Job abilities');
+            gap(2);
+            if not d.abilities or #d.abilities == 0 then
+                tint(C.faint, 'None at this job and level.');
+                newLine();
+            else
+                for _, ab in ipairs(d.abilities) do
+                    tint(C.text, prettyName(ab[1]));
+                    imgui.SameLine(valueX, 0);
+                    tint(C.dim, 'Lv ' .. tostring(ab[2]));
+                    newLine();
+                end
+            end
+            gap(4);
+            wrappedColored(C.faint, 'Ask for one in party chat, e.g. /p cure <me>, /p provoke. A mate you call again '
+                .. 'after a level up or a job change shows the new list.');
+        end
+    end
+    S.scaledNow = false;
+    imgui.End();
+    if colors > 0 then imgui.PopStyleColor(colors); end
+    if vars > 0 then imgui.PopStyleVar(vars); end
+end
+
 local function render()
     if not imgui then return; end
     buttonWindow();
     menuWindow();
     renderSheet();
+    renderActions();
 end
 
 -- ---------------------------------------------------------------- events

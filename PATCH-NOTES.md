@@ -9,6 +9,11 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • One button: PLAY on a world takes your character there and starts the game. Close the game (log out) and your character comes home by itself, with everything it earned. No VISIT and no COME HOME to press. You are only asked when it has to: a world's password, a name that is taken there, or things you left on that world's auction house or in its delivery box.
 • Friends' worlds work the same way, on the same network, over Tailscale or over the internet: paste the invite code under VISIT A FRIEND and press PLAY. After that their world has its own card under YOUR FRIENDS' WORLDS (with who is there), so next time it is one click. "forget" takes a card away.
 • Your world in everyone's OPEN WORLDS: on the CO-OP page, HOST MY WORLD, Anyone (world link), write a line in "About my world", pick a banner (any picture, shown 640 x 160) and leave "List my world" ticked. It lists itself while it is open. Only worlds at an internet address can be listed (not a home network or Tailscale), and each card comes from the world itself, checked against its key.
+• SQUAD JUICES: trade juices to a squad mate (any amount, any kind) and it keeps them, drinking one when its MP runs low and it has no Refresh on, in a fight or out of it. Every drink uses up one of the juices you gave it; the effects are the real items'. !squad juice shows what each mate carries. RULES, "Squad mates: unlimited juice" (off by default): a mate with none of yours left drinks a juice for its level, free. (Frost, Syfin)
+• Squad: a "Spells and abilities" button on a mate's profile window (the Profile button on its row in the Squads menu) opens a list of every spell it can cast right now, with the MP, and every job ability it can use, with the level. Shown while the mate is called. (Frost)
+• Ephemeral Moogles: the crafting guilds' crystal-storage moogles are there, on by default. Trade them crystals or clusters to store, talk to one to take them out. RULES, "Ephemeral Moogles keep your crystals" (1 = on, 0 = off). (Gilder, stanky kong)
+• Bot players: the roster can go up to 2000 and bots online up to 1500 for strong PCs. Past the usual 600 / 550 the launcher asks first, with a warning. Bots online are at most 60% of the roster (now said next to the setting), so 500 online needs a roster of about 840. (Meli)
+• SYSTEM > Updates: "Repair..." installs the newest launcher and server again over what you have (database update included), for an update that stopped halfway. (Reika, Ryan)
 
 ### Fixes
 • CO-OP: TEST CONNECTION now also checks port 51240 (PlayOnline's chat, which the game loader passes on to the world), and a world set up on a Linux server opens it in that server's firewall. Without it the game stopped right after logging in with "Failed to reach the server on port 51240". (The Hub's visitors)
@@ -18,6 +23,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Squad greetings: only the first mate you called used the lines you wrote in Squad > Greetings; the others used their built-in lines. A mate with its own greetings now always uses them. (Waxworks)
 • LoFi music and HD packs said On but did nothing after the game's folder was moved: XIPivot kept looking for them in the old folder. The launcher now points it at the new one by itself (at PLAY, and whenever you switch a pack). (Ryan)
 • Setup: step 4 looked frozen on "Downloading MariaDB" on Windows. It now shows the progress, gives up on a stalled download after a minute instead of half an hour, and the next try carries on where it stopped. (Art-Machine)
+• Squad chat with AI: a line you said to someone outside the squad (a bot player in your linkshell or party, or anyone you name first, "Hrokok are you still there?") got an answer from a squad mate, and so did your next lines. Now the squad leaves them to that person for a minute and a half, until you name a mate. (Sunie)
+• Updates: a launcher that lost its version file (an update stopped halfway: "Launcher: you have ?") was never offered the update again. It is now. (Ryan)
 
 ## v0.3.4 · 23 November 2026
 

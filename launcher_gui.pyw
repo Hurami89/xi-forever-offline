@@ -1824,14 +1824,37 @@ class RatesTab(tk.Frame):
         tk.Checkbutton(inner, text="Bot players: real characters (no game window) living in the nation towns - /sea, /check, invite them",
                        variable=self.bots, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[11], column=0, columnspan=2, sticky="w", padx=6, pady=2)
-        tk.Label(inner, text="Bot roster (characters, 0-600)", bg=BG, fg=FG, anchor="w", width=38).grid(
+        tk.Label(inner, text="Bot roster (characters, 0-%d)" % core.BOTS_ROSTER_SAFE, bg=BG, fg=FG, anchor="w", width=38).grid(
             row=R[12], column=0, sticky="w", padx=6, pady=2)
         self.bots_roster = tk.StringVar(value=str(rates.get("bots_roster", 100)))
-        ttk.Spinbox(inner, from_=0, to=600, increment=50, textvariable=self.bots_roster, width=8).grid(row=R[12], column=1, padx=6, pady=2)
-        tk.Label(inner, text="Bots online at a time (0-550)", bg=BG, fg=FG, anchor="w", width=38).grid(
+        ttk.Spinbox(inner, from_=0, to=core.BOTS_ROSTER_MAX, increment=50, textvariable=self.bots_roster, width=8).grid(row=R[12], column=1, padx=6, pady=2)
+        tk.Label(inner, text="Bots online (0-%d; at most 60%% of the roster)" % core.BOTS_ONLINE_SAFE, bg=BG, fg=FG, anchor="w", width=42).grid(
             row=R[13], column=0, sticky="w", padx=6, pady=2)
         self.bots_online = tk.StringVar(value=str(rates.get("bots_online", 50)))
-        ttk.Spinbox(inner, from_=0, to=550, increment=10, textvariable=self.bots_online, width=8).grid(row=R[13], column=1, padx=6, pady=2)
+        ttk.Spinbox(inner, from_=0, to=core.BOTS_ONLINE_MAX, increment=10, textvariable=self.bots_online, width=8).grid(row=R[13], column=1, padx=6, pady=2)
+        # (2026-11-23, Meli) past the usual top value only after a warning (once per launcher session); "No" puts it back
+        self._bots_past_safe = False
+
+        def past_safe(var, safe, what):
+            def check(*_):
+                try:
+                    value = int(float(var.get()))
+                except (TypeError, ValueError):
+                    return
+                if value <= safe or self._bots_past_safe:
+                    return
+                if messagebox.askyesno("More bots than usual",
+                                       f"{value} {what} is more than the usual {safe}.\n\nEvery bot online is a character the "
+                                       "server moves, fights and talks for. Above the usual numbers a strong PC copes, "
+                                       "but the server can lag (monsters and mates react late) and starting takes longer.\n\n"
+                                       "Go past the usual top value?", icon="warning", parent=inner):
+                    self._bots_past_safe = True
+                else:
+                    var.set(str(safe))
+            var.trace_add("write", check)
+
+        past_safe(self.bots_roster, core.BOTS_ROSTER_SAFE, "bot characters")
+        past_safe(self.bots_online, core.BOTS_ONLINE_SAFE, "bots online")
         tk.Label(inner, text="Bots grow while you are away", bg=BG, fg=FG, anchor="w", width=38).grid(row=R[14], column=0, sticky="w", padx=6, pady=2)
         self.bots_growth = tk.StringVar(value=rates.get("bots_growth", "realistic"))
         ttk.Combobox(inner, values=["off", "realistic", "fast"], state="readonly", textvariable=self.bots_growth,
@@ -2139,7 +2162,8 @@ class RatesTab(tk.Frame):
         rates["bots"] = bool(self.bots.get())
         growth = self.bots_growth.get()
         rates["bots_growth"] = growth if growth in ("off", "realistic", "fast") else "realistic"
-        for key, var, lo, hi, default in (("bots_roster", self.bots_roster, 0, 600, 100), ("bots_online", self.bots_online, 0, 550, 50)):
+        for key, var, lo, hi, default in (("bots_roster", self.bots_roster, 0, core.BOTS_ROSTER_MAX, 100),
+                                          ("bots_online", self.bots_online, 0, core.BOTS_ONLINE_MAX, 50)):
             try:
                 rates[key] = max(lo, min(hi, int(float(var.get()))))
             except (TypeError, ValueError):
@@ -3044,7 +3068,8 @@ class UpdatesTab(tk.Frame):
                  bg=BG, fg=DIM, wraplength=900, justify="left", font=(UI_FONT, 9)).pack(anchor="w", padx=14, pady=(0, 6))
         bar = tk.Frame(self, bg=BG)
         bar.pack(anchor="w", padx=14)
-        for text, command in (("Check for updates", lambda: self.player_check(False)), ("Update now", self.player_update)):
+        for text, command in (("Check for updates", lambda: self.player_check(False)), ("Update now", self.player_update),
+                              ("Repair...", self.player_repair)):
             button = tk.Button(bar, text=text, command=command, bg=PANEL, fg=FG, relief="flat", padx=14, pady=6)
             button.pack(side="left", padx=(0, 8))
             self.buttons.append(button)
@@ -3095,6 +3120,37 @@ class UpdatesTab(tk.Frame):
         if messagebox.askyesno("Update available", f"XI: Forever Offline {newest} is out.\n\n{notes[:900]}\n\nUpdate now? "
                                "Your settings, characters and squad mates are kept, and your database is saved first."):
             self.player_update()
+
+    def player_repair(self):
+        """(2026-11-23, Reika, Ryan: an update stopped halfway, then the server stopped at PLAY, or "you have ?" and
+        Update now did nothing) installs the newest launcher and server again over what is there, database update
+        included, as an update would. Settings, characters and squad mates are kept; the database is saved first."""
+        if self.app.running:
+            messagebox.showwarning("Close the game first", "The servers are running. Close the game (it stops the servers), then repair.")
+            return
+        if self.busy:
+            return
+        if not messagebox.askyesno("Repair", "Install the newest launcher and server again, over the ones you have?\n\n"
+                                   "Use this when an update stopped halfway, or the server stops at PLAY after one. Your "
+                                   "settings, characters and squad mates are kept, and your database is saved first. "
+                                   "The launcher restarts at the end.", parent=self):
+            return
+
+        def work():
+            try:
+                import launcher_update as lu
+                import launcher_thirdparty as tp
+                info = lu.check(HERE, self.app.cfg.get("server_dir"), bool(self.app.cfg.get("test_builds")), tp._get)
+            except Exception as e:
+                self.lines.put(("line", f"Could not reach the releases: {e}"))
+                return
+            for key in ("kit", "server"):
+                info[key]["newer"] = bool(info[key].get("release"))
+            self.update_info = info
+            self.lines.put(("line", "Repair: installing " + ", ".join(
+                f"{label} {info[key]['newest']}" for key, label in (("kit", "launcher"), ("server", "server")) if info[key]["newer"]) + " again..."))
+            self.after(0, self.player_update)
+        threading.Thread(target=work, daemon=True).start()
 
     def player_update(self):
         if self.app.running:
