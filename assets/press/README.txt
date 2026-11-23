@@ -20,7 +20,7 @@ back by themselves and the dated ones are simply skipped, so nothing has to be r
 
 Themes work the same way (launcher_theme.py). A theme is a .json in here with a "colours" table:
     vaporwave__until-2026-12-02.json   a limited-time theme: it turns itself on when it arrives and is gone the day after its date
-    windurst.json                      (no date in the name) a theme that is always there to pick; never on unless a player picks it
+    8bit.json                          (no date in the name) a theme that is always there to pick; never on unless a player picks it
     theme__until-2026-12-02.mp3        the limited-time theme's song: played once when the launcher opens (.mp3 or .wav); it stops
                                        when the game starts
     default.mp3                        (or default.wav) the launcher's own opening theme: it plays with the Default look, and with
@@ -32,9 +32,12 @@ itself again, and the pick is back once it has gone. The page is there whenever 
 "classic_ui": true, has no such page: there the same choices sit in a small strip on the banner.) config.json keeps them as "theme",
 "theme_event", "theme_music" and "theme_volume".
 A theme's .json holds "name" (what the page calls it), "colours" (the names at the top of launcher_widgets.py: BG, PANEL, GOLD ...;
-names left out stay as usual) and, if wanted, "art" and "sound". "art" may name a folder in here ("folder": "vaporwave-ui") whose
+names left out stay as usual) and, if wanted, "art", "sound" and "font". "art" may name a folder in here ("folder": "vaporwave-ui") whose
 pictures stand in for the ones in assets\ui, name for name and size for size; a button the folder has no picture for stays as it
-is (art-src\scripts\vice_buttons.py makes the vaporwave set). "sound" names a .mp3 / .wav in here as the theme's own opening song.
+is (art-src\scripts\vice_buttons.py makes the vaporwave set, bit_buttons.py the 8-Bit one). "sound" names a .mp3 / .wav in here
+as the theme's own opening song. "font" gives the launcher's text the theme's own lettering: {"family": "Galmuri11", "files":
+["fonts/Galmuri11-Regular.ttf", "fonts/Galmuri11-Bold.ttf"]}, .ttf files in here that only the launcher uses (nothing is installed
+on the PC). Pick a font whose letters are about as wide as the usual ones, so that no label is cut short.
 
 This needs Pillow. If the launcher's status line says so, run once in PowerShell:
     python -m pip install pillow

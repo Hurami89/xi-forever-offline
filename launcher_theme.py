@@ -10,6 +10,9 @@ What a theme's .json may hold:
     "art"       its own buttons: {"folder": "vaporwave-ui"}, a folder in assets\\press whose pictures stand in for the ones in
                 assets\\ui, name for name (or a tint for the usual ones: {"ramp": [...], "mix": 0.7})
     "sound"     its own opening theme: the name of a .mp3 / .wav in assets\\press
+    "font"      its own lettering for the launcher's text: {"family": "Pixelify Sans", "files": ["fonts/PixelifySans-Regular.ttf",
+                "fonts/PixelifySans-Bold.ttf"]}, .ttf files in assets\\press (kept to this program, nothing is installed on the PC)
+                and the name they go by. A font whose letters are about as wide as the usual ones keeps every label in its place.
 A dated .mp3 / .wav (theme__until-2026-12-02.mp3) is the opening theme of the limited-time theme of those days: played once when the
 launcher opens. A limited-time theme also has the limited-time banners of its days.
 default.mp3 (or default.wav) in assets\\press is the launcher's own opening theme: it plays with the Default look, and with any theme
@@ -50,6 +53,7 @@ VOLUME = 0.55
 DEFAULT = "default"              # the launcher's own look, as the Theme page and config.json call it
 PALETTE = ("BG", "PANEL", "PANEL2", "FG", "DIM", "BORDER", "LINE", "OFF", "GOLD", "GOLD_LIT", "GOLD_DIM", "PARCH", "ACCENT", "GREEN", "RED", "GREY")
 OWN = {}                         # the launcher's own colours, noted as its files hand them to colours(): what Default looks like
+FONT_NAMES = ("UI_FONT", "_UI_FONT")               # the names the launcher's files keep their text font under
 
 
 def today():
@@ -183,9 +187,72 @@ def themes():
     return [{"key": DEFAULT, "name": "Default", "until": "", "colours": dict(OWN)}] + looks()
 
 
+def load_font(look):
+    """Makes a theme's own font (.ttf files in assets\\press, named by its "font") known to this program only; nothing is installed
+    on the PC. Returns the family name to ask Tk for, or None (no font, or it could not be loaded: the usual lettering stays)."""
+    spec = look.get("font") if isinstance(look, dict) else None
+    if not isinstance(spec, dict) or not isinstance(spec.get("family"), str) or not spec["family"].strip():
+        return None
+    files = spec.get("files", spec.get("file"))
+    files = [files] if isinstance(files, str) else files if isinstance(files, list) else []
+    added = 0
+    for name in files:
+        if not isinstance(name, str):
+            continue
+        parts = [part for part in name.replace("\\", "/").split("/") if part not in ("", ".", "..")]
+        path = os.path.join(PRESS, *parts) if parts else ""
+        if not path.lower().endswith((".ttf", ".otf")) or not os.path.isfile(path):
+            continue
+        try:
+            if os.name == "nt":
+                added += 1 if ctypes.windll.gdi32.AddFontResourceExW(path, 0x10, 0) else 0     # FR_PRIVATE: this program only, until it closes
+            else:
+                import ctypes.util
+                library = ctypes.CDLL(ctypes.util.find_library("fontconfig") or "libfontconfig.so.1")
+                library.FcConfigAppFontAddFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+                added += 1 if library.FcConfigAppFontAddFile(None, os.fsencode(path)) else 0
+        except Exception:
+            continue
+    return spec["family"].strip() if added else None
+
+
+def _font_elsewhere():
+    """The worn theme's font for the two places colours() cannot reach by name: the Co-op page asks launcher_core.ui_fonts() for its
+    font after its own colours, and the page titles' serif is picked late (launcher_widgets._HEAD). Both only if they are there."""
+    core = sys.modules.get("launcher_core")
+    usual = getattr(core, "ui_fonts", None)
+    if callable(usual) and not getattr(usual, "themed", False):
+        def ui_fonts():
+            return (FONT,) + tuple(usual())[1:]
+        ui_fonts.themed = True
+        core.ui_fonts = ui_fonts
+    widgets = sys.modules.get("launcher_widgets")
+    if widgets is not None and hasattr(widgets, "_HEAD"):
+        widgets._HEAD = FONT
+
+
+def apply_font(root):
+    """The worn theme's font for everything that uses Tk's own default fonts (the plain ttk labels, buttons, boxes and tabs, which
+    name no font of their own). Tk's named fonts change live, so this can come after the windows are made; once is enough."""
+    global _FONT_APPLIED
+    if not FONT or _FONT_APPLIED:
+        return
+    _FONT_APPLIED = True
+    from tkinter import font as tkfont
+    for name in ("TkDefaultFont", "TkTextFont", "TkHeadingFont", "TkMenuFont", "TkCaptionFont", "TkSmallCaptionFont", "TkTooltipFont", "TkIconFont"):
+        try:
+            tkfont.nametofont(name, root).configure(family=FONT)
+        except Exception:
+            pass
+
+
+_FONT_APPLIED = False
+
+
 def colours(names):
-    """The worn look's colours for the names this file defines (BG, PANEL, GOLD ...): {} when the launcher wears its own, so nothing
-    changes. On the way it notes the file's own colours (OWN): the Theme page shows them beside Default."""
+    """The worn look's colours (and, if it has one, its font) for the names this file defines (BG, PANEL, GOLD ... UI_FONT): {} when
+    the launcher wears its own, so nothing changes. On the way it notes the file's own colours (OWN): the Theme page shows them
+    beside Default."""
     try:
         for key in PALETTE:
             if key not in OWN and is_colour(names.get(key)):
@@ -194,7 +261,14 @@ def colours(names):
         pass
     if LOOK is None:
         return {}
-    return {key: value for key, value in LOOK["colours"].items() if key in names}
+    out = {key: value for key, value in LOOK["colours"].items() if key in names}
+    if FONT:
+        out.update({key: FONT for key in FONT_NAMES if key in names})
+        try:
+            _font_elsewhere()
+        except Exception:
+            pass
+    return out
 
 
 # ---------- the tint of the painted buttons ----------
@@ -586,6 +660,10 @@ def add_page(app, tabs):
     """OPTIONS > Theme, in the launcher's newer look: made whenever there is a theme to pick or an opening theme to switch off. A
     switch for Default and one for every theme (one is on at a time), the song on or off, its volume. Returns the page (None when
     there is nothing to choose)."""
+    try:
+        apply_font(app)
+    except Exception:
+        pass
     c = controls(app)
     if not c.there():
         return None
@@ -676,6 +754,10 @@ def start(app):
     """Called once the launcher's window is up: plays the opening theme (once, not while the game is running; it stops when the game
     starts). In the classic look, which has no Theme page, it also puts the same choices in a small strip on the banner (a click on
     THEME steps to the next theme). Returns the controls (None when there is nothing to choose)."""
+    try:
+        apply_font(app)
+    except Exception:
+        pass
     c = controls(app)
     if not c.there():
         return None
@@ -716,8 +798,13 @@ def start(app):
 
 
 # ---------- set up when the launcher first asks for it ----------
+FONT = None
 try:
     LOOK = load_look()
     install()
 except Exception:
     LOOK = None
+try:
+    FONT = load_font(LOOK)
+except Exception:
+    FONT = None

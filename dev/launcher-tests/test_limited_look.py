@@ -31,7 +31,8 @@ LOOK = {"name": "Test look",
         "art": {"folder": "t-ui", "ramp": [[0, "#100020"], [0.5, "#ff40c0"], [1, "#ffffff"]], "mix": 0.8}}
 OWN, OWN_HOVER = (10, 200, 220), (9, 90, 190)        # the colours of the look's own stand-in pictures
 USUAL = {"BG": "#0a1118", "GOLD": "#e6be64"}
-PLAIN = {"name": "Plain", "colours": {"BG": "#102018", "GOLD": "#80e060"}, "sound": "t_own.wav"}      # a theme that is always there to pick
+PLAIN = {"name": "Plain", "colours": {"BG": "#102018", "GOLD": "#80e060"}, "sound": "t_own.wav",       # a theme that is always there to pick,
+         "font": {"family": "Galmuri11", "files": ["fonts/Galmuri11-Regular.ttf", "fonts/no-such-file.ttf"]}}   # with lettering of its own
 WEARING = {"during": "event", "muted": "event", "classic": "event", "earlier": "event", "picked": "plain", "back": "plain"}   # other steps: its own look
 
 
@@ -223,6 +224,15 @@ def launch(work, step, out):
     check(pages is None or pages.GOLD == want["GOLD"], "... and launcher_pages picked them up from launcher_widgets")
     check((tk.PhotoImage is theme.TintedPhotoImage) == themed, "the tinted picture loader is " + ("in place" if themed else "not in place"))
     has_song = bool(wearing) or step in ("own-picked", "own-only")
+    font_there = os.path.isfile(os.path.join(kit, "assets", "press", "fonts", "Galmuri11-Regular.ttf"))      # the kit's own pixel font
+    own_font = "Galmuri11" if wearing == "plain" and font_there else None
+    usual_font = gui.core.ui_fonts()[0] if not own_font else None
+    check(theme.FONT == own_font and (gui.UI_FONT == own_font if own_font else gui.UI_FONT == usual_font) and widgets.UI_FONT == gui.UI_FONT,
+          f"the launcher's text font is {'the theme\'s own' if own_font else 'the usual one'} ({gui.UI_FONT})")
+    if step == "during":
+        check(theme.load_font({"font": {"family": "X", "files": ["../../config.json", "fonts/nothing.ttf", 7]}}) is None and theme.load_font({}) is None
+              and theme.load_font({"font": {"files": ["fonts/Galmuri11-Regular.ttf"]}}) is None,
+              "a font that is not a .ttf in assets\\press, is missing, or has no family name is not taken")
     check((theme.music_file() is not None) == has_song, "there is " + ("an" if has_song else "no") + " opening theme for this look")
 
     app = gui.App()
@@ -348,6 +358,14 @@ def launch(work, step, out):
         check("limited_look" not in cfg and "theme" not in cfg and on() == ["t_look"] and asked == ["ask"] and not restarts and "Test look" in pending(),
               "its switch turns it on for the next start (the old note is out of config.json); No to the restart leaves this window as it is")
     elif step == "picked":
+        if own_font:
+            from tkinter import font as tkfont
+            check(tkfont.nametofont("TkDefaultFont").actual("family") == own_font and widgets._HEAD == own_font
+                  and (coop is None or coop._UI_FONT == own_font) and gui.core.ui_fonts()[0] == own_font and gui.core.ui_fonts()[1] == gui.MONO_FONT,
+                  "... also for the plain ttk widgets, the page titles and the Co-op page; the fixed-width font stays")
+            check(own_font in tkfont.families(app), "Tk knows the font although it is not installed on this PC")
+        else:
+            print("  note the kit has no assets\\press\\fonts\\Galmuri11-Regular.ttf: the font checks were skipped")
         check(player.calls == [("play", own_song)], f"the picked theme's own song plays, not the limited-time one's: {player.calls}")
         check(on() == ["t_plain"] and page.music_switch is not None, "the page shows the picked theme on, and its song card")
         app.select_tab(app.page_index["Theme"])
