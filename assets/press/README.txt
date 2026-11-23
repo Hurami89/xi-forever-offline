@@ -28,6 +28,10 @@ Themes work the same way (launcher_theme.py). A theme is a .json in here with a 
                                        when the game starts
     newer__from-2026-11-24__until-2026-12-02.mp3   a song that starts later: from that day on it takes over from the one above
                                        (of the songs in date, the one that started last plays)
+    opener__plays-3__until-2026-12-02.mp3   a song for the first few times only: it opens the launcher three times on a PC,
+                                       ahead of the theme's other song, and then never again there (config.json counts
+                                       them in "theme_plays", under the name up to the first tag; only the play when the
+                                       launcher opens counts, not "Play it now")
     default.mp3                        (or default.wav) the launcher's own opening theme: it plays with the Default look, and with
                                        any theme that has no song of its own
     music.json                         who made the songs: OPTIONS > Theme names the song that plays and its maker from it, and

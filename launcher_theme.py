@@ -17,7 +17,9 @@ A theme's own banners are pictures in assets\\press with __theme- and its short 
 while that theme is worn, and then in place of the usual ones.
 A dated .mp3 / .wav (theme__until-2026-12-02.mp3) is the opening theme of the limited-time theme of those days: played once when the
 launcher opens. A limited-time theme also has the limited-time banners of its days. A song can also say when it starts
-(newer__from-2026-11-24__until-2026-12-02.mp3): from that day on it takes over from the one that was playing.
+(newer__from-2026-11-24__until-2026-12-02.mp3): from that day on it takes over from the one that was playing. Or how often it
+is played (opener__plays-3__until-2026-12-02.mp3): it opens the launcher three times on a PC, ahead of the theme's other song, and
+then never again there.
 default.mp3 (or default.wav) in assets\\press is the launcher's own opening theme: it plays with the Default look, and with any theme
 that has no song of its own.
 music.json in assets\\press says who made the songs: the Theme page names the song that plays and its maker from it, and shows its
@@ -30,6 +32,7 @@ config.json keeps the choices:
     "theme_event": the limited-time theme that was in date when the pick was made: a pick holds back that one only, so the next
                    limited-time theme shows by itself again, and the pick is back when it has gone
     "theme_music": false    the song is off          "theme_volume": 0.0 to 1.0    how loud it is
+    "theme_plays": {"opener": 3}    how often a song with __plays- in its name has opened the launcher here (by its name up to the first tag)
 ("limited_look": false, written by the first Theme page for "off", still counts as Default.)
 
 The three files that define the launcher's colours (launcher_gui.pyw, launcher_widgets.py, launcher_coop_gui.py) each call colours()
@@ -51,6 +54,7 @@ HERE = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.
 PRESS = os.path.join(HERE, "assets", "press")
 UNTIL_TAG = "__until-"
 FROM_TAG = "__from-"             # ... and a song with __from-2026-11-24 in its name is not used before that day
+PLAYS_TAG = "__plays-"           # ... and a song with __plays-3 in its name opens the launcher three times on a PC, then never again
 TINTED = ("ui", "buttons")       # the folders of assets whose pictures a look may replace or tint
 BUTTON_KINDS = {"play": "play", "stop": "stop", "dual": "dualbox"}     # assets\\buttons\\<kind>\\ holds variants of these assets\\ui pictures
 SOUNDS = (".mp3", ".wav")
@@ -98,6 +102,46 @@ def dated(endings):
         return []
     names.sort(key=since, reverse=True)
     return [os.path.join(PRESS, n) for n in names]
+
+
+def plays(name):
+    """How often a song may open the launcher on one PC: the number after __plays- in its name. 0 when it has none (as often as it
+    likes), -1 (never) when it cannot be read."""
+    low = os.path.splitext(os.path.basename(name))[0].lower()
+    cut = low.find(PLAYS_TAG)
+    if cut < 0:
+        return 0
+    number = low[cut + len(PLAYS_TAG):].split("__", 1)[0]
+    return int(number) if number.isascii() and number.isdigit() and 0 < int(number) < 1000 else -1
+
+
+def song_key(name):
+    """What config.json calls a song when it counts its plays: its file name up to the first tag ('xifo_theme' for
+    xifo_theme__plays-3__until-2026-12-02.mp3), so a new date or a new number in the name does not start the count again."""
+    return os.path.splitext(os.path.basename(name))[0].lower().split("__", 1)[0].strip()
+
+
+def played(name, cfg=None):
+    """How often this song has opened the launcher on this PC ("theme_plays" in config.json)."""
+    counts = (config() if cfg is None else cfg).get("theme_plays")
+    count = counts.get(song_key(name)) if isinstance(counts, dict) else None
+    return count if isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
+
+
+def plays_left(name, cfg=None):
+    """None for a song with no __plays- in its name; otherwise how many openings it still has on this PC (0: it is done, for good)."""
+    most = plays(name)
+    return None if most == 0 else max(0, most - played(name, cfg))
+
+
+def count_play(path):
+    """Notes in config.json that a song with __plays- in its name has opened the launcher once more (any other song: nothing)."""
+    if plays(path) <= 0:
+        return
+    counts = config().get("theme_plays")
+    counts = dict(counts) if isinstance(counts, dict) else {}
+    counts[song_key(path)] = played(path, {"theme_plays": counts}) + 1
+    save_all({"theme_plays": counts})
 
 
 def config():
@@ -495,13 +539,16 @@ def own_sound():
 def music_file():
     """The opening theme that goes with the look worn this time, or None. In order: the file the theme names itself ("sound", in
     assets\\press); for a limited-time theme, or the launcher's own look while no limited-time theme is in date, the first dated
-    .mp3 / .wav in assets\\press; otherwise the launcher's own opening theme (default.mp3 / default.wav)."""
+    .mp3 / .wav in assets\\press (one with __plays- in its name first while it has plays left on this PC, and not at all once it
+    has had them); otherwise the launcher's own opening theme (default.mp3 / default.wav)."""
     if LOOK is not None and isinstance(LOOK.get("sound"), str):
         path = os.path.join(PRESS, os.path.basename(LOOK["sound"]))
         if path.lower().endswith(SOUNDS) and os.path.isfile(path):
             return path
     if (LOOK is not None and LOOK.get("until")) or (LOOK is None and event_look() is None):
-        found = dated(SOUNDS)
+        cfg = config()
+        found = [path for path in dated(SOUNDS) if plays_left(path, cfg) != 0]       # a song that has had its plays is done
+        found.sort(key=lambda path: plays_left(path, cfg) is None)                    # one with plays left goes first (the rest keep their order)
         if found:
             return found[0]
     return own_sound()
@@ -662,13 +709,19 @@ class Controls:
             return
         self.app.after(500, self.watch)
 
-    def play(self, asked=False):
-        """The opening theme: by itself only when the music is on and the theme is the one worn; `asked` is the page's own Play button."""
+    def play(self, asked=False, opening=False):
+        """The opening theme: by itself only when the music is on and the theme is the one worn; `asked` is the page's own Play button.
+        `opening` is the one play when the launcher opens: the only one a song with __plays- in its name counts."""
         if not self.sound or getattr(self.app, "running", False):
             return False
         if not asked and not (self.music_on and self.pick == self.worn):
             return False
         if PLAYER.play(self.sound, volume_now()):
+            if opening:
+                try:
+                    count_play(self.sound)
+                except Exception:
+                    pass                              # not counted this time: it simply gets one more opening
             self.app.after(500, self.watch)
             return True
         return False
@@ -874,7 +927,7 @@ def start(app):
             c.strip = strip
         else:
             strip.destroy()
-    app.after(700, c.play)
+    app.after(700, lambda: c.play(opening=True))
     return c
 
 

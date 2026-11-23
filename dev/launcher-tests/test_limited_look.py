@@ -2,9 +2,10 @@
 limited-time theme (it turns itself on, with a dated .mp3 / .wav as its opening theme, and is gone by itself the day after its
 date); an undated one is always there to pick. OPTIONS > Theme has a switch for Default and one for every theme.
 
-Starts the real launcher ten times from a COPY of the kit (stand-in config, database driver and addons folder; nothing of the
+Starts the real launcher twelve times from a COPY of the kit (stand-in config, database driver and addons folder; nothing of the
 real install is read or changed): a limited-time theme in date, the music switched off, Default picked the way the first Theme
-page wrote it ("limited_look": false), another theme picked, a pick made before the limited-time theme arrived, the classic look
+page wrote it ("limited_look": false), another theme picked, a pick made before the limited-time theme arrived, a song that is
+only played once (__plays-1 in its name: the start that plays it, and the start after it), the classic look
 (the same choices in a strip on the banner), the date passed, the date passed with the earlier pick still there, and twice with
 the launcher's own opening theme (default.wav): Default picked during the limited-time theme, and no theme at all.
 Who made the songs (music.json in assets\\press): the song card names the song and its maker and carries the credit, and before
@@ -36,7 +37,8 @@ USUAL = {"BG": "#0a1118", "GOLD": "#e6be64"}
 PLAIN = {"name": "Plain", "colours": {"BG": "#102018", "GOLD": "#80e060"}, "sound": "t_own.wav",       # a theme that is always there to pick,
          "font": {"family": "Galmuri11", "files": ["fonts/Galmuri11-Regular.ttf", "fonts/no-such-file.ttf"]}}   # with lettering of its own
 CREDIT = "All of the music is by T. B\u00e5rd, the test's Head of Music."
-WEARING = {"during": "event", "muted": "event", "classic": "event", "earlier": "event", "picked": "plain", "back": "plain"}   # other steps: its own look
+WEARING = {"during": "event", "muted": "event", "classic": "event", "earlier": "event", "opener": "event", "opener-done": "event",
+           "picked": "plain", "back": "plain"}   # other steps: its own look
 
 
 def day(offset):
@@ -51,10 +53,11 @@ def tone(path):
         w.writeframes(b"\x00\x00" * 800)
 
 
-def put_dated(press, offset, plain=False, own=False, credits=True):
+def put_dated(press, offset, plain=False, own=False, credits=True, opener=False):
     """The copy's own limited-time theme, banner and tune, dated `offset` days from today (any others are taken out first).
     plain: also a theme with no date (always there to pick), with a tune of its own. own: also the launcher's own opening theme.
-    credits: also a music.json that says who made them (the dated tune by a guest, the launcher's own with no title)."""
+    credits: also a music.json that says who made them (the dated tune by a guest, the launcher's own with no title).
+    opener: also a second dated tune that is played once only (__plays-1 in its name)."""
     for name in os.listdir(press):
         if os.path.isfile(os.path.join(press, name)) and (name.lower().endswith((".json", ".mp3", ".wav")) or "__until-" in name.lower()
                                                            or "__theme-t_plain" in name.lower()):
@@ -71,9 +74,12 @@ def put_dated(press, offset, plain=False, own=False, credits=True):
         Image.new("RGB", (920, 368), (30, 90, 50)).save(os.path.join(press, "t_plain_banner__center__theme-t_plain.png"))      # that theme's own banner
     if own:
         tone(os.path.join(press, "default.wav"))
+    if opener:
+        tone(os.path.join(press, f"t_first__plays-1__until-{day(offset)}.wav"))
     if credits:
         notes = {"by": "T. B\u00e5rd", "credit": CREDIT,
-                 "songs": {f"T_Theme__until-{day(offset)}.WAV": {"title": "Event  Song", "by": "A Guest"}, "t_own.wav": "Own Song", "default.wav": ""}}
+                 "songs": {f"T_Theme__until-{day(offset)}.WAV": {"title": "Event  Song", "by": "A Guest"}, "t_own.wav": "Own Song", "default.wav": "",
+                           f"t_first__plays-1__until-{day(offset)}.wav": "First Song"}}
         with open(os.path.join(press, "music.json"), "w", encoding="utf-8") as f:
             json.dump(notes, f, ensure_ascii=False)
 
@@ -429,6 +435,28 @@ def launch(work, step, out):
             f.write("{ not json")
         check(theme.music_notes() == {} and theme.song_line(os.path.join(press, song)) == "" and theme.music_credit() == "",
               "a music.json that cannot be read: no names, and nothing breaks")
+        check(theme.plays("a__plays-3__until-2026-12-02.mp3") == 3 and theme.plays("a__until-2026-12-02__PLAYS-12.MP3") == 12 and theme.plays("a.mp3") == 0
+              and theme.plays("a__plays-many.mp3") == -1 and theme.plays("a__plays-0.mp3") == -1
+              and theme.song_key("Xifo_Theme__plays-3__until-2026-12-02.MP3") == "xifo_theme" and theme.song_key("default.mp3") == "default",
+              "how often a song may play is read from its name, and its plays are counted under its name without the tags")
+        opener = os.path.join(press, f"a_opener__plays-2__until-{day(3)}.wav")
+        newer = f"z_newer__from-{day(0)}__until-{day(3)}.wav"
+        tone(opener)
+        tone(os.path.join(press, f"a_broken__plays-many__until-{day(3)}.wav"))
+        check(os.path.basename(theme.music_file()) == os.path.basename(opener) and theme.plays_left(opener) == 2 and theme.plays_left(newer) is None,
+              "a song with plays left goes first, ahead of the one that started last; one whose number cannot be read never plays")
+        theme.count_play(opener)
+        check(os.path.basename(theme.music_file()) == os.path.basename(opener) and get_config(kit).get("theme_plays") == {"a_opener": 1},
+              "after the first of its two plays it is still the one")
+        theme.count_play(opener)
+        theme.count_play(os.path.join(press, newer))
+        check(os.path.basename(theme.music_file()) == newer and theme.plays_left(opener) == 0 and get_config(kit).get("theme_plays") == {"a_opener": 2},
+              "after the second it is done and the other song is back; a song with no number in its name is never counted")
+        os.rename(opener, os.path.join(press, f"a_opener__plays-2__until-{day(9)}.wav"))
+        check(os.path.basename(theme.music_file()) == newer, "... for good: a new date in its name does not bring it back")
+        set_config(kit, theme_plays={"a_opener": "x", "other": True})
+        check(theme.played("a_opener__plays-2.wav") == 0 and theme.played("other__plays-2.wav") == 0 and theme.plays_left("a_opener__plays-2.wav") == 2,
+              "a count in config.json that is not a number counts as none")
     elif step == "off":
         check(player.calls == [], "Default picked: no song")
         check(on() == ["default"] and page.music_switch is None and page.slider is None, "the page shows Default on, the limited-time theme off, and no song card")
@@ -484,6 +512,23 @@ def launch(work, step, out):
         event_song = os.path.basename(theme.music_file() or "")
         theme.LOOK = worn
         check(plain_song == "default.wav" and event_song == "default.wav", "a theme with no song of its own plays the launcher's own opening theme")
+    elif step == "opener":
+        first = f"t_first__plays-1__until-{day(3)}.wav"
+        check(player.calls == [("play", first)] and get_config(kit).get("theme_plays") == {"t_first": 1},
+              f"a song with __plays-1 in its name opens the launcher, ahead of the theme's other song, and the play is counted ({player.calls})")
+        check(page.song is not None and page.song.cget("text") == '"First Song" by T. B\u00e5rd', "... and the song card names it")
+        c.play(asked=True)
+        page.music_switch.toggle()
+        settle(0.2)
+        page.music_switch.toggle()
+        settle(0.2)
+        check([call for call in player.calls if call[0] == "play"] == [("play", first)] * 3 and get_config(kit).get("theme_plays") == {"t_first": 1},
+              "'Play it now' and the song switch play it again in this window without counting: only the launcher opening counts")
+        check(os.path.basename(theme.music_file()) == song, "its one play is used: from the next start the theme's other song is the one")
+    elif step == "opener-done":
+        check(player.calls == [("play", song)] and get_config(kit).get("theme_plays") == {"t_first": 1},
+              f"the start after: the first song has had its play, so the theme's other song plays, and nothing more is counted ({player.calls})")
+        check(page.song is not None and page.song.cget("text") == '"Event Song" by A Guest', "... and the song card names that one")
     elif step == "classic":
         labels = [w for w in strip.winfo_children() if isinstance(w, tk.Label)] if strip is not None else []
         texts = [str(w.cget("text")) for w in labels]
@@ -518,9 +563,11 @@ if __name__ == "__main__":
         print("  ok   every song in the kit's assets\\press has its line in music.json, which names who made it")
     bad = 1 if wrong else 0
     try:
-        for step in ("during", "muted", "off", "picked", "earlier", "classic", "after", "back", "own-picked", "own-only"):
+        for step in ("during", "muted", "off", "picked", "earlier", "opener", "opener-done", "classic", "after", "back", "own-picked", "own-only"):
             put_dated(press, -1 if step in ("after", "back", "own-only") else 3, plain=step in ("during", "picked", "earlier", "back"),
-                      own=step in ("own-picked", "own-only"), credits=step != "own-picked")
+                      own=step in ("own-picked", "own-only"), credits=step != "own-picked", opener=step in ("opener", "opener-done"))
+            if step != "opener-done":                # (that start finds the count the start before it left)
+                set_config(kit, theme_plays=None)
             set_config(kit, theme_music=False if step == "muted" else None, limited_look=False if step == "off" else None,
                        theme="t_plain" if step in ("picked", "earlier", "back") else "default" if step == "own-picked" else None,
                        theme_event=f"t_look__until-{day(3)}" if step in ("picked", "back", "own-picked") else "t_old__until-2020-01-01" if step == "earlier" else None,

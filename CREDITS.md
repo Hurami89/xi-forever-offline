@@ -60,8 +60,9 @@ Gambits began as the TitanGambits engine and was brought here by its author.
 All of the launcher's music was made for XI: Forever Offline by **JØ (jnull)**, our Head of Music.
 - "A Place to Return": the launcher's opening theme (`assets/press/default.mp3`).
 - "Beyond the Veil": the 8-Bit theme's song (`assets/press/beyond_the_veil.mp3`).
-- "No Signal, All Vibes": the Vaporwave theme's song from 24 November 2026.
-- The Vaporwave theme's first song (until 23 November 2026).
+- "No Signal, All Vibes": the Vaporwave theme's song.
+- The Vaporwave theme's opener: a short piece that plays the first three times the launcher opens, before "No Signal, All
+  Vibes" takes over.
 
 The songs were made with Suno. `assets/press/music.json` holds the same list for the launcher: OPTIONS > Theme names the
 song that plays and who made it.
