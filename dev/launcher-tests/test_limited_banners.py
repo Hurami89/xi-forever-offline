@@ -108,7 +108,8 @@ def launch(work, step, out):
             fails.append(what)
 
     press = os.path.join(kit, "assets", "press")
-    files = sorted(n for n in os.listdir(press) if n.lower().endswith(PICS) and "__once" not in n.lower())
+    files = sorted(n for n in os.listdir(press) if n.lower().endswith(PICS) and "__once" not in n.lower()
+                   and "__theme-" not in n.lower())        # a theme's own banners (name__theme-8bit.png) are only shown while it is worn
     today = day(0) if step == "during" else "2099-01-01"
     if step == "after":
         gui.press_today = lambda: today
@@ -129,6 +130,13 @@ def launch(work, step, out):
         check(gui.press_names([n for n in mixed if not n.startswith(("l1", "l2"))]) == ["u1.png", "u2__center.jpg"],
               "all over: the usual pictures, and the old limited one is not among them")
         check(gui.press_names(["u1.png", "x__once.png"]) == ["u1.png"], "no limited-time pictures: the usual ones, as before")
+        check(gui.press_names(mixed + ["t__center__theme-nobody.png"]) == [f"l1__until-{day(0)}.png", f"l2__until-{day(3)}.jpg"]
+              and gui.press_names(["u1.png", "t__theme-nobody.png"]) == ["u1.png"], "a picture of a theme that is not worn is never shown")
+        really_worn, gui.press_worn = gui.press_worn, lambda: "nobody"
+        check(gui.press_names(mixed + ["t__center__theme-nobody.png", "s__theme-someone.png", f"old__theme-nobody__until-{day(-1)}.png"]) == ["t__center__theme-nobody.png"],
+              "while its theme is worn, only that theme's pictures are shown (not another theme's, not one whose date has passed)")
+        check(gui.press_names(mixed) == [f"l1__until-{day(0)}.png", f"l2__until-{day(3)}.jpg"], "a worn theme with no pictures of its own leaves the banners as they are")
+        gui.press_worn = really_worn
         check(gui.load_once({"banners_seen": [n for n in os.listdir(press) if "__once" in n.lower() and "t_gone" not in n]}) == (None, None),
               "a one-time banner whose date has passed is not shown")
 

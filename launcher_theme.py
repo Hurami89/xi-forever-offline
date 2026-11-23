@@ -13,6 +13,8 @@ What a theme's .json may hold:
     "font"      its own lettering for the launcher's text: {"family": "Pixelify Sans", "files": ["fonts/PixelifySans-Regular.ttf",
                 "fonts/PixelifySans-Bold.ttf"]}, .ttf files in assets\\press (kept to this program, nothing is installed on the PC)
                 and the name they go by. A font whose letters are about as wide as the usual ones keeps every label in its place.
+A theme's own banners are pictures in assets\\press with __theme- and its short name in their name (title__theme-8bit.png): shown only
+while that theme is worn, and then in place of the usual ones.
 A dated .mp3 / .wav (theme__until-2026-12-02.mp3) is the opening theme of the limited-time theme of those days: played once when the
 launcher opens. A limited-time theme also has the limited-time banners of its days. A song can also say when it starts
 (newer__from-2026-11-24__until-2026-12-02.mp3): from that day on it takes over from the one that was playing.
@@ -195,6 +197,12 @@ def switched_off():
     """True when a limited-time theme is in date and this PC wears another one (picked on the Theme page): its banners rest with it."""
     event = event_look()
     return event is not None and (LOOK is None or LOOK.get("id") != event["id"])
+
+
+def worn():
+    """The short name of the theme the launcher wears this time ("8bit"), "" for its own look. launcher_gui asks: a banner with
+    __theme-8bit in its name is shown only while that theme is worn, and then in place of the usual ones."""
+    return LOOK["key"] if LOOK is not None else ""
 
 
 def themes():

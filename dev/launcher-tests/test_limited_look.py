@@ -52,7 +52,8 @@ def put_dated(press, offset, plain=False, own=False):
     """The copy's own limited-time theme, banner and tune, dated `offset` days from today (any others are taken out first).
     plain: also a theme with no date (always there to pick), with a tune of its own. own: also the launcher's own opening theme."""
     for name in os.listdir(press):
-        if os.path.isfile(os.path.join(press, name)) and (name.lower().endswith((".json", ".mp3", ".wav")) or "__until-" in name.lower()):
+        if os.path.isfile(os.path.join(press, name)) and (name.lower().endswith((".json", ".mp3", ".wav")) or "__until-" in name.lower()
+                                                           or "__theme-t_plain" in name.lower()):
             os.remove(os.path.join(press, name))
     with open(os.path.join(press, f"t_look__until-{day(offset)}.json"), "w") as f:
         json.dump(LOOK, f)
@@ -63,6 +64,7 @@ def put_dated(press, offset, plain=False, own=False):
         with open(os.path.join(press, "t_plain.json"), "w") as f:
             json.dump(PLAIN, f)
         tone(os.path.join(press, "t_own.wav"))
+        Image.new("RGB", (920, 368), (30, 90, 50)).save(os.path.join(press, "t_plain_banner__center__theme-t_plain.png"))      # that theme's own banner
     if own:
         tone(os.path.join(press, "default.wav"))
 
@@ -276,10 +278,20 @@ def launch(work, step, out):
     settle(1.3)
     press = os.path.join(kit, "assets", "press")
     pictures = sorted(n for n in os.listdir(press) if n.lower().endswith((".png", ".jpg", ".jpeg")) and "__once" not in n.lower())
+    own_banners = [n for n in pictures if "__theme-t_plain" in n.lower()]            # the undated theme's own (pictures of other themes never count)
+    pictures = [n for n in pictures if "__theme-" not in n.lower()]
     limited = [n for n in pictures if "__until-" in n.lower() and n.lower().split("__until-", 1)[1][:10] >= day(0)]
     usual = [n for n in pictures if "__until-" not in n.lower()]
-    check(len(app.heroes) == (len(limited) if themed else len(usual)),
-          f"the banners are {'the limited-time ones' if themed else 'the usual ones'} ({len(app.heroes)} loaded; {len(limited)} in date, {len(usual)} usual)")
+    if wearing == "plain":
+        check(len(own_banners) == 1 and len(app.heroes) == 1, f"the banners are the picked theme's own ({len(app.heroes)} loaded, {len(own_banners)} of its own)")
+    else:
+        check(len(app.heroes) == (len(limited) if themed else len(usual)),
+              f"the banners are {'the limited-time ones' if themed else 'the usual ones'} ({len(app.heroes)} loaded; {len(limited)} in date, {len(usual)} usual, "
+              f"{len(own_banners)} of a theme that is not worn)")
+    if step == "during":
+        check(gui.press_theme("a__center__theme-8bit.png") == "8bit" and gui.press_theme("a__theme-8Bit__top.JPG") == "8bit" and gui.press_theme("a__center.png") == ""
+              and gui.press_anchor("a__top__theme-8bit.png") == 0.0 and gui.press_anchor("a__theme-8bit__bottom.png") == 1.0 and theme.worn() == "t_look",
+              "a banner's theme is read from its name, and the name still says which part of the picture to keep")
     groups = {g["title"]: [name for name, _ in g["members"]] for g in getattr(app, "nav_groups", [])}
     strip = getattr(c, "strip", None) if c else None
     song, own_song = f"t_theme__until-{day(3)}.wav", "t_own.wav"

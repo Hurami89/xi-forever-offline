@@ -64,7 +64,8 @@ Gambits began as the TitanGambits engine and was brought here by its author.
 - **JØ (jnull)**: "A Place to Return", the launcher's opening theme (`assets/press/default.mp3`), and "No Signal, All
   Vibes", the Vaporwave theme's song from 24 November 2026; both made with Suno.
 - **Records of Vana'diel** (a pack of FINAL FANTASY XI characters drawn as 8 / 16-bit sprites): the characters on the
-  buttons of the launcher's 8-Bit theme (`assets/press/8bit-ui`; the sprites used are in `art-src/8bit-sprites`).
+  buttons and the title banner of the launcher's 8-Bit theme (`assets/press/8bit-ui`; the sprites used are in
+  `art-src/8bit-sprites`).
 
 ## Tetra Master
 - **[Nalfey](https://github.com/Nalfey/TetraMaster)**: all the card art, character portraits, board graphics, coin,

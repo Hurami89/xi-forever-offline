@@ -73,6 +73,7 @@ PRESS_ANCHOR = 0.38      # press pictures are wider than the frame is tall: keep
 PRESS_NOTE = ""
 ONCE_TAG = "__once"      # a press picture with this in its name (xifo__once.png) is a one-time banner: see load_once
 UNTIL_TAG = "__until-"   # ... and one with __until-2026-12-02 in its name is a limited-time banner: see press_names
+THEME_TAG = "__theme-"   # ... and one with __theme-8bit in its name is a banner of that theme: see press_names
 
 
 def fit_picture(img, width, height, anchor=0.5):
@@ -92,6 +93,10 @@ def press_anchor(name):
     cut = stem.find(UNTIL_TAG)
     if cut >= 0:
         stem = stem[:cut] + stem[cut + len(UNTIL_TAG) + 10:]
+    cut = stem.find(THEME_TAG)
+    if cut >= 0:
+        end = stem.find("__", cut + len(THEME_TAG))
+        stem = stem[:cut] + (stem[end:] if end >= 0 else "")
     for tag, value in (("__top", 0.0), ("__center", 0.5), ("__middle", 0.5), ("__bottom", 1.0)):
         if stem.endswith(tag):
             return value
@@ -123,12 +128,35 @@ def press_limited_on():
         return True
 
 
+def press_theme(name):
+    """The theme a picture belongs to: the word after __theme- in its name (title__theme-8bit.png -> "8bit"); "" for the others."""
+    low = os.path.splitext(name)[0].lower()
+    cut = low.find(THEME_TAG)
+    return low[cut + len(THEME_TAG):].split("__", 1)[0] if cut >= 0 else ""
+
+
+def press_worn():
+    """The theme the launcher wears (OPTIONS > Theme): its short name, "" for the launcher's own look."""
+    try:
+        import launcher_theme
+        return launcher_theme.worn()
+    except Exception:
+        return ""
+
+
 def press_names(names):
     """Which of the pictures in assets\\press are in the rotation today. Limited-time pictures (__until-DATE in the name) that are still in
     date take the place of the usual ones: while there is at least one, only they are shown, and the day after the date the usual ones are
-    back by themselves. A limited-time picture that is over is never shown; one-time pictures (__once) are never in the rotation."""
+    back by themselves. A limited-time picture that is over is never shown; one-time pictures (__once) are never in the rotation.
+    A theme's own pictures (__theme-KEY in the name) come before all of that: while that theme is worn only they are shown, and they are
+    never shown with any other look."""
     names = sorted(n for n in names if n.lower().endswith((".png", ".jpg", ".jpeg")) and ONCE_TAG not in n.lower())
     today = press_today()
+    worn = press_worn()
+    own = [n for n in names if worn and press_theme(n) == worn and (not press_until(n) or press_until(n) >= today)]
+    if own:
+        return own
+    names = [n for n in names if not press_theme(n)]
     limited = [n for n in names if press_until(n) >= today] if press_limited_on() else []
     return limited or [n for n in names if not press_until(n)]
 
