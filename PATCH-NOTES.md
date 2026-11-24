@@ -2,6 +2,11 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.7 · 23 November 2026
+
+### Fixes
+• Bot players: on the new-look RULES page the roster and bots online still stopped at 600 / 550. They now go up to 2000 / 1500 there too (past the usual numbers the launcher asks first). (krazy)
+
 ## v0.3.6 · 23 November 2026
 
 ### Fixes

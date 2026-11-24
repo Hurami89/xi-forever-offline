@@ -40,10 +40,10 @@ S("crowd_meet", "world", "Town crowds", SWITCH, "Stop for each other",
   tip="Two adventurers walking past each other may stop, turn and wave before going on.")
 S("crowds_field_parties", "world", "Field parties", COUNT, "Parties per area", dev=True, lo=0, hi=3, step=1,
   tip="Players get this from their world choice.")
-S("bots_online", "world", "Bot players", COUNT, "Online at a time", lo=0, hi=550, step=10,
-  tip="How many bot players are logged in at once. Lower it if the game stutters. 0-550.")
-S("bots_roster", "world", "Bot players", COUNT, "Roster size", lo=0, hi=600, step=50,
-  tip="How many bot characters exist in your world. 0-600.")
+S("bots_online", "world", "Bot players", COUNT, "Online at a time", lo=0, hi=1500, step=10,
+  tip="How many bot players are logged in at once. Lower it if the game stutters. Usually 0-550; up to 1500 for strong PCs (the launcher asks first). At most 60% of the roster.")
+S("bots_roster", "world", "Bot players", COUNT, "Roster size", lo=0, hi=2000, step=50,
+  tip="How many bot characters exist in your world. Usually 0-600; up to 2000 for strong PCs (the launcher asks first).")
 S("bots_growth", "world", "Bot players", CHOICE, "Bot growth",
   options=(("off", "Off"), ("realistic", "Realistic"), ("fast", "Fast")),
   tip="Bots level, craft and earn gil while you are not playing.")
