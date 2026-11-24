@@ -9,7 +9,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ### Fixes
 • New installs: the game's first update comes from XI: Forever Offline's own download, with no Square Enix login. Setup said you needed a Square Enix account, and a game that still needed its first update opened the PlayOnline login steps instead of offering the download. The login steps now only show when the download can't be reached.
-• Hardcore and Randomized marks: the custom shields now show beside your name. The game keeps four copies of its icon sheet and draws those marks from one the launcher wasn't patching, so the game's own icons showed instead (a green goblet on Randomized characters). New hardcore and Randomized characters also lose the new-player "?", which covered the shield, and characters made before this fix lose it at their next login.
+• Hardcore and Randomized marks: the custom shields now show beside your name. The game keeps eight copies of its icon sheet, including a high-resolution one that large nameplates use, and the launcher was only patching one, so the game's own icons showed instead (a green goblet on Randomized characters). All eight are patched now, with sharper 32-pixel shields for large nameplates. New hardcore and Randomized characters also lose the new-player "?", which covered the shield, and characters made before this fix lose it at their next login.
 
 ## v0.3.7 · 23 November 2026
 

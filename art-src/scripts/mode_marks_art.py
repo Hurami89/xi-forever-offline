@@ -13,19 +13,22 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageCho
 
 KIT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 CELLS = {"iron": (3, 1), "steel": (0, 0), "silver": (2, 5), "random": (0, 3), "newplayer": (1, 1)}
+# (2026-11-24) the game's high-resolution copy "ustatshd" (256x256, 32x32 cells; the large nameplates draw from it, so
+# the goblet kept showing): the same five marks, and its top-left 128x64 holds the 16x16 sheet again (CELLS)
+HD_CELLS = {"iron": (2, 5), "steel": (1, 7), "silver": (3, 2), "random": (2, 2), "newplayer": (0, 7)}
 
 
-def shield(name):
+def shield(name, size=16):
     im = Image.open(os.path.join(KIT, "assets", "ui", f"hc_icon_{name}.png")).convert("RGBA")
     im = im.crop(im.getbbox())
     side = max(im.size)
     sq = Image.new("RGBA", (side, side), (0, 0, 0, 0))
     sq.paste(im, ((side - im.width) // 2, (side - im.height) // 2))
-    small = sq.resize((32, 32), Image.LANCZOS).resize((16, 16), Image.LANCZOS)
+    small = sq.resize((size * 2, size * 2), Image.LANCZOS).resize((size, size), Image.LANCZOS)
     return ImageEnhance.Contrast(ImageEnhance.Sharpness(small).enhance(1.8)).enhance(1.15)
 
 
-def question_mark():
+def question_mark(size16=16):
     size = 96
     font = None
     for path in ("C:/Windows/Fonts/arialbd.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
@@ -45,7 +48,7 @@ def question_mark():
     im.paste(grad, (0, 0), mask)
     shine = ImageChops.subtract(mask, mask.transform(mask.size, Image.AFFINE, (1, 0, 5, 0, 1, 5)))
     im.paste((245, 255, 255, 255), (0, 0), shine.point(lambda v: 255 if v > 128 else 0))
-    return ImageEnhance.Sharpness(im.resize((32, 32), Image.LANCZOS).resize((16, 16), Image.LANCZOS)).enhance(1.5)
+    return ImageEnhance.Sharpness(im.resize((size16 * 2, size16 * 2), Image.LANCZOS).resize((size16, size16), Image.LANCZOS)).enhance(1.5)
 
 
 def dxt3_encode(img):
@@ -92,6 +95,11 @@ def main():
         img = question_mark() if name == "newplayer" else shield(name)
         img.save(os.path.join(out_dir, f"{name}16.png"))
         data["cells"].append({"name": name, "row": row, "col": col, "dxt3": dxt3_encode(img).hex()})
+    data["hd"] = {"texture": "ustatshd", "size": [256, 256], "cells": []}
+    for name, (row, col) in HD_CELLS.items():
+        img = question_mark(32) if name == "newplayer" else shield(name, 32)
+        img.save(os.path.join(out_dir, f"{name}32.png"))
+        data["hd"]["cells"].append({"name": name, "row": row, "col": col, "dxt3": dxt3_encode(img).hex()})
     with open(os.path.join(KIT, "client-patches", "mode_marks.json"), "w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=1)
     print("written", len(data["cells"]), "marks")

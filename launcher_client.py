@@ -416,29 +416,34 @@ def restore_mode_titles(kit, game):
 # Randomized the "accepting party requests" goblet; and every new character's "?" becomes XI: Forever's own.
 # client-patches\mode_marks.json holds the five pictures already in the game's format (art-src\scripts\mode_marks_art.py).
 MARKS_FILES = (("ROM", "0", "1.DAT"), ("ROM", "0", "13.DAT"), ("ROM", "118", "111.DAT"), ("ROM", "280", "15.DAT"))
+# the high-resolution copy "ustatshd" (256x256): large nameplates draw from it. Its 32x32 cells get mode_marks.json's
+# "hd" pictures, and its top-left 128x64 is the 16x16 sheet again, which gets the 16x16 ones.
+MARKS_HD_FILES = (("ROM", "119", "51.DAT"), ("ROM", "91", "15.DAT"), ("ROM", "176", "75.DAT"), ("ROM", "178", "14.DAT"))
 
 
-def _marks_texture(data):
-    """Where the "ustats" picture's blocks start, or None when the file is not laid out as expected."""
+def _marks_texture(data, name=b"ustats", size=(128, 64)):
+    """Where an icon picture's blocks start ("ustats" 128x64, or "ustatshd" 256x256), or None when the file is not
+    laid out as expected."""
     at = 0
     while at + 16 <= len(data):
         packed = int.from_bytes(data[at + 4:at + 8], "little")
-        size = ((packed >> 7) & 0x7FFFF) * 16
-        if size <= 0 or at + size > len(data):
+        block = ((packed >> 7) & 0x7FFFF) * 16
+        if block <= 0 or at + block > len(data):
             return None
-        if packed & 0x7F == 0x20 and bytes(data[at + 17:at + 33]).split() == [b"menu", b"ustats"]:
+        if packed & 0x7F == 0x20 and bytes(data[at + 17:at + 33]).split() == [b"menu", name]:
             width, height = struct.unpack_from("<ii", data, at + 37)
-            if data[at + 16] == 0xA1 and (width, height) == (128, 64) and bytes(data[at + 73:at + 77]) == b"3TXD" \
-                    and at + 85 + 128 * 64 <= at + size:
+            if data[at + 16] == 0xA1 and (width, height) == tuple(size) and bytes(data[at + 73:at + 77]) == b"3TXD" \
+                    and at + 85 + width * height <= at + block:
                 return at + 85
             return None
-        at += size
+        at += block
     return None
 
 
-def _cell_offsets(start, row, col):
-    """The 16 block offsets (4x4 blocks of 16 bytes) of one 16x16 cell, in the order the picture lists them."""
-    return [start + ((row * 4 + y) * 32 + col * 4 + x) * 16 for y in range(4) for x in range(4)]
+def _cell_offsets(start, row, col, width=128, cell=16):
+    """The block offsets (4x4-pixel blocks of 16 bytes) of one cell, in the order the picture lists them."""
+    per_row, n = width // 4, cell // 4
+    return [start + ((row * n + y) * per_row + col * n + x) * 16 for y in range(n) for x in range(n)]
 
 
 def _keep_name(parts):
@@ -446,21 +451,27 @@ def _keep_name(parts):
     return (parts[-1] if parts[1] == "0" else "-".join(parts)) + ".original"
 
 
-def _mark_one(kit, game, parts, marks):
-    """Draws the marks into one copy of the icon sheet: True when changed, None when already done, else a message."""
+def _mark_one(kit, game, parts, marks, hd=None):
+    """Draws the marks into one copy of the icon sheet (hd: the "hd" pictures for a "ustatshd" copy): True when
+    changed, None when already done, else a message."""
     path = os.path.join(game, *parts)
     if not os.path.exists(path):
         return "missing"
     with open(path, "rb") as handle:
         data = bytearray(handle.read())
-    start = _marks_texture(data)
+    if hd is None:
+        start = _marks_texture(data)
+        jobs = [(mark, 128, 16) for mark in marks]
+    else:
+        start = _marks_texture(data, b"ustatshd", (256, 256))
+        jobs = [(mark, 256, 16) for mark in marks] + [(mark, 256, 32) for mark in hd]
     if start is None:
         return "not the expected file"
     todo = []
-    for mark in marks:
+    for mark, width, cell in jobs:
         blocks = bytes.fromhex(mark["dxt3"])
-        offsets = _cell_offsets(start, mark["row"], mark["col"])
-        if len(blocks) != 256:
+        offsets = _cell_offsets(start, mark["row"], mark["col"], width, cell)
+        if len(blocks) != cell * cell:
             return "the marks file is damaged"
         if any(bytes(data[o:o + 16]) != blocks[i * 16:(i + 1) * 16] for i, o in enumerate(offsets)):
             todo.append((mark, blocks, offsets))
@@ -490,10 +501,13 @@ def mode_marks(kit, game, log=print):
     # ROM\280\15.DAT; found by searching every game file for the goblet's pixels), and the current client draws the
     # marks from a later one, so all four are patched (only 1.DAT was, and the retail goblet kept showing)
     with open(os.path.join(kit, "client-patches", "mode_marks.json"), encoding="utf-8") as handle:
-        marks = json.load(handle)["cells"]
+        sheet = json.load(handle)
+    marks, hd = sheet["cells"], sheet.get("hd", {}).get("cells", [])
     changed, problems = False, []
-    for parts in MARKS_FILES:
-        result = _mark_one(kit, game, parts, marks)
+    for parts, pictures in [(p, None) for p in MARKS_FILES] + [(p, hd) for p in (MARKS_HD_FILES if hd else ())]:
+        if pictures is not None and not os.path.exists(os.path.join(game, *parts)):
+            continue                            # an older game without the high-resolution sheet
+        result = _mark_one(kit, game, parts, marks, pictures)
         if result is True:
             changed = True
         elif result is not None:
@@ -509,7 +523,7 @@ def mode_marks(kit, game, log=print):
 def restore_mode_marks(kit, game):
     import shutil
     done = False
-    for parts in MARKS_FILES:
+    for parts in MARKS_FILES + MARKS_HD_FILES:
         keep = os.path.join(kit, "backups", "mode-marks-dat", _keep_name(parts))
         if os.path.exists(keep):
             shutil.copy2(keep, os.path.join(game, *parts))
