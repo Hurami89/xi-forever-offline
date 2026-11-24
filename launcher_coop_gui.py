@@ -1554,6 +1554,8 @@ class CoopTab(tk.Frame):
                                    "\u2022 Everything earned there comes home with it (your launcher checks the character on the way in).\n"
                                    "\u2022 Its squad mates travel with it; what they earn comes home too.\n"
                                    "\u2022 Linkshells stay home.\n"
+                                   + ("\u2022 Its bot players chat through Google's Gemma AI: what you say to them is sent to Google, "
+                                      "which may use it to improve its products.\n" if (greeting.get("rules") or {}).get("ai_chat") == "google" else "")
                                    + (f"\u2022 That world keeps your place (your name there, its linkshells, your auction listings and "
                                       f"delivery box) for {days} days after each visit.\n" if days else "") +
                                    "\u2022 Auction listings and delivery-box items at home wait for the return.\n\nGo?", parent=self):
