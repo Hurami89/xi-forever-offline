@@ -930,15 +930,30 @@ def run_setup(kit, choices, tp, log=print, fetch=None, run=subprocess.run, popen
     if game == "official" and not valid_ffxi(choices.get("ffxi_dir")):
         import launcher_game as lg
         found = find_ffxi()
+        own = None
         if not valid_ffxi(found):
-            files = lg.download_official(kit, log=log, context=tp.ssl_context())
-            lg.run_official_installer(kit, files, log=log, popen=popen)
-            found = find_ffxi()
+            # (2026-11-24) the whole game from XI: Forever Offline's own download, no Square Enix installer; the
+            # launcher registers it with Windows at the first PLAY (launcher_game.install_from_release). Square Enix's
+            # installer stays the way in only when the download can't be had.
+            try:
+                own = lg.install_from_release(kit, log=log, context=tp.ssl_context())
+            except Exception as problem:
+                log(f"   The game couldn't be downloaded from XI: Forever Offline ({problem}). Using Square Enix's "
+                    "installer instead.")
+        if own:
+            choices["ffxi_dir"] = own["ffxi"]
+            extra_cfg.update({"game_copy": False, "pol_dir": own["viewer"], "pol_lang": "US", "game_own_install": True,
+                              "game_registry_needed": True})
+        else:
             if not valid_ffxi(found):
-                raise RuntimeError("FINAL FANTASY XI isn't installed yet. Finish Square Enix's installer (it may still be "
-                                   "open), then press Install again; the download is kept.")
-        choices["ffxi_dir"] = found
-        extra_cfg["game_update_needed"] = not update_game_files(kit, found, log=log, context=tp.ssl_context())
+                files = lg.download_official(kit, log=log, context=tp.ssl_context())
+                lg.run_official_installer(kit, files, log=log, popen=popen)
+                found = find_ffxi()
+                if not valid_ffxi(found):
+                    raise RuntimeError("FINAL FANTASY XI isn't installed yet. Finish Square Enix's installer (it may still "
+                                       "be open), then press Install again; the download is kept.")
+            choices["ffxi_dir"] = found
+            extra_cfg["game_update_needed"] = not update_game_files(kit, found, log=log, context=tp.ssl_context())
     if not valid_ffxi(choices.get("ffxi_dir")):
         raise RuntimeError("That folder is not FINAL FANTASY XI (FFXiMain.dll is missing). Install the game first.")
     if game == "copy":

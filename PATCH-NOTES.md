@@ -4,6 +4,9 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ## v0.3.8 · 24 November 2026
 
+### New
+• New installs without FINAL FANTASY XI: "Download FINAL FANTASY XI" now gets the whole game, already up to date (about 7.5 GB), from XI: Forever Offline's own download. No Square Enix installer, account or login. At the first PLAY, Windows asks once for permission to register the game. If the download can't be reached, setup uses Square Enix's installer as before.
+
 ### Fixes
 • New installs: the game's first update comes from XI: Forever Offline's own download, with no Square Enix login. Setup said you needed a Square Enix account, and a game that still needed its first update opened the PlayOnline login steps instead of offering the download. The login steps now only show when the download can't be reached.
 

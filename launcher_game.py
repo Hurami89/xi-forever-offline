@@ -766,8 +766,70 @@ def finish_version_check(ffxi_dir):
     return "restored"
 
 
+# ----- the whole game from XI: Forever Offline's own download (2026-11-24, the user: "it's still downloading from SE
+# instead of our GitHub") -----
+# No Square Enix installer: every game and PlayOnline file comes from the xi-forever-gamefiles release
+# (launcher_gamefiles.py) into the kit's own Game folder, and the launcher registers it with Windows itself, once, from
+# the same template Ashita's sandbox uses (Ashita\config\sandbox\sandbox.registry.ini: PlayOnline's InstallFolder,
+# Interface and settings keys and every COM class of PlayOnline and FFXI), imported into the 32-bit view with
+# "reg import /reg:32" from an elevated helper (Windows asks once).
+REG_FILE = "xiforever-game.reg"
+
+
+def install_from_release(kit, log=print, context=None, update=None):
+    """Downloads the whole game into <kit>\Game\SquareEnix. Returns its paths (see game_paths)."""
+    import launcher_gamefiles as gf
+    paths = game_paths(os.path.join(kit, "Game"))
+    for folder in paths.values():
+        os.makedirs(folder, exist_ok=True)
+    log("   Downloading FINAL FANTASY XI from XI: Forever Offline (about 7.5 GB; a stopped download carries on "
+        "where it left off)...")
+    (update or gf.update)(kit, paths["ffxi"], paths["viewer"], log=log, context=context)
+    if not os.path.isfile(os.path.join(paths["ffxi"], "FFXiMain.dll")):
+        raise RuntimeError("the download finished, but FFXiMain.dll is missing from it")
+    # (the release leaves out the folders a player's own install keeps settings and screenshots in: make them empty)
+    for folder in (os.path.join(paths["ffxi"], "USER"), os.path.join(paths["ffxi"], "screenshots"),
+                   os.path.join(paths["viewer"], "usr")):
+        os.makedirs(folder, exist_ok=True)
+    return paths
+
+
+def registry_text(kit, ashita_dir, ffxi, viewer):
+    """The .reg file that registers this game with Windows (paths filled in)."""
+    import launcher_linux as ll
+    tetra = os.path.join(os.path.dirname(os.path.normpath(ffxi)), "TetraMaster")
+    paths = {"pol": viewer, "ffxi": ffxi, "tetra": tetra, "common": r"C:\Program Files (x86)\Common Files"}
+    return ll.registry_file_text(ll.sandbox_registry_text(ashita_dir or ""), paths)
+
+
+def write_registry_file(kit, ashita_dir, ffxi, viewer):
+    path = os.path.join(kit, "downloads", REG_FILE)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-16", newline="") as handle:     # (reg import reads UTF-16 .reg files)
+        handle.write(registry_text(kit, ashita_dir, ffxi, viewer))
+    return path
+
+
+def registered(cfg, reg=None):
+    """True when Windows has this game's folders and FFXiMain's COM class pointing at it."""
+    reg = reg or registry()
+    ffxi = cfg.get("ffxi_client_dir", "")
+    main_dll = reg.get(r"SOFTWARE\Classes\CLSID\{1027DC46-750D-4B1F-8834-1D25B8BEBAB8}\InprocServer32", "")
+    return _same(reg.get(r"SOFTWARE\PlayOnlineUS\InstallFolder", "0001"), ffxi) and _inside(main_dll, (ffxi,))
+
+
+def register_import(reg_file, run=subprocess.run):
+    """(elevated) reg import into the 32-bit view; writes <reg_file>.done with the exit code."""
+    result = run(["reg", "import", reg_file, "/reg:32"], capture_output=True, text=True)
+    with open(reg_file + ".done", "w", encoding="utf-8") as handle:
+        handle.write(f"{result.returncode}\n{(result.stdout or '')[-500:]}{(result.stderr or '')[-500:]}")
+    return result.returncode
+
+
 def main(argv):
-    """XI Forever Offline.exe --run launcher_game.py hold|recover <state file>   (run elevated by the launcher)"""
+    """XI Forever Offline.exe --run launcher_game.py hold|recover <state file> | register <.reg file>   (run elevated)"""
+    if len(argv) == 2 and argv[0] == "register":
+        return register_import(argv[1])
     if len(argv) != 2 or argv[0] not in ("hold", "recover"):
         print(main.__doc__)
         return 2

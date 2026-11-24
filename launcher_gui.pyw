@@ -4591,6 +4591,8 @@ class App(tk.Tk):
                                    "installer puts in an older version). Show the steps?\n\nNo = play anyway.", parent=self):
                 PolUpdateGuide(self)
                 return
+        if IS_WINDOWS and self.cfg.get("game_registry_needed") and not self.register_game():
+            return
         if not getattr(self, "age_checked", False) and self.game_too_old():
             return
         self.rates = self.rates_tab.collect()
@@ -4708,6 +4710,45 @@ class App(tk.Tk):
             self.age_checked = False                                    # ask again after the update
             return True
         return False
+
+    def register_game(self):
+        """(2026-11-24) A game that came from XI: Forever Offline's own download (no Square Enix installer) is registered
+        with Windows once, here, before its first start: PlayOnline's folders and COM classes (launcher_game.registry_text).
+        Windows asks for permission once. True when it is registered."""
+        import launcher_game as lg
+        try:
+            if lg.registered(self.cfg):
+                done = True
+            else:
+                reg_file = lg.write_registry_file(HERE, self.cfg.get("ashita_dir", ""), self.cfg["ffxi_client_dir"],
+                                                  self.cfg["pol_dir"])
+                marker = reg_file + ".done"
+                if os.path.exists(marker):
+                    os.remove(marker)
+                messagebox.showinfo("One more step", "FINAL FANTASY XI is downloaded. Windows needs to know where it is, "
+                                    "once: Windows will ask for permission next. Choose Yes.", parent=self)
+                run_elevated(["register", reg_file])
+                for _ in range(120):
+                    if os.path.exists(marker):
+                        break
+                    self.update()
+                    time.sleep(0.5)
+                done = lg.registered(self.cfg)
+        except Exception as e:
+            messagebox.showerror("Register the game", f"The game couldn't be registered with Windows: {e}\n\nPress PLAY "
+                                 "to try again.", parent=self)
+            return False
+        if not done:
+            messagebox.showerror("Register the game", "Windows didn't register the game (the permission prompt was "
+                                 "refused or something went wrong). Press PLAY to try again.", parent=self)
+            return False
+        self.cfg.pop("game_registry_needed", None)
+        try:
+            save_config_value("game_registry_needed", None)
+        except (OSError, ValueError):
+            pass
+        self.say("The game is registered with Windows.")
+        return True
 
     def offer_game_files(self, why):
         """(2026-11-23) Offers to bring the game up to date from XI: Forever Offline's own release of the game files
@@ -5902,9 +5943,9 @@ class SetupWizard(tk.Tk):
                    ("existing", "Use my installed FINAL FANTASY XI",
                     "No copy. The era game files (Phoenix Era-DATs) then go into that install; its original files are backed up."),
                    ("official", "Download FINAL FANTASY XI (I don't have it)",
-                    "Square Enix's official installer sets up the game and PlayOnline: its setup window opens, install with "
-                    "the default choices. Then the launcher brings the game up to date from XI: Forever Offline's own "
-                    "download. No Square Enix account or login needed.")]
+                    "The whole game, up to date (about 7.5 GB), from XI: Forever Offline's own download into the "
+                    "launcher's folder. At the first PLAY, Windows asks once for permission to register it. No Square "
+                    "Enix account, login or installer needed.")]
         for key, label, about in options:
             if key == "official" and found:
                 continue
