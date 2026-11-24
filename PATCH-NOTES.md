@@ -6,6 +6,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ### New
 • A new look for the launcher: Aero, sky, water and glossy glass, mid-2000s style. It is now the standard look; the look you had before is "Classic" on OPTIONS > Theme, and a theme you picked yourself stays picked.
+• Living Vana'diel, Writing Contribution #001 by JØ and Nox: new lines for squad mates (all four voices), three squad scenes, bot players and linkshells, and town talk in San d'Oria, Bastok, Windurst, Jeuno, Selbina and Mhaura. (JØ, Nox)
 • Music: the Aero look has its own song, "TOMORROW.EXE" by JØ and Nox (a song about the launcher itself). (JØ, Nox)
 • Hardcore marks beside the name: Iron, Steel, Silver and Randomized characters show their mode's shield where the game shows its own flags, so everyone sees it (the hcicons badge over the head is off by default now; /hcicons names float brings it back). New players' ? is now XI: Forever's own crystal ?. (Yenkei)
 • RANDOMIZED: the launcher makes the character for you (random race, face, size, nation and starting city, no creation screen), you start in a random level 1 set of gear for your job with 10,000 gil, and its rates are now 2.5x experience, no experience lost, 3x drops and gil.
@@ -15,6 +16,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Squad mates vanishing for a while after setting a camp or zoning (they came back once they moved): the outfit refresh now carries the mate's position and HP. (wildthing; reported by Ricc, K-Andy)
 • Squad mates did not cast Protectra and other area spells when you asked in chat. (wildthing; reported by Ricc)
 • Squad tanks: checks for who holds the monster's attention read the mate's own target. (wildthing)
+• Squad mates' bolts, arrows and bullets now give their additional effects too (Acid Bolt's Defense Down, Sleep Bolt and the like), as a player's do. (Syfin)
 • Bot players: on the new-look RULES page the roster and bots online still stopped at 600 / 550. They now go up to 2000 / 1500 there too (past the usual numbers the launcher asks first). (krazy)
 
 ## v0.3.6 · 23 November 2026
