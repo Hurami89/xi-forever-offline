@@ -5,6 +5,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ## v0.3.5 · 23 November 2026
 
 ### New
+• GM characters: the GM commands that change a character (!addquest, !completemission, !addkeyitem, !givegil, !setplayerlevel, !setrank, !additem and more) also work on your characters that are logged out. The change is saved and made when that character next logs in.
+• Character transfer: the quest and mission logs come across too (completed quests, quests in progress, nation, Zilart, Promathia and Aht Urhgan missions, Assault). Zone once with charcapture loaded before /capture. A quest in progress starts again from its first step, and fame still can't be carried (the game never sends it).
 • CO-OP, redone: a bigger page in three parts. The Hub on its own at the top, then OPEN WORLDS, a card for every world other players opened to everyone (its banner, its description, how many people are there), then your own world and visiting friends.
 • One button: PLAY on a world takes your character there and starts the game. Close the game (log out) and your character comes home by itself, with everything it earned. No VISIT and no COME HOME to press. You are only asked when it has to: a world's password, a name that is taken there, or things you left on that world's auction house or in its delivery box.
 • Friends' worlds work the same way, on the same network, over Tailscale or over the internet: paste the invite code under VISIT A FRIEND and press PLAY. After that their world has its own card under YOUR FRIENDS' WORLDS (with who is there), so next time it is one click. "forget" takes a card away.
