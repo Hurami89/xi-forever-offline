@@ -67,8 +67,8 @@ RULES = {
         "3 cosmetic rewards every 10 levels", "Can step down to Iron"],
     4: ["Rates locked to the Randomized profile (2x experience)", "Random race, face and size; you pick only the name",
         "One random job to start, another at 18, 33 and 65 (of the 18 era jobs); only those can be played",
-        "Job quests still unlock jobs for your squad mates", "Every drop is a random item that fits the area (NMs: the NM pool)",
-        "Auction house and trading allowed; normal deaths; parties with anyone"],
+        "Job quests still unlock jobs for your squad mates", "Drops, chests, caskets and battlefield crates are random but fit",
+        "Its own auction house (stock rotates, prices swing 20% more); trading, normal deaths, any party"],
 }
 
 

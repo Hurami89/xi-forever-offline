@@ -98,6 +98,25 @@ try:
 
     check(hc.survival_text(3 * 86400 + 4 * 3600) == "3d 4h" and hc.survival_text(65) == "1m", "survival text")
     check(hc.parse_out_line("1|start|A|Iron|WAR|1||W")["kind"] == "start", "parse a line")
+
+    # the four mode titles go into a game title list laid out like the real one (ROM/180/78.DAT)
+    import struct
+    import launcher_client as lc
+    game = os.path.join(tmp, "game")
+    os.makedirs(os.path.join(game, "ROM", "180"))
+    header = bytearray(0x40)
+    header[:5] = b"d_msg"
+    struct.pack_into("<I", header, 0x20, 0x100)
+    body = b"".join(lc._title_entry("Fodderchief Flayer" if i == 1 else ("Eternal Master" if i == 1077 else "")) for i in range(1150))
+    with open(os.path.join(game, "ROM", "180", "78.DAT"), "wb") as handle:
+        handle.write(bytes(header) + body)
+    first = lc.mode_titles(tmp, game)
+    data = open(os.path.join(game, "ROM", "180", "78.DAT"), "rb").read()
+    check(first and lc._title_text(data, 1081) == "Altana's Wild Card" and lc._title_text(data, 1077) == "Eternal Master",
+          "mode titles written into slots 1078 - 1081, the rest untouched")
+    check(lc.mode_titles(tmp, game) is None, "mode titles: nothing to do the second time")
+    check(lc.restore_mode_titles(tmp, game) and lc._title_text(open(os.path.join(game, "ROM", "180", "78.DAT"), "rb").read(), 1078) == "",
+          "mode titles: the original comes back")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 print(f"{passed} checks passed")

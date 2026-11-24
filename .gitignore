@@ -145,6 +145,7 @@
 !/addons-src/journal-era/
 !/addons-src/stinkshell/
 !/addons-src/autora/
+!/addons-src/hcicons/
 
 # ---- server modules (copies kept with the kit) ----
 !/squad-behavior/
