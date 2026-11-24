@@ -65,7 +65,7 @@ RULES = {
     3: ["Rates locked to the Silver profile (3.5x experience)", "No auction house, trades or Home Point / Survival Guide teleports",
         "Knocked out: the character is gone for good (deleted after 7 days)", "Parties only with Iron, Steel and Silver characters (squad mates, no bots)",
         "3 cosmetic rewards every 10 levels", "Can step down to Iron"],
-    4: ["Rates locked to the Randomized profile (2x experience)", "You pick only the name: race, face, size and nation are rolled",
+    4: ["Rates locked to the Randomized profile (2.5x experience)", "You pick only the name: race, face, size and nation are rolled",
         "One random job to start, another at 18, 33 and 65 (of the 18 era jobs); only those can be played",
         "Job quests still unlock jobs for your squad mates", "Drops, chests, caskets and battlefield crates are random but fit",
         "Its own auction house (stock rotates, prices swing 20% more); trading, normal deaths, any party"],
@@ -123,7 +123,8 @@ def session_rates(kit, rates, mode):
     for key, value in profiles(kit)[mode].items():
         if key not in OWN_CHOICES:
             out[key] = value
-    out["ah_sim"] = False                     # nobody here may use the auction house anyway
+    if mode in HARDCORE:
+        out["ah_sim"] = False                 # nobody here may use the auction house anyway (Randomized may: it keeps it)
     return out
 
 

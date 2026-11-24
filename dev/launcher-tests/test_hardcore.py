@@ -35,6 +35,8 @@ try:
     s = hc.session_rates(tmp, mine, 3)
     check(s["map.EXP_RATE"] == 3.5 and s["bots_online"] == 42 and s["crowds_per_zone"] == 9, "PLAY HARDCORE: profile over yours, bots kept")
     check(s["ah_sim"] is False and s["own_thing"] == 7 and mine["map.EXP_RATE"] == 5.0, "AH sim off; your dict untouched")
+    check(hc.session_rates(tmp, {"ah_sim": True}, 4)["ah_sim"] is True and p[4]["map.EXP_RATE"] == 2.5,
+          "PLAY RANDOMIZED keeps the auction house simulator; its new rates load")
     check(hc.session_rates(tmp, mine, 0) is mine, "plain PLAY: unchanged")
 
     hc.add_pending(tmp, server, "Steely", 2)
