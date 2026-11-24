@@ -4873,7 +4873,7 @@ class App(tk.Tk):
                                                  log=self.say)
             except Exception as e:
                 self.say(f"Could not turn Tetra Master on ({e}) - starting anyway.")
-            try:                              # (2026-11-23) the hardcore badges: switched on once
+            try:                              # (2026-11-23) the hardcore icons: on at every PLAY
                 launcher_setup.enable_hcicons(cfg["ashita_dir"], cfg.get("ashita_boot", "phoenixsolo.ini"), log=self.say)
             except Exception as e:
                 self.say(f"Could not turn the hardcore badges on ({e}) - starting anyway.")

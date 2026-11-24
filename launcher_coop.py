@@ -888,7 +888,7 @@ def describe_rules(rules):
     parts = [f"experience {times(rules.get('exp', 1))}", f"drops {times(rules.get('drops', 1))}", f"skill-ups {times(rules.get('skill', 1))}"]
     parts.append("bot players on" if rules.get("bots") else "no bot players")
     if rules.get("hardcore_only"):
-        parts.insert(0, "HARDCORE: Iron, Steel and Silver characters only")
+        parts.insert(0, "HARDCORE: Iron, Steel, Silver and Randomized characters only")
     if rules.get("ai_chat") == "google":
         parts.append("bot chat by Google's Gemma AI")
     return ", ".join(parts)

@@ -9,7 +9,7 @@ world rules for that session.
 The menu: a card per hardcore character (PLAY, STEP DOWN, and RESTORE on the dev PC for a Silver that fell to a bug), then
 NEW HARDCORE CHARACTER, the mode pick screen: the mode cards side by side on a dark screen; the card under the mouse lights up
 and sends up embers in its metal's colour, and its rules show below. Steel and Silver are confirmed by typing the character's
-name. RANDOM is there, greyed, until the randomized mode is made. The pictures are assets\\ui\\hardcore*.png and
+name. RANDOM (Randomized, 2026-11-23) starts a Randomized character the same way. The pictures are assets\\ui\\hardcore*.png and
 hc_card_*.png (every theme has its own, made by art-src\\scripts\\hardcore_art.py).
 """
 import os
@@ -277,10 +277,12 @@ class HardcoreMenu(tk.Toplevel):
             if not self.app.cfg.get("mariadb_dir"):           # the dev PC: a Silver that fell to a bug can be brought back
                 w.button(row, "RESTORE (bug)", lambda cid=c["charid"], n=c["name"]: self.restore(cid, n), small=True).pack(side="right", padx=8)
             return
-        w.button(row, "PLAY HARDCORE", lambda m=c["mode"]: self.play(m), primary=True, small=True).pack(side="right", padx=8)
-        lower = "a regular character" if c["mode"] == 1 else "Iron"
-        w.button(row, f"Step down to {lower}", lambda cid=c["charid"], n=c["name"], m=c["mode"]: self.step_down(cid, n, m),
-                 small=True).pack(side="right")
+        w.button(row, "PLAY HARDCORE" if c["mode"] in hc.HARDCORE else "PLAY RANDOMIZED", lambda m=c["mode"]: self.play(m),
+                 primary=True, small=True).pack(side="right", padx=8)
+        if c["mode"] in hc.HARDCORE:
+            lower = "a regular character" if c["mode"] == 1 else "Iron"
+            w.button(row, f"Step down to {lower}", lambda cid=c["charid"], n=c["name"], m=c["mode"]: self.step_down(cid, n, m),
+                     small=True).pack(side="right")
 
     def options(self, body):
         box = tk.Frame(body, bg=w.BG)
@@ -375,9 +377,7 @@ class HardcoreMenu(tk.Toplevel):
         self.show_list()
 
     def hovered(self, mode):
-        if mode == 4:
-            self.rules_box.configure(text="RANDOM\nComing soon: a randomized mode. Fate decides.")
-        elif mode in hc.RULES:
+        if mode in hc.RULES:
             self.rules_box.configure(text=hc.MODES[mode].upper() + "\n" + "\n".join(hc.RULES[mode]))
         else:
             self.rules_box.configure(text="")
@@ -393,8 +393,6 @@ class HardcoreMenu(tk.Toplevel):
             pass
 
     def picked(self, mode):
-        if mode == 4:
-            return
         self.show_confirm(mode)
 
     def show_confirm(self, mode):
@@ -402,20 +400,21 @@ class HardcoreMenu(tk.Toplevel):
         body = self.clear()
         body.configure(bg="#07060a")
         name = hc.MODES[mode]
-        tk.Label(body, text=f"{name.upper()} HARDCORE", bg="#07060a", fg=w.GOLD, font=(w.UI_FONT, 24, "bold")).pack(pady=(4, 8))
+        tk.Label(body, text=f"{name.upper()} HARDCORE" if mode in hc.HARDCORE else "RANDOMIZED", bg="#07060a", fg=w.GOLD, font=(w.UI_FONT, 24, "bold")).pack(pady=(4, 8))
         tk.Label(body, text="\n".join(hc.RULES[mode]), bg="#07060a", fg="#e8dcc0", font=(w.UI_FONT, 11), justify="left").pack()
         if mode == 3:
             tk.Label(body, text="When a Silver character falls, it is gone. There is no coming back.", bg="#07060a", fg="#ff5a4a",
                      font=(w.UI_FONT, 12, "bold")).pack(pady=(10, 0))
         form = tk.Frame(body, bg="#07060a")
         form.pack(pady=18)
-        tk.Label(form, text="The character's name: a new one you will make in the game, or one below that hasn't gained a level yet.",
+        tk.Label(form, text="The character's name: a new one you will make in the game, or one below that hasn't gained a level yet." +
+                 (" Its race, face, size and job are rolled when it first logs in." if mode == 4 else ""),
                  bg="#07060a", fg="#9a8f80", font=(w.UI_FONT, 10)).pack(anchor="w")
         self.name_var = tk.StringVar()
         entry = tk.Entry(form, textvariable=self.name_var, font=(w.UI_FONT, 14), width=20, bg=w.PANEL, fg=w.FG, insertbackground=w.FG)
         entry.pack(anchor="w", pady=6)
         entry.focus_set()
-        if mode >= 2:
+        if mode in (2, 3):
             tk.Label(form, text=f"Typing the name is your confirmation: {name} is not a mode to pick by accident.",
                      bg="#07060a", fg="#9a8f80", font=(w.UI_FONT, 9, "italic")).pack(anchor="w")
         self.ready_box = tk.Frame(form, bg="#07060a")
@@ -474,7 +473,7 @@ class ModeCard:
     def __init__(self, parent, menu, mode):
         self.menu, self.mode = menu, mode
         key = CARD_KEYS[mode]
-        disabled = mode == 4
+        disabled = False
         self.normal = _image(f"hc_card_{key}", "_off" if disabled else "")
         self.hover = _image(f"hc_card_{key}", "_off" if disabled else "_hover") or self.normal
         menu.images.extend(i for i in (self.normal, self.hover) if i)

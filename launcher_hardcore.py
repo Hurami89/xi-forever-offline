@@ -31,8 +31,9 @@ SETTINGS_FILE = "hardcore.json"
 STATE_FILE = "hardcore_state.json"
 RELAY = "https://chat.xiforever.com"
 
-MODES = {1: "Iron", 2: "Steel", 3: "Silver"}
-KEYS = {1: "iron", 2: "steel", 3: "silver"}
+MODES = {1: "Iron", 2: "Steel", 3: "Silver", 4: "Randomized"}
+KEYS = {1: "iron", 2: "steel", 3: "silver", 4: "random"}
+HARDCORE = (1, 2, 3)                 # 4 = Randomized is not hardcore (auction house, trades, normal deaths)
 LOCK_DAYS = 7
 NAME_RE = re.compile(r"^[A-Za-z]{3,15}$")
 JOB_COLUMNS = ("war", "mnk", "whm", "blm", "rdm", "thf", "pld", "drk", "bst", "brd", "rng", "sam", "nin", "drg", "smn",
@@ -64,6 +65,10 @@ RULES = {
     3: ["Rates locked to the Silver profile (3.5x experience)", "No auction house, trades or Home Point / Survival Guide teleports",
         "Knocked out: the character is gone for good (deleted after 7 days)", "Parties only with Iron, Steel and Silver characters (squad mates, no bots)",
         "3 cosmetic rewards every 10 levels", "Can step down to Iron"],
+    4: ["Rates locked to the Randomized profile (2x experience)", "Random race, face and size; you pick only the name",
+        "One random job to start, another at 18, 33 and 65 (of the 18 era jobs); only those can be played",
+        "Job quests still unlock jobs for your squad mates", "Every drop is a random item that fits the area (NMs: the NM pool)",
+        "Auction house and trading allowed; normal deaths; parties with anyone"],
 }
 
 
@@ -311,6 +316,8 @@ def step_down(conn, charid):
         elif mode == 1:
             cur.execute("DELETE FROM char_vars WHERE charid = ? AND varname = ?", (charid, "[HC]Mode"))
             new = 0
+        elif mode == 4:
+            raise RuntimeError("A Randomized character stays Randomized.")
         else:
             raise RuntimeError("That character is not hardcore.")
         conn.commit()

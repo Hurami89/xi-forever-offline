@@ -37,7 +37,7 @@ ONLINE_FOR = 70            # seconds since the last poll: still in the room
 POLL_WAIT = 25
 RATE = (5, 10)             # at most 5 lines in 10 seconds
 NAME_RE = re.compile(r"^[A-Za-z]{2,15}$")
-HC_KINDS = ("milestone", "delevel", "death", "start")
+HC_KINDS = ("milestone", "delevel", "death", "start", "grant")
 
 
 def clean(text, limit=MAX_TEXT):
@@ -171,7 +171,7 @@ class Room:
             level = 0
         extra = clean(str(body.get("extra", "")), 20)
         world = clean(str(body.get("world", "")), 30)
-        if (kind not in HC_KINDS or not NAME_RE.match(name) or mode not in ("Iron", "Steel", "Silver") or
+        if (kind not in HC_KINDS or not NAME_RE.match(name) or mode not in ("Iron", "Steel", "Silver", "Randomized") or
                 not re.fullmatch(r"[A-Z]{3}", job) or not 0 <= level <= 99):
             return {"error": "bad announcement"}
         where = f" in {world}" if world else ""
@@ -179,8 +179,12 @@ class Room:
             text = f"{name} ({mode}) reached level {level} on {job}{where}."
         elif kind == "delevel":
             text = f"{name} (Steel) fell on {job} at level {level}{where}. Back to level 1."
+        elif kind == "grant":
+            text = f"{name} (Randomized) was given {job} at level {level}{where}."
         elif kind == "death":
             text = f"{name} (Silver) has fallen: {job} {level}{', hardcore for ' + extra if extra else ''}{where}. Rest well."
+        elif mode == "Randomized":
+            text = f"{name} has begun a Randomized journey as a {job}{where}."
         else:
             text = f"{name} has begun a {mode} hardcore journey{where}."
         self.announced[kh] = times + [now]

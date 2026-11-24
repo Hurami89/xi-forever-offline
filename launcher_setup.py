@@ -814,20 +814,16 @@ def enable_new_addons(kit, ashita_dir, boot_name, log=print):
 
 
 def enable_hcicons(ashita_dir, boot_name, log=print):
-    """(2026-11-23) The hardcore badges (addons-src/hcicons) go on for the main window ONCE per install, like Tetra
-    Master: a player who switches them off later (OPTIONS > Addons) keeps them off."""
+    """(2026-11-23) The hardcore / randomized icons (addons-src/hcicons) are part of the game modes, like the server's
+    rules: the launcher puts the add-on back on at every PLAY (the user: it has to always be on)."""
     import launcher_core as core
-    marker = os.path.join(ashita_dir, "config", "addons", "hcicons", "enabled-once.txt")
-    if os.path.exists(marker) or not os.path.isdir(os.path.join(ashita_dir, "addons", "hcicons")):
+    if not os.path.isdir(os.path.join(ashita_dir, "addons", "hcicons")):
         return False
     manager = core.ScriptManager(ashita_dir, boot_name)
     manager.prepare()
     if "hcicons" not in {a.lower() for a in manager.enabled("addon")}:
         manager.set("addon", "hcicons", True)
-        log("Hardcore badges are on (Iron / Steel / Silver over their heads; OPTIONS > Addons to turn them off).")
-    os.makedirs(os.path.dirname(marker), exist_ok=True)
-    with open(marker, "w", encoding="utf-8") as handle:
-        handle.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        log("Hardcore icons are on (Iron / Steel / Silver / Random over their heads).")
     return True
 
 
