@@ -22,5 +22,6 @@
   },
   "art": {
     "folder": "aero-ui"
-  }
+  },
+  "sound": "tomorrow_exe.mp3"
 }

@@ -5,9 +5,16 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ## v0.3.7 · 23 November 2026
 
 ### New
+• A new look for the launcher: Aero, sky, water and glossy glass, mid-2000s style. It is now the standard look; the look you had before is "Classic" on OPTIONS > Theme, and a theme you picked yourself stays picked.
+• Music: the Aero look has its own song, "TOMORROW.EXE" by JØ and Nox (a song about the launcher itself). (JØ, Nox)
+• Hardcore marks beside the name: Iron, Steel, Silver and Randomized characters show their mode's shield where the game shows its own flags, so everyone sees it (the hcicons badge over the head is off by default now; /hcicons names float brings it back). New players' ? is now XI: Forever's own crystal ?. (Yenkei)
+• RANDOMIZED: the launcher makes the character for you (random race, face, size, nation and starting city, no creation screen), you start in a random level 1 set of gear for your job with 10,000 gil, and its rates are now 2.5x experience, no experience lost, 3x drops and gil.
 • CO-OP: short invite codes. Hosting for friends now shows a code like KUPOMG-482-TRX (6 letters, 3 numbers, 3 letters) instead of the long one, whenever The Hub's server can be reached. Your friend types it under VISIT A FRIEND as before (spaces, dashes and small letters are fine). The Hub only keeps a sealed copy it can't open: your address and the code's secret never leave your launcher. No internet, or The Hub is down: the long code shows as before and always works, and COPY LONG CODE copies it even while a short code is shown (for a friend on your home network). NEW CODE and STOP HOSTING retire the short code too.
 
 ### Fixes
+• Squad mates vanishing for a while after setting a camp or zoning (they came back once they moved): the outfit refresh now carries the mate's position and HP. (wildthing; reported by Ricc, K-Andy)
+• Squad mates did not cast Protectra and other area spells when you asked in chat. (wildthing; reported by Ricc)
+• Squad tanks: checks for who holds the monster's attention read the mate's own target. (wildthing)
 • Bot players: on the new-look RULES page the roster and bots online still stopped at 600 / 550. They now go up to 2000 / 1500 there too (past the usual numbers the launcher asks first). (krazy)
 
 ## v0.3.6 · 23 November 2026
