@@ -22,10 +22,14 @@ THE SWITCH (what a choice does to Ashita\\scripts\\xiforever.txt, and dualbox.tx
   choice is "revamped". A Revamped add-on that is NOT installed is never switched on and the old ones are left alone: the
   switch can not leave you with neither.
 
-WHAT COUNTS AS INSTALLED: Ashita\\addons\\GambitsRevamped\\gr_editor.lua (Gambits package) and
+WHAT COUNTS AS INSTALLED: Ashita\\addons\\RevampedEditor\\gr_editor.lua (editor package) and
 Ashita\\addons\\SquadsRevamped\\sr_window.lua (Squads package), the marker files the in-game question uses too. A folder
 without its marker (or holding shell.json) is a SHELL: the launcher copies the shells in (install_shells, never over a
-package), loads them once (enable_shells_once), and asks and switches nothing for shells alone."""
+package), loads them once (enable_shells_once), and asks and switches nothing for shells alone.
+A package that lives in a folder of its own (another add-on name than the shell) registers itself with one line in
+    <Ashita>\\config\\addons\\revamped\\packages\\<component>.txt      <folder>\\<marker file>      (component: gambits or squads)
+and counts as installed while that file, the marker and the add-on's own <folder>\\<folder>.lua exist. Its "/addon load"
+line then takes the place of the shell's line (follow_packages) and every other rule below uses the package's name."""
 import json
 import os
 import re
@@ -36,12 +40,14 @@ COMPONENTS = ("gambits", "squads")
 # component -> the Revamped add-on, and the old add-ons whose autoload line is turned off for it. servermenu is NOT in the
 # squads list on purpose: it also holds the server menu, and SquadsRevamped hides its Squads button by itself.
 TABLE = {
-    "gambits": {"addon": "GambitsRevamped", "old": ("Gambits", "autobox"), "label": "Gambits"},
+    "gambits": {"addon": "RevampedEditor", "old": ("Gambits", "autobox"), "label": "Gambits"},   # addon = the shell's name
     "squads": {"addon": "SquadsRevamped", "old": ("squadpanel",), "label": "Squads"},
 }
 SHELL_MARK = "shell.json"
 MARKERS = {"gambits": "gr_editor.lua", "squads": "sr_window.lua"}   # a file only the full package has (same as rv_switch.lua)
 CHOICE_TXT = ("config", "addons", "revamped", "choice.txt")
+PACKAGES = ("config", "addons", "revamped", "packages")   # <component>.txt: where a package in a folder of its own registers itself
+_PART = re.compile(r"^[A-Za-z0-9_.-]+$")
 IGNORE = ("*.before-*", "*.bak")
 TAG = "launcher Revamped switch"
 SCRIPTS = ("xiforever.txt", "phoenixsolo.txt", "dualbox.txt")
@@ -77,15 +83,59 @@ def choice(kit, component):
     return value if value in ("revamped", "stock") else None
 
 
-def state(ashita_dir, component):
-    """'package' (its marker file is there), 'shell' (the add-on is there without it, or holds a shell.json) or None."""
+def registered(ashita_dir, component):
+    """(folder, marker) of a package that registered itself (see the top of this file), or None. Both parts are plain
+    names (no path tricks) and both files must exist."""
+    try:
+        with open(os.path.join(ashita_dir, *PACKAGES, component + ".txt"), encoding="utf-8-sig") as f:
+            line = next((l.strip() for l in f.read().splitlines() if l.strip()), "")
+    except OSError:
+        return None
+    parts = line.replace("/", "\\").split("\\")
+    if len(parts) != 2 or not all(_PART.match(x) and x not in (".", "..") for x in parts):
+        return None
+    folder, marker = parts
+    base = os.path.join(ashita_dir, "addons", folder)
+    if os.path.isfile(os.path.join(base, marker)) and os.path.isfile(os.path.join(base, folder + ".lua")):
+        _own(folder)
+        return folder, marker
+    return None
+
+
+def _own(folder):
+    """The Addons page lists a registered package as ours, like the shell."""
+    try:
+        import launcher_core
+        launcher_core.OWN_ADDONS.add(folder.lower())
+    except (ImportError, AttributeError):
+        pass
+
+
+def _shell_is_package(ashita_dir, component):
+    """The package sits in the shell's own folder (its marker file is there and it is no shell.json folder)."""
     name = TABLE[component]["addon"]
     folder = os.path.join(ashita_dir, "addons", name)
-    if not os.path.isfile(os.path.join(folder, name + ".lua")):
-        return None
-    if os.path.isfile(os.path.join(folder, SHELL_MARK)) or not os.path.isfile(os.path.join(folder, MARKERS[component])):
-        return "shell"
-    return "package"
+    return (os.path.isfile(os.path.join(folder, name + ".lua")) and not os.path.isfile(os.path.join(folder, SHELL_MARK))
+            and os.path.isfile(os.path.join(folder, MARKERS[component])))
+
+
+def state(ashita_dir, component):
+    """'package' (its marker file is there, or it registered itself), 'shell' (the add-on is there without it, or holds a
+    shell.json) or None."""
+    name = TABLE[component]["addon"]
+    if _shell_is_package(ashita_dir, component) or registered(ashita_dir, component):
+        return "package"
+    return "shell" if os.path.isfile(os.path.join(ashita_dir, "addons", name, name + ".lua")) else None
+
+
+def addon_name(ashita_dir, component):
+    """The add-on whose '/addon load' line stands for the Revamped component: a package in a folder of its own, else the
+    shell's name (a package over the shell has the shell's name)."""
+    if not _shell_is_package(ashita_dir, component):
+        found = registered(ashita_dir, component)
+        if found:
+            return found[0]
+    return TABLE[component]["addon"]
 
 
 def choice_txt_path(ashita_dir):
@@ -145,7 +195,7 @@ def sync_out(kit, ashita_dir):
 
 
 def install_shells(kit, ashita_dir):
-    """Copies addons-src\\GambitsRevamped and SquadsRevamped into Ashita, never over a package. Returns the names copied."""
+    """Copies addons-src\\RevampedEditor and SquadsRevamped into Ashita, never over a package. Returns the names copied."""
     copied = []
     if not os.path.isdir(os.path.join(ashita_dir, "addons")):
         return copied
@@ -170,7 +220,7 @@ def enable_shells_once(ashita_dir):
         lines, eol = _read(path)
         changed = False
         for c in COMPONENTS:
-            name = TABLE[c]["addon"]
+            name = addon_name(ashita_dir, c)
             if not os.path.isdir(os.path.join(ashita_dir, "addons", name)):
                 continue
             if _set_line(lines, name, True, "", True) is None:
@@ -265,6 +315,26 @@ def _after(lines, anchors, new):
         lines.insert(at + 1, new)
 
 
+def follow_packages(ashita_dir, data, date):
+    """A package in a folder of its own takes the shell's place in the start scripts: the shell's line goes off (in place,
+    tagged like the other lines this file switches) and the package's line is on. Only while the shell's line is on, so
+    it happens once and a later toggle of the package line is left alone. A saved 'stock' choice is not undone."""
+    messages = []
+    for component in COMPONENTS:
+        shell, pkg = TABLE[component]["addon"], addon_name(ashita_dir, component)
+        if pkg == shell or data.get(component) == "stock":
+            continue
+        for path in _scripts(ashita_dir):
+            lines, eol = _read(path)
+            if not _set_line(lines, shell, False, date, False):
+                continue
+            if _set_line(lines, pkg, True, date, True) is None:
+                _after(lines, [o.lower() for o in TABLE[component]["old"]] + ["servermenu"], "/addon load " + pkg)
+            _write(path, lines, eol)
+            messages.append("%s: %s takes the place of %s" % (os.path.basename(path), pkg, shell))
+    return messages
+
+
 def apply(kit, ashita_dir, date=None):
     """Makes the start scripts follow revamped.json. Idempotent; returns what it did, one line per change."""
     if not ashita_dir or not os.path.isdir(ashita_dir):
@@ -277,12 +347,13 @@ def apply(kit, ashita_dir, date=None):
         messages.append("Revamped shell add-on loads at start: " + name)
     sync_in(kit, ashita_dir)
     data = load(kit)
+    messages.extend(follow_packages(ashita_dir, data, date))
     offs = [x for x in data.get("off", []) if isinstance(x, str)]
     for component in COMPONENTS:
         want = data.get(component)
         if want not in ("revamped", "stock"):
             continue
-        spec = TABLE[component]
+        spec = dict(TABLE[component], addon=addon_name(ashita_dir, component))
         if state(ashita_dir, component) is None:
             continue                                 # not installed: never leave the player with neither
         for path in _scripts(ashita_dir):

@@ -1,6 +1,6 @@
 --[[
-rv_switch.lua: the saved Revamped switch, shared by the GambitsRevamped and SquadsRevamped shell addons, the full Revamped
-packages that replace them, and the launcher (launcher_revamped.py reads and writes the same file).
+rv_switch.lua: the saved Revamped switch, shared by the RevampedEditor and SquadsRevamped shell addons, the full Revamped
+packages that replace them (or register next to them), and the launcher (launcher_revamped.py reads and writes the same file).
 
 The file: <Ashita>\config\addons\revamped\choice.txt, plain text, one key=value per line:
     asked=1            the first-load question was answered (missing = never asked)
@@ -19,7 +19,7 @@ local RV = {}
 
 RV.OLD_ADDONS = { 'squadpanel', 'Gambits' }   -- the dev team's Squads window and Gambits editor (kept on disk, only unloaded)
 -- a file only the full package has: when it exists the package is installed, not just the shell
-RV.PACKAGE_MARKERS = { 'GambitsRevamped\\gr_editor.lua', 'SquadsRevamped\\sr_window.lua' }
+RV.PACKAGE_MARKERS = { 'RevampedEditor\\gr_editor.lua', 'SquadsRevamped\\sr_window.lua' }
 
 local state = { read_at = -100, value = nil, asked = false, applied = false, question_open = false, frames = 0 }
 
@@ -86,10 +86,32 @@ function RV.write(use)
     return true
 end
 
+-- a package in a folder of its own registers itself: config\addons\revamped\packages\<component>.txt holds one line,
+-- <folder>\<marker file> (plain names only). It counts while that marker and the add-on's own <folder>\<folder>.lua exist.
+RV.COMPONENTS = { 'gambits', 'squads' }
+
+function RV.registered_markers()
+    local base, out = install_path(), {}
+    if not base then return out end
+    for _, c in ipairs(RV.COMPONENTS) do
+        local text = read_file(base .. 'config\\addons\\revamped\\packages\\' .. c .. '.txt')
+        local line = text and text:match('[^\r\n]+')
+        local folder, marker = tostring(line or ''):match('^%s*([%w_%.%-]+)[\\/]([%w_%.%-]+)%s*$')
+        if folder and marker and folder ~= '.' and folder ~= '..' and marker ~= '.' and marker ~= '..'
+           and ashita.fs.exists(base .. 'addons\\' .. folder .. '\\' .. folder .. '.lua') then
+            out[#out + 1] = folder .. '\\' .. marker
+        end
+    end
+    return out
+end
+
 function RV.package_present()
     local base = install_path()
     if not base then return false end
     for _, rel in ipairs(RV.PACKAGE_MARKERS) do
+        if ashita.fs.exists(base .. 'addons\\' .. rel) then return true end
+    end
+    for _, rel in ipairs(RV.registered_markers()) do
         if ashita.fs.exists(base .. 'addons\\' .. rel) then return true end
     end
     return false

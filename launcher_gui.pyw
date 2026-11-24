@@ -900,7 +900,7 @@ class HoverTip:
             self.tip = None
 
 
-REVAMPED_GREY_TIP = "Comes with Gambits Revamped / Squads Revamped"
+REVAMPED_GREY_TIP = "Comes with the Revamped add-ons"
 
 # Squad faces: the game's face numbers 0-15 are 1A, 1B, 2A ... 8B (char_entity.h CharFace)
 FACE_LABELS = [f"{i // 2 + 1}{'AB'[i % 2]}  ({i + 1})" for i in range(16)]

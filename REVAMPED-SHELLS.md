@@ -4,26 +4,26 @@ Branch `v033/revamped-shells`, based on tag v0.3.2. Companion server branch: `v0
 
 ## What this is, in plain words
 
-Gambits Revamped and Squads Revamped are separate packages that come after this kit. This branch only prepares the ground so they plug in without anyone editing files by hand. It adds no feature a player can see by itself.
+Two companion add-on packages (a rules editor and a one-window Squads panel) are separate and come after this kit. This branch only prepares the ground so they plug in without anyone editing files by hand. It adds no feature a player can see by itself.
 
-1. **Two shell add-ons**, `GambitsRevamped` and `SquadsRevamped`, installed by the kit into Ashita's `addons` folder. A shell loads silently: it draws nothing, registers no command, prints nothing. It only reads the saved Revamped switch. When a Revamped package is installed over a shell, the package's files replace the shell's (same names, same layout) and the launcher never copies a shell back over a package.
+1. **Two shell add-ons**, `RevampedEditor` and `SquadsRevamped`, installed by the kit into Ashita's `addons` folder. A shell loads silently: it draws nothing, registers no command, prints nothing. It only reads the saved Revamped switch. When a Revamped package is installed over a shell, the package's files replace the shell's (same names, same layout) and the launcher never copies a shell back over a package. A package that lives in a folder of its own instead registers itself with one line, `<folder>\<marker file>`, in `Ashita\config\addons\revamped\packages\<gambits or squads>.txt`; the launcher then loads it in the shell's place and the game asks the same question.
 2. **One saved switch** both the game and the launcher read and write: `<Ashita>\config\addons\revamped\choice.txt` (`asked=1`, `use_revamped=1` or `0`).
 3. **The first-load question**, shown only when a Revamped package (not just a shell) is present and nothing was answered yet: "Turn off the old Squads / old Gambits and use the Revamped versions?" Yes saves the choice, switches the old Squads window (`squadpanel`) and the old Gambits add-on (`Gambits`) off (kept on disk, never deleted) and uses Revamped now. No changes nothing and the Revamped Settings button switches later. With only shells installed it never appears.
 
-What it prepares: Gambits Revamped (the full Gambits editor and engine) and Squads Revamped (the one-window Squads panel) both read the same switch, so the player answers once and both agree with the launcher.
+What it prepares: the editor package (the full editor and engine) and the Squads panel package both read the same switch, so the player answers once and both agree with the launcher.
 
 ## Files touched
 
 | File | Change |
 |---|---|
-| `addons-src/GambitsRevamped/` (`GambitsRevamped.lua`, `rv_switch.lua`) | new shell |
+| `addons-src/RevampedEditor/` (`RevampedEditor.lua`, `rv_switch.lua`) | new shell |
 | `addons-src/SquadsRevamped/` (`SquadsRevamped.lua`, `rv_switch.lua`) | new shell, same `rv_switch.lua` byte for byte |
 | (launcher side) | `launcher_revamped.py` and the launcher hooks live on branch `v033/launcher` (SirTanta/xi-forever-offline): it installs these shells, loads them once, reads and writes the same `choice.txt`, and drops the old add-ons from the start script after a Yes. This branch is the game side only. |
 | `dev/revamped-tests/test_revamped_shells.py` | tests (Lua through lupa: silent, no command, reads the switch, question only with a package) |
 
 ## Turn it off or revert
 
-- Switch a shell off: OPTIONS > Addons, untick GambitsRevamped / SquadsRevamped (or delete the two `/addon load ...Revamped` lines from `Ashita\scripts\xiforever.txt`). Nothing else depends on them.
+- Switch a shell off: OPTIONS > Addons, untick RevampedEditor / SquadsRevamped (or delete the two `/addon load ...Revamped` lines from `Ashita\scripts\xiforever.txt`). Nothing else depends on them.
 - Undo a Yes: delete `Ashita\config\addons\revamped\choice.txt`, then on OPTIONS > Addons tick `squadpanel` and `Gambits` again. The old add-ons were never deleted.
 - Revert the branch: `git revert` the commit, or do not take it. The old add-ons do not read the switch, so nothing else changes.
 
@@ -34,12 +34,12 @@ Automated (no game needed): `python dev/revamped-tests/test_revamped_shells.py` 
 In game (needs only the game and the launcher). Use a throw-away copy of the kit, not a live install.
 
 A. Shells alone are silent
-1. Start the launcher, then the game. Expected: Ashita's `addons` folder holds `GambitsRevamped` and `SquadsRevamped`, and OPTIONS > Addons lists both as "XI: Forever Offline".
+1. Start the launcher, then the game. Expected: Ashita's `addons` folder holds `RevampedEditor` and `SquadsRevamped`, and OPTIONS > Addons lists both as "XI: Forever Offline".
 2. In game, type `/addon list`. Expected: both are loaded.
-3. Look at the screen and chat for a minute. Expected: no window, no chat line, no error. `/gambitsrevamped` and `/squadsrevamped` do nothing (no command is registered). The old Squads menu and old Gambits work exactly as before.
+3. Look at the screen and chat for a minute. Expected: no window, no chat line, no error. `/revampededitor` and `/squadsrevamped` do nothing (no command is registered). The old Squads menu and old Gambits work exactly as before.
 
 B. The question appears only with a package
-4. Copy any file named `gr_editor.lua` (a stand-in for the package) into `addons\GambitsRevamped\`. Restart the game, wait about 5 seconds after you are in the world. Expected: a small "Revamped" window with Yes and No, text "Turn off the old Squads / old Gambits and use the Revamped versions?".
+4. Copy any file named `gr_editor.lua` (a stand-in for the package) into `addons\RevampedEditor\`. Restart the game, wait about 5 seconds after you are in the world. Expected: a small "Revamped" window with Yes and No, text "Turn off the old Squads / old Gambits and use the Revamped versions?".
 5. Press No. Expected: the window closes and never comes back; `config\addons\revamped\choice.txt` reads `asked=1` and `use_revamped=0`; the old Squads window and old Gambits stay on.
 6. Delete `choice.txt`, restart, press Yes. Expected: the old Squads window and the old Gambits add-on unload at once (`/addon list` no longer shows `squadpanel` and `Gambits`), `choice.txt` reads `use_revamped=1`, the folders `addons\squadpanel` and `addons\Gambits` are still there.
 7. Close the game, start the launcher, start the game again. Expected: `squadpanel` and `Gambits` are not in `scripts\xiforever.txt` any more and do not load; the question does not come back.
@@ -54,4 +54,4 @@ C. Package over shell
 
 ## Release note (draft, plain words)
 
-Two empty add-ons, Gambits Revamped and Squads Revamped, are installed and loaded. They show nothing and do nothing until the Revamped packages are installed over them. When a package is there, the game asks once whether to turn off the old Squads window and the old Gambits and use the Revamped ones; the answer is saved and the launcher respects it. Nothing is deleted, and you can switch back from OPTIONS > Addons.
+Two empty add-ons, `RevampedEditor` and `SquadsRevamped`, are installed and loaded. They show nothing and do nothing until the Revamped packages are installed over them. When a package is there, the game asks once whether to turn off the old Squads window and the old Gambits and use the Revamped ones; the answer is saved and the launcher respects it. Nothing is deleted, and you can switch back from OPTIONS > Addons.

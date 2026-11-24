@@ -264,7 +264,7 @@ BUFF_RANGE_NOTE = ("Retail: a buff lands only on mates standing inside the effec
 S("buff_range", "rules", "Party buffs", CHOICE, "Buff range",
   options=(("retail", "Retail (recommended)"), ("extended", "Extended")),
   tip="Retail: trusts, squad mates and pets are covered by party buffs (Protectra, Curaga, songs, rolls, Warcry) only inside "
-      "the effect's radius, like real players, and cast at the normal spell range. Gambits and Squads Revamped movement is "
+      "the effect's radius, like real players, and cast at the normal spell range. The Revamped add-ons' movement is "
       "designed for Retail range. Extended is supported for buffs only; positioning is not tuned for it."
       "\n\n" + BUFF_RANGE_WARNING + "\n\n" + BUFF_RANGE_NOTE)
 

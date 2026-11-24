@@ -1,4 +1,4 @@
-"""Tests for the Revamped shell addons (addons-src/GambitsRevamped, addons-src/SquadsRevamped) and rv_switch.lua.
+"""Tests for the Revamped shell addons (addons-src/RevampedEditor, addons-src/SquadsRevamped) and rv_switch.lua.
 Run: python test_revamped_shells.py   (needs lupa; pure LuaJIT with a fake Ashita, nothing touches a real game folder)
 Proves: shells load silently (no print, no command, no draw), the switch file parses, the question appears only when a
 package marker exists and nothing was answered, Yes writes use_revamped=1 and unloads the old addons, No changes nothing else,
@@ -59,7 +59,7 @@ def items(lua, expr):
 
 class Shells(unittest.TestCase):
     def test_shell_is_silent_and_registers_no_command(self):
-        for name in ("GambitsRevamped", "SquadsRevamped"):
+        for name in ("RevampedEditor", "SquadsRevamped"):
             lua, root = fresh(name)
             lua.execute("dofile(ADDON_DIR .. '/%s.lua')" % name)
             for _ in range(600):
@@ -71,11 +71,11 @@ class Shells(unittest.TestCase):
             self.assertFalse(os.path.exists(choice_file(root)), name)       # writes nothing
 
     def test_shell_names_and_files(self):
-        for name in ("GambitsRevamped", "SquadsRevamped"):
+        for name in ("RevampedEditor", "SquadsRevamped"):
             main = open(os.path.join(ADDONS, name, name + ".lua"), encoding="utf-8").read()
             self.assertIn("addon.name = '%s'" % name, main)
             self.assertTrue(os.path.isfile(os.path.join(ADDONS, name, "rv_switch.lua")))
-        a = open(os.path.join(ADDONS, "GambitsRevamped", "rv_switch.lua"), "rb").read()
+        a = open(os.path.join(ADDONS, "RevampedEditor", "rv_switch.lua"), "rb").read()
         b = open(os.path.join(ADDONS, "SquadsRevamped", "rv_switch.lua"), "rb").read()
         self.assertEqual(a, b)
 
@@ -85,7 +85,7 @@ class Shells(unittest.TestCase):
             lua.execute("RV.tick(IM)")
 
     def test_parse(self):
-        lua, _ = fresh("GambitsRevamped")
+        lua, _ = fresh("RevampedEditor")
         lua.execute("RV = require('rv_switch')")
         p = lua.eval("function(t) local r = RV.parse(t) return tostring(r.asked) .. ':' .. tostring(r.use) end")
         self.assertEqual(p("asked=1\nuse_revamped=1\n"), "true:true")
@@ -94,17 +94,36 @@ class Shells(unittest.TestCase):
         self.assertEqual(p("garbage"), "false:nil")
 
     def test_no_question_for_shell_only(self):
-        lua, root = fresh("GambitsRevamped", files=["GambitsRevamped/GambitsRevamped.lua", "SquadsRevamped/SquadsRevamped.lua"])
+        lua, root = fresh("RevampedEditor", files=["RevampedEditor/RevampedEditor.lua", "SquadsRevamped/SquadsRevamped.lua"])
         self.ticks(lua)
         self.assertNotIn("Begin", items(lua, "rv.calls"))
         self.assertEqual(items(lua, "rv.commands"), [])
 
     def test_question_when_package_present_and_unanswered(self):
-        lua, root = fresh("GambitsRevamped", files=["GambitsRevamped/gr_editor.lua"])
+        lua, root = fresh("RevampedEditor", files=["RevampedEditor/gr_editor.lua"])
         self.ticks(lua)
         self.assertIn("Begin", items(lua, "rv.calls"))
         self.assertEqual(items(lua, "rv.commands"), [])               # asking changes nothing
         self.assertFalse(os.path.exists(choice_file(root)))
+
+    def register(self, root, component, line):
+        folder = os.path.join(root, "config", "addons", "revamped", "packages")
+        os.makedirs(folder, exist_ok=True)
+        open(os.path.join(folder, component + ".txt"), "w").write(line)
+
+    def test_question_for_a_package_that_registered_itself(self):
+        lua, root = fresh("RevampedEditor", files=["OwnEditor/OwnEditor.lua", "OwnEditor/gr_editor.lua"])
+        self.register(root, "gambits", "OwnEditor\\gr_editor.lua\n")
+        self.ticks(lua)
+        self.assertIn("Begin", items(lua, "rv.calls"))
+        self.assertEqual(items(lua, "rv.commands"), [])
+
+    def test_a_registration_needs_plain_names_and_the_files(self):
+        for line in ("OwnEditor\\gr_editor.lua", "..\\gr_editor.lua", "a\\b\\c.lua", "x", "", "Own Editor\\gr_editor.lua"):
+            lua, root = fresh("RevampedEditor", files=["OwnEditor/gr_editor.lua"] if "Own" in line else [])
+            self.register(root, "gambits", line + "\n")
+            self.ticks(lua)
+            self.assertNotIn("Begin", items(lua, "rv.calls"), line)   # no OwnEditor.lua, or a bad line: shells alone, silent
 
     def test_yes_saves_and_unloads_old(self):
         lua, root = fresh("SquadsRevamped", files=["SquadsRevamped/sr_window.lua"])
@@ -134,13 +153,13 @@ class Shells(unittest.TestCase):
         open(choice_file(root), "w").write(text)
 
     def test_saved_yes_unloads_old_once_per_load(self):
-        lua, root = fresh("GambitsRevamped", files=["GambitsRevamped/gr_editor.lua"])
+        lua, root = fresh("RevampedEditor", files=["RevampedEditor/gr_editor.lua"])
         self.saved(lua, root, "asked=1\nuse_revamped=1\n")
         self.ticks(lua, 800)
         self.assertEqual(items(lua, "rv.commands"), ["/addon unload squadpanel", "/addon unload Gambits"])
 
     def test_saved_yes_with_shell_only_does_not_unload(self):
-        lua, root = fresh("GambitsRevamped")
+        lua, root = fresh("RevampedEditor")
         self.saved(lua, root, "asked=1\nuse_revamped=1\n")
         self.ticks(lua, 800)
         self.assertEqual(items(lua, "rv.commands"), [])

@@ -137,14 +137,14 @@ class ThirdPartyTests(unittest.TestCase):
         self.assertIn("betaaddon", [i["id"] for i in tp.load_manifest(self.kit)])
 
     def test_beta_group_needs_a_sign_up(self):
-        self.BETA = dict(self.BETA, group="gear-gambits")
+        self.BETA = dict(self.BETA, group="gear-beta")
         self.assertNotIn("betaaddon", self.with_beta(True))                       # test builds on, no group chosen
-        for value, shown in (("gear-gambits", True), ("Vault, Gear-Gambits", True), (["gear-gambits"], True), ("vault", False)):
+        for value, shown in (("gear-beta", True), ("Vault, Gear-Beta", True), (["gear-beta"], True), ("vault", False)):
             with open(os.path.join(self.kit, "config.json"), "w") as f:
                 json.dump({"test_builds": True, "beta_groups": value}, f)
             self.assertEqual("betaaddon" in [i["id"] for i in tp.load_manifest(self.kit)], shown, value)
         with open(os.path.join(self.kit, "config.json"), "w") as f:
-            json.dump({"test_builds": False, "beta_groups": "gear-gambits"}, f)     # test builds off beats the sign-up
+            json.dump({"test_builds": False, "beta_groups": "gear-beta"}, f)     # test builds off beats the sign-up
         self.assertNotIn("betaaddon", [i["id"] for i in tp.load_manifest(self.kit)])
 
     def test_beta_takes_the_newest_prerelease(self):
