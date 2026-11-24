@@ -247,7 +247,8 @@ class HardcoreMenu(tk.Toplevel):
         mode = int(entry.get("mode", 1))
         tk.Label(row, text=f"{entry.get('name')}  ·  {hc.MODES.get(mode, '?')}  ·  waiting for its first log in", bg=w.PANEL,
                  fg=w.FG, font=(w.UI_FONT, 11, "bold")).pack(side="left", padx=12, pady=10)
-        w.button(row, "PLAY HARDCORE", lambda m=mode: self.play(m), primary=True, small=True).pack(side="right", padx=8)
+        w.button(row, "PLAY RANDOMIZED" if mode == 4 else "PLAY HARDCORE", lambda m=mode: self.play(m), primary=True,
+                 small=True).pack(side="right", padx=8)
         w.button(row, "Cancel", lambda n=entry.get("name"): self.cancel_pending(n), small=True).pack(side="right")
 
     def card_row(self, c):
@@ -407,8 +408,9 @@ class HardcoreMenu(tk.Toplevel):
                      font=(w.UI_FONT, 12, "bold")).pack(pady=(10, 0))
         form = tk.Frame(body, bg="#07060a")
         form.pack(pady=18)
-        tk.Label(form, text="The character's name: a new one you will make in the game, or one below that hasn't gained a level yet." +
-                 (" Its race, face, size and job are rolled when it first logs in." if mode == 4 else ""),
+        tk.Label(form, text=("The new character's name. Fate makes the character now: race, face, size and nation are rolled, "
+                             "and its job when it first logs in. No character creation screen." if mode == 4 else
+                             "The character's name: a new one you will make in the game, or one below that hasn't gained a level yet."),
                  bg="#07060a", fg="#9a8f80", font=(w.UI_FONT, 10)).pack(anchor="w")
         self.name_var = tk.StringVar()
         entry = tk.Entry(form, textvariable=self.name_var, font=(w.UI_FONT, 14), width=20, bg=w.PANEL, fg=w.FG, insertbackground=w.FG)
@@ -439,7 +441,43 @@ class HardcoreMenu(tk.Toplevel):
         except tk.TclError:
             pass
 
+    def create_randomized(self, name):
+        """(2026-11-23) Randomized: the launcher makes the character itself, with everything rolled but the name."""
+        cfg = self.app.cfg
+
+        def work():
+            try:
+                conn = _connect(self.app)
+                try:
+                    hc.create_randomized(conn, cfg.get("game_user", ""), name, cfg.get("server_dir"))
+                finally:
+                    conn.close()
+                hc.add_pending(HERE, cfg.get("server_dir"), name, 4)
+                text, ok = (f"Fate has made {name}.\n\nPress PLAY RANDOMIZED and choose {name} on the character list. "
+                            f"Who you are, where you were born and what job you start with: you'll find out when you arrive."), True
+            except hc.CreateError as e:
+                text, ok = str(e), False
+            except Exception as e:
+                text, ok = (f"Could not make the character ({e}). The world's database has to be running: press PLAY once, "
+                            f"close the game, then try again."), False
+
+            def done():
+                try:
+                    messagebox.showinfo("Randomized", text, parent=self)
+                    if ok:
+                        self.configure(bg=w.BG)
+                        self.show_list()
+                except tk.TclError:
+                    pass
+            try:
+                self.after(0, done)
+            except tk.TclError:
+                pass
+
+        threading.Thread(target=work, daemon=True).start()
+
     def fill_eligible(self, names):
+        self.eligible_names = {n.lower() for n in names}
         try:
             if not names:
                 return
@@ -455,6 +493,9 @@ class HardcoreMenu(tk.Toplevel):
             messagebox.showinfo("Hardcore", "A character name is 3 to 15 letters (A-Z), no spaces.", parent=self)
             return
         name = name[0].upper() + name[1:].lower()
+        if mode == 4 and name.lower() not in getattr(self, "eligible_names", set()):
+            self.create_randomized(name)
+            return
         try:
             hc.add_pending(HERE, self.app.cfg.get("server_dir"), name, mode)
         except OSError as e:

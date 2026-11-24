@@ -65,7 +65,7 @@ RULES = {
     3: ["Rates locked to the Silver profile (3.5x experience)", "No auction house, trades or Home Point / Survival Guide teleports",
         "Knocked out: the character is gone for good (deleted after 7 days)", "Parties only with Iron, Steel and Silver characters (squad mates, no bots)",
         "3 cosmetic rewards every 10 levels", "Can step down to Iron"],
-    4: ["Rates locked to the Randomized profile (2x experience)", "Random race, face and size; you pick only the name",
+    4: ["Rates locked to the Randomized profile (2x experience)", "You pick only the name: race, face, size and nation are rolled",
         "One random job to start, another at 18, 33 and 65 (of the 18 era jobs); only those can be played",
         "Job quests still unlock jobs for your squad mates", "Drops, chests, caskets and battlefield crates are random but fit",
         "Its own auction house (stock rotates, prices swing 20% more); trading, normal deaths, any party"],
@@ -276,6 +276,88 @@ def characters(conn, bot_base=21000000, now=None):
     finally:
         cur.close()
         conn.rollback()
+
+
+# ---------------------------------------------------------------- Randomized: the launcher makes the character
+# (2026-11-23, the user) A Randomized character skips the game's character creation: the player types only the name, and
+# the launcher writes the new character the way the login server does (login_helpers.cpp saveCharacter; the chars
+# insert trigger adds the rest) with a random race, face, size and nation, and one of the nation's three starting
+# cities, as the login server picks it. "[HC]Looks" = 1 tells the server the looks are already rolled; the job is
+# rolled at the first login, as before. The pending list makes it Randomized at that login.
+NATIONS = {0: "San d'Oria", 1: "Bastok", 2: "Windurst"}
+START_ZONES = {0: (230, 231, 232), 1: (234, 235, 236), 2: (238, 240, 241)}
+RACES = {1: "Hume", 2: "Hume", 3: "Elvaan", 4: "Elvaan", 5: "Tarutaru", 6: "Tarutaru", 7: "Mithra", 8: "Galka"}
+CHAR_ID_LIMIT = 16000000           # bot characters start here (login_helpers.cpp)
+
+
+class CreateError(Exception):
+    """Why a character could not be made, in words for the player."""
+
+
+def roll_randomized(rng=None):
+    import random
+    rng = rng or random.SystemRandom()
+    nation = rng.randrange(3)
+    return {"race": rng.randint(1, 8), "face": rng.randint(0, 15), "size": rng.randint(0, 2), "nation": nation,
+            "zone": rng.choice(START_ZONES[nation])}
+
+
+def _opening_cutscene(server_dir):
+    """main.NEW_CHARACTER_CUTSCENE from the server's settings (settings/main.lua over settings/default/main.lua)."""
+    for rel in (("settings", "main.lua"), ("settings", "default", "main.lua")):
+        try:
+            with open(os.path.join(server_dir or "", *rel), encoding="utf-8") as handle:
+                match = re.search(r"NEW_CHARACTER_CUTSCENE\s*=\s*(\w+)", handle.read())
+            if match:
+                return match.group(1) not in ("0", "false")
+        except OSError:
+            continue
+    return False
+
+
+def create_randomized(conn, login, name, server_dir=None, rng=None):
+    """Makes the character `name` on the game account `login`; returns (charid, roll). Raises CreateError."""
+    if not NAME_RE.match(name or ""):
+        raise CreateError("A character name is 3 to 15 letters (A-Z), no spaces.")
+    name = name[0].upper() + name[1:].lower()
+    cur = conn.cursor()
+    try:
+        row = _all(cur, "SELECT id, content_ids FROM accounts WHERE login = ?", (login,))
+        if not row:
+            raise CreateError(f"The game account '{login}' is not in this world's database.")
+        accid, slots = int(row[0][0]), int(row[0][1] or 16)
+        if _all(cur, "SELECT 1 FROM chars WHERE charname LIKE ? LIMIT 1", (name,)):
+            raise CreateError(f"The name {name} is already taken in this world.")
+        count = int(_all(cur, "SELECT COUNT(*) FROM chars WHERE accid = ?", (accid,))[0][0])
+        if count >= slots:
+            raise CreateError(f"Your account already has {count} characters, the most it can hold.")
+        charid = int(_all(cur, "SELECT COALESCE(MAX(charid), 0) FROM chars WHERE charid < ?", (CHAR_ID_LIMIT,))[0][0]) + 1
+        roll = roll_randomized(rng)
+        cur.execute("INSERT INTO chars(charid, accid, charname, pos_zone, nation) VALUES(?, ?, ?, ?, ?)",
+                    (charid, accid, name, roll["zone"], roll["nation"]))
+        cur.execute("INSERT INTO char_look(charid, face, race, size) VALUES(?, ?, ?, ?)",
+                    (charid, roll["face"], roll["race"], roll["size"]))
+        cur.execute("INSERT INTO char_stats(charid, mjob) VALUES(?, ?)", (charid, 1))
+        for table, keep in (("char_exp", "charid"), ("char_flags", "disconnecting"), ("char_jobs", "charid"),
+                            ("char_points", "charid"), ("char_unlocks", "charid"), ("char_profile", "charid"),
+                            ("char_storage", "charid")):
+            cur.execute(f"INSERT INTO {table}(charid) VALUES(?) ON DUPLICATE KEY UPDATE {keep} = {keep}", (charid,))
+        cur.execute("DELETE FROM char_inventory WHERE charid = ?", (charid,))
+        cur.execute("INSERT INTO char_inventory(charid) VALUES(?)", (charid,))
+        if _opening_cutscene(server_dir):
+            cur.execute("INSERT INTO char_vars(charid, varname, value) VALUES(?, ?, ?)", (charid, "HQuest[newCharacterCS]notSeen", 1))
+        cur.execute("INSERT INTO char_vars(charid, varname, value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)",
+                    (charid, "[HC]Looks", 1))
+        conn.commit()
+        return charid, roll
+    except CreateError:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
 
 
 def eligible(conn, bot_base=21000000):

@@ -115,6 +115,16 @@ try:
     check(first and lc._title_text(data, 1081) == "Altana's Wild Card" and lc._title_text(data, 1077) == "Eternal Master",
           "mode titles written into slots 1078 - 1081, the rest untouched")
     check(lc.mode_titles(tmp, game) is None, "mode titles: nothing to do the second time")
+    import random as _random
+    rolls = [hc.roll_randomized(_random.Random(n)) for n in range(200)]
+    check(all(1 <= r["race"] <= 8 and 0 <= r["face"] <= 15 and 0 <= r["size"] <= 2 and r["zone"] in hc.START_ZONES[r["nation"]] for r in rolls)
+          and {r["nation"] for r in rolls} == {0, 1, 2}, "Randomized roll: race, face, size, every nation and its starting cities")
+    sdir = os.path.join(tmp, "srv")
+    os.makedirs(os.path.join(sdir, "settings", "default"))
+    open(os.path.join(sdir, "settings", "default", "main.lua"), "w").write("NEW_CHARACTER_CUTSCENE = 1,")
+    check(hc._opening_cutscene(sdir), "opening cutscene setting read from the defaults")
+    open(os.path.join(sdir, "settings", "main.lua"), "w").write("NEW_CHARACTER_CUTSCENE         = 0,")
+    check(not hc._opening_cutscene(sdir), "and the world's own setting wins")
     check(lc.restore_mode_titles(tmp, game) and lc._title_text(open(os.path.join(game, "ROM", "180", "78.DAT"), "rb").read(), 1078) == "",
           "mode titles: the original comes back")
 finally:
