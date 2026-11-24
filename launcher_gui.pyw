@@ -3672,7 +3672,14 @@ class App(tk.Tk):
         self.after(PICTURE_SECONDS * 1000, self.next_picture)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         if self.cfg.get("game_update_needed"):     # installed with Square Enix's installer: its first update comes first
-            self.after(700, lambda: PolUpdateGuide(self))
+            self.after(700, self.first_game_update)
+
+    def first_game_update(self):
+        """(2026-11-24, the user: "we uploaded all the files to github but the launcher still directs to SE") the game's
+        first update comes from XI: Forever Offline's own download; the PlayOnline login guide only if that can't be had."""
+        if not self.offer_game_files("Your game hasn't had its first update yet (Square Enix's installer puts in an "
+                                     "older version)."):
+            PolUpdateGuide(self)
 
     # ----- UI -----
     def build_ui(self):
@@ -5865,7 +5872,7 @@ class SetupWizard(tk.Tk):
         self.text("FINAL FANTASY XI: choose its SquareEnix folder (the one with PlayOnlineViewer and FINAL FANTASY XI in it). "
                   "It can come from a Windows PC (inside PlayOnline in Program Files, copied to a USB stick or this machine), "
                   "or from the game installed on this machine: the Steam version, or the official installer from "
-                  "playonline.com run through Proton or Wine. Update the game first (PlayOnline, once).", fg=FG)
+                  "playonline.com run through Proton or Wine. An older game is brought up to date by the launcher at PLAY.", fg=FG)
         for key, label, about in (
                 ("copy", "Copy the game into XI: Forever Offline's folder (recommended)",
                  "The folder you choose stays as it is (a USB stick can be unplugged afterwards). Needs about 16 GB free."),
@@ -5894,10 +5901,10 @@ class SetupWizard(tk.Tk):
                     "it is put back when the game closes."),
                    ("existing", "Use my installed FINAL FANTASY XI",
                     "No copy. The era game files (Phoenix Era-DATs) then go into that install; its original files are backed up."),
-                   ("official", "Download FINAL FANTASY XI from Square Enix (I don't have it)",
-                    "Square Enix's official installer, about 7 GB. Its setup window opens: install with the default "
-                    "choices. You need a Square Enix account with FINAL FANTASY XI (a free trial works): you log in once so PlayOnline "
-                    "can update the game, then you play offline.")]
+                   ("official", "Download FINAL FANTASY XI (I don't have it)",
+                    "Square Enix's official installer sets up the game and PlayOnline: its setup window opens, install with "
+                    "the default choices. Then the launcher brings the game up to date from XI: Forever Offline's own "
+                    "download. No Square Enix account or login needed.")]
         for key, label, about in options:
             if key == "official" and found:
                 continue
@@ -5905,7 +5912,7 @@ class SetupWizard(tk.Tk):
                            activebackground=BG, activeforeground=FG, font=(UI_FONT, 10, "bold")).pack(anchor="w")
             tk.Label(self.body, text=about, bg=BG, fg=DIM, font=(UI_FONT, 9), wraplength=700, justify="left").pack(anchor="w", padx=(26, 0))
         self.folder_row("Final Fantasy XI", self.ffxi, "Found from PlayOnline's settings when it can be. The folder with FFXiMain.dll "
-                        "in it (not needed for the Square Enix download).")
+                        "in it (not needed for the download).")
         self.folder_row("Ashita", self.ashita, "A new folder is fine: Ashita is downloaded from its official release.")
         self.folder_row("Server", self.server, "A new folder is fine: the ready-made server is downloaded (a few hundred MB). "
                         "If you built the server yourself, choose its folder.")
