@@ -14,7 +14,7 @@
   7. Mode titles: the four game-mode titles (Iron, Steel, Silver, Randomized) in empty slots 1078 - 1081 of the game's
      English title list (ROM\\180\\78.DAT), so the title the server puts on those characters has a name.
   8. Mode marks: the four mode shields and XI: Forever's own new-player "?" in the game's icon sheet ("ustats" in
-     ROM\\0\\1.DAT), the marks the game draws beside a name (client-patches\\mode_marks.json).
+     ROM\\0\\1.DAT and 13.DAT), the marks the game draws beside a name (client-patches\\mode_marks.json).
 
 Every step checks first and only writes what is missing, so this runs at the end of first-run setup and again on
 every PLAY of a player install (an update or a reinstalled era pack is caught the next time). A step that cannot be
@@ -415,7 +415,7 @@ def restore_mode_titles(kit, game):
 # (hardcoreutils::modeMarks): Iron the trial-account leaf, Steel the PlayOnline orb, Silver the mentor globe,
 # Randomized the "accepting party requests" goblet; and every new character's "?" becomes XI: Forever's own.
 # client-patches\mode_marks.json holds the five pictures already in the game's format (art-src\scripts\mode_marks_art.py).
-MARKS_FILE = ("ROM", "0", "1.DAT")
+MARKS_FILES = (("ROM", "0", "1.DAT"), ("ROM", "0", "13.DAT"))
 
 
 def _marks_texture(data):
@@ -441,28 +441,27 @@ def _cell_offsets(start, row, col):
     return [start + ((row * 4 + y) * 32 + col * 4 + x) * 16 for y in range(4) for x in range(4)]
 
 
-def mode_marks(kit, game, log=print):
-    path = os.path.join(game, *MARKS_FILE)
+def _mark_one(kit, game, parts, marks):
+    """Draws the marks into one copy of the icon sheet: True when changed, None when already done, else a message."""
+    path = os.path.join(game, *parts)
     if not os.path.exists(path):
-        return "Mode marks: the game's icon file is missing; hardcore characters show no mark beside their name."
-    with open(os.path.join(kit, "client-patches", "mode_marks.json"), encoding="utf-8") as handle:
-        marks = json.load(handle)["cells"]
+        return "missing"
     with open(path, "rb") as handle:
         data = bytearray(handle.read())
     start = _marks_texture(data)
     if start is None:
-        return "Mode marks: the game's icon file is not the expected one; it was left as it is."
+        return "not the expected file"
     todo = []
     for mark in marks:
         blocks = bytes.fromhex(mark["dxt3"])
         offsets = _cell_offsets(start, mark["row"], mark["col"])
         if len(blocks) != 256:
-            return "Mode marks: the marks file is damaged; nothing was changed."
+            return "the marks file is damaged"
         if any(bytes(data[o:o + 16]) != blocks[i * 16:(i + 1) * 16] for i, o in enumerate(offsets)):
             todo.append((mark, blocks, offsets))
     if not todo:
         return None
-    keep = os.path.join(kit, "backups", "mode-marks-dat", "1.DAT.original")
+    keep = os.path.join(kit, "backups", "mode-marks-dat", parts[-1] + ".original")
     if not os.path.exists(keep):
         os.makedirs(os.path.dirname(keep), exist_ok=True)
         with open(keep, "wb") as handle:
@@ -477,17 +476,39 @@ def mode_marks(kit, game, log=print):
     with open(path, "rb") as handle:
         back = handle.read()
     if any(back[o:o + 16] != blocks[i * 16:(i + 1) * 16] for _m, blocks, offsets in todo for i, o in enumerate(offsets)):
-        return "Mode marks: the icon file did not read back as written; restore it from %s." % keep
-    return "Mode marks: the hardcore and Randomized shields and the new-player mark are in the game's icon sheet."
+        return "did not read back as written; restore it from %s" % keep
+    return True
+
+
+def mode_marks(kit, game, log=print):
+    # (2026-11-24) the game keeps two copies of "ustats": ROM\0\1.DAT and ROM\0\13.DAT, and draws the marks beside
+    # a name from 13.DAT, so both are patched (only 1.DAT was, and the retail goblet kept showing)
+    with open(os.path.join(kit, "client-patches", "mode_marks.json"), encoding="utf-8") as handle:
+        marks = json.load(handle)["cells"]
+    changed, problems = False, []
+    for parts in MARKS_FILES:
+        result = _mark_one(kit, game, parts, marks)
+        if result is True:
+            changed = True
+        elif result is not None:
+            problems.append("%s: %s" % (parts[-1], result))
+    if problems and not changed:
+        return "Mode marks: the game's icon files were left as they are (%s)." % "; ".join(problems)
+    if not changed:
+        return None
+    note = (" (%s)" % "; ".join(problems)) if problems else ""
+    return "Mode marks: the hardcore and Randomized shields and the new-player mark are in the game's icon sheet." + note
 
 
 def restore_mode_marks(kit, game):
-    keep = os.path.join(kit, "backups", "mode-marks-dat", "1.DAT.original")
-    if os.path.exists(keep):
-        import shutil
-        shutil.copy2(keep, os.path.join(game, *MARKS_FILE))
-        return True
-    return False
+    import shutil
+    done = False
+    for parts in MARKS_FILES:
+        keep = os.path.join(kit, "backups", "mode-marks-dat", parts[-1] + ".original")
+        if os.path.exists(keep):
+            shutil.copy2(keep, os.path.join(game, *parts))
+            done = True
+    return done
 
 
 def apply_all(kit, game, server, log=print):
