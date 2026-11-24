@@ -5,6 +5,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ## v0.3.5 · 23 November 2026
 
 ### New
+• RULES > Comforts: Ancestry Moogles (off by default). The race-change moogles in Port San d'Oria, Port Bastok and Windurst Walls change your race, face, hair and size, free and as often as you like. (Yenkei)
+• RULES > Comforts: Chest and coffer wait. After a chest or coffer is opened, the next one in that area is an illusion for 15-60 minutes; 1x = the era, 0 = every one gives its loot. (Rysan, Frost)
 • GM characters: the GM commands that change a character (!addquest, !completemission, !addkeyitem, !givegil, !setplayerlevel, !setrank, !additem and more) also work on your characters that are logged out. The change is saved and made when that character next logs in.
 • Character transfer: the quest and mission logs come across too (completed quests, quests in progress, nation, Zilart, Promathia and Aht Urhgan missions, Assault). Zone once with charcapture loaded before /capture. A quest in progress starts again from its first step, and fame still can't be carried (the game never sends it).
 • CO-OP, redone: a bigger page in three parts. The Hub on its own at the top, then OPEN WORLDS, a card for every world other players opened to everyone (its banner, its description, how many people are there), then your own world and visiting friends.

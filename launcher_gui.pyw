@@ -6130,7 +6130,10 @@ def main():
             import launcher_theme
             launcher_theme.start(app)
         except Exception:
-            pass
+            try:                                  # (2026-11-23) the reason the song (and theme strip) did not come, in logs\theme-music.log
+                launcher_theme.note("start failed: " + traceback.format_exc().strip().replace("\n", " | "))
+            except Exception:
+                pass
         app.mainloop()
     except Exception:
         os.makedirs(LOGS, exist_ok=True)

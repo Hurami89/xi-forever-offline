@@ -854,6 +854,10 @@ RATE_FIELDS = [
     ("main.GUILD_SHOPS_ALWAYS_OPEN",    "main.lua", "GUILD_SHOPS_ALWAYS_OPEN",     "Guild shops always open (1 = on, 0 = era hours)", 1, 0, 1, "int"),
     # (2026-11-23, Gilder, stanky kong; the user: on by default) Seekers of Adoulin's crystal storage at the crafting guilds
     # (server: zoneutils.cpp InsertNPCs); an older server without the key ignores it
+    # (2026-11-23, Yenkei; the user: a switch, off by default) server: zoneutils.cpp, custom/late/comforts.lua
+    ("main.ANCESTRY_MOOGLES",           "main.lua", "ANCESTRY_MOOGLES",            "Ancestry Moogles: free race change (1 = on)", 0, 0, 1, "int"),
+    # (2026-11-23, Rysan, Frost) server: custom/late/comforts.lua scales the chest/coffer "illusion" wait
+    ("main.TREASURE_WAIT_MULTIPLIER",   "main.lua", "TREASURE_WAIT_MULTIPLIER",    "Chest and coffer wait (1 = the era, 0 = none)", 1.0, 0.0, 2.0, "float"),
     ("main.EPHEMERAL_MOOGLES",          "main.lua", "EPHEMERAL_MOOGLES",           "Ephemeral Moogles keep your crystals (1 = on)", 1, 0, 1, "int"),
     # (2026-11-23, Frost, Syfin; the user: off by default) squad_juice.lua: a mate out of the juices you traded it drinks
     # one for its level, free
