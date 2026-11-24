@@ -682,7 +682,7 @@ def update_config(kit, values, drop=()):
 # ----- the kit's own addons -----
 # (2026-11-19) "Gambits" is now the squad Rule Set editor (wildcabbagepatch's Gambits v2, first shipped as GambitsV2);
 # the addon that had the name before (your own character's rules, Parser, EXP Watch, Enemy Info) is "autobox".
-OWN_ADDONS = ("Gambits", "autobox", "followme", "servermenu", "squadpanel", "stinkshell", "autora")
+OWN_ADDONS = ("Gambits", "autobox", "followme", "servermenu", "squadpanel", "stinkshell", "autora", "hcicons")
 STOCK_ADDONS = ("distance", "fps", "move", "timestamp", "tparty", "checker", "drawdistance", "allmaps")
 STOCK_PLUGINS = ("minimap",)
 START_ADDONS = ("Gambits", "servermenu", "crystalboy")          # loaded at startup on a new install
@@ -807,6 +807,24 @@ def enable_new_addons(kit, ashita_dir, boot_name, log=print):
     if TM_ADDON not in {a.lower() for a in manager.enabled("addon")}:
         manager.set("addon", TM_ADDON, True)
         log("Tetra Master is now on (type /tm in game; turn it off in OPTIONS > Addons).")
+    os.makedirs(os.path.dirname(marker), exist_ok=True)
+    with open(marker, "w", encoding="utf-8") as handle:
+        handle.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+    return True
+
+
+def enable_hcicons(ashita_dir, boot_name, log=print):
+    """(2026-11-23) The hardcore badges (addons-src/hcicons) go on for the main window ONCE per install, like Tetra
+    Master: a player who switches them off later (OPTIONS > Addons) keeps them off."""
+    import launcher_core as core
+    marker = os.path.join(ashita_dir, "config", "addons", "hcicons", "enabled-once.txt")
+    if os.path.exists(marker) or not os.path.isdir(os.path.join(ashita_dir, "addons", "hcicons")):
+        return False
+    manager = core.ScriptManager(ashita_dir, boot_name)
+    manager.prepare()
+    if "hcicons" not in {a.lower() for a in manager.enabled("addon")}:
+        manager.set("addon", "hcicons", True)
+        log("Hardcore badges are on (Iron / Steel / Silver over their heads; OPTIONS > Addons to turn them off).")
     os.makedirs(os.path.dirname(marker), exist_ok=True)
     with open(marker, "w", encoding="utf-8") as handle:
         handle.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")

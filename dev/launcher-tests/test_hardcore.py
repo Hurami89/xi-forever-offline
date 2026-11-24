@@ -1,0 +1,103 @@
+"""Tests for launcher_hardcore.py (no tkinter, no database): python test_hardcore.py [kit folder]"""
+import json
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+KIT = sys.argv[1] if len(sys.argv) > 1 else os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, KIT)
+import launcher_hardcore as hc  # noqa: E402
+
+passed = 0
+
+
+def check(cond, msg):
+    global passed
+    if not cond:
+        raise SystemExit("FAIL: " + msg)
+    passed += 1
+    print("ok  " + msg)
+
+
+tmp = tempfile.mkdtemp()
+try:
+    shutil.copy(os.path.join(KIT, "hardcore_profiles.json"), tmp)
+    server = os.path.join(tmp, "server")
+    os.makedirs(os.path.join(server, "modules", "custom", "lua"))
+    p = hc.profiles(tmp)
+    check(p[1]["map.EXP_RATE"] == 1.0 and p[2]["map.EXP_RATE"] == 2.0 and p[3]["map.EXP_RATE"] == 3.5, "the three profiles load")
+    check(p[2]["main.HOMEPOINT_TELEPORT"] == 0 and p[3]["main.ENABLE_SURVIVAL_GUIDE"] == 0, "Steel and Silver never teleport")
+    check(p[1]["main.HOMEPOINT_TELEPORT"] == 1, "Iron keeps teleports")
+
+    mine = {"map.EXP_RATE": 5.0, "bots": True, "bots_online": 42, "crowds_per_zone": 9, "ah_sim": True, "own_thing": 7}
+    s = hc.session_rates(tmp, mine, 3)
+    check(s["map.EXP_RATE"] == 3.5 and s["bots_online"] == 42 and s["crowds_per_zone"] == 9, "PLAY HARDCORE: profile over yours, bots kept")
+    check(s["ah_sim"] is False and s["own_thing"] == 7 and mine["map.EXP_RATE"] == 5.0, "AH sim off; your dict untouched")
+    check(hc.session_rates(tmp, mine, 0) is mine, "plain PLAY: unchanged")
+
+    hc.add_pending(tmp, server, "Steely", 2)
+    hc.add_pending(tmp, server, "steely", 3)
+    check(len(hc.settings(tmp)["pending"]) == 1 and hc.settings(tmp)["pending"][0]["mode"] == 3, "pending: one per name, last wins")
+    probs = hc.write_server_files(tmp, server, True, "Hurami's World")
+    check(probs == [], "server files written")
+    folder = os.path.join(server, "modules", "custom", "lua")
+    text = open(os.path.join(folder, "hardcore_profiles.lua")).read()
+    check("['map.EXP_RATE'] = 3.5" in text and "['main.HOMEPOINT_TELEPORT'] = 0" in text and "bots" not in text, "profiles lua: character keys only")
+    wtext = open(os.path.join(folder, "hardcore_world.lua")).read()
+    check("hub = true" in wtext and "Hurami\\'s World" in wtext, "world lua")
+
+    try:
+        import lupa.luajit21 as L
+        rt = L.LuaRuntime()
+        for name in ("hardcore_profiles.lua", "hardcore_world.lua", "hardcore_pending.lua"):
+            value = rt.execute(open(os.path.join(folder, name)).read())
+            check(value is not None, name + " runs in LuaJIT")
+        pend = rt.execute(open(os.path.join(folder, "hardcore_pending.lua")).read())
+        check(pend[1]["name"].lower() == "steely" and pend[1]["mode"] == 3, "pending lua content")
+    except ImportError:
+        print("(lupa not installed: the Lua files were not run)")
+
+    hc.forget_pending(tmp, ["STEELY"])
+    check(hc.settings(tmp)["pending"] == [], "pending forgotten once it is hardcore")
+
+    # the announcer
+    posted, served = [], {"seq": 0, "lines": []}
+
+    def opener(method, path, body):
+        if method == "POST":
+            posted.append(body)
+            return {"ok": True}
+        return served
+
+    out = os.path.join(folder, "hardcore_out.txt")
+    now = int(time.time())
+    with open(out, "w") as f:
+        f.write(f"{now}|milestone|Steely|Steel|WAR|20||Hurami's World\n{now - 9 * 86400}|death|Old|Silver|WHM|30|1d|X\nbroken line\n")
+    a = hc.Announcer(tmp, server, "k" * 32, is_open=lambda: True, opener=opener)
+    check(a.send_new() == 1 and posted[0]["name"] == "Steely" and posted[0]["level"] == 20, "a new line is sent, an old one is not")
+    check(a.send_new() == 0, "nothing sent twice")
+    with open(out, "a") as f:
+        f.write(f"{now}|death|Silvia|Silver|WHM|30|2d 1h|Hurami's World\n")
+    check(a.send_new() == 1 and posted[-1]["extra"] == "2d 1h", "the next line")
+    s = hc.settings(tmp); s["share"] = False; hc.save_settings(tmp, s)
+    with open(out, "a") as f:
+        f.write(f"{now}|milestone|Silvia|Silver|WHM|40||Hurami's World\n")
+    check(a.send_new() == 0 and len(posted) == 2, "sharing off: nothing goes online")
+
+    served = {"seq": 5, "lines": [{"seq": 5, "text": "Old (Iron) reached level 10 on WAR."}]}
+    check(a.fetch_others() == 0, "first look at the room only notes where it is")
+    served = {"seq": 7, "lines": [{"seq": 6, "text": "Bob (Silver) has fallen: THF 50. Rest well."},
+                                  {"seq": 7, "text": "Steely (Steel) reached level 20 on WAR in Hurami's World."}]}
+    check(a.fetch_others() == 1, "another world's line comes in, this world's own does not")
+    lines = open(os.path.join(folder, "hardcore_in.txt")).read().splitlines()
+    check(lines == ["6|Bob (Silver) has fallen: THF 50. Rest well."], "hardcore_in.txt")
+    a2 = hc.Announcer(tmp, server, "k" * 32, is_open=lambda: False, opener=opener)
+    check(a2.fetch_others() == 0, "a world that is not open does not fetch")
+
+    check(hc.survival_text(3 * 86400 + 4 * 3600) == "3d 4h" and hc.survival_text(65) == "1m", "survival text")
+    check(hc.parse_out_line("1|start|A|Iron|WAR|1||W")["kind"] == "start", "parse a line")
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+print(f"{passed} checks passed")

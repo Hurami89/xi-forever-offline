@@ -4589,6 +4589,11 @@ class App(tk.Tk):
             core.save_rates(HERE, self.rates)
         except OSError:
             pass
+        try:                                   # (2026-11-23) HARDCORE: the server's hardcore files, and PLAY HARDCORE's rules
+            import launcher_hardcore_gui       # for this session only (rates.json above stays your own)
+            self.rates = launcher_hardcore_gui.before_play(self, self.rates)
+        except Exception as e:
+            self.say(f"Hardcore: {e}")
         if self.graphics_tab is not None:
             self.graphics = self.graphics_tab.collect()
             try:
@@ -4868,6 +4873,10 @@ class App(tk.Tk):
                                                  log=self.say)
             except Exception as e:
                 self.say(f"Could not turn Tetra Master on ({e}) - starting anyway.")
+            try:                              # (2026-11-23) the hardcore badges: switched on once
+                launcher_setup.enable_hcicons(cfg["ashita_dir"], cfg.get("ashita_boot", "phoenixsolo.ini"), log=self.say)
+            except Exception as e:
+                self.say(f"Could not turn the hardcore badges on ({e}) - starting anyway.")
             try:                              # era game files an FFXI update wrote over (Yumainai, Altair 2026-11-19)
                 for line in launcher_setup.check_era_dats(HERE, cfg.get("ffxi_client_dir", ""), log=self.say):
                     self.say(line)
