@@ -13,6 +13,8 @@
      tables in ROM\\118\\114.DAT; client-patches\\spell_targets.json).
   7. Mode titles: the four game-mode titles (Iron, Steel, Silver, Randomized) in empty slots 1078 - 1081 of the game's
      English title list (ROM\\180\\78.DAT), so the title the server puts on those characters has a name.
+  8. Mode marks: the four mode shields and XI: Forever's own new-player "?" in the game's icon sheet ("ustats" in
+     ROM\\0\\1.DAT), the marks the game draws beside a name (client-patches\\mode_marks.json).
 
 Every step checks first and only writes what is missing, so this runs at the end of first-run setup and again on
 every PLAY of a player install (an update or a reinstalled era pack is caught the next time). A step that cannot be
@@ -407,8 +409,89 @@ def restore_mode_titles(kit, game):
     return False
 
 
+# ----- 8. Mode marks beside the name -----
+# (2026-11-23) The game draws its own marks beside a name from one icon sheet, the texture "ustats" in ROM\0\1.DAT:
+# 128x64 pixels of 16x16 cells, DXT3. The server shows four marks the era never uses on the mode characters
+# (hardcoreutils::modeMarks): Iron the trial-account leaf, Steel the PlayOnline orb, Silver the mentor globe,
+# Randomized the "accepting party requests" goblet; and every new character's "?" becomes XI: Forever's own.
+# client-patches\mode_marks.json holds the five pictures already in the game's format (art-src\scripts\mode_marks_art.py).
+MARKS_FILE = ("ROM", "0", "1.DAT")
+
+
+def _marks_texture(data):
+    """Where the "ustats" picture's blocks start, or None when the file is not laid out as expected."""
+    at = 0
+    while at + 16 <= len(data):
+        packed = int.from_bytes(data[at + 4:at + 8], "little")
+        size = ((packed >> 7) & 0x7FFFF) * 16
+        if size <= 0 or at + size > len(data):
+            return None
+        if packed & 0x7F == 0x20 and bytes(data[at + 17:at + 33]).split() == [b"menu", b"ustats"]:
+            width, height = struct.unpack_from("<ii", data, at + 37)
+            if data[at + 16] == 0xA1 and (width, height) == (128, 64) and bytes(data[at + 73:at + 77]) == b"3TXD" \
+                    and at + 85 + 128 * 64 <= at + size:
+                return at + 85
+            return None
+        at += size
+    return None
+
+
+def _cell_offsets(start, row, col):
+    """The 16 block offsets (4x4 blocks of 16 bytes) of one 16x16 cell, in the order the picture lists them."""
+    return [start + ((row * 4 + y) * 32 + col * 4 + x) * 16 for y in range(4) for x in range(4)]
+
+
+def mode_marks(kit, game, log=print):
+    path = os.path.join(game, *MARKS_FILE)
+    if not os.path.exists(path):
+        return "Mode marks: the game's icon file is missing; hardcore characters show no mark beside their name."
+    with open(os.path.join(kit, "client-patches", "mode_marks.json"), encoding="utf-8") as handle:
+        marks = json.load(handle)["cells"]
+    with open(path, "rb") as handle:
+        data = bytearray(handle.read())
+    start = _marks_texture(data)
+    if start is None:
+        return "Mode marks: the game's icon file is not the expected one; it was left as it is."
+    todo = []
+    for mark in marks:
+        blocks = bytes.fromhex(mark["dxt3"])
+        offsets = _cell_offsets(start, mark["row"], mark["col"])
+        if len(blocks) != 256:
+            return "Mode marks: the marks file is damaged; nothing was changed."
+        if any(bytes(data[o:o + 16]) != blocks[i * 16:(i + 1) * 16] for i, o in enumerate(offsets)):
+            todo.append((mark, blocks, offsets))
+    if not todo:
+        return None
+    keep = os.path.join(kit, "backups", "mode-marks-dat", "1.DAT.original")
+    if not os.path.exists(keep):
+        os.makedirs(os.path.dirname(keep), exist_ok=True)
+        with open(keep, "wb") as handle:
+            handle.write(data)
+    for _mark, blocks, offsets in todo:
+        for i, o in enumerate(offsets):
+            data[o:o + 16] = blocks[i * 16:(i + 1) * 16]
+    tmp = path + ".mm-tmp"
+    with open(tmp, "wb") as handle:
+        handle.write(data)
+    os.replace(tmp, path)
+    with open(path, "rb") as handle:
+        back = handle.read()
+    if any(back[o:o + 16] != blocks[i * 16:(i + 1) * 16] for _m, blocks, offsets in todo for i, o in enumerate(offsets)):
+        return "Mode marks: the icon file did not read back as written; restore it from %s." % keep
+    return "Mode marks: the hardcore and Randomized shields and the new-player mark are in the game's icon sheet."
+
+
+def restore_mode_marks(kit, game):
+    keep = os.path.join(kit, "backups", "mode-marks-dat", "1.DAT.original")
+    if os.path.exists(keep):
+        import shutil
+        shutil.copy2(keep, os.path.join(game, *MARKS_FILE))
+        return True
+    return False
+
+
 def apply_all(kit, game, server, log=print):
-    """Runs the seven steps; returns the messages. Never raises."""
+    """Runs the eight steps; returns the messages. Never raises."""
     messages = []
     for name, step in (("Home Points", lambda: homepoints(kit, game, server, log)),
                        ("Crystal Boy", lambda: crystalboy(kit, game, log)),
@@ -416,7 +499,8 @@ def apply_all(kit, game, server, log=print):
                        ("Item stacks", lambda: item_stacks(kit, game, server, log)),
                        ("Forever Beta Shirt", lambda: forever_beta_shirt(kit, game, log)),
                        ("Spells on squad mates", lambda: spell_targets(kit, game, log)),
-                       ("Mode titles", lambda: mode_titles(kit, game, log))):
+                       ("Mode titles", lambda: mode_titles(kit, game, log)),
+                       ("Mode marks", lambda: mode_marks(kit, game, log))):
         try:
             message = step()
         except PermissionError:

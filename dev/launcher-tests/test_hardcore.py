@@ -117,6 +117,29 @@ try:
     check(first and lc._title_text(data, 1081) == "Altana's Wild Card" and lc._title_text(data, 1077) == "Eternal Master",
           "mode titles written into slots 1078 - 1081, the rest untouched")
     check(lc.mode_titles(tmp, game) is None, "mode titles: nothing to do the second time")
+    # the mode marks go into an icon sheet laid out like the game's ("ustats" in ROM/0/1.DAT)
+    import shutil as _sh
+    os.makedirs(os.path.join(game, "ROM", "0"))
+    os.makedirs(os.path.join(tmp, "client-patches"), exist_ok=True)
+    _sh.copy(os.path.join(KIT, "client-patches", "mode_marks.json"), os.path.join(tmp, "client-patches"))
+    body = bytes([0xA1]) + b"menu    ustats  " + struct.pack("<IiiHHIIiiII", 40, 128, 64, 1, 32, 0, 0, 0, 0, 0, 16) \
+        + b"3TXD" + struct.pack("<II", 8192, 0x80) + bytes(8192)
+    body += bytes(-(16 + len(body)) % 16)
+    chunk = b"ustt" + struct.pack("<I", ((16 + len(body)) // 16) << 7 | 0x20) + bytes(8) + body
+    other = b"none" + struct.pack("<I", (32 // 16) << 7 | 0x01) + bytes(8) + bytes(16)
+    with open(os.path.join(game, "ROM", "0", "1.DAT"), "wb") as handle:
+        handle.write(other + chunk + other)
+    first = lc.mode_marks(tmp, game)
+    data = open(os.path.join(game, "ROM", "0", "1.DAT"), "rb").read()
+    marks = json.load(open(os.path.join(KIT, "client-patches", "mode_marks.json")))["cells"]
+    start = len(other) + 85
+    iron = [m for m in marks if m["name"] == "iron"][0]
+    offs = lc._cell_offsets(start, iron["row"], iron["col"])
+    check(first and b"".join(data[o:o + 16] for o in offs) == bytes.fromhex(iron["dxt3"]) and data[:len(other)] == other
+          and data[-len(other):] == other, "mode marks: the Iron shield lands in the leaf's cell, nothing else moves")
+    check(lc.mode_marks(tmp, game) is None, "mode marks: nothing to do the second time")
+    check(len(marks) == 5 and {m["name"] for m in marks} == {"iron", "steel", "silver", "random", "newplayer"},
+          "mode marks: four shields and the new-player mark")
     import random as _random
     rolls = [hc.roll_randomized(_random.Random(n)) for n in range(200)]
     check(all(1 <= r["race"] <= 8 and 0 <= r["face"] <= 15 and 0 <= r["size"] <= 2 and r["zone"] in hc.START_ZONES[r["nation"]] for r in rolls)
