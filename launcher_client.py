@@ -503,15 +503,18 @@ def mode_marks(kit, game, log=print):
     with open(os.path.join(kit, "client-patches", "mode_marks.json"), encoding="utf-8") as handle:
         sheet = json.load(handle)
     marks, hd = sheet["cells"], sheet.get("hd", {}).get("cells", [])
-    changed, problems = False, []
+    changed, problems, found = False, [], 0
     for parts, pictures in [(p, None) for p in MARKS_FILES] + [(p, hd) for p in (MARKS_HD_FILES if hd else ())]:
-        if pictures is not None and not os.path.exists(os.path.join(game, *parts)):
-            continue                            # an older game without the high-resolution sheet
+        if not os.path.exists(os.path.join(game, *parts)):
+            continue                            # not every game has every copy (an older one has no high-resolution sheet)
+        found += 1
         result = _mark_one(kit, game, parts, marks, pictures)
         if result is True:
             changed = True
         elif result is not None:
             problems.append("%s: %s" % (parts[-1], result))
+    if not found:
+        return "Mode marks: the game's icon file is missing; hardcore characters show no mark beside their name."
     if problems and not changed:
         return "Mode marks: the game's icon files were left as they are (%s)." % "; ".join(problems)
     if not changed:

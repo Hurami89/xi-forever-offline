@@ -152,6 +152,32 @@ try:
     check(not hc._opening_cutscene(sdir), "and the world's own setting wins")
     check(lc.restore_mode_titles(tmp, game) and lc._title_text(open(os.path.join(game, "ROM", "180", "78.DAT"), "rb").read(), 1078) == "",
           "mode titles: the original comes back")
+    # (2026-11-24) a deleted character leaves the waiting list (Kandra)
+    import sqlite3
+    pk = os.path.join(tmp, "prunekit")
+    os.makedirs(pk)
+    db = sqlite3.connect(":memory:")
+    db.execute("CREATE TABLE chars(charid INTEGER, accid INTEGER, charname TEXT)")
+    db.executemany("INSERT INTO chars VALUES(?, ?, ?)", [(10, 1000, "Livia"), (11, 1000, "Ironhide"), (12, 1000, "Reborn")])
+    db.commit()
+    hc.add_pending(pk, None, "Kandra", 4)              # Randomized, character deleted, no charid known (the old way)
+    hc.add_pending(pk, None, "Livia", 4, 10)           # Randomized, still there
+    hc.add_pending(pk, None, "Ironhide", 1)            # Iron, character exists: its charid gets remembered
+    hc.add_pending(pk, None, "Futura", 2)              # Steel, not made on the creation screen yet: stays
+    hc.add_pending(pk, None, "Reborn", 3)
+    hc.prune_pending(pk, db)
+    left = {e["name"]: e for e in hc.settings(pk)["pending"]}
+    check(set(left) == {"Livia", "Ironhide", "Futura", "Reborn"}, "prune: a deleted Randomized character leaves the list")
+    check(left["Ironhide"].get("charid") == 11 and "charid" not in left["Futura"], "prune: a seen character is remembered, an unmade one waits")
+    db.execute("DELETE FROM chars WHERE charid = 11")
+    db.execute("UPDATE chars SET charid = 99 WHERE charid = 12")   # Reborn deleted and a new Reborn made
+    db.commit()
+    gone = hc.prune_pending(pk, db)
+    left = {e["name"] for e in hc.settings(pk)["pending"]}
+    check(set(gone) == {"Ironhide", "Reborn"} and left == {"Livia", "Futura"},
+          "prune: a seen Iron character that was deleted leaves, and an old entry doesn't pass to a new character of the same name")
+    check("Ironhide" not in hc.pending_lua(pk) and "Futura" in hc.pending_lua(pk), "prune: the server's pending file follows")
+    check(hc.prune_pending(pk, db) == [], "prune: nothing more to do the second time")
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 print(f"{passed} checks passed")
