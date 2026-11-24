@@ -2826,7 +2826,9 @@ class UpdatesTab(tk.Frame):
         self.player = bool(app.cfg.get("mariadb_dir"))      # a player install (first-run setup); else this is the dev PC
         if self.player:
             self.build_setup_again()
-        if app.ashita and os.path.isdir(app.ashita):
+        # (2026-11-23, the user: "remove this") the Revamped switch shows only once a Revamped package is installed;
+        # without one it only said there was nothing to switch
+        if app.ashita and os.path.isdir(app.ashita) and rv.detected(app.ashita):
             self.build_revamped()
         self.build_clear_ah()
         try:                                                # (2026-11-22, Sunie) the AI hood: only where its switch file is
