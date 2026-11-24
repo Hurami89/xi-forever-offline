@@ -26,6 +26,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • SYSTEM > Updates: "Repair..." installs the newest launcher and server again over what you have (database update included), for an update that stopped halfway. (Reika, Ryan)
 
 ### Fixes
+• Auction house from anywhere: with the switch on, AHGo still hung on "placing bid" outside the cities; it bids and sells from any area now. (Emeric, Velderen, sparkiie)
+• A Paladin can Cover a squad mate. (sparkiie)
 • CO-OP: TEST CONNECTION now also checks port 51240 (PlayOnline's chat, which the game loader passes on to the world), and a world set up on a Linux server opens it in that server's firewall. Without it the game stopped right after logging in with "Failed to reach the server on port 51240". (The Hub's visitors)
 • STINKSHELL: the window closed the game ("Ashita has crashed") as soon as it opened. Fixed in the add-on (1.1). (Hexblood, Rysan, Frost)
 • XISPEAKS: /xis voices closed the game on this Ashita. The launcher now fixes that line in the author's file after installing, and once more at PLAY for an install you already have. (XISpeaks testers)
