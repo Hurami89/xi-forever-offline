@@ -230,7 +230,7 @@ S("main.EPHEMERAL_MOOGLES", "rules", "Comforts", FLAG, "Ephemeral Moogles",
       "On by default. (Gilder, stanky kong)")
 S("main.ANCESTRY_MOOGLES", "rules", "Comforts", FLAG, "Ancestry Moogles",
   tip="The Ancestry Moogles in Port San d'Oria, Port Bastok and Windurst Walls (from Seekers of Adoulin) change your "
-      "race, face, hair and size, free and as often as you like. Off by default. (Yenkei)")
+      "race, face, hair and size, free and as often as you like. On for a new install. (Yenkei)")
 S("main.TREASURE_WAIT_MULTIPLIER", "rules", "Comforts", RATE, "Chest and coffer wait", step=0.25,
   tip="After a treasure chest or coffer is opened, the next one in that area is an illusion (no loot) for 15 to 60 "
       "minutes. 1x = the era, 0.5x = half as long, 0 = every chest and coffer gives its loot. (Rysan, Frost)")
@@ -271,7 +271,7 @@ S("main.SQUAD_UNLIMITED_JUICE", "rules", "Squad", FLAG, "Unlimited juice",
       "only the juices you trade to it. (Frost)")
 S("training_dummies", "rules", "Squad", SWITCH, "Training dummies",
   tip="For testing: !sandbox puts dummies of level 1 to 99 in Rolanberry Fields that never die and never attack. "
-      "On by default; off = no dummies.")
+      "Off for a new install; on = the dummies are there.")
 
 # ---------------------------------------------------------------- Rules > Party buffs (2026-11-23)
 BUFF_RANGE_WARNING = ("Extended keeps the old party-wide reach: buffs land on every party member and squad mate at any distance. "

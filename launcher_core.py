@@ -789,7 +789,7 @@ def apply_draw(script_path, values):
 RATE_FIELDS = [
     ("map.EXP_RATE",                    "map.lua",  "EXP_RATE",                    "Experience from monsters",              1.0, 0.0, 100.0, "float"),
     ("main.EXP_RATE",                   "main.lua", "EXP_RATE",                    "Experience from quests and scripts",    1.0, 0.0, 100.0, "float"),
-    ("main.BOOK_EXP_RATE",              "main.lua", "BOOK_EXP_RATE",               "Experience from Fields/Grounds pages",  0.125, 0.0, 100.0, "float"),
+    ("main.BOOK_EXP_RATE",              "main.lua", "BOOK_EXP_RATE",               "Experience from Fields/Grounds pages",  0.128, 0.0, 100.0, "float"),
     ("main.ROE_EXP_RATE",               "main.lua", "ROE_EXP_RATE",                "Experience from Records of Eminence",   1.0, 0.0, 100.0, "float"),
     ("map.CAPACITY_RATE",               "map.lua",  "CAPACITY_RATE",               "Capacity points",                       1.0, 0.0, 100.0, "float"),
     ("map.EXP_LOSS_RATE",               "map.lua",  "EXP_LOSS_RATE",               "Experience lost on death (0 = none)",   1.0, 0.0, 10.0,  "float"),
@@ -805,7 +805,7 @@ RATE_FIELDS = [
     ("main.NM_LOTTERY_COOLDOWN",        "main.lua", "NM_LOTTERY_COOLDOWN",         "Lottery NM wait after a kill (1 = retail, 0 = none)", 1.0, 0.0, 10.0, "float"),
     ("main.TABS_RATE",                  "main.lua", "TABS_RATE",                   "Tabs from Fields of Valor",             1.0, 0.0, 100.0, "float"),
     ("main.SPARKS_RATE",                "main.lua", "SPARKS_RATE",                 "Sparks from Records of Eminence",       1.0, 0.0, 100.0, "float"),
-    ("main.CASKET_DROP_RATE",           "main.lua", "CASKET_DROP_RATE",            "Treasure casket chance (0.1 = 10%)",    0.1, 0.0, 1.0,   "float"),
+    ("main.CASKET_DROP_RATE",           "main.lua", "CASKET_DROP_RATE",            "Treasure casket chance (0.1 = 10%)",    0.15, 0.0, 1.0,   "float"),
     # (2026-11-21) Tetra Master (modules/custom/lua/tetramaster.lua): multipliers on tetramaster_data.lua's chances and
     # prices. The keys are ours, in the server's settings/default/main.lua (an older server skips them: 1x).
     ("main.TM_CARD_DROP_RATE",          "main.lua", "TM_CARD_DROP_RATE",           "Tetra Master cards from monsters",      1.0, 0.0, 20.0,  "float"),
@@ -821,7 +821,7 @@ RATE_FIELDS = [
     ("map.FISHING_SKILL_MULTIPLIER",    "map.lua",  "FISHING_SKILL_MULTIPLIER",    "Fishing skill-up chance",               1.0, 0.0, 20.0,  "float"),
     # (2026-11-23, delukard) server: custom/late/comforts.lua scales the Phoenix digging module's experience per find
     ("main.DIG_SKILL_RATE",             "main.lua", "DIG_SKILL_RATE",              "Chocobo digging skill speed",           1.0, 0.0, 20.0,  "float"),
-    ("map.FISHING_MINIGAME",            "map.lua",  "FISHING_MINIGAME",            "Fishing minigame (1 = on, 0 = era fishing)", 1, 0, 1, "int"),
+    ("map.FISHING_MINIGAME",            "map.lua",  "FISHING_MINIGAME",            "Fishing minigame (1 = on, 0 = era fishing)", 0, 0, 1, "int"),
     ("main.MAX_LEVEL",                  "main.lua", "MAX_LEVEL",                   "Level cap",                             75,  50,  99,    "int"),
     ("main.ENABLE_COP",                 "main.lua", "ENABLE_COP",                  "Chains of Promathia (1 = on)",          1,   0,   1,     "int"),
     ("main.ENABLE_TOAU",                "main.lua", "ENABLE_TOAU",                 "Treasures of Aht Urhgan (1 = on)",      1,   0,   1,     "int"),
@@ -845,11 +845,11 @@ RATE_FIELDS = [
     # (2026-11-22, suggestions: Dugahst, delukard, PTgamerguy, Ricc) comforts, off = the era (server: custom/late/comforts.lua,
     # merit.cpp)
     ("main.CASKET_SHOW_CODE",           "main.lua", "CASKET_SHOW_CODE",            "Caskets tell you their combination (1 = on)", 0, 0, 1, "int"),
-    ("main.GUILD_SHOPS_ALWAYS_STOCKED", "main.lua", "GUILD_SHOPS_ALWAYS_STOCKED",  "Guild shops never run out (1 = on)",  0,   0,   1,     "int"),
+    ("main.GUILD_SHOPS_ALWAYS_STOCKED", "main.lua", "GUILD_SHOPS_ALWAYS_STOCKED",  "Guild shops never run out (1 = on)",  1,   0,   1,     "int"),
     ("map.FULL_MERITS",                 "map.lua",  "FULL_MERITS",                 "Every merit to its maximum (1 = on)", 0,   0,   1,     "int"),
     ("map.MAX_MERIT_POINTS",            "map.lua",  "MAX_MERIT_POINTS",            "Merit points you can hold",          30,  10,  99,    "int"),
     # (2026-11-22, Velderen; the user: yes, off by default) the auction house answers in every area, for the ahgo add-on
-    ("map.AH_ANYWHERE",                 "map.lua",  "AH_ANYWHERE",                 "Auction house from anywhere (1 = on)", 0,  0,   1,     "int"),
+    ("map.AH_ANYWHERE",                 "map.lua",  "AH_ANYWHERE",                 "Auction house from anywhere (1 = on)", 1,  0,   1,     "int"),
     # (2026-11-22, sparkiie; the user: a comfort switch, off = as it is today) Fafnir, Adamantoise and Behemoth by timer
     ("main.LAND_KINGS_TIMED",           "main.lua", "LAND_KINGS_TIMED",            "Land kings on a timer (1 = on, 0 = called at the ???)", 0, 0, 1, "int"),
     # (2026-11-22, suggestions: Dugahst; the user: on by default) server: custom/late/comforts.lua
@@ -857,7 +857,7 @@ RATE_FIELDS = [
     # (2026-11-23, Gilder, stanky kong; the user: on by default) Seekers of Adoulin's crystal storage at the crafting guilds
     # (server: zoneutils.cpp InsertNPCs); an older server without the key ignores it
     # (2026-11-23, Yenkei; the user: a switch, off by default) server: zoneutils.cpp, custom/late/comforts.lua
-    ("main.ANCESTRY_MOOGLES",           "main.lua", "ANCESTRY_MOOGLES",            "Ancestry Moogles: free race change (1 = on)", 0, 0, 1, "int"),
+    ("main.ANCESTRY_MOOGLES",           "main.lua", "ANCESTRY_MOOGLES",            "Ancestry Moogles: free race change (1 = on)", 1, 0, 1, "int"),
     # (2026-11-23, Rysan, Frost) server: custom/late/comforts.lua scales the chest/coffer "illusion" wait
     ("main.TREASURE_WAIT_MULTIPLIER",   "main.lua", "TREASURE_WAIT_MULTIPLIER",    "Chest and coffer wait (1 = the era, 0 = none)", 1.0, 0.0, 2.0, "float"),
     ("main.EPHEMERAL_MOOGLES",          "main.lua", "EPHEMERAL_MOOGLES",           "Ephemeral Moogles keep your crystals (1 = on)", 1, 0, 1, "int"),
@@ -872,7 +872,7 @@ RATE_FIELDS = [
     ("main.EXP_CHAIN_TIME_MULTIPLIER",  "main.lua", "EXP_CHAIN_TIME_MULTIPLIER",   "Experience chain time",              1.0, 1.0, 5.0,   "float"),
     ("map.ALL_MOBS_GIL_BONUS",          "map.lua",  "ALL_MOBS_GIL_BONUS",          "Gil every monster drops, per level (0 = off)", 0, 0, 50, "int"),
     # (2026-11-22, delukard) minutes a party waits between two seals (server: mob_entity.cpp specialDropCooldown)
-    ("main.SEAL_DROP_MINUTES",          "main.lua", "SEAL_DROP_MINUTES",           "Wait between seals, minutes (5 = as it was, 0 = none)", 5, 0, 5, "int"),
+    ("main.SEAL_DROP_MINUTES",          "main.lua", "SEAL_DROP_MINUTES",           "Wait between seals, minutes (5 = as it was, 0 = none)", 3, 0, 5, "int"),
     ("map.SUBJOB_RATIO",                "map.lua",  "SUBJOB_RATIO",                "Support job level (1 = half, 2 = two thirds, 3 = equal)", 1, 1, 3, "int"),
     # (2026-11-22, delukard) your own HP and MP; squad mates follow (charutils.cpp, trustutils.cpp)
     ("map.PLAYER_HP_MULTIPLIER",        "map.lua",  "PLAYER_HP_MULTIPLIER",        "Your HP: you and your squad",        1.0, 0.5, 3.0,   "float"),
@@ -898,12 +898,15 @@ RATE_FIELDS = [
     ("map.MOUNT_SPEED",                 "map.lua",  "MOUNT_SPEED",                 "Chocobo and mount speed (80 = retail)", 80,  50,  150,   "int"),
 ]
 RATE_DEFAULTS = {f[0]: f[4] for f in RATE_FIELDS}
-RATE_DEFAULTS.update({"all_crafts": True, "ah_sim": False, "era_exp": True, "conquest_sim": True, "claim_shield": False,
-                      "defaults_version": 2})
+# (2026-11-23, the user: the "eradefault" profile is the new default for NEW installs; v3) seven RATE_FIELDS defaults above
+# (pages exp 0.128, caskets 15%, era fishing, guild shops stocked, AH from anywhere, Ancestry Moogles, seals 3 min), the AH
+# simulator on, training dummies off and bots 300 / 180. An existing rates.json keeps what it says (load_rates).
+RATE_DEFAULTS.update({"all_crafts": True, "ah_sim": True, "era_exp": True, "conquest_sim": True, "claim_shield": False,
+                      "defaults_version": 3})
 RATE_DEFAULTS.update({"crowds": True, "crowds_per_zone": 15})   # ambient crowds (modules/custom/lua/crowds.lua)
 RATE_DEFAULTS.update({"crowds_chat": True, "crowds_chat_amount": "normal", "crowds_chat_ai": True})   # crowd chat (crowds_chat.lua)
 RATE_DEFAULTS.update({"crowds_field": True, "crowds_field_parties": 1})   # field parties (crowds_field.lua)
-RATE_DEFAULTS.update({"bots": True, "bots_roster": 100, "bots_online": 50})   # bot players (bots.lua, bots_life.lua)
+RATE_DEFAULTS.update({"bots": True, "bots_roster": 300, "bots_online": 180})   # bot players (bots.lua, bots_life.lua)
 # (2026-11-23, Meli; the user: allowed, with a warning) the usual top values, and how far a strong PC may go past them
 BOTS_ROSTER_SAFE, BOTS_ONLINE_SAFE = 600, 550
 BOTS_ROSTER_MAX, BOTS_ONLINE_MAX = 2000, 1500
@@ -917,7 +920,7 @@ RATE_DEFAULTS.update({"bots_pass_loot": True})   # (delukard) bot players in you
 # stories and gate travel (modules/custom/lua/extras.lua reads extras_config.lua; in game: !extras). All on by default.
 EXTRAS_KEYS = ("crowd_gates", "crowd_meet", "bot_social", "bot_memory", "bot_story", "bot_gates")
 RATE_DEFAULTS.update({key: True for key in EXTRAS_KEYS})
-RATE_DEFAULTS.update({"training_dummies": True, "training_dummies_explicit": False})   # (Jon Tanta) !sandbox training dummies in Rolanberry Fields (squad_sandbox.lua). On by default since 0.3.3a; _explicit = the player chose the switch himself, so only then is a saved False kept
+RATE_DEFAULTS.update({"training_dummies": False, "training_dummies_explicit": False})   # (Jon Tanta) !sandbox training dummies in Rolanberry Fields (squad_sandbox.lua). On by default since 0.3.3a; _explicit = the player chose the switch himself, so only then is a saved False kept
 RATE_DEFAULTS.update({"squad_keep_gear": False})   # gear given to the squad is unlocked and you keep the piece (squad.lua squadKeepGear)
 RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
 RATE_DEFAULTS.update({"short_quest_waits": True})   # Chocobo's Wounds 1 minute, Forge Your Destiny 1 hour (late/quest_waits.lua)
@@ -1196,6 +1199,10 @@ def load_rates(here):
         for flag in ("all_crafts", "ah_sim", "era_exp", "conquest_sim"):
             if flag in saved:
                 rates[flag] = bool(saved[flag])
+        if "ah_sim" not in saved:
+            rates["ah_sim"] = False     # (an older rates.json without the key had it off: the v3 default is for new installs)
+        if int(saved.get("defaults_version", 1) or 1) < 3 and "main.ANCESTRY_MOOGLES" not in saved:
+            rates["main.ANCESTRY_MOOGLES"] = 0   # (new in v0.3.5: on for a new install, off for one that was already there)
         if int(saved.get("defaults_version", 1) or 1) < 2:
             # launcher 1.3.1: era exp tables and the conquest simulator are on by default; switch them on once for older settings
             rates["era_exp"], rates["conquest_sim"] = True, True
@@ -1241,6 +1248,10 @@ def load_rates(here):
         if saved.get("training_dummies_explicit") is True and "training_dummies" in saved:
             rates["training_dummies"] = bool(saved["training_dummies"])
             rates["training_dummies_explicit"] = True
+        elif int(saved.get("defaults_version", 1) or 1) >= 3 and "training_dummies" in saved:
+            rates["training_dummies"] = bool(saved["training_dummies"])     # (v3: off by default; a saved value counts)
+        elif "training_dummies" in saved:
+            rates["training_dummies"] = True    # (an install from before v3 keeps the dummies it had by default)
         if "bots_pass_loot" in saved:
             rates["bots_pass_loot"] = bool(saved["bots_pass_loot"])
         for key in EXTRAS_KEYS:
@@ -1351,14 +1362,14 @@ def import_profile(here, path):
 
 def apply_preset(rates, name):
     out = dict(RATE_DEFAULTS)
-    out["ah_sim"], out["all_crafts"] = rates.get("ah_sim", False), True
+    out["ah_sim"], out["all_crafts"] = rates.get("ah_sim", True), True
     out["conquest_sim"] = rates.get("conquest_sim", True)
     out["crowds"] = rates.get("crowds", True)
     for key, default in (("crowds_chat", True), ("crowds_chat_amount", "normal"), ("crowds_chat_ai", True),
                          ("crowds_field", True), ("crowds_field_parties", 1),
-                         ("bots", True), ("bots_roster", 100), ("bots_online", 50), ("bots_growth", "realistic"), ("buff_range", "retail"),
+                         ("bots", True), ("bots_roster", 300), ("bots_online", 180), ("bots_growth", "realistic"), ("buff_range", "retail"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
-                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False), ("training_dummies", True), ("training_dummies_explicit", False), ("bots_pass_loot", True), ("squad_all_gear", False),
+                         ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False), ("training_dummies", False), ("training_dummies_explicit", False), ("bots_pass_loot", True), ("squad_all_gear", False),
                          ("short_quest_waits", True), ("events", "date"), ("event_harvest", True), ("event_starlight", True), ("event_egg_hunt", True), ("event_horro", True)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
