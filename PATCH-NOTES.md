@@ -2,6 +2,11 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.6 · 23 November 2026
+
+### Fixes
+• CO-OP: while your world was open to visitors (or had visitors on its list), the launcher kept showing an error ("'BooleanVar' object is not callable") and the visitors list stopped updating. A setting on the new OPEN WORLDS listing had the same name as the code that reads your visitors. (Hasuko)
+
 ## v0.3.5 · 23 November 2026
 
 ### New
