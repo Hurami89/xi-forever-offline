@@ -14,7 +14,7 @@
   7. Mode titles: the four game-mode titles (Iron, Steel, Silver, Randomized) in empty slots 1078 - 1081 of the game's
      English title list (ROM\\180\\78.DAT), so the title the server puts on those characters has a name.
   8. Mode marks: the four mode shields and XI: Forever's own new-player "?" in the game's icon sheet ("ustats" in
-     ROM\\0\\1.DAT and 13.DAT), the marks the game draws beside a name (client-patches\\mode_marks.json).
+     ROM\\0\\1.DAT and three more copies), the marks the game draws beside a name (client-patches\\mode_marks.json).
 
 Every step checks first and only writes what is missing, so this runs at the end of first-run setup and again on
 every PLAY of a player install (an update or a reinstalled era pack is caught the next time). A step that cannot be
@@ -415,7 +415,7 @@ def restore_mode_titles(kit, game):
 # (hardcoreutils::modeMarks): Iron the trial-account leaf, Steel the PlayOnline orb, Silver the mentor globe,
 # Randomized the "accepting party requests" goblet; and every new character's "?" becomes XI: Forever's own.
 # client-patches\mode_marks.json holds the five pictures already in the game's format (art-src\scripts\mode_marks_art.py).
-MARKS_FILES = (("ROM", "0", "1.DAT"), ("ROM", "0", "13.DAT"))
+MARKS_FILES = (("ROM", "0", "1.DAT"), ("ROM", "0", "13.DAT"), ("ROM", "118", "111.DAT"), ("ROM", "280", "15.DAT"))
 
 
 def _marks_texture(data):
@@ -441,6 +441,11 @@ def _cell_offsets(start, row, col):
     return [start + ((row * 4 + y) * 32 + col * 4 + x) * 16 for y in range(4) for x in range(4)]
 
 
+def _keep_name(parts):
+    """The backup's name: 1.DAT.original and 13.DAT.original as before, ROM-118-111.DAT.original for the others."""
+    return (parts[-1] if parts[1] == "0" else "-".join(parts)) + ".original"
+
+
 def _mark_one(kit, game, parts, marks):
     """Draws the marks into one copy of the icon sheet: True when changed, None when already done, else a message."""
     path = os.path.join(game, *parts)
@@ -461,7 +466,7 @@ def _mark_one(kit, game, parts, marks):
             todo.append((mark, blocks, offsets))
     if not todo:
         return None
-    keep = os.path.join(kit, "backups", "mode-marks-dat", parts[-1] + ".original")
+    keep = os.path.join(kit, "backups", "mode-marks-dat", _keep_name(parts))
     if not os.path.exists(keep):
         os.makedirs(os.path.dirname(keep), exist_ok=True)
         with open(keep, "wb") as handle:
@@ -481,8 +486,9 @@ def _mark_one(kit, game, parts, marks):
 
 
 def mode_marks(kit, game, log=print):
-    # (2026-11-24) the game keeps two copies of "ustats": ROM\0\1.DAT and ROM\0\13.DAT, and draws the marks beside
-    # a name from 13.DAT, so both are patched (only 1.DAT was, and the retail goblet kept showing)
+    # (2026-11-24) the game keeps four identical copies of "ustats" (ROM\0\1.DAT, ROM\0\13.DAT, ROM\118\111.DAT,
+    # ROM\280\15.DAT; found by searching every game file for the goblet's pixels), and the current client draws the
+    # marks from a later one, so all four are patched (only 1.DAT was, and the retail goblet kept showing)
     with open(os.path.join(kit, "client-patches", "mode_marks.json"), encoding="utf-8") as handle:
         marks = json.load(handle)["cells"]
     changed, problems = False, []
@@ -504,7 +510,7 @@ def restore_mode_marks(kit, game):
     import shutil
     done = False
     for parts in MARKS_FILES:
-        keep = os.path.join(kit, "backups", "mode-marks-dat", parts[-1] + ".original")
+        keep = os.path.join(kit, "backups", "mode-marks-dat", _keep_name(parts))
         if os.path.exists(keep):
             shutil.copy2(keep, os.path.join(game, *parts))
             done = True
