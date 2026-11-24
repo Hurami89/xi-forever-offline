@@ -819,6 +819,8 @@ RATE_FIELDS = [
     ("map.CRAFT_CHANCE_MULTIPLIER",     "map.lua",  "CRAFT_CHANCE_MULTIPLIER",     "Crafting skill-up chance",              1.0, 0.0, 20.0,  "float"),
     ("map.CRAFT_HQ_CHANCE_MULTIPLIER",  "map.lua",  "CRAFT_HQ_CHANCE_MULTIPLIER",  "Crafting high-quality chance",          1.0, 0.0, 20.0,  "float"),
     ("map.FISHING_SKILL_MULTIPLIER",    "map.lua",  "FISHING_SKILL_MULTIPLIER",    "Fishing skill-up chance",               1.0, 0.0, 20.0,  "float"),
+    # (2026-11-23, delukard) server: custom/late/comforts.lua scales the Phoenix digging module's experience per find
+    ("main.DIG_SKILL_RATE",             "main.lua", "DIG_SKILL_RATE",              "Chocobo digging skill speed",           1.0, 0.0, 20.0,  "float"),
     ("map.FISHING_MINIGAME",            "map.lua",  "FISHING_MINIGAME",            "Fishing minigame (1 = on, 0 = era fishing)", 1, 0, 1, "int"),
     ("main.MAX_LEVEL",                  "main.lua", "MAX_LEVEL",                   "Level cap",                             75,  50,  99,    "int"),
     ("main.ENABLE_COP",                 "main.lua", "ENABLE_COP",                  "Chains of Promathia (1 = on)",          1,   0,   1,     "int"),
@@ -1008,11 +1010,11 @@ RATE_PRESETS = {
     "Aht Urhgan era (real exp tables)": {"era_exp": True},
     "Relaxed solo": {"era_exp": False, "map.EXP_RATE": 2.0, "main.EXP_RATE": 2.0, "main.BOOK_EXP_RATE": 2.0, "main.ROE_EXP_RATE": 2.0, "map.CAPACITY_RATE": 2.0,
                      "map.DROP_RATE_MULTIPLIER": 1.5, "map.MOB_GIL_MULTIPLIER": 1.5, "main.GIL_RATE": 1.5, "main.CASKET_DROP_RATE": 0.15,
-                     "map.SKILLUP_CHANCE_MULTIPLIER": 2.0, "map.CRAFT_CHANCE_MULTIPLIER": 2.0, "map.FISHING_SKILL_MULTIPLIER": 2.0},
+                     "map.SKILLUP_CHANCE_MULTIPLIER": 2.0, "map.CRAFT_CHANCE_MULTIPLIER": 2.0, "map.FISHING_SKILL_MULTIPLIER": 2.0, "main.DIG_SKILL_RATE": 2.0},
     "Fast": {"era_exp": False, "map.EXP_RATE": 5.0, "main.EXP_RATE": 5.0, "main.BOOK_EXP_RATE": 5.0, "main.ROE_EXP_RATE": 5.0, "map.CAPACITY_RATE": 5.0,
              "map.EXP_LOSS_RATE": 0.5, "map.DROP_RATE_MULTIPLIER": 2.0, "map.MOB_GIL_MULTIPLIER": 3.0, "main.GIL_RATE": 3.0,
              "main.TABS_RATE": 3.0, "main.CASKET_DROP_RATE": 0.25, "map.SKILLUP_CHANCE_MULTIPLIER": 4.0, "map.CRAFT_CHANCE_MULTIPLIER": 4.0,
-             "map.CRAFT_HQ_CHANCE_MULTIPLIER": 1.5, "map.FISHING_SKILL_MULTIPLIER": 4.0},
+             "map.CRAFT_HQ_CHANCE_MULTIPLIER": 1.5, "map.FISHING_SKILL_MULTIPLIER": 4.0, "main.DIG_SKILL_RATE": 4.0},
 }
 
 # Player installs (first-run setup) only see the options that fit this era project. The rest stay at their era values
@@ -1512,6 +1514,10 @@ def apply_rates(server_dir, rates):
     except (TypeError, ValueError):
         _base, _mount = 50, 80
     wanted["map.lua"].append(("SPEED_LIMIT", max(80, _mount, min(255, round(_base * 1.6))), "int"))
+    # (2026-11-23, Ricc: faster running looked like sliding) the game plays the running animation at speed / animation
+    # base, and the server makes the base BASE_SPEED / ANIMATION_SPEED_DIVISOR. Keeping the base at the retail 50 makes
+    # the legs move faster along with a higher Run speed, the way Flee or movement gear do.
+    wanted["map.lua"].append(("ANIMATION_SPEED_DIVISOR", round(max(40, _base) / 50.0, 3), "float"))
     # (2026-11-20, Trinity: "Is fishing disabled?") the server default switches all fishing off (a guard against fishing
     # bots on public servers, "enable at your own risk"); there is no such risk on your own world
     # (2026-11-22, Ricc: skill-ups at 20x still slow) a high skill-up rate also raises how much each skill-up gives:

@@ -182,6 +182,9 @@ S("map.BLUE_LEARN_MULTIPLIER", "rules", "Skills and crafting", RATE, "Learning b
 S("map.CRAFT_CHANCE_MULTIPLIER", "rules", "Skills and crafting", RATE, "Crafting skill-ups")
 S("map.CRAFT_HQ_CHANCE_MULTIPLIER", "rules", "Skills and crafting", RATE, "High-quality crafts")
 S("map.FISHING_SKILL_MULTIPLIER", "rules", "Skills and crafting", RATE, "Fishing skill-ups")
+S("main.DIG_SKILL_RATE", "rules", "Skills and crafting", RATE, "Chocobo digging skill",
+  tip="How much each find while chocobo digging counts toward your digging skill. 1x = the era (months to reach 100), "
+      "2x = twice as fast. There is no daily digging limit on your own world. (delukard)")
 S("map.FISHING_MINIGAME", "rules", "Skills and crafting", FLAG, "Fishing minigame",
   tip="On = today's fishing, where you fight the fish on screen. Off = era fishing: the bite line tells you what is on "
       "the hook, then you reel in (confirm) or let it go (cancel). The fishing screen still opens, but there is nothing "

@@ -5,6 +5,11 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ## v0.3.5 · 23 November 2026
 
 ### New
+• Squads menu: the Job and Sub lists show each job's level, like WHM (34). (Dugahst)
+• Run speed: the running animation now speeds up with it, the way Flee does, instead of sliding. (Ricc)
+• RULES > Skills and crafting: Chocobo digging skill (1x = the era). How much each find counts toward your digging skill; there is still no daily digging limit on your own world. (delukard)
+• The Vaporwave look stays: after its limited time ends on December 2 it is a theme you can pick on the Theme page for good, with its song and banners. (Ranyxia)
+• GM characters: !capallskills <name> caps another character's skills (a logged-out one too). (Garrett)
 • RULES > Comforts: Ancestry Moogles (off by default). The race-change moogles in Port San d'Oria, Port Bastok and Windurst Walls change your race, face, hair and size, free and as often as you like. (Yenkei)
 • RULES > Comforts: Chest and coffer wait. After a chest or coffer is opened, the next one in that area is an illusion for 15-60 minutes; 1x = the era, 0 = every one gives its loot. (Rysan, Frost)
 • GM characters: the GM commands that change a character (!addquest, !completemission, !addkeyitem, !givegil, !setplayerlevel, !setrank, !additem and more) also work on your characters that are logged out. The change is saved and made when that character next logs in.
