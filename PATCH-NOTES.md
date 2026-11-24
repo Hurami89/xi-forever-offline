@@ -36,6 +36,9 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • SYSTEM > Updates: "Repair..." installs the newest launcher and server again over what you have (database update included), for an update that stopped halfway. (Reika, Ryan)
 
 ### Fixes
+• Squad range: a mate set to mid range stands 15 yalms from the monster and far 20 (were 6 and 12, still inside most area attacks). (Jaymz)
+• Squad mates missing from the party list after zoning (still in the party): the list is sent again a few seconds after they appear. (Hasuko)
+• Linux: setup or PLAY could stop at the database with "Cannot map innodb_buffer_pool_size_max" on systems with limited virtual memory; MariaDB is now told to reserve at most 2 GB. (ザックス)
 • Closing the launcher now stops all of the Ollama it started, model runner included; on Linux it kept running. (Sunie)
 • Auction house from anywhere: with the switch on, AHGo still hung on "placing bid" outside the cities; it bids and sells from any area now. (Emeric, Velderen, sparkiie)
 • A Paladin can Cover a squad mate. (sparkiie)

@@ -1148,8 +1148,8 @@ local RANGES = { 'auto', 'melee', 'mid', 'far' };
 local RANGE_HELP = {
     auto  = 'The usual distance for its job (casters and ranged jobs stand back, the rest melee)',
     melee = 'Stands next to the monster',
-    mid   = 'Stands about 6 yalms from the monster',
-    far   = 'Stands about 12 yalms from the monster',
+    mid   = 'Stands about 15 yalms from the monster',
+    far   = 'Stands about 20 yalms from the monster',
 };
 local WS_WHEN = { 'chain', '1000', '1500', '2000', '2500', '3000' };
 local WS_WHEN_HELP = {
