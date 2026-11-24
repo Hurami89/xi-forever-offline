@@ -31,6 +31,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • SYSTEM > Updates: "Repair..." installs the newest launcher and server again over what you have (database update included), for an update that stopped halfway. (Reika, Ryan)
 
 ### Fixes
+• Closing the launcher now stops all of the Ollama it started, model runner included; on Linux it kept running. (Sunie)
 • Auction house from anywhere: with the switch on, AHGo still hung on "placing bid" outside the cities; it bids and sells from any area now. (Emeric, Velderen, sparkiie)
 • A Paladin can Cover a squad mate. (sparkiie)
 • CO-OP: TEST CONNECTION now also checks port 51240 (PlayOnline's chat, which the game loader passes on to the world), and a world set up on a Linux server opens it in that server's firewall. Without it the game stopped right after logging in with "Failed to reach the server on port 51240". (The Hub's visitors)

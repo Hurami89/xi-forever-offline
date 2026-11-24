@@ -5507,9 +5507,10 @@ class App(tk.Tk):
         had_servers = bool(self.procs)
         ollama = getattr(self, "ollama_proc", None)
         if ollama is not None:  # only the Ollama this launcher started (one you started yourself keeps running)
+            # (2026-11-23, Sunie: Ollama kept running on Linux after the launcher closed) "ollama serve" starts a runner
+            # process per loaded model; terminate() ended only the server, so the whole tree is stopped now
             try:
-                if ollama.poll() is None:
-                    ollama.terminate()
+                core.kill_tree(ollama)
             except Exception:
                 pass
             self.ollama_proc = None
