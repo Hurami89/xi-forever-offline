@@ -149,5 +149,25 @@ class Hub(unittest.TestCase):
         self.assertEqual(len(again.launcher(OWNER)["away"]), 1)
 
 
+class Chained(unittest.TestCase):
+    """(2026-11-25) a second venture before playing again starts from where the first one left the mate"""
+
+    def test_second_venture_starts_from_the_new_level(self):
+        import tempfile, threading
+        import ventures_hub as H
+        clock = [1000.0]
+        hub = H.Ventures(tempfile.mkdtemp(), threading.Lock(), now=lambda: clock[0])
+        hub.roster("o", {"chars": [{"name": "Hurami", "mates": [mate(level=10)]}]})
+        self.assertIsNone(hub.start("o", {"id": "venture0001", "char": "Hurami", "slots": [1], "camp": "valkurm_lizards", "hours": 12}).get("error"))
+        clock[0] += 13 * 3600
+        lv, xp = V.end_state(hub.plan("venture0001"))[1]
+        self.assertGreater(lv, 10)
+        self.assertEqual(hub.phone("o")["roster"][0]["mates"][0]["level"], lv)
+        camp = next(c for c in V.data()["camps"] if c["lo"] - 3 <= lv <= c["hi"] + 3)
+        self.assertIsNone(hub.start("o", {"id": "venture0002", "char": "Hurami", "slots": [1], "camp": camp["id"], "hours": 1}).get("error"))
+        m = hub.plan("venture0002")["mates"][0]
+        self.assertEqual((m["level"], m["exp"]), (lv, xp))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

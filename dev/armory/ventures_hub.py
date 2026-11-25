@@ -64,6 +64,25 @@ class Ventures:
         except (OSError, ValueError):
             return None
 
+    def _effective(self, owner, ch, now):
+        """(2026-11-25) The character's mates as they stand now: the roster's level and exp, moved on by every venture
+        that is over but not in the game yet (or put in the game after the roster was last sent). Without this a
+        second venture started before you played again began from the old level."""
+        mates = [dict(m) for m in ch.get("mates", [])]
+        by_slot = {m["slot"]: m for m in mates}
+        at = ch.get("at", 0)
+        done = [v for v in self.state["list"].get(owner, []) if v["char"].lower() == ch["name"].lower() and now >= v["end"]
+                and (not v.get("applied") or v.get("appliedAt", 0) > at)]
+        for v in sorted(done, key=lambda v: v["end"]):
+            plan = self.plan(v["id"])
+            if not plan:
+                continue
+            for slot, (lv, xp) in V.end_state(plan, v["end"] - v["start"]).items():
+                m = by_slot.get(slot)
+                if m and (lv, xp) > (m["level"], m.get("exp", 0)):
+                    m["level"], m["exp"] = lv, xp
+        return mates
+
     # ---------------------------------------------------------------- launcher
     def roster(self, owner, body):
         """The launcher's squads: every home character's mates (slot, looks, job, level, progress) and a few of the
@@ -115,8 +134,8 @@ class Ventures:
         ids = {str(i) for i in (ids or [])[:200]}
         with self.lock:
             for v in self.state["list"].get(owner, []):
-                if v["id"] in ids:
-                    v["applied"] = True
+                if v["id"] in ids and not v.get("applied"):
+                    v["applied"], v["appliedAt"] = True, int(self.now())
             self.save()
         return {"ok": True}
 
@@ -140,7 +159,7 @@ class Ventures:
     def phone(self, owner, camps=False):
         now = self.now()
         with self.lock:
-            roster = list((self.state["roster"].get(owner) or {}).values())
+            roster = [dict(ch, mates=self._effective(owner, ch, now)) for ch in (self.state["roster"].get(owner) or {}).values()]
             vs = [self._public(v, now) for v in self.state["list"].get(owner, [])]
         out = {"now": int(now), "roster": roster, "ventures": [v for v in vs if v], "hours": list(V.HOURS),
                "expPerHour": V.EXP_PER_HOUR, "partyFrom": V.PARTY_FROM}
@@ -171,7 +190,7 @@ class Ventures:
                 s = _num(s, 0, 31, -1)
                 if s not in want:
                     want.append(s)
-            mates = [m for m in ch["mates"] if m["slot"] in want]
+            mates = [m for m in self._effective(owner, ch, now) if m["slot"] in want]
             if not mates or len(mates) != len(want):
                 return {"error": "Pick one or more of this character's squad mates."}
             out_now = {s for v in lst if v["char"].lower() == ch["name"].lower() and now < v["end"] for s in v["slots"]}

@@ -314,6 +314,23 @@ def _rescale(events, mates, hours):
             e["up"] = ups
 
 
+def end_state(plan, until=None):
+    """(2026-11-25, user: a second venture before syncing started from the old level) where each mate stands when the
+    venture is over (or at `until`): {slot: (level, exp in that level)}, worked out from its start and what it earned."""
+    res = results(plan, until)
+    out = {}
+    for i, m in enumerate(plan["mates"]):
+        lv = int(m.get("start", m.get("level", 1)))
+        xp = int(m.get("exp0", m.get("exp", 0))) + res["exp"][i]
+        while lv < MAX_LEVEL and xp >= exp_needed(lv):
+            xp -= exp_needed(lv)
+            lv += 1
+        if lv >= MAX_LEVEL:
+            lv, xp = MAX_LEVEL, 0
+        out[m["slot"]] = (lv, xp)
+    return out
+
+
 def results(plan, until=None):
     """What the venture brought up to `until` seconds in (all of it when None): exp per mate, levels, gil, items."""
     cut = plan["end"] - plan["start"] if until is None else max(0, int(until))
