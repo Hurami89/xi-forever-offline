@@ -68,7 +68,8 @@ RULES = {
     4: ["Rates locked to the Randomized profile (2.5x experience)", "You pick only the name: race, face, size and nation are rolled",
         "One random job to start, another at 18, 33 and 65 (of the 18 era jobs); only those can be played",
         "Job quests still unlock jobs for your squad mates", "Drops, chests, caskets and battlefield crates are random but fit",
-        "Its own auction house (stock rotates, prices swing 20% more); trading, normal deaths, any party"],
+        "Its own auction house (stock rotates, prices swing 20% more); trading, normal deaths, any party",
+        "Squad spells of level 18 and up come from scrolls (always on, whatever the Rates switch says)"],
 }
 
 

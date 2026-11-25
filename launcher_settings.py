@@ -255,7 +255,7 @@ S("squad_call_cooldown", "rules", "Squad", COUNT, "Call timer (min)", lo=0, hi=3
 S("spell_scrolls", "rules", "Squad", SWITCH, "Spells from scrolls",
   tip="Spells of level 18 and up must be bought and given to your squad once (trade the scroll to a mate, or "
       "!squad give). Blue magic from 18 is learned from monsters you defeat with a squad Blue Mage out. "
-      "Below 18 everything stays automatic.")
+      "Below 18 everything stays automatic. Always on for Randomized characters.")
 S("squad_keep_gear", "rules", "Squad", SWITCH, "Keep gear you give",
   tip="Trading a piece to a mate (or !squad give) unlocks it for the whole squad and you keep yours. "
       "Off = the squad takes the piece (one-of-a-kind gear is always kept).")
