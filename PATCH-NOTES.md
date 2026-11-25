@@ -7,6 +7,8 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ### New
 • Squad backup and restore: on the Squads page, "Back up squad" saves a character's whole squad to one file (every mate's look, jobs, levels, gear, unlocked items, which Rule Set each job uses, personality and greetings). "Restore..." puts it back, on the same character or another one; the squad it replaces is saved first. Thanks Rennie.
 • Updates show their download size ("Download: about 410 MB") before you start. Thanks Jaymz.
+• GM command !skipmissions <log> <mission> (for example !skipmissions cop THE_ROAD_FORKS): marks every earlier mission in that log done, makes the one you name your current mission, and gives the key items those missions hand out. Nation rank and final reward gear stay as they are (use !setrank and !additem). Needs a GM character. Thanks Blitzace, Quaiton and Mikoto.
+• New Discord forum: #squad-personalities, for sharing your squad mates' personalities and backstories. Thanks AerynGunn.
 • Character transfer now brings your quests and missions (every log, current and finished, CoP, ToAU, Assault and Campaign included), your currencies (conquest points, seals, tabs, assault points...) and your merits and merit points. Linkshells and pearls stay behind: they belong to the other game's linkshells. Thanks Hasuko.
 
 ### Fixes
