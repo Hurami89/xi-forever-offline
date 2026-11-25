@@ -2,6 +2,22 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.12 · 26 November 2026
+
+### New
+• VanaSync, battle music by JØ, our Head of Music (VanaSync by JØ × NOX). Off by default: switch on "vanasync" on OPTIONS > Addons. While it's on and your world runs, a small VanaSync player window opens, and fights get JØ's battle themes: "Against the Odds" when you're alone, "Beyond the Veil" in a party and "The March of Many" in an alliance. The game's own music fades out only while a VanaSync song really plays and comes back 5 seconds after the fight; sound effects and voices stay as they are. Close the window or type /vanasync restore and the game's music is back. More of JØ's music (zones, his album Resonance of Vana'diel) is coming in later packs. Windows only for now.
+• XIFO app 1.2.2: sound for portable fishing and Ventures. Chiptune effects (the cast, a bite, every tap of the fight, a catch, a lost fish, skill-ups, sending a venture off and the homecoming) and a music loop for each, all made for the app. Sounds and Music switches on both screens.
+• Tetra Master: /tm volume 0-100 (default 40) sets how loud the card sounds and the music are. Thanks Jaymz.
+
+### Fixes
+• Ventures: the exp, gil and items your mates bring home now reach the game. The game's part of Ventures was missing from the v0.3.11 server, so nothing arrived. Nothing is lost: finished ventures wait on xiforever.com until your game takes them in. Thanks Hasuko, Lunali and Kluze.
+• Ventures: a second venture sent before you play again starts from the level the first one reached, not the old one. The app shows those levels too.
+• Ventures: a Randomized character's random squad shows up in the app with the looks Fate rolled.
+• Living world: the map server could crash when a bot player logged out right as it was answering someone in town (mostly seen on Linux, after 5 to 30 minutes in a busy town). Thanks Grim, Red, Zuken and mark devlin.
+• Squad mates' bolts, arrows and bullets now really give their additional effects, such as Acid Bolt's Defense Down. v0.3.11 handed the real ammo over, but a second check still let only players' ammo effects through. Thanks Syfin and Watts.
+• Portable fishing: the rods that can also land legendary fish (Lu Shang's, Ebisu, Judges) are in the app now, so a character holding one sees all its rods. Thanks Hasuko.
+• !squad give <spell> finds a spell scroll by the spell's name ("!squad give sneak"), not only as "scroll of sneak". Thanks jainfarstrider.
+
 ## v0.3.11 · 25 November 2026
 
 ### New

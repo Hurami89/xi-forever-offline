@@ -35,6 +35,7 @@
 # Character pages on xiforever.com and the XIFO phone app (armory.json stays yours)
 !/launcher_armory.py
 !/launcher_armory_gui.py
+!/launcher_ventures.py
 !/hardcore_profiles.json
 !/launcher_revamped.py
 !/launcher_thirdparty.py
@@ -150,6 +151,7 @@
 !/addons-src/stinkshell/
 !/addons-src/autora/
 !/addons-src/hcicons/
+!/addons-src/vanasync/
 
 # ---- server modules (copies kept with the kit) ----
 !/squad-behavior/
@@ -236,3 +238,9 @@ Thumbs.db
 /dev/incoming/
 drawdistance.json
 /crowds/bots/modules/
+
+# ---- (2026-11-25) VanaSync, JØ's battle music player (VanaSync by JØ × NOX) ----
+!/vanasync/
+!/launcher_vanasync.py
+/vanasync/**/__pycache__/
+/vanasync/.pytest_cache/

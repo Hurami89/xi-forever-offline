@@ -67,6 +67,9 @@ All of the launcher's music was made for XI: Forever Offline by **JØ (jnull)**,
 - The Vaporwave theme's opener: a short piece that plays the first time the launcher opens, before "No Signal, All Vibes"
   takes over.
 
+- **VanaSync** (`vanasync/`, the add-on `vanasync`): JØ's battle music player, **VanaSync by JØ × NOX**, with his
+  battle themes "Against the Odds" (Solo), "Beyond the Veil" (Party) and "The March of Many" (Alliance).
+
 The songs were made with Suno. `assets/press/music.json` holds the same list for the launcher: OPTIONS > Theme names the
 song that plays and who made it.
 

@@ -4581,6 +4581,7 @@ class App(tk.Tk):
             self.summary_dot.configure(fg=GREY)
         self.stinkshell_tick()
         self.companion_tick()
+        self.vanasync_tick()
         self.after(1000, self.lights)
 
     def companion_tick(self):
@@ -4612,6 +4613,19 @@ class App(tk.Tk):
                     procs.pop(item["id"], None)
         except Exception as e:
             print("companion:", e)
+
+    def vanasync_tick(self):
+        """(2026-11-25) VanaSync, JØ's battle music player (VanaSync by JØ × NOX): runs while the vanasync add-on is
+        switched on (OPTIONS > Addons; off by default) and the world is up. Checked every 5 seconds, like Stinkshell."""
+        if getattr(self, "_stink_count", 0) % 5 or not self.ashita:
+            return
+        try:
+            import launcher_vanasync as vanasync
+            vanasync.tick(self.__dict__.setdefault("vanasync_state", {}), HERE, self.ashita,
+                          self.cfg.get("ashita_boot", core.DEFAULT_BOOT), self.running,
+                          log=lambda text: self.q.put(("log", text)))
+        except Exception as e:
+            print("vanasync:", e)
 
     def stop_companions(self):
         for proc in list(getattr(self, "companions", {}).values()):
@@ -4890,6 +4904,11 @@ class App(tk.Tk):
                 return
             self.coop_tab.shutdown()
         self.stop_companions()
+        try:
+            import launcher_vanasync
+            launcher_vanasync.stop(getattr(self, "vanasync_state", {}))
+        except Exception:
+            pass
         # (2026-11-21, Tasou: "Squad gets all gear" was unticked again after a restart) the Rules page is kept on quit too,
         # not only when PLAY is pressed
         try:
