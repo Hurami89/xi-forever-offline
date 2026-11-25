@@ -37,7 +37,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.34';   -- (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.35';   -- (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -859,7 +859,17 @@ local function onLine(payload)
         end
         S.incomingOpts = S.incomingOpts or {};
         S.incomingOpts[tonumber(oslot)] = { size = tonumber(osize), tp = tonumber(otp), ws = ows ~= '-' and (ows:gsub('_', ' ')) or nil,
-                                            range = tonumber(orange), list = list };
+                                            range = tonumber(orange), list = list, pos = (S.incomingOpts[tonumber(oslot)] or {}).pos };
+        return;
+    end
+    -- (1.35) pos|<slot>|<0 normal, 1 behind, 2 ta>: where the mate stands in a fight (!squad position); the server says it
+    -- right after the mate's opt line, and offers the setting with cap|...,matepos
+    local pslot, pmode = payload:match('^pos|(%d+)|(%d+)$');
+    if pslot then
+        S.incomingOpts = S.incomingOpts or {};
+        local o = S.incomingOpts[tonumber(pslot)] or {};
+        o.pos = tonumber(pmode);
+        S.incomingOpts[tonumber(pslot)] = o;
         return;
     end
     -- (squad.lua with pull choices) campwant|<Monster_Name or -> and campmob|<Monster_Name>|<lowest lv>|<highest lv>|<how many>|<1 pullable>
@@ -1804,14 +1814,14 @@ end
 
 -- (1.30) Range in the first column, the two weapon skill controls together in the second (under Role and Mode)
 local function styleRow(mate, opt)
-    dimText('Range'); imgui.SameLine(px(X.COL.label), 0);
+    dimText('Range'); imgui.SameLine(px(X.COL.setLabel), 0);
     local range = combo('range' .. mate.slot, RANGES[(opt.range or 0) + 1], RANGES, 120, RANGE_HELP);
     if range then
         changeMate(mate, 'range', range);
         for i, r in ipairs(RANGES) do if r == range then opt.range = i - 1; end end
     end
     local stayed = X.column2(290);
-    dimText('WS at'); imgui.SameLine(px(stayed and X.COL.secondCtl or X.COL.label), 0);
+    dimText('WS at'); imgui.SameLine(px(stayed and X.COL.secondCtl or X.COL.setLabel), 0);
     local when = combo('wswhen' .. mate.slot, (opt.tp or 0) > 0 and tostring(opt.tp) or 'chain', WS_WHEN, 80, WS_WHEN_HELP);
     if when then setWs(mate, opt, when, nil); end
     imgui.SameLine(0, 6);
@@ -1827,9 +1837,33 @@ local function styleRow(mate, opt)
         or 'Which weapon skill it uses. Call this mate to see the ones it can use now.');
 end
 
+-- (1.35) Position: where the mate stands in a fight (!squad position <slot> normal | behind | ta). It takes effect at once,
+-- also for a mate that is out, so it leaves no "Apply" behind. Offered when the server says cap|...,matepos.
+X.POSITIONS = { 'normal', 'behind', 'ta' };
+X.POSITION_LABEL = { normal = 'Normal', behind = 'Behind enemy', ta = 'TA partner' };
+X.POSITION_HELP = {
+    normal = 'Stands where its job usually stands',
+    behind = 'Stands on the monster\'s back side: melee next to it, casters and ranged at their distance. Several mates '
+        .. 'with this share the space behind it, each on its own spot. Out of breath and cone attacks, but some monsters '
+        .. 'hit what is behind them (tails).',
+    ta = 'Stands right behind the monster, turned towards you (up to 60 degrees to either side): when you are a Thief '
+        .. 'anywhere behind the monster, this mate is in line for your Trick Attack (and takes the hate it moves). '
+        .. 'One mate takes this spot; others set to it stand behind.',
+};
+function X.positionRow(mate, opt)
+    dimText('Position'); imgui.SameLine(px(X.COL.setLabel), 0);
+    local current = X.POSITIONS[(opt.pos or 0) + 1] or 'normal';
+    local pick = combo('position' .. mate.slot, current, X.POSITIONS, 120, X.POSITION_HELP, nil, X.POSITION_LABEL);
+    if pick then
+        enqueue(string.format('/say !squad position %d %s', mate.slot, pick));
+        for i, p in ipairs(X.POSITIONS) do if p == pick then opt.pos = i - 1; end end
+        ask(1.5);
+    end
+end
+
 -- body size: picked once, like at character creation
 local function sizeRow(mate, opt)
-    dimText('Size'); imgui.SameLine(px(X.COL.label), 0);
+    dimText('Size'); imgui.SameLine(px(X.COL.setLabel), 0);
     S.sizePick = S.sizePick or {};
     local pick = combo('size' .. mate.slot, S.sizePick[mate.slot] or 'medium', SIZES, 120);
     if pick then S.sizePick[mate.slot] = pick; end
@@ -2063,7 +2097,7 @@ end
 --   row 3  Actions | Gambits | Gear | Profile | Food | Settings, then what the settings are, in a few muted words
 -- Role, Mode, Range, the weapon skill choices and the jobs are behind Settings: they are changed rarely. Nothing
 -- about them changed but the place. The card is as high as its content was in the last frame (X.card / X.cardEnd).
-X.COL = { jobs = 110, status = 236, action = 322, label = 52, second = 200, secondCtl = 250 };
+X.COL = { jobs = 110, status = 236, action = 322, label = 52, setLabel = 64, second = 200, secondCtl = 250 };   -- (1.35) setLabel: the Settings and Jobs rows' first column, wide enough for "Position"
 -- (1.29) Calling. A mate is "being called" from the click on Call (or Call all, or an Apply that sends it off and
 -- calls it again) until the server's squad list says it is out. The server has no state in between (its list says
 -- out or not), so there is no "on its way" to show: exactly one word stands on the card, Away, Calling... or Out.
@@ -2246,13 +2280,17 @@ function X.mateCard(mate)
             local bits = {};
             if opt then
                 bits[#bits + 1] = 'Range ' .. (RANGES[(opt.range or 0) + 1] or 'auto');
+                if X.caps and X.caps.matepos and (opt.pos or 0) > 0 then   -- (1.35) only when not Normal
+                    bits[#bits + 1] = X.POSITION_LABEL[X.POSITIONS[opt.pos + 1] or 'normal'] or '';
+                end
                 bits[#bits + 1] = 'WS ' .. ((opt.tp or 0) > 0 and ('at ' .. opt.tp) or 'chain') .. (opt.ws and (', ' .. tostring(opt.ws):gsub('_', ' ')) or '');
             end
             if #bits > 0 then
                 local summary = '  \194\183  ' .. table.concat(bits, '  \194\183  ');
                 U.same_if_fits(imgui, X.textW(summary) + X.sv(4), 0);
                 colorText(C.faint, summary);
-                tooltip('Settings opens these: Role, Mode, Range and weapon skills.');
+                tooltip((X.caps and X.caps.matepos) and 'Settings opens these: Role, Mode, Range, Position and weapon skills.'
+                    or 'Settings opens these: Role, Mode, Range and weapon skills.');
             end
         end
         -- (role clarity) a quiet gold note when the Role restricts this job's default healing (ROLE_INFO.note)
@@ -2279,7 +2317,7 @@ function X.mateCard(mate)
         if jobsOpen then
             X.group();
             local jobTip = 'A job your character has not unlocked is refused by the server (it says so in chat).';
-            dimText('Job'); imgui.SameLine(px(X.COL.label), 0);
+            dimText('Job'); imgui.SameLine(px(X.COL.setLabel), 0);
             local jl = (S.jobLevels or {})[slot] or {};
             local jobLabels = {};
             for _, j in ipairs(JOBS) do if jl[j] then jobLabels[j] = string.format('%s (%d)', j, jl[j]); end end
@@ -2288,7 +2326,7 @@ function X.mateCard(mate)
             if job then changeMate(mate, 'job', job); end
             -- (1.31) Sub in the second column: its name where Mode and WS at begin, its list where theirs begin
             local subStayed = X.column2(180);
-            dimText('Sub'); imgui.SameLine(px(subStayed and X.COL.secondCtl or X.COL.label), 0);
+            dimText('Sub'); imgui.SameLine(px(subStayed and X.COL.secondCtl or X.COL.setLabel), 0);
             local subs = { 'none' };
             for _, j in ipairs(JOBS) do if j ~= mate.main then subs[#subs + 1] = j; end end
             local sub = combo('sub' .. slot, mate.sub == '-' and 'none' or mate.sub, subs, 120, nil, nil, jobLabels);
@@ -2300,14 +2338,15 @@ function X.mateCard(mate)
         -- Range | the weapon skill controls; Size and its button on a row of their own
         if open then
             if has('Separator') then imgui.Separator(); end
-            dimText('Role'); imgui.SameLine(px(X.COL.label), 0);
+            dimText('Role'); imgui.SameLine(px(X.COL.setLabel), 0);
             local role = combo('role' .. mate.slot, mate.role, ROLES, 120, ROLE_INFO.TIPS, ROLE_INFO.tip);
             if role then changeMate(mate, 'role', role); end
             local stayed = X.column2(180);
-            dimText('Mode'); imgui.SameLine(px(stayed and X.COL.secondCtl or X.COL.label), 0);
+            dimText('Mode'); imgui.SameLine(px(stayed and X.COL.secondCtl or X.COL.setLabel), 0);
             local mode = combo('mode' .. slot, mate.mode, MODES, 120, MODE_HELP, ROLE_INFO.tip);
             if mode then changeMate(mate, 'mode', mode); end
             if opt then styleRow(mate, opt); end
+            if opt and X.caps and X.caps.matepos then X.positionRow(mate, opt); end
             if opt and opt.size == 0 then sizeRow(mate, opt); end
         end
     end

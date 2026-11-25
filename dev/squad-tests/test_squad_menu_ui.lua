@@ -232,7 +232,8 @@ local function feed(W, o)
     W.line('squadpanel:engage|0'); W.line('squadpanel:auto|0'); W.line('squadpanel:adv|0|1|-'); W.line('squadpanel:plvl|-6|2|0')
     for i = 1, 6 do W.line(string.format('squadpanel:delay|%d|0', i)) end
     W.line('squadpanel:beh|war|on|Warrior')
-    if o.cap ~= false then W.line('squadpanel:cap|reapply1') end
+    for _, l in ipairs(o.extra or {}) do W.line(l) end   -- (1.35) more lines in the same answer (pos|...)
+    if o.cap ~= false then W.line('squadpanel:cap|' .. (type(o.cap) == 'string' and o.cap or 'reapply1')) end
     W.line('squadpanel:end')
 end
 local function feedSheet(W, slot, o)
@@ -1747,5 +1748,50 @@ do
     check((W.wins['Camp###sm_campbar'] or 0) > 0, 'a saved camp_compact=true shows the Camp bar after a reload')
     W.close()
 end
+-- ================================================================= 14c. (1.35) Position: where a mate stands in a fight
+section('14c. (1.35) Position in a card\'s Settings: offered with cap matepos, sent at once, shown folded when not Normal')
+do
+    local W = world({ cfg = 'theme=crimson\nbutton_wide=true\n' })
+    W.command('/menu squad'); feed(W); W.frame(); W.frame()
+    W.clicks['##more1'] = true; W.frame(); W.frame()
+    check(W.combos['##range1'] ~= nil and W.combos['##position1'] == nil, 'an older server (no matepos in cap): no Position row, Range as before')
+    W.close()
+
+    W = world({ cfg = 'theme=crimson\nbutton_wide=true\n' })
+    W.command('/menu squad')
+    feed(W, { cap = 'reapply1,campmove,matepos', extra = { 'squadpanel:pos|1|0', 'squadpanel:pos|2|2', 'squadpanel:pos|3|1' } })
+    W.frame(); W.frame()
+    check(W.combos['##position1'] == nil and #xs(W, 'TA partner') == 1 and #xs(W, 'Behind enemy') == 1 and #xs(W, 'Normal') == 0,
+          'folded: a mate set to TA partner or Behind enemy says so in its muted words; Normal is not mentioned')
+    W.clicks['##more1'] = true; W.frame(); W.frame()
+    check(W.combos['##position1'] == 'Normal' and W.combos['##range1'] ~= nil, 'Settings unfolded: Position "Normal" under Range')
+    check(#W.over == 0, 'the Position row fits the card (nothing beyond the edge)' .. (W.over[1] and (' (' .. W.over[1] .. ')') or ''))
+    do
+        local _, xLabel, wLabel = atOf(W, 'Position', true)
+        local _, xPos = atOf(W, '##position1', true)
+        local _, xRole = atOf(W, '##role1', true)
+        local _, xRange = atOf(W, '##range1', true)
+        check(xLabel and xPos and xLabel + wLabel < xPos, '"Position" ends before its list starts (1.35 first build: "Positio" was cut)'
+            .. string.format(' (label %s+%s, list at %s)', tostring(xLabel), tostring(wLabel), tostring(xPos)))
+        check(xPos == xRole and xPos == xRange, 'Role, Range and Position lists in one column')
+    end
+    local from = #W.sent + 1
+    W.openCombo, W.pick = '##position1', 'Behind'; W.frame(); W.openCombo, W.pick = nil, nil
+    W.frame()
+    check(W.combos['##position1'] == 'Behind enemy', 'the choice shows at once')
+    for _ = 1, 3 do W.frame(2.5) end
+    check(W.said('/say !squad position 1 behind', from) == 1, 'it sends !squad position 1 behind, once')
+    check(W.said('/say !squad panel', from) >= 1, 'and asks for the panel again (the server\'s pos| line confirms it)')
+    from = #W.sent + 1
+    W.openCombo, W.pick = '##position1', 'TA'; W.frame(); W.openCombo, W.pick = nil, nil
+    for _ = 1, 3 do W.frame(2.5) end
+    check(W.said('/say !squad position 1 ta', from) == 1, 'TA partner sends !squad position 1 ta')
+    from = #W.sent + 1
+    W.openCombo, W.pick = '##position1', 'TA'; W.frame(); W.openCombo, W.pick = nil, nil
+    for _ = 1, 3 do W.frame(2.5) end
+    check(W.said('!squad position', from) == 0, 'picking what is already chosen sends nothing')
+    W.close()
+end
+
 io.write(string.format('\npassed %d, failed %d\n', passed, failed))
 os.exit(failed == 0 and 0 or 1)
