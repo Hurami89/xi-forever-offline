@@ -17,6 +17,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Squad mates' bolts, arrows and bullets now really give their additional effects, such as Acid Bolt's Defense Down. v0.3.11 handed the real ammo over, but a second check still let only players' ammo effects through. Thanks Syfin and Watts.
 • Portable fishing: the rods that can also land legendary fish (Lu Shang's, Ebisu, Judges) are in the app now, so a character holding one sees all its rods. Thanks Hasuko.
 • !squad give <spell> finds a spell scroll by the spell's name ("!squad give sneak"), not only as "scroll of sneak". Thanks jainfarstrider.
+• Treasure Hunter is era again: your own Thief's hits no longer raise it during a fight. It stays at what your trait and gear give (TH1 at 15, TH2 at 45, plus gear), the same as a squad Thief. Two Thieves still don't stack; the monster keeps the highest.
 
 ## v0.3.11 · 25 November 2026
 
