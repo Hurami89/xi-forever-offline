@@ -62,6 +62,7 @@ All of the launcher's music was made for XI: Forever Offline by **JØ (jnull)**,
 - "A Place to Return": the launcher's opening theme (`assets/press/default.mp3`).
 - "Beyond the Veil": the 8-Bit theme's song (`assets/press/beyond_the_veil.mp3`).
 - "TOMORROW.EXE": the Aero theme's song (`assets/press/tomorrow_exe.mp3`), by JØ with **Nox** (her voice, with JØ's).
+- "Roots": the Chronicle theme's song (`assets/press/chronicle_roots.mp3`).
 - "No Signal, All Vibes": the Vaporwave theme's song.
 - The Vaporwave theme's opener: a short piece that plays the first time the launcher opens, before "No Signal, All Vibes"
   takes over.
@@ -97,6 +98,13 @@ song that plays and who made it.
   `art-src/scripts/aero_buttons.py` and `aero_banners.py` around official FINAL FANTASY XI art from the art pack (the 2002
   character designs, the Behemoth concept drawing, and in-game screenshots of Trion, Excenmille and two beaches),
   © SQUARE ENIX. The window frames, taskbar and orb are original drawings in the style of the time, not Microsoft's.
+- Cinzel and Cinzel Decorative fonts (the lettering on the Chronicle theme's buttons and banners; `art-src/fonts`, with the
+  licences): Natanael Gama (SIL Open Font License). IM FELL English (the italic lines on the Chronicle banners): Igino
+  Marini (SIL Open Font License).
+- **Chronicle theme** pictures (`assets/press/chronicle-ui`, `assets/press/chronicle_*__theme-chronicle.jpg`): drawn in code
+  by `art-src/scripts/chron_buttons.py` and `chron_banners.py` around official FINAL FANTASY XI concept art (the job
+  pencil sketches, and the concept paintings of Bahamut, the avatars, Behemoth, Khimaira, the five races, the chocobo
+  and a dragon), © SQUARE ENIX. The leather, gold, vellum and lettering are original; the captions are our own words.
 
 ## Crystal Boy mini games
 
