@@ -2,6 +2,12 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.11 (next)
+
+### Fixes
+• Squad mates' bolts, arrows and bullets now really give their additional effects (Acid Bolt's Defense Down and the like). The v0.3.7 fix looked at the wrong copy of the ammo. Thanks Syfin and Watts.
+• Graphics page: the draw distances are kept when you close the launcher, not only when you press PLAY. Thanks Dugahst.
+
 ## v0.3.10 · 24 November 2026
 
 ### New

@@ -1963,7 +1963,8 @@ class RatesTab(tk.Frame):
         self.spell_scrolls = tk.BooleanVar(value=rates.get("spell_scrolls", False))
         tk.Checkbutton(inner, text="Squad mates learn spells from scrolls: spells of level 18 and up must be bought and given "
                        "to your squad once (trade the scroll to a mate, or !squad give). Blue magic from 18 is learned "
-                       "from monsters you defeat with a squad Blue Mage out. Below 18 everything stays automatic.",
+                       "from monsters you defeat with a squad Blue Mage out. Below 18 everything stays automatic. "
+                       "Always on for Randomized characters.",
                        variable=self.spell_scrolls, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[19], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.squad_keep_gear = tk.BooleanVar(value=rates.get("squad_keep_gear", False))
@@ -4893,6 +4894,12 @@ class App(tk.Tk):
         # not only when PLAY is pressed
         try:
             core.save_rates(HERE, self.rates_tab.collect())
+        except Exception:
+            pass
+        # (2026-11-24, Dugahst: the draw distances were back at 0 after a restart) kept on quit too, not only at PLAY
+        try:
+            if getattr(self, "graphics_tab", None) is not None:
+                core.save_draw(HERE, self.graphics_tab.collect_draw())
         except Exception:
             pass
         self.stop_requested = True
