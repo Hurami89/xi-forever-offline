@@ -5083,6 +5083,7 @@ class App(tk.Tk):
         self.conquest_ticked = self.run_conquest("tick")      # catch the world up on the time you were away (servers are not running yet)
         self.run_char_sync("sync-in")                         # (off by default) characters your other PC saved to the shared folder
         self.run_armory("fish")                               # (when a phone is paired) what it caught: skill, delivery box, gil
+        self.start_ventures()                                 # (when an app is paired) squads for Ventures, and the relay while you play
         self.run_stack_mode()                                 # item stacks on the server: today's sizes (default) or the era's
 
         # broken "what a character wears" rows crash the login (2026-11-07): remove them while the servers are down
@@ -5527,6 +5528,26 @@ class App(tk.Tk):
         except Exception as e:
             self.say(f"Character pages / phone fishing skipped: {e}")
 
+    def start_ventures(self):
+        # (2026-11-25) Ventures (launcher_ventures.py): squad mates sent off from the XIFO app to level at a real camp.
+        # Only when an app is paired. The squads go to the hub now; while the game runs, a relay keeps the game told who
+        # is away and takes in what came home (exp and gil in game, items in the delivery box). Never stops PLAY.
+        try:
+            import launcher_armory
+            import launcher_ventures
+            if not launcher_armory.load(HERE).get("paired"):
+                return
+            try:
+                n = launcher_ventures.send_roster(self.cfg, HERE)
+                self.say(f"Ventures: {n} squad mate(s) ready in the XIFO app.")
+            except Exception as e:
+                self.say(f"Ventures: the squads were not sent ({e}).")
+            self.venture_relay = launcher_ventures.Relay(self.cfg, HERE, log=lambda text: self.q.put(("log", text)))
+            self.venture_relay.roster_at = time.time()
+            self.venture_relay.start()
+        except Exception as e:
+            self.say(f"Ventures skipped: {e}")
+
     def run_conquest(self, mode):
         # The conquest simulator (conquest_sim.py) edits the conquest table. "tick" runs before the servers start, "stamp" after they stop.
         script = os.path.join(HERE, "conquest_sim.py")
@@ -5666,6 +5687,10 @@ class App(tk.Tk):
 
     def cleanup(self):
         had_servers = bool(self.procs)
+        relay = getattr(self, "venture_relay", None)                # (2026-11-25) Ventures: the relay stops with the game
+        if relay is not None:
+            relay.stop()
+            self.venture_relay = None
         ollama = getattr(self, "ollama_proc", None)
         if ollama is not None:  # only the Ollama this launcher started (one you started yourself keeps running)
             # (2026-11-23, Sunie: Ollama kept running on Linux after the launcher closed) "ollama serve" starts a runner
