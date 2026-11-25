@@ -10,7 +10,6 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Character transfer now brings your quests and missions (every log, current and finished, CoP, ToAU, Assault and Campaign included), your currencies (conquest points, seals, tabs, assault points...) and your merits and merit points. Linkshells and pearls stay behind: they belong to the other game's linkshells. Thanks Hasuko.
 
 ### Fixes
-• Monster names: the era game files (Era-DATs) replaced the monster name lists of 48 zones with ones made for a differently numbered server, so the wrong names showed (crabs and worms named as bats in Zeruhn Mines; Dynamis, Temenos, Apollyon and Promyvion almost entirely wrong). Those 48 lists stay retail now, which match this server, and installs that already have them get the retail ones back at PLAY. Thanks Altair.
 • Bot players: a healer synced down by level sync kept trying spells above its synced level and never healed. Bots now only pick spells their job can cast at their current level. Thanks Mikoto.
 • Throwing away a linkshell brought over by a character transfer crashed the server. Thanks Hasuko.
 • XIUI: loot pop-ups no longer show twice or three times when a squad mate is called or zones. Thanks Hasuko.
@@ -20,6 +19,10 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • HARDCORE menu: a Randomized character can now take the name of a character you deleted, as the game's own character creation already allows. Thanks datadecay.
 • DUALBOX works right after setup_dualbox.py, without restarting the launcher first. Thanks Miniberg.
 • setup_gm.py promote: a character already at that GM level is no longer reported as "not found". Thanks Keithvalentine.
+• Character transfer: "is logged in" after a crash or a hard server stop. The import now clears the leftover login itself when the server is not running; no Repair needed. Thanks Hasuko.
+• Launcher music: on PCs where Windows' old player fails ("MCI error 277"), the theme now plays through Windows Media Foundation instead. Thanks lilibun, Hexblood and Sterling.
+• Your own .gguf AI model: the import now starts Ollama's service itself when it is not running, and shows a readable error if something else goes wrong. Thanks AerynGunn.
+• San d'Oria mission 6-1: after the cutscene, a chat line now says which key item King Destin wants (a Dreamrose) and where to find it (Western Altepa Desert). Thanks lilibun.
 
 ## v0.3.8 · 24 November 2026
 

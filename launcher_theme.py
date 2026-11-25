@@ -517,7 +517,13 @@ class Player:
                 kind = "waveaudio" if path.lower().endswith(".wav") else "mpegvideo"
                 code = self._mci(f'open "{path}" type {kind} alias {self.ALIAS}')[0]
                 if code:
-                    self.why = "Windows could not open the song (" + self._mci_error(code) + ")"
+                    first = self._mci_error(code)
+                    # (2026-11-24, lilibun, Hexblood, Sterling: "MCI error 277" on Windows 10 Pro / 11) the old MCI player
+                    # needs Windows' DirectShow MP3 decoder, which codec packs or a broken registry entry can knock out
+                    # while every music app still plays the file. Then Windows Media Foundation plays it instead.
+                    if self._play_mf(path, volume):
+                        return True
+                    self.why = "Windows could not open the song (" + first + "; " + (self.why or "the other player failed too") + ")"
                     return False
                 self.open = True
                 self._mci(f"setaudio {self.ALIAS} volume to {int(max(0.0, min(1.0, volume)) * 1000)}")
@@ -539,6 +545,39 @@ class Player:
             self.stop()
         return False
 
+    # Windows Media Foundation through WPF's MediaPlayer, in a hidden PowerShell that lives as long as the song
+    MF_SCRIPT = (
+        "$ErrorActionPreference='Stop';"
+        "Add-Type -AssemblyName PresentationCore,System.Windows.Forms;"
+        "$p=New-Object System.Windows.Media.MediaPlayer;"
+        "$p.Volume=[double]$env:XIFO_SONG_VOLUME;"
+        "$p.Open([Uri]::new($env:XIFO_SONG));"
+        "$t=0;while(-not $p.NaturalDuration.HasTimeSpan -and $t -lt 100){[System.Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 100;$t++};"
+        "if(-not $p.NaturalDuration.HasTimeSpan){exit 3};"
+        "$p.Play();"
+        "$end=(Get-Date).AddSeconds($p.NaturalDuration.TimeSpan.TotalSeconds+1);"
+        "while((Get-Date) -lt $end){[System.Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 250}")
+
+    def _play_mf(self, path, volume):
+        """The fallback player: True when the song started (the process still runs after a short wait)."""
+        try:
+            env = dict(os.environ, XIFO_SONG=os.path.abspath(path),
+                       XIFO_SONG_VOLUME=str(max(0.0, min(1.0, volume))))
+            proc = subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                                     "-WindowStyle", "Hidden", "-Command", self.MF_SCRIPT],
+                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env,
+                                    creationflags=0x08000000)          # CREATE_NO_WINDOW
+            try:
+                code = proc.wait(timeout=12)                         # still running after 12 s: it is playing
+            except subprocess.TimeoutExpired:
+                self.proc = proc
+                return True
+            err = (proc.stderr.read() or b"").decode("utf-8", "replace").strip().splitlines()
+            self.why = "Windows Media Foundation could not play it either" + (f" ({err[-1][:160]})" if err else f" (code {code})")
+        except Exception as e:
+            self.why = f"Windows Media Foundation: {type(e).__name__}: {e}"
+        return False
+
     def volume(self, level):
         """Louder or quieter while it plays (Windows; elsewhere the new level counts from the next time)."""
         try:
@@ -549,7 +588,7 @@ class Player:
 
     def playing(self):
         try:
-            if os.name == "nt":
+            if os.name == "nt" and self.proc is None:
                 return self.open and self._mci(f"status {self.ALIAS} mode")[1] == "playing"
             return self.proc is not None and self.proc.poll() is None
         except Exception:
@@ -557,11 +596,10 @@ class Player:
 
     def stop(self):
         try:
-            if os.name == "nt":
-                if self.open:
-                    self._mci(f"stop {self.ALIAS}")
-                    self._mci(f"close {self.ALIAS}")
-            elif self.proc is not None and self.proc.poll() is None:
+            if os.name == "nt" and self.open:
+                self._mci(f"stop {self.ALIAS}")
+                self._mci(f"close {self.ALIAS}")
+            if self.proc is not None and self.proc.poll() is None:
                 self.proc.terminate()
         except Exception:
             pass

@@ -441,8 +441,23 @@ def find_character(conn, name):
     charid = int(row[0])
     cur.execute("SELECT 1 FROM accounts_sessions WHERE charid = ? LIMIT 1", (charid,))
     if cur.fetchone():
-        raise ImportError_(f"{name} is logged in. Log out (or press STOP), then import.")
+        # (2026-11-24, Hasuko) a crash or a killed server leaves the login row behind, and then the character is
+        # "logged in" forever. With the map server not running nobody can be logged in: clear the leftover row.
+        if not map_server_running():
+            cur.execute("DELETE FROM accounts_sessions WHERE charid = ?", (charid,))
+            conn.commit()
+        else:
+            raise ImportError_(f"{name} is logged in. Log out (or press STOP), then import.")
     return charid
+
+
+def map_server_running():
+    """True when xi_map runs, or when that can not be checked (then the login row is trusted)."""
+    try:
+        import launcher_core
+        return launcher_core.is_running("xi_map")
+    except Exception:
+        return True
 
 
 def backup_first(conn, charid, name):

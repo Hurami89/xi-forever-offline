@@ -1212,48 +1212,35 @@ def reapply_era_dats(ffxi_dir, era_dir, backup, files, log=print):
     return [f"Era-DATs put back: {changed} file(s) a game update had replaced (the update's files are saved in dat-backup)."]
 
 
-# (2026-11-24, Altair: "crabs are bats" in Zeruhn Mines) The Era-DATs also replace 48 zones' monster/NPC name files
-# (file 6720 + zone). They were made for a server whose monsters are numbered differently: in every one of the 48 the
-# retail file matches this server's monsters better (Zeruhn 61 of 66 vs 31; Dynamis, Temenos, Apollyon almost nothing).
-# These stay retail: they are never installed, and an install that has them gets the retail file back at PLAY.
-ERA_NAME_SKIP = frozenset(os.path.normcase(os.path.normpath(p)) for p in (
-    'ROM3/2/114.DAT', 'ROM3/2/115.DAT', 'ROM3/2/126.DAT', 'ROM3/3/0.DAT', 'ROM3/3/2.DAT', 'ROM3/3/4.DAT',
-    'ROM3/3/7.DAT', 'ROM3/3/9.DAT', 'ROM3/3/10.DAT', 'ROM3/3/11.DAT', 'ROM3/3/12.DAT', 'ROM3/3/19.DAT',
-    'ROM3/3/20.DAT', 'ROM3/3/21.DAT', 'ROM3/3/22.DAT', 'ROM3/3/23.DAT', 'ROM3/3/24.DAT', 'ROM4/1/51.DAT',
-    'ROM4/1/53.DAT', 'ROM4/1/60.DAT', 'ROM4/1/67.DAT', 'ROM4/1/78.DAT', 'ROM2/13/104.DAT', 'ROM2/13/105.DAT',
-    'ROM2/13/106.DAT', 'ROM/26/103.DAT', 'ROM/26/104.DAT', 'ROM/26/106.DAT', 'ROM/26/109.DAT', 'ROM2/13/114.DAT',
-    'ROM2/13/117.DAT', 'ROM2/13/121.DAT', 'ROM2/13/122.DAT', 'ROM2/13/123.DAT', 'ROM2/13/124.DAT', 'ROM/26/127.DAT',
-    'ROM/27/0.DAT', 'ROM/27/1.DAT', 'ROM/27/2.DAT', 'ROM/27/3.DAT', 'ROM/27/4.DAT', 'ROM/27/5.DAT',
-    'ROM/27/6.DAT', 'ROM/27/7.DAT', 'ROM/27/9.DAT', 'ROM/27/13.DAT', 'ROM2/14/5.DAT', 'ROM2/14/6.DAT',
-))
-
-
-def _era_skipped(rel):
-    return os.path.normcase(os.path.normpath(rel)) in ERA_NAME_SKIP
-
-
-def keep_retail_names(kit, ffxi_dir, log=print):
-    """Puts the retail name file back for every zone in ERA_NAME_SKIP that the Era-DATs replaced (the original is in
-    dat-backup); the era copy of the original moves to backups/era-name-files so nothing treats it as an era file any
-    more (refresh_copy, restore-original-dats.ps1). Returns how many were put back."""
-    backup = os.path.join(kit, "dat-backup")
-    if not ffxi_dir or not os.path.isdir(backup):
+def undo_retail_names(kit, ffxi_dir, log=print):
+    """(2026-11-24) Undoes a mistake of the same day's build: it put 48 zones' retail monster-name files back over the
+    era ones, from a check against this server's base monster lists only. With the Phoenix module's era monster layout
+    (which this server loads) the era names are the right ones (Zeruhn Mines 62 of 66 against 35, Dynamis ~450 against
+    ~15). The originals it moved to backups/era-name-files go back into dat-backup and the era files into the game.
+    Returns how many were put back."""
+    import filecmp
+    moved_dir = os.path.join(kit, "backups", "era-name-files")
+    era_dir, backup = os.path.join(kit, "Era-DATs"), os.path.join(kit, "dat-backup")
+    if not ffxi_dir or not os.path.isdir(moved_dir) or not os.path.isdir(backup):
         return 0
-    kept = os.path.join(kit, "backups", "era-name-files")
     done = 0
-    for rel in sorted(ERA_NAME_SKIP):
-        saved = os.path.join(backup, rel)
-        if not os.path.isfile(saved):
-            continue
-        dest = existing_case(ffxi_dir, rel)
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        shutil.copy2(saved, dest)
-        moved = os.path.join(kept, rel)
-        os.makedirs(os.path.dirname(moved), exist_ok=True)
-        os.replace(saved, moved)
-        done += 1
+    for root, _dirs, names in os.walk(moved_dir):
+        for name in names:
+            moved = os.path.join(root, name)
+            rel = os.path.relpath(moved, moved_dir)
+            era = os.path.join(era_dir, rel)
+            if not os.path.isfile(era):
+                continue
+            dest = existing_case(ffxi_dir, rel)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            if not (os.path.exists(dest) and filecmp.cmp(era, dest, shallow=False)):
+                shutil.copy2(era, dest)
+            saved = os.path.join(backup, rel)
+            os.makedirs(os.path.dirname(saved), exist_ok=True)
+            os.replace(moved, saved)
+            done += 1
     if done:
-        log(f"Era-DATs: {done} zone(s) got their retail monster names back (the era name files don't match this server).")
+        log(f"Era-DATs: {done} zone(s) got their era monster names back.")
     return done
 
 
@@ -1262,7 +1249,7 @@ def _era_files(era_dir):
     for rom in ("ROM", "ROM2", "ROM3", "ROM4"):
         for root, _dirs, names in os.walk(os.path.join(era_dir, rom)):
             files += [os.path.relpath(os.path.join(root, n), era_dir) for n in names]
-    return [f for f in files if not _era_skipped(f)]
+    return files
 
 
 def _era_state_path(kit):
@@ -1279,7 +1266,7 @@ def check_era_dats(kit, ffxi_dir, log=print):
     if not ffxi_dir or not os.path.isdir(backup) or not os.path.isdir(os.path.join(ffxi_dir, "ROM")):
         return []
     messages = []
-    if keep_retail_names(kit, ffxi_dir, log=messages.append):
+    if undo_retail_names(kit, ffxi_dir, log=messages.append):
         record_era_state(kit, ffxi_dir)
     files = _era_files(era_dir)
     if not files:
@@ -1336,7 +1323,10 @@ def install_era_dats(kit, ffxi_dir, era_dir=None, log=print):
     backup = os.path.join(kit, "dat-backup")
     if not os.path.isdir(os.path.join(ffxi_dir, "ROM")):
         raise RuntimeError("That is not the FFXI game folder (no ROM folder).")
-    files = _era_files(era_dir)
+    files = []
+    for rom in ("ROM", "ROM2", "ROM3", "ROM4"):
+        for root, _dirs, names in os.walk(os.path.join(era_dir, rom)):
+            files += [os.path.relpath(os.path.join(root, n), era_dir) for n in names]
     if not files:
         raise RuntimeError("The Era-DATs are not downloaded yet.")
     if os.path.isdir(backup):
