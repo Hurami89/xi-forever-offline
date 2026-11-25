@@ -2,7 +2,14 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
-## v0.3.11 (next)
+## v0.3.11 · 25 November 2026
+
+### New
+• Ventures: send squad mates off to level up while you're away, from the XIFO app (phone, PC app or xiforever.com/app). Pick one mate or several (together they hunt as one party, with bot players filling the gaps), a real era camp that fits their level, and 1, 2, 4, 8 or 12 hours. The timer runs even with your PC off. Every mate earns 3,000 exp an hour (up to level 75, the same in every mode), plus gil and a modest share of the camp's drops and crystals. When it's over, the app shows the trip as postcards and a short story, and the next time you play the exp and gil reach your mates and the items arrive in your delivery box (from "Venture"). A mate who is away can't be called until it's back (or you call it home early in the app). Ventures from inside the game are coming too. Needs the app paired with your launcher (Characters page). The friends in the parties are Kaza's "Records of Vana'diel" sprites; thanks Kaza!
+• XIFO app 1.2: the Ventures tab, and a new standard look, "Online 2003" (a dark early-2000s chat-room style); the earlier looks stay under Start > Look & About.
+• Squads menu 1.32 and Gambits 0.3.7, by wildcabbagepatch: one shared look for both (Classic, Squad and Crimson themes, plus size and opacity), one card per mate with a Rules line that shows the rules each mate really runs, a Profile window with Stats and Gear views, and Save & Apply for a single mate in the Gambits editor (the others stay out). The launcher button has a Squads half and a Gambits half.
+• Squad Summoners, the full job: pick a mate's avatar (!squad avatar [mate] [avatar|auto], or say "Ifrit", "all Shiva", "Ayame Garuda", "release" in party chat). On Auto it picks the avatar the target is weakest to. Summoners now use ward pacts (healing, buffs, Slowga and Lunar Cry), use Astral Flow on a notorious monster (or when you say "2hr"), and no longer pay twice for a Blood Pact.
+• Random squad: on the first roll every mate gets a different race.
 
 ### Fixes
 • Squad mates' bolts, arrows and bullets now really give their additional effects (Acid Bolt's Defense Down and the like). The v0.3.7 fix looked at the wrong copy of the ammo. Thanks Syfin and Watts.
