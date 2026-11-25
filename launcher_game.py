@@ -28,6 +28,7 @@ POLCORE_DLL = {"JP": "polcore.dll", "US": "polcore.dll", "EU": "polcoreeu.dll"}
 FFXI_CLSID = "{989D790D-6236-11D4-80E9-00105A81E890}"
 FFXI_DLL = "FFXi.dll"
 MSI_DESCRIPTOR = "InprocServer32"     # the Windows Installer value inside an InprocServer32 key (see entries)
+FFXI_MSI_COMPONENT = "{2E08E9A0-5906-4A28-9D0A-7CBF0FAEE1D7}"   # the MSI component whose key file is FFXi.dll (US)
 # Square Enix's own full installer (FFXI, PlayOnline and every expansion), straight from Square Enix: part1.exe
 # unpacks itself and part2.rar, part3.rar... (5 parts, about 7.2 GB, in 2026) into FFXIFullSetup_US, then
 # FFXISetup.exe in there installs the game. Parts are fetched until Square Enix has no next one.
@@ -258,11 +259,75 @@ def _write_state(state_path, state):
     os.replace(tmp, state_path)
 
 
-def hold(state_path, reg, is_running, sleep=time.sleep, start_wait=180, poll=2):
+def msi_ffxi_paths():
+    """Where Windows Installer expects FFXi.dll for each install of Square Enix's FINAL FANTASY XI MSI ([] when it
+    can't be asked). MsiGetComponentPath gives the key file's path also when the file is gone."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        msi = ctypes.windll.msi
+    except (ImportError, AttributeError, OSError):
+        return []
+    paths = []
+    product = ctypes.create_unicode_buffer(39)
+    index = 0
+    try:
+        while msi.MsiEnumClientsW(FFXI_MSI_COMPONENT, index, product) == 0 and index < 16:
+            index += 1
+            size = wintypes.DWORD(1024)
+            buf = ctypes.create_unicode_buffer(size.value)
+            msi.MsiGetComponentPathW(product.value, FFXI_MSI_COMPONENT, buf, ctypes.byref(size))
+            if buf.value:
+                paths.append(buf.value)
+    except OSError:
+        pass
+    return paths
+
+
+def fill_missing_ffxi_dll(candidates, copy_ffxi):
+    """Puts the copy's FFXi.dll where Windows Installer expects it when that file is gone. Square Enix's installer is
+    an MSI and FFXi.dll is the key file of its game component: when the player deleted or moved their own install
+    after making the copy, Windows checked that file on every start, found it missing and tried to repair the game
+    from an installer folder that was long gone ("The feature you are trying to use is on a network resource that is
+    unavailable ... FINAL_FANTASY_XI.msi"; Hurami, 2026-11-24, MsiInstaller event 1004). Only a missing FFXi.dll in
+    a "FINAL FANTASY XI" folder outside the copy is written; nothing is ever overwritten. Returns the paths written."""
+    source = ntpath.join(copy_ffxi, FFXI_DLL).replace("\\", os.sep)
+    if not os.path.isfile(source):
+        return []
+    written, seen = [], set()
+    for path in candidates:
+        if not isinstance(path, str) or not path.strip('" '):
+            continue
+        path = ntpath.normpath(path.strip('" '))
+        local = path.replace("\\", os.sep)
+        key = os.path.normcase(local)
+        if key in seen:
+            continue
+        seen.add(key)
+        if (ntpath.basename(path).lower() != FFXI_DLL.lower()
+                or ntpath.basename(ntpath.dirname(path)).lower() != "final fantasy xi"
+                or _inside(path, (copy_ffxi,)) or not os.path.isabs(local) or os.path.exists(local)):
+            continue
+        try:
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+            shutil.copy2(source, local)
+            written.append(path)
+        except OSError:
+            pass
+    return written
+
+
+def hold(state_path, reg, is_running, sleep=time.sleep, start_wait=180, poll=2, msi_paths=msi_ffxi_paths):
     """Elevated: point the registry at the copy, wait until the game has started and every game window is closed,
     then put the old values back. The old values are saved first, so recover() can undo a crash."""
     with open(state_path, encoding="utf-8") as handle:
         state = json.load(handle)
+    # the player's own install may be gone: give Windows Installer back the one file it checks (see fill_missing_ffxi_dll)
+    try:
+        registered = reg.get(rf"SOFTWARE\Classes\CLSID\{FFXI_CLSID}\InprocServer32", "")
+        state["filled_ffxi_dll"] = fill_missing_ffxi_dll([registered] + list(msi_paths() or []), state["ffxi"])
+    except Exception:          # never let this stop Play
+        pass
     want = entries(state["lang"], state["viewer"], state["ffxi"], reg)
     state["originals"] = [(p, n, reg.get(p, n)) for p, n, _v in want]
     _write_state(state_path, state)
@@ -777,7 +842,7 @@ REG_FILE = "xiforever-game.reg"
 
 
 def install_from_release(kit, log=print, context=None, update=None):
-    """Downloads the whole game into <kit>\Game\SquareEnix. Returns its paths (see game_paths)."""
+    r"""Downloads the whole game into <kit>\Game\SquareEnix. Returns its paths (see game_paths)."""
     import launcher_gamefiles as gf
     paths = game_paths(os.path.join(kit, "Game"))
     for folder in paths.values():
