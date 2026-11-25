@@ -2,6 +2,15 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## v0.3.10 · 24 November 2026
+
+### Fixes
+• Hardcore icons: the "!hcicons" line no longer shows in your chat when you zone. The server always answered it; the line was only the game's own copy of what the add-on asks (hcicons 1.6). Thanks Rysan, notsensible and everyone who reported it.
+• GM commands on a logged-out character: giving an item (!giveitem) is now handed over at that character's next log in. It said "could not be" before. Thanks Ricc.
+• HARDCORE menu: a Randomized character can now take the name of a character you deleted, as the game's own character creation already allows. Thanks datadecay.
+• DUALBOX works right after setup_dualbox.py, without restarting the launcher first. Thanks Miniberg.
+• setup_gm.py promote: a character already at that GM level is no longer reported as "not found". Thanks Keithvalentine.
+
 ## v0.3.8 · 24 November 2026
 
 ### New

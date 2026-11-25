@@ -5304,6 +5304,17 @@ class App(tk.Tk):
             messagebox.showinfo("Second character", "Press PLAY first. The second character joins the servers that are already running.")
             return
         boot2 = self.cfg.get("ashita_boot2")
+        if not boot2:
+            # (2026-11-24, Miniberg) setup_dualbox.py run while the launcher was open: its settings are in config.json
+            # but not in the copy the launcher read at start
+            try:
+                fresh = core.load_config(os.path.join(HERE, "config.json"))
+                for key in ("ashita_boot2", "game_user2", "game_pass2"):
+                    if fresh.get(key) and not self.cfg.get(key):
+                        self.cfg[key] = fresh[key]
+                boot2 = self.cfg.get("ashita_boot2")
+            except Exception:
+                pass
         path = os.path.join(self.ashita, "config", "boot", boot2) if (self.ashita and boot2) else ""
         if not path or not os.path.exists(path):
             messagebox.showinfo("Second character", "The second character is not set up yet.\n\nOpen PowerShell, go to " + HERE + " and run:\n\n    python setup_dualbox.py setup\n\nThen try again.")

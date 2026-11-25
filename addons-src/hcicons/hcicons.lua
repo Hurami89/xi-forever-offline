@@ -1,5 +1,5 @@
 --[[
-hcicons 1.5  (XI: Forever Offline, 2026-11-23)
+hcicons 1.6  (XI: Forever Offline, 2026-11-23; 1.6 2026-11-24: the game's own copy of "!hcicons" is hidden too)
 Since 1.5 the game itself draws the mode's shield beside the name (the launcher puts the shields in the game's own
 icon sheet, and the server shows them like the bazaar mark), so this add-on no longer draws over names by default.
 It keeps the party-list column below, and "/hcicons names plate" or "/hcicons names float" brings back its own
@@ -35,7 +35,7 @@ Nothing is sent anywhere but your own world's server.
 
 addon.name    = 'hcicons';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.5';
+addon.version = '1.6';
 addon.desc    = 'Icons over the heads of Iron, Steel, Silver and Randomized characters.';
 addon.link    = 'https://xiforever.com';
 
@@ -130,6 +130,10 @@ ashita.events.register('text_in', 'hcicons_text_in', function(e)
     local text = e.message_modified or e.message or '';
     if text:find(MARK, 1, true) then
         pcall(read_line, text);
+        e.blocked = true;
+    elseif text:find('!hcicons', 1, true) then
+        -- (1.6, Rysan and others 2026-11-24) the game prints its own copy of what this add-on says ("Name : !hcicons");
+        -- the server answers it fine, so that copy is only noise
         e.blocked = true;
     end
 end);

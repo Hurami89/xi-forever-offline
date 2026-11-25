@@ -372,6 +372,11 @@ def create_randomized(conn, login, name, server_dir=None, rng=None):
         if not row:
             raise CreateError(f"The game account '{login}' is not in this world's database.")
         accid, slots = int(row[0][0]), int(row[0][1] or 16)
+        # (2026-11-24, datadecay) a character deleted in the game stays in the table under its name (accid = 0): free
+        # the name the way free_names.py does (Del<id><name>), as making a character in the game already does
+        for row in _all(cur, "SELECT charid FROM chars WHERE charname LIKE ? AND accid = 0", (name,)):
+            cur.execute("UPDATE chars SET charname = ? WHERE charid = ? AND accid = 0",
+                        (("Del" + str(int(row[0])) + name)[:15], int(row[0])))
         if _all(cur, "SELECT 1 FROM chars WHERE charname LIKE ? LIMIT 1", (name,)):
             raise CreateError(f"The name {name} is already taken in this world.")
         count = int(_all(cur, "SELECT COUNT(*) FROM chars WHERE accid = ?", (accid,))[0][0])
