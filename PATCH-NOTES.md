@@ -4,7 +4,17 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 
 ## v0.3.10 · 24 November 2026
 
+### New
+• Squad backup and restore: on the Squads page, "Back up squad" saves a character's whole squad to one file (every mate's look, jobs, levels, gear, unlocked items, which Rule Set each job uses, personality and greetings). "Restore..." puts it back, on the same character or another one; the squad it replaces is saved first. Thanks Rennie.
+• Updates show their download size ("Download: about 410 MB") before you start. Thanks Jaymz.
+• Character transfer now brings your quests and missions (every log, current and finished, CoP, ToAU, Assault and Campaign included), your currencies (conquest points, seals, tabs, assault points...) and your merits and merit points. Linkshells and pearls stay behind: they belong to the other game's linkshells. Thanks Hasuko.
+
 ### Fixes
+• Monster names: the era game files (Era-DATs) replaced the monster name lists of 48 zones with ones made for a differently numbered server, so the wrong names showed (crabs and worms named as bats in Zeruhn Mines; Dynamis, Temenos, Apollyon and Promyvion almost entirely wrong). Those 48 lists stay retail now, which match this server, and installs that already have them get the retail ones back at PLAY. Thanks Altair.
+• Bot players: a healer synced down by level sync kept trying spells above its synced level and never healed. Bots now only pick spells their job can cast at their current level. Thanks Mikoto.
+• Throwing away a linkshell brought over by a character transfer crashed the server. Thanks Hasuko.
+• XIUI: loot pop-ups no longer show twice or three times when a squad mate is called or zones. Thanks Hasuko.
+• Each server update saves a copy of your database first. Only the newest 3 copies are kept now; the older ones are removed (they only piled up).
 • Hardcore icons: the "!hcicons" line no longer shows in your chat when you zone. The server always answered it; the line was only the game's own copy of what the add-on asks (hcicons 1.6). Thanks Rysan, notsensible and everyone who reported it.
 • GM commands on a logged-out character: giving an item (!giveitem) is now handed over at that character's next log in. It said "could not be" before. Thanks Ricc.
 • HARDCORE menu: a Randomized character can now take the name of a character you deleted, as the game's own character creation already allows. Thanks datadecay.

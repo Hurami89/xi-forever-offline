@@ -976,6 +976,11 @@ class SquadTab(tk.Frame):
         bar.pack(pady=6)
         tk.Button(bar, text="New", command=self.new_mate, bg=ACCENT, fg="white", relief="flat", padx=12).pack(side="left", padx=3)
         tk.Button(bar, text="Delete", command=self.delete_mate, bg=PANEL, fg=FG, relief="flat", padx=12).pack(side="left", padx=3)
+        # (2026-11-24) the whole squad to one file and back (launcher_squad_backup.py)
+        bar2 = tk.Frame(left, bg=BG)
+        bar2.pack()
+        tk.Button(bar2, text="Back up squad", command=self.backup_squad, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left", padx=3)
+        tk.Button(bar2, text="Restore...", command=self.restore_squad, bg=PANEL, fg=FG, relief="flat", padx=8).pack(side="left", padx=3)
 
         pages = ttk.Notebook(body)
         pages.pack(side="left", fill="both", expand=True, padx=(10, 0))
@@ -1524,6 +1529,59 @@ class SquadTab(tk.Frame):
         if not messagebox.askyesno("Delete", f"Delete {self.mate['name']} and all of their levels and gear?"):
             return
         self.guard(lambda: (sq.delete_mate(self.conn, self.mate["id"]), self.load_squad()))
+
+    # ----- squad backup and restore (2026-11-24) -----
+    def backup_squad(self):
+        charid = self.charid()
+        if charid is None or self.conn is None:
+            return
+        import launcher_squad_backup as sb
+        folder = os.path.join(HERE, "backups", "squads")
+        os.makedirs(folder, exist_ok=True)
+
+        def go():
+            data = sb.backup(self.conn, HERE, charid, self.greeting_user)
+            if not data["summary"]:
+                raise ValueError("This character has no squad mates to back up.")
+            path = filedialog.asksaveasfilename(title="Save the squad backup", initialdir=folder,
+                                                initialfile=sb.default_name(data["character"]), defaultextension=sb.SUFFIX,
+                                                filetypes=[("Squad backup", "*" + sb.SUFFIX)], parent=self)
+            if not path:
+                return
+            path = sb.save(path, data)
+            self.say(f"Squad backed up: {sb.describe(data)} -> {path}")
+        self.guard(go)
+
+    def restore_squad(self):
+        charid = self.charid()
+        if charid is None or self.conn is None:
+            return
+        import launcher_squad_backup as sb
+        folder = os.path.join(HERE, "backups", "squads")
+        os.makedirs(folder, exist_ok=True)
+
+        def go():
+            path = filedialog.askopenfilename(title="Pick a squad backup", initialdir=folder,
+                                              filetypes=[("Squad backup", "*" + sb.SUFFIX)], parent=self)
+            if not path:
+                return
+            data = sb.load(path)
+            who = self.char_var.get() or "this character"
+            if not messagebox.askyesno("Restore squad", f"Put this squad on {who}?\n\n{sb.describe(data)}\n(from {data.get('character', '?')})\n\n"
+                                       f"{who}'s squad as it is now is REPLACED. A backup of it is saved first, in "
+                                       "backups\\squads. Log the character out before you restore.", parent=self):
+                return
+            current = sb.backup(self.conn, HERE, charid, self.greeting_user)
+            if current["summary"]:
+                sb.save(os.path.join(folder, "before-restore-" + sb.default_name(current["character"])), current)
+            names = sb.restore(self.conn, HERE, charid, data, self.greeting_user)
+            try:
+                sq.write_greetings_lua(self.greeting_lua, sq.greeting_data(self.greeting_defaults, self.greeting_user))
+            except Exception:
+                pass
+            self.load_squad()
+            self.say(f"Squad restored: {', '.join(names) or 'no mates'}. They come out like this the next time you call them.")
+        self.guard(go)
 
     def apply_name(self):
         def go():
@@ -3200,8 +3258,9 @@ class UpdatesTab(tk.Frame):
             if not silent or newer:
                 for key, label in (("kit", "Launcher"), ("server", "Server")):
                     i = info[key]
+                    size = lu.size_text(i.get("size")) if i["newer"] else ""
                     self.lines.put(("line", f"{label}: you have {i['installed'] or '?'}, newest {i['newest'] or 'none published'}"
-                                            + (" - update available" if i["newer"] else "")))
+                                            + (" - update available" if i["newer"] else "") + (f" (download {size})" if size else "")))
             if newer and silent:
                 self.after(0, self.offer_update)
         threading.Thread(target=work, daemon=True).start()
@@ -3210,7 +3269,13 @@ class UpdatesTab(tk.Frame):
         info = self.update_info
         newest = max((info[k]["newest"] for k in ("kit", "server") if info[k]["newer"]), key=lambda t: t or "")
         notes = next((info[k]["notes"] for k in ("kit", "server") if info[k]["newer"] and info[k]["notes"]), "")
-        if messagebox.askyesno("Update available", f"XI: Forever Offline {newest} is out.\n\n{notes[:900]}\n\nUpdate now? "
+        try:                     # (2026-11-24, Jaymz) the download size, for slow connections
+            import launcher_update as lu
+            size = lu.size_text(lu.download_size(info))
+        except Exception:
+            size = ""
+        if messagebox.askyesno("Update available", f"XI: Forever Offline {newest} is out." + (f" Download: {size}." if size else "")
+                               + f"\n\n{notes[:900]}\n\nUpdate now? "
                                "Your settings, characters and squad mates are kept, and your database is saved first."):
             self.player_update()
 
