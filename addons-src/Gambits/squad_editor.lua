@@ -35,6 +35,9 @@ local S = {
     nonce = 0, server = nil, pings = {}, mates = {}, sets = {}, cat = nil, catJob = nil,
     mateSlot = nil, draft = nil, message = nil, messageOk = true, messageWarn = false, progress = nil, checks = {},
     confirmDelete = nil, apply = nil,
+    -- (0.3.4) needApply[slot]: this editor saved a change to the set that mate runs and has not seen it called again
+    -- (only used when the server does not report the live state); setCache / catCache: see M.open_set, M.load_catalog_for
+    needApply = {}, setCache = {}, catCache = {},
 }
 M._S = S
 
@@ -691,6 +694,7 @@ end
 
 -- text_in: message = e.message_modified, original = e.message. true = hide this line
 function M.text_in(message, original)
+    M.panel_seen(original or message)
     return T.text_in(original, message)
 end
 
@@ -835,8 +839,16 @@ function M.refresh()
             return
         end
 
+        -- (0.3.4) what the server says it can do beyond the protocol number (version 10: the 8th field, words with
+        -- commas): live = the mates answer carries what each mate really runs; reapply1 = "!squad reapply <slot>"
+        -- re-calls one mate. Nothing from an older server: neither is used.
+        local caps = {}
+        for word in string.gmatch(tostring(f[8] or ''), '[%w_]+') do
+            caps[word] = true
+        end
+
         S.server = { version = version, maxRules = tonumber(f[5]) or M.MAX_RULES, maxLine = tonumber(f[6]) or 120,
-                     maxChunks = tonumber(f[7]) or M.MAX_CHUNKS }
+                     maxChunks = tonumber(f[7]) or M.MAX_CHUNKS, caps = caps }
         M.MAX_RULES = math.min(S.server.maxRules, 32)
         M.load_mates()
     end, function(why)
@@ -851,15 +863,47 @@ local function parse_mates(items)
         mates[#mates + 1] = { slot = tonumber(f[4]), id = tonumber(f[5]), name = f[6], job = f[7], level = tonumber(f[8]),
                               sub = f[9] ~= '-' and f[9] or nil, chosen = tonumber(f[10]) or 0, out = f[11] == '1',
                               subLevel = tonumber(f[12] or '') } -- (version 4: the sub job's level; nil = not known)
+        -- (0.3.4, server capability "live") what this mate really runs, as the server reports it (fields 13-17:
+        -- state | why | number of the set running | fallback reason | rules left out). nil = an older server: the
+        -- editor then never says that a set runs.
+        if M.LIVE_STATES[f[13] or ''] then
+            mates[#mates].live = { state = f[13], why = f[14] or '-', num = tonumber(f[15]) or 0, fb = tonumber(f[16]) or 0,
+                                   dropped = tonumber(f[17]) or 0 }
+        end
     end
 
     return mates
+end
+M.LIVE_STATES = { off = true, unknown = true, addon = true, set = true, job = true, fallback = true, pending = true }
+M.LIVE_WHY = {
+    job    = 'the main job was changed since the call',
+    choice = 'another Rule Set (or none) was chosen since the call',
+    edited = 'the running Rule Set was saved with changes since the call',
+    gone   = 'the running Rule Set is no longer saved',
+    role   = 'the Role or Mode was changed since the call',
+}
+M.LIVE_FB = {
+    [1] = 'the chosen Rule Set no longer exists or is not valid',
+    [2] = 'the chosen Rule Set number now belongs to a different set',
+    [3] = 'none of its rules can be used at this level and job',
+    [4] = 'Squads has no job rules for this job: Rule Sets do not apply',
+}
+
+function M.cap(word)
+    return S.server and S.server.caps ~= nil and S.server.caps[word] == true or false
 end
 
 -- reads the squad back (no follow-up loads): on_mates(mates)
 function M.read_mates(on_mates, on_fail)
     return read_request({ 'mates' }, function(items)
         S.mates = parse_mates(items)
+        S.liveUnsure, S.liveFailed, S.liveAt = nil, nil, now() -- (what each mate runs is the server's word of this moment)
+        for _, m in ipairs(S.mates) do
+            if not m.out then
+                S.needApply[m.slot] = nil -- (0.3.4: away: its next call applies whatever was saved)
+            end
+        end
+
         if S.roles and S.roles.rows then
             S.roles.stale = true -- (0.3.2: who is out may have changed: the party roles are loaded again when shown)
         end
@@ -870,6 +914,17 @@ end
 
 function M.load_mates()
     M.read_mates(function()
+        -- (0.3.4) "/gambits show <slot>" (the Squads menu's Gambits button): that mate, once the squad is known
+        if S.wantSlot ~= nil then
+            local want = S.wantSlot
+            S.wantSlot = nil
+            for _, m in ipairs(S.mates) do
+                if m.slot == want and S.mateSlot == nil then
+                    S.mateSlot = want -- (the first load: nothing is open yet)
+                end
+            end
+        end
+
         if S.mateSlot == nil and S.mates[1] then
             S.mateSlot = S.mates[1].slot
         end
@@ -1057,6 +1112,14 @@ function M.load_catalog_for(m)
     end
 
     local key = M.catalog_key(m)
+    -- (0.3.4) the choices of a mate that was looked at before are used again without asking (the key holds the mate,
+    -- its jobs and their levels, so a job change or a level up asks again; Refresh forgets them all)
+    S.catCache = S.catCache or {}
+    if S.catCache[key] then
+        S.cat, S.catJob, S.catError = S.catCache[key], key, nil
+        return
+    end
+
     -- (version 5) "j": this editor reads conditions with a job ability argument (JA_ON_COOLDOWN)
     -- (version 6, job expansion) "jm": modifier arguments too (MOD_LT)
     local words = { 'catm', tostring(m.slot) }
@@ -1076,6 +1139,7 @@ function M.load_catalog_for(m)
         end
 
         S.cat, S.catJob, S.catError = cat, key, nil
+        S.catCache[key] = cat
         return true
     end, function(why)
         S.catError = why
@@ -1158,8 +1222,7 @@ M.fetch_set = fetch_set
 -- Loads a set into the editor (as it is, or as a new copy). A rule the server could not send exactly ("?") is kept as
 -- a visible, protected row: the set is then read-only, and a copy is refused (it would lose that rule).
 function M.open_set(num, copy)
-    S.progress = 'Loading Rule Set ' .. num .. '...'
-    fetch_set(num, function(hdr, texts)
+    local function install(hdr, texts)
         local d = { num = 0, rev = nil, job = nil, name = '', rules = {}, flags = '', dirty = copy and true or false }
         d.num, d.job, d.flags, d.rev, d.id, d.name = hdr.num, hdr.job, hdr.flags, hdr.rev, hdr.id, hdr.name
         local opaque = {}
@@ -1185,6 +1248,8 @@ function M.open_set(num, copy)
             d.readonly = not copy
         end
 
+        -- (0.3.4) the rules as the server has them, to tell a later rename from a change of the rules
+        d.savedRules = (not copy) and M.encodings(d.rules) or nil
         if copy then
             d.num, d.rev, d.id, d.flags, d.readonly = 0, nil, nil, 'o', false
             d.name = string.sub('Copy of ' .. d.name, 1, M.NAME_MAX)
@@ -1195,6 +1260,29 @@ function M.open_set(num, copy)
         say(copy and 'Copied into a new, unsaved Rule Set.' or ('Opened "' .. tostring(d.name) .. '" (Rule Set ' .. num .. ').'
             .. (kept and ' Your earlier unsaved changes are kept as the unsaved draft.' or '')
             .. (#opaque > 0 and (' Rule ' .. table.concat(opaque, ', ') .. ' uses options this editor cannot show: read-only.') or '')))
+    end
+
+    -- (0.3.4) a set that was opened before is shown at once, without asking the server again, while the server's list
+    -- still names the same revision and id for it (the list is read again after every Save, Delete, Refresh and change
+    -- of mate; a set changed elsewhere in between is still refused at Save by its revision, as before).
+    S.setCache = S.setCache or {}
+    local listed = nil
+    for _, set in ipairs(S.sets) do
+        if set.num == num then
+            listed = set
+        end
+    end
+
+    local hit = S.setCache[num]
+    if hit and listed and listed.rev ~= nil and hit.hdr.rev == listed.rev and hit.hdr.id == listed.id then
+        install(hit.hdr, hit.texts)
+        return
+    end
+
+    S.progress = 'Loading Rule Set ' .. num .. '...'
+    fetch_set(num, function(hdr, texts)
+        S.setCache[num] = { hdr = hdr, texts = texts }
+        install(hdr, texts)
     end, function(why)
         S.progress = nil
         say('Could not load the Rule Set: ' .. why, false)
@@ -1255,7 +1343,14 @@ function M.switch_mate(slot)
     S.mateSlot, S.selectedSet, S.draft, S.sel, S.checks, S.confirmOpen, S.confirmDelete, S.ws = slot, nil, nil, nil, {}, nil, nil, nil
     local m = M.mate()
     if m then
+        -- what this mate runs was read a while ago (it may have been changed in the Squads menu since): asked again,
+        -- before its sets, and the bar says "Checking" until the answer is there
+        if M.live_recheck(5) then
+            M.live_read()
+        end
+
         M.load_sets(m.job, function()
+            m = M.mate() or m -- (the row of the answer above, when there was one)
             if m.chosen and m.chosen > 0 and S.draft == nil and S.mateSlot == m.slot then
                 S.selectedSet = m.chosen
                 M.open_set(m.chosen, false)
@@ -1268,6 +1363,25 @@ function M.switch_mate(slot)
     if kept then
         say('Your unsaved changes were kept as the unsaved draft ("Restore unsaved draft" brings them back).', 'warn')
     end
+end
+
+-- (0.3.4) "/gambits show <slot>": the window on that squad mate. With the squad known it is the same as picking the
+-- mate in the list (unsaved edits are kept as the unsaved draft); before the first answer it is remembered.
+function M.want_mate(slot)
+    slot = tonumber(slot)
+    if slot == nil then
+        return false
+    end
+
+    for _, m in ipairs(S.mates) do
+        if m.slot == slot then
+            M.switch_mate(slot)
+            return true
+        end
+    end
+
+    S.wantSlot = slot
+    return true
 end
 
 function M.new_set(job)
@@ -1887,6 +2001,8 @@ local function encodings(rules)
     return out
 end
 
+M.encodings = encodings
+
 local function same_list(a, b)
     if #a ~= #b then
         return false
@@ -1924,10 +2040,35 @@ end
 
 -- the server has (or wrote) the snapshot as set num: update the draft
 local function saved(d, snap, num, rev, id)
+    -- (0.3.4) did this Save change the RULES, or only the name? A mate that runs the set keeps running the same rules
+    -- after a rename, so there is nothing to apply then (the server's own check is made from the rules only).
+    d.rulesChanged = d.savedRules == nil or not same_list(d.savedRules, snap.rules)
+    d.savedRules = snap.rules
+    if S.setCache then
+        S.setCache[num] = nil -- (its revision changed: read again when it is opened next)
+    end
+
     d.num, d.rev, d.id, d.flags = num, rev, id, 'o'
     d.dirty = not same_list(encodings(d.rules), snap.rules) or d.name ~= snap.name
     if not d.dirty then
         M.delete_draft_file()
+    end
+
+    -- (0.3.4) every mate that is out and has this set chosen keeps running the rules of its last call: remembered here
+    -- for a server that does not report it (one that does says "Apply needed" itself). And what was asked to follow
+    -- this Save (Save & Apply, Save, Assign & Apply) runs from M.tick once the editor is free.
+    if d.rulesChanged then
+        for _, mate in ipairs(S.mates) do
+            if mate.out and mate.chosen == num then
+                S.needApply[mate.slot] = true
+            end
+        end
+    end
+
+    local follow = S.afterSave
+    S.afterSave = nil
+    if follow and not d.dirty then
+        S.afterSaveRun = { kind = follow.kind, slot = follow.slot, num = num, rulesChanged = d.rulesChanged }
     end
 
     local m = M.mate()
@@ -1984,11 +2125,15 @@ function M.verify_save(d, snap, why)
     end, unresolved)
 end
 
-function M.save()
-    if M.busy() then
+-- after (0.3.4): what follows once the server confirmed the Save: { kind = 'apply', slot } (Save & Apply: the mate
+-- that runs this set is called again) or { kind = 'assign', slot } (Save, Assign & Apply). nil: Save only. A Save
+-- that fails, or whose rows changed again meanwhile, is followed by nothing.
+function M.save(after)
+    if M.busy() or S.apply ~= nil then
         return busy_say()
     end
 
+    S.afterSave = after
     local d = S.draft
     -- (0.3.3) a role saved as both Include and Exclude is saved as Exclude, the way it is shown and the engine reads it
     for _, r in ipairs(d and not d.readonly and d.rules or {}) do
@@ -2045,8 +2190,13 @@ function M.save()
         on_done = function()
             S.progress = nil
             saved(d, snap, job.result[1], job.result[2], job.result[3])
-            say(string.format('Saved as Rule Set %d (server confirmed). Assign & Apply puts it to use (also for a mate that already '
-                .. 'uses it).', job.result[1]))
+            if S.afterSaveRun then
+                say(string.format('Saved as Rule Set %d (server confirmed). %s', job.result[1],
+                    S.afterSaveRun.kind == 'assign' and 'Assigning...' or 'Applying...'))
+            else
+                say(string.format('Saved as Rule Set %d (server confirmed). A mate that runs it keeps its earlier rules until it '
+                    .. 'is called again (Apply).', job.result[1]))
+            end
         end,
         on_fail = function(failWhy, kind)
             if kind == 'unknown' or job.lost or job.code == 'stale' then
@@ -2071,6 +2221,7 @@ function M.delete_set(num, rev)
     local token = next_id()
     local job
     local function deleted()
+        S.setCache[num] = nil
         say('Rule Set ' .. num .. ' deleted (server confirmed). A mate that used it goes back to its job rules.')
         if S.draft and S.draft.num == num then
             S.draft = nil
@@ -2193,7 +2344,9 @@ function M.assign(slot, num, thenApply)
             if m and m.chosen == want then
                 S.progress = nil
                 if thenApply and m.out then
-                    S.pendingApply = true -- (M.tick starts Apply once the queue is free)
+                    -- (M.tick starts Apply once the queue is free; 0.3.4: for this mate, with the squad as it was just
+                    -- read, so it is not asked for a second time)
+                    S.pendingApply = { slot = slot, mates = mates }
                     say(string.format('%s now uses %s (server confirmed). Applying...', m.name, what))
                 elseif thenApply then
                     say(string.format('%s now uses %s (server confirmed). %s is not summoned: it applies when called.', m.name, what, m.name))
@@ -2249,18 +2402,31 @@ end
 
 -- Apply: "!squad reapply" sends the mates that are out away and calls them again (it must not run twice, so it is sent
 -- again only when the game client refused it). Confirmed by reading back that they left and came back.
-function M.apply()
-    if M.busy() then
+-- (0.3.4) opts.slot: the mate the Apply is for. When the server said it can (capability reapply1) only that mate is
+--   re-called with "!squad reapply <slot>" and the others stay out; an older server gets the squad-wide line, and the
+--   messages then say that the whole squad was called again. opts.mates: the squad as it was read a moment ago (the
+--   read-back of Assign), so it is not asked for a second time.
+-- Nothing is reported as applied before the server's own answer shows it.
+function M.apply(opts)
+    opts = opts or {}
+    if M.busy() or S.apply ~= nil then
         return busy_say()
     end
 
-    S.progress = 'Applying: checking which mates are out...'
-    M.read_mates(function(mates)
+    local function start(mates)
         local out = {}
         for _, m in ipairs(mates) do
             if m.out then
                 out[#out + 1] = m
             end
+        end
+
+        local one = opts.slot and mate_by_slot(mates, opts.slot) or nil
+        if opts.slot ~= nil and (one == nil or not one.out) then
+            S.progress = nil
+            say(string.format('%s is not summoned: nothing to apply now. The Rule Set applies when it is called.',
+                one and one.name or 'That squad mate'), 'warn')
+            return
         end
 
         if #out == 0 then
@@ -2269,13 +2435,25 @@ function M.apply()
             return
         end
 
-        S.progress = 'Applying: sending the squad off...'
+        local single = one ~= nil and M.cap('reapply1')
+        local gone, others = out, {}
+        if single then
+            gone = { one }
+            for _, m in ipairs(out) do
+                if m.slot ~= one.slot then
+                    others[#others + 1] = m
+                end
+            end
+        end
+
+        S.progress = single and ('Applying: sending ' .. one.name .. ' off...') or 'Applying: sending the squad off...'
         M.enqueue({
-            id = 'apply', noreply = true, idempotent = false, lines = { '/say !squad reapply' },
+            id = 'apply', noreply = true, idempotent = false,
+            lines = { single and string.format('/say !squad reapply %d', one.slot) or '/say !squad reapply' },
             on_done = function()
                 local t = now()
-                S.apply = { phase = 1, at = t + 1.0, out = out, sentAt = t, tries = 0,
-                            back = t + M.APPLY_RECALL + M.APPLY_GAP * (#out - 1) + 2.0 }
+                S.apply = { phase = 1, at = t + 1.0, out = gone, others = others, single = single, target = one, sentAt = t, tries = 0,
+                            back = t + M.APPLY_RECALL + M.APPLY_GAP * (#gone - 1) + 2.0 }
             end,
             on_fail = function(why, kind)
                 S.progress = nil
@@ -2286,7 +2464,15 @@ function M.apply()
                 end
             end,
         })
-    end, function(why)
+    end
+
+    if opts.mates then
+        start(opts.mates)
+        return true
+    end
+
+    S.progress = 'Applying: checking which mates are out...'
+    M.read_mates(start, function(why)
         S.progress = nil
         say('Not applied: could not read your squad (' .. why .. ').', false)
     end)
@@ -2300,6 +2486,114 @@ local function names(list)
     end
 
     return table.concat(out, ', ')
+end
+
+-- (0.3.4) what the server reports for a mate that came back: text, ok (true: runs as chosen; 'warn': look at it)
+function M.live_result(cur)
+    local live = cur and cur.live
+    if live == nil then
+        return nil
+    end
+
+    if live.state == 'set' then
+        return string.format('%s now runs %s (server confirmed)%s.', cur.name, M.set_label(live.num),
+            live.dropped > 0 and string.format('; %d of its rules cannot be used at this level or job and are left out', live.dropped) or ''), true
+    elseif live.state == 'job' then
+        return string.format('%s now runs its default job rules (server confirmed).', cur.name), true
+    elseif live.state == 'fallback' then
+        return string.format('%s is back on its default job rules: %s.', cur.name, M.LIVE_FB[live.fb] or 'the chosen Rule Set could not be used'), 'warn'
+    elseif live.state == 'pending' then
+        return string.format('%s is back, but the server still reports Apply needed (%s).', cur.name, M.LIVE_WHY[live.why] or 'the settings changed'), 'warn'
+    elseif live.state == 'addon' then
+        return string.format('An add-on runs %s: Squads and Rule Sets do not.', cur.name), 'warn'
+    end
+
+    return nil
+end
+
+-- (0.3.4) Is what the editor knows about the mates still true? The live state is the server's, read with the mates
+-- answer; it gets old when the window was closed for a while, when another mate is looked at later, and when
+-- something is changed outside the editor (the Squads menu, a line typed in chat). There is no polling: the state is
+-- marked "not sure" on those occasions, the bar says "Checking" instead of a state it cannot stand for, and ONE mates
+-- request is sent when the editor is shown and free.
+--   M.live_recheck(olderThan): marks it; with a number only when the last answer is older than that many seconds.
+--   Returns true when it was marked. A server without the "live" capability is never asked (the editor claims
+--   nothing about it anyway).
+function M.live_recheck(olderThan)
+    if not S.server or not M.cap('live') then
+        return false
+    end
+
+    if olderThan ~= nil and S.liveAt ~= nil and now() - S.liveAt < olderThan then
+        return false
+    end
+
+    S.liveUnsure, S.liveFailed = true, nil
+    return true
+end
+
+function M.live_read()
+    if S.liveReading then
+        return
+    end
+
+    S.liveReading = true
+    M.read_mates(function()
+        S.liveReading = false
+    end, function()
+        -- no answer: not asked again by itself (Refresh, or the next occasion, asks); the bar says "Not confirmed"
+        S.liveReading, S.liveUnsure, S.liveFailed = false, nil, true
+    end)
+end
+
+local function live_tick()
+    if not S.liveUnsure or S.liveReading or S.apply ~= nil or S.pendingApply or S.afterSaveRun or T.busy() then
+        return
+    end
+
+    if S.shownAt == nil or now() - S.shownAt > 1.0 then
+        return -- (the editor is not on screen: asked when it is shown again)
+    end
+
+    M.live_read()
+end
+
+-- The Squads menu's own answer from the server passes by in the chat stream ("squadpanel:rs|<slot>|<state>|<why>|
+-- <live set>|<name>|<chosen set>|..."): the server's word on what each mate runs, asked for by the menu after every
+-- change made there. It is only used to NOTICE a change: when a mate's line is not what it was the last time (or, the
+-- first time, not what the editor knows), the editor asks its own question again. Nothing is taken over from the line.
+function M.panel_seen(text)
+    if type(text) ~= 'string' or not S.server then
+        return
+    end
+
+    local at = string.find(text, 'squadpanel:rs|', 1, true)
+    if at == nil then
+        return
+    end
+
+    local slot, state, num, chosen = string.match(string.sub(text, at + 14), '^(%d+)|(%a+)|[^|]*|(%d+)|[^|]*|(%d+)|')
+    slot = tonumber(slot)
+    if slot == nil then
+        return
+    end
+
+    S.panelRs = S.panelRs or {}
+    local sig = state .. '|' .. num .. '|' .. chosen
+    local before = S.panelRs[slot]
+    S.panelRs[slot] = sig
+    if before == sig then
+        return
+    end
+
+    if before == nil then
+        local m = mate_by_slot(S.mates, slot)
+        if m ~= nil and m.live ~= nil and m.live.state == state and m.live.num == tonumber(num) and (m.chosen or 0) == tonumber(chosen) then
+            return
+        end
+    end
+
+    M.live_recheck()
 end
 
 -- the two Apply read-backs (sent off, then back); run from M.tick
@@ -2323,16 +2617,49 @@ local function apply_tick()
         end
 
         if a.phase == 1 then
+            -- (0.3.4) one mate was asked for: did any of the others leave too? Then the server called the whole squad
+            -- again (or they were sent off by hand), and the editor must not say that only one mate was re-called.
+            for _, m in ipairs(a.others or {}) do
+                local cur = mate_by_slot(mates, m.slot)
+                if not (cur and cur.out) then
+                    a.wide = true
+                end
+            end
+
             if #still == 0 then
                 a.phase, a.at = 2, a.back
                 S.progress = 'Applying: calling ' .. names(a.out) .. ' again...'
             else
                 S.apply, S.progress = nil, nil
-                say('Apply NOT confirmed: ' .. names(still) .. ' did not leave. Press Refresh before you try again.', 'warn')
+                local cur = a.target and mate_by_slot(mates, a.target.slot)
+                if cur and cur.live and cur.live.state == 'addon' then
+                    say(string.format('Not applied: an add-on owns %s, so Squads does not call it again.', cur.name), 'warn')
+                else
+                    say('Apply NOT confirmed: ' .. names(still) .. ' did not leave. Press Refresh before you try again.', 'warn')
+                end
             end
         elseif #missing == 0 then
             S.apply, S.progress = nil, nil
-            say('Applied: ' .. names(a.out) .. ' called again with the chosen Rule Sets (server confirmed).')
+            for _, m in ipairs(a.out) do
+                S.needApply[m.slot] = nil
+            end
+
+            local scope = ''
+            if a.single and not a.wide then
+                scope = #a.others > 0 and ' The other mates stayed out.' or ''
+            elseif a.single and a.wide then
+                scope = ' The other mates left as well: the whole squad was called again.'
+            elseif a.target and #a.out > 1 then
+                -- an older server: there is only the squad-wide Apply, and the message says what it did
+                scope = string.format(' This server cannot call one mate alone: every mate that was out was called again (%s).', names(a.out))
+            end
+
+            local text, ok = M.live_result(a.target and mate_by_slot(mates, a.target.slot) or nil)
+            if text then
+                say('Applied: ' .. text .. scope, ok == true and true or 'warn')
+            else
+                say('Applied: ' .. names(a.out) .. ' called again with the chosen Rule Sets (server confirmed).' .. scope)
+            end
         elseif a.tries < 2 then
             a.tries, a.at = a.tries + 1, now() + 3.0
         else
@@ -2345,12 +2672,42 @@ local function apply_tick()
     end)
 end
 
+-- (0.3.4) what follows a Save that was started with "Save & Apply" or "Save, Assign & Apply": run from M.tick once
+-- the Save is confirmed and the editor is free. p = { kind, slot, num, rulesChanged }
+function M.run_after_save(p)
+    local m = mate_by_slot(S.mates, p.slot)
+    if m == nil then
+        return
+    end
+
+    if p.kind == 'assign' then
+        M.assign(p.slot, p.num, true)
+    elseif p.kind == 'apply' then
+        if not p.rulesChanged then
+            -- only the name changed: the mate runs the same rules, the server reports nothing to apply
+            S.needApply[p.slot] = nil
+            say(string.format('Saved (only the name changed: %s runs the same rules, nothing to apply).', m.name))
+            return
+        end
+
+        M.apply({ slot = p.slot })
+    end
+end
+
 function M.tick()
     T.tick()
     apply_tick()
+    live_tick()
     if S.pendingApply and not T.busy() and S.apply == nil then
+        local p = S.pendingApply
         S.pendingApply = nil
-        M.apply()
+        M.apply(type(p) == 'table' and p or nil)
+    end
+
+    if S.afterSaveRun and not T.busy() and S.apply == nil and not S.pendingApply then
+        local p = S.afterSaveRun
+        S.afterSaveRun = nil
+        M.run_after_save(p)
     end
 end
 
@@ -3060,6 +3417,23 @@ function M.remove_rule(d, sel)
     return math.min(sel, #d.rules)
 end
 
+-- (0.3.4) the selected rule to the first or the last place; returns its new place
+function M.move_rule_end(d, sel, toTop)
+    local r = sel and d.rules[sel]
+    if r == nil or d.readonly or d.uneditable then
+        return sel
+    end
+
+    local at = toTop and 1 or #d.rules
+    if at ~= sel then
+        table.remove(d.rules, sel)
+        table.insert(d.rules, at, r)
+        d.dirty = true
+    end
+
+    return at
+end
+
 function M.move_rule(d, sel, delta)
     local to = (sel or 0) + delta
     if sel == nil or d.rules[sel] == nil or d.rules[to] == nil then
@@ -3085,49 +3459,37 @@ end
 -- The colours of FFXIPort 1.2.0 (ffxiport/ui/theme.lua, Copyright (C) 2026 wildthing, GPL-3.0-only; the same author's
 -- palettes, reused here, value for value, with its rounding and frame border). GambitsV2 owns its whole window, so the
 -- theme applies to all of it (GambitsV2.lua pushes the window colours from M.theme). Classic is the default.
-local function rgba(r, g, b, a)
-    return { r, g, b, a or 1.0 }
-end
+-- (0.3.4) The palettes are in xifo_ui.lua now, value for value, so the Squads menu draws with the same ones (its copy
+-- of that file is identical). Crimson is the default of a NEW installation; an existing one keeps what it saved
+-- (Gambits.lua sets M.DEFAULT_THEME from the installation's own settings before anything is drawn).
+local U
+do
+    local ok, mod = pcall(require, 'xifo_ui')
+    if not (ok and type(mod) == 'table') then
+        local here = (debug and debug.getinfo and (debug.getinfo(1, 'S').source or '') or ''):match('^@(.*[/\\])') or ''
+        ok, mod = pcall(dofile, here .. 'xifo_ui.lua')
+    end
 
-local function times(c, f)
-    return { math.min(c[1] * f, 1.0), math.min(c[2] * f, 1.0), math.min(c[3] * f, 1.0), c[4] }
-end
+    if not (ok and type(mod) == 'table') then
+        error('Gambits: xifo_ui.lua could not be loaded: ' .. tostring(mod))
+    end
 
-M.THEMES = {
-    classic = {
-        window = rgba(0.105, 0.095, 0.082), panel = rgba(0.105, 0.095, 0.082), header = rgba(0.23, 0.18, 0.10),
-        button = rgba(0.24, 0.19, 0.10), border = times(rgba(0.23, 0.18, 0.10), 1.25), text = rgba(0.91, 0.89, 0.80),
-        gold = rgba(0.82, 0.63, 0.22), tabSel = rgba(0.53, 0.42, 0.09), rowSel = rgba(0.53, 0.42, 0.09),
-        muted = rgba(0.47, 0.44, 0.36), secondary = rgba(0.64, 0.60, 0.50), goGold = rgba(0.82, 0.62, 0.10),
-        goText = rgba(0.10, 0.08, 0.05), ok = rgba(0.55, 0.80, 0.45), bad = rgba(0.90, 0.35, 0.30), dot = rgba(0.86, 0.67, 0.22),
-    },
-    squad = {
-        window = rgba(0.067, 0.075, 0.106), panel = rgba(0.110, 0.118, 0.161), header = rgba(0.150, 0.165, 0.220),
-        button = rgba(0.169, 0.188, 0.255), border = rgba(0.300, 0.320, 0.400, 0.55), text = rgba(0.902, 0.922, 0.949),
-        gold = rgba(0.890, 0.741, 0.400), tabSel = rgba(0.600, 0.470, 0.190), rowSel = rgba(0.215, 0.255, 0.360),
-        muted = rgba(0.459, 0.490, 0.549), secondary = rgba(0.580, 0.612, 0.678), goGold = rgba(0.780, 0.620, 0.260),
-        goText = rgba(0.075, 0.075, 0.095), ok = rgba(0.450, 0.780, 0.500), bad = rgba(0.900, 0.420, 0.400),
-        dot = rgba(0.360, 0.560, 0.880), title = rgba(0.080, 0.090, 0.125), titleActive = rgba(0.110, 0.125, 0.175),
-        rounding = { window = 6, child = 5, frame = 4, tab = 4 }, frameBorder = 1,
-    },
-    crimson = {
-        window = rgba(0.090, 0.068, 0.074), panel = rgba(0.125, 0.090, 0.100), header = rgba(0.215, 0.110, 0.130),
-        button = rgba(0.285, 0.130, 0.155), border = rgba(0.420, 0.220, 0.250, 0.60), text = rgba(0.930, 0.895, 0.885),
-        gold = rgba(0.900, 0.620, 0.580), tabSel = rgba(0.500, 0.165, 0.205), rowSel = rgba(0.360, 0.140, 0.175),
-        muted = rgba(0.560, 0.470, 0.480), secondary = rgba(0.700, 0.610, 0.610), goGold = rgba(0.640, 0.215, 0.255),
-        goText = rgba(0.985, 0.935, 0.925), ok = rgba(0.560, 0.800, 0.520), bad = rgba(0.990, 0.520, 0.440),
-        dot = rgba(0.820, 0.270, 0.370), title = rgba(0.250, 0.085, 0.105), titleActive = rgba(0.340, 0.115, 0.140),
-        rounding = { window = 6, child = 5, frame = 4, tab = 4 }, frameBorder = 1,
-    },
-}
-M.THEME_ORDER = { 'classic', 'squad', 'crimson' }
-M.THEME_NAMES = { classic = 'Classic', squad = 'Squad', crimson = 'Crimson' }
-M.theme, M.themeName = M.THEMES.classic, 'classic'
+    U = mod
+end
+M.UI = U
+
+local times = U.times
+
+M.THEMES = U.THEMES
+M.THEME_ORDER = U.THEME_ORDER
+M.THEME_NAMES = U.THEME_NAMES
+M.DEFAULT_THEME = U.DEFAULT
+M.theme, M.themeName = M.THEMES[M.DEFAULT_THEME], M.DEFAULT_THEME
 M.times = times
 
--- selects a theme by name (anything unknown: Classic); returns the name used
+-- selects a theme by name (anything unknown: this installation's default); returns the name used
 function M.set_theme(name)
-    name = M.THEMES[name or ''] and name or 'classic'
+    name = M.THEMES[name or ''] and name or (M.THEMES[M.DEFAULT_THEME or ''] and M.DEFAULT_THEME or U.DEFAULT)
     M.theme, M.themeName = M.THEMES[name], name
     return name
 end
@@ -3234,6 +3596,49 @@ local function available()
     end
 
     return s(600)
+end
+
+-- (0.3.5) the width for the control that holds a rule's value: at least `min`, and what is left of the row up to `max`
+-- (default 340), so a long choice can be read while its list is closed. `keep`: room to leave for what follows it.
+local function fill_w(min, keep, max)
+    return math.floor(math.max(min, math.min(available() - (keep or s(4)), max or s(340))))
+end
+
+-- (0.3.5) the states every XI: Forever Offline window draws the same way (xifo_ui U.states): a selected row has a
+-- light tint and a thin line around it, so a row can be selected AND say something else with its text colour
+local function row_colors(selected)
+    if not selected then
+        return {}
+    end
+
+    local st = M.UI.states(M.theme)
+    return { { 'ImGuiCol_Header', st.rowFill }, { 'ImGuiCol_HeaderHovered', st.rowFill }, { 'ImGuiCol_HeaderActive', st.rowFill } }
+end
+
+-- the line around the row that was just drawn (when this ImGui can say where it is)
+local function row_outline(selected)
+    if selected then
+        M.UI.outline_item(imgui(), M.UI.states(M.theme).rowLine)
+    end
+end
+
+-- controls of the smaller kind (xifo_ui U.SIZE.tabCompact): secondary actions next to a list
+local function compact(fn)
+    local g = imgui()
+    local id = rawget(_G, 'ImGuiStyleVar_FramePadding')
+    local pushed = false
+    if id ~= nil and g.PushStyleVar and g.PopStyleVar then
+        pushed = pcall(g.PushStyleVar, id, { s(M.UI.SIZE.tabPadCompact), s(2) })
+    end
+
+    local ok, err = pcall(fn)
+    if pushed then
+        g.PopStyleVar(1)
+    end
+
+    if not ok then
+        error(err, 0)
+    end
 end
 
 -- (hotfix 2026-11-21) Ashita's Lua bindings hand the text of imgui.SetTooltip and imgui.TextWrapped to ImGui as a
@@ -3346,7 +3751,8 @@ end
 
 -- a drop-down of ids shown by their readable names: returns the chosen id (tipOf: an optional tooltip per entry;
 -- (0.3.1) colorOf: an optional text colour per entry, e.g. dimmed for a spell learned later)
-local function combo(id, current, values, labelOf, tipOf, colorOf)
+-- (0.3.5) previewOf: what the closed list shows for the current value, when that is shorter than its entry
+local function combo(id, current, values, labelOf, tipOf, colorOf, previewOf)
     local g = imgui()
     local function label(v)
         if v == nil then
@@ -3372,7 +3778,7 @@ local function combo(id, current, values, labelOf, tipOf, colorOf)
         return current
     end
 
-    if g.BeginCombo(id, label(current)) then
+    if g.BeginCombo(id, previewOf and previewOf(current) or label(current)) then
         for i, v in ipairs(values) do
             local color = colorOf and colorOf(v)
             local picked = false
@@ -3543,7 +3949,7 @@ function M.effect_selector(r, slot, cat, labelW)
 
     local jobName = mate and mate.job or 'job'
     same_if_fits(s(200), labelW)
-    width(s(200))
+    width(fill_w(s(200)))
     local shown = st.custom and M.CUSTOM_EFFECT or cur
     local picked = combo('##gsq-eff' .. slot, shown, values, function(v)
         if v == M.CUSTOM_EFFECT then
@@ -3701,7 +4107,7 @@ local function condition_editor(r, slot, cat, labelW)
         byKey[current] = info.subj -- (an Enemy condition with another target: shown, flagged by the check)
     end
 
-    width(s(130))
+    width(s(170)) -- (0.3.5: was 130; "Target's status effect" and the like are read whole)
     local picked = combo('##gsq-subj' .. slot, current, keys, function(v)
         if v == 'NONE' then
             return '(nothing else)'
@@ -3770,7 +4176,7 @@ local function condition_editor(r, slot, cat, labelW)
     elseif spec and spec.kind == 'j' then
         -- (server version 5) JA_ON_COOLDOWN: one of the mate's own job abilities
         same_if_fits(s(220), labelW)
-        width(s(220))
+        width(fill_w(s(220)))
         -- (0.3.1) the same job-aware list as the Job Ability action (and its Show all); a saved name stays, marked
         local mate = M.mate()
         M.ensure_plan(mate)
@@ -4729,7 +5135,7 @@ local function name_picker(r, cat)
     local g = imgui()
     local mate = M.mate()
     same_if_fits(s(260), s(100))
-    width(s(260))
+    width(fill_w(s(260), s(110))) -- (0.3.5: as wide as the row allows, with room for Show all)
     -- (0.3.1) families and spells by the mate's jobs: usable now first, then what it learns later (to level 75, marked
     -- with its level); Show all adds the rest of the server's list. Presentation only: the server checks on Save.
     -- (0.3.1) job abilities the same way: now, later (marked with the level), merit; Show all adds the sub job's two-hour /
@@ -4987,17 +5393,14 @@ local function rule_list(d, cat, readonly, height)
             local text = string.format('%d. %s', i, M.rule_short(r, cat)) -- (compact; the full wording is the tooltip)
             local full = string.format('%d. %s', i, M.rule_summary(r, cat))
             local selected = S.sel == i
-            local list = { { 'ImGuiCol_Text', r.on == false and M.theme.muted or nil } }
-            if selected then
-                list[#list + 1] = { 'ImGuiCol_Header', M.theme.rowSel }
-                list[#list + 1] = { 'ImGuiCol_HeaderHovered', times(M.theme.rowSel, 1.25) }
-            end
-
+            local list = row_colors(selected)
+            list[#list + 1] = { 'ImGuiCol_Text', r.on == false and M.theme.muted or nil }
             with_colors(list, function()
                 if g.Selectable(text .. '##sel', selected) then
                     S.sel = i
                 end
             end)
+            row_outline(selected)
 
             tooltip(full) -- (the full wording, also when the panel is too narrow for the line)
             if S.checks[i] then
@@ -5177,13 +5580,76 @@ local function io_panel(mate)
         S.io = { text = '' }
     end
 end
+-- (0.3.5) What a Rule Set is to the selected mate, for its row in the list: a word, a text colour, a tooltip line.
+--   active       the SERVER reports that the mate runs it now (green). Never said from the choice alone.
+--   Apply needed chosen for the mate, the mate is out and does not run it (the theme's warning colour)
+--   next call    chosen for the mate, which is not called
+--   chosen       chosen, on a server that does not report what a mate runs, or while that is being checked
+function M.set_mark(num, mate)
+    local st = M.UI.states(M.theme)
+    local live = M.cap('live') and mate.live or nil
+    local sure = live ~= nil and not S.liveUnsure and not S.liveFailed
+    if sure and live.state == 'set' and live.num == num then
+        return 'active', st.active, string.format('Active: the server reports that %s runs this set now.', mate.name)
+    end
+
+    if num ~= mate.chosen then
+        if sure and live.state == 'pending' and live.num == num then
+            return 'still running', st.warn, string.format('%s still runs this set from its last call; another one is chosen. Apply calls %s again.', mate.name, mate.name)
+        end
+
+        return nil
+    end
+
+    if not sure then
+        return 'chosen', nil, string.format('Chosen for %s.%s', mate.name, live == nil and ' This server does not report what a mate runs.' or ' What it runs is being checked.')
+    elseif not mate.out or live.state == 'off' then
+        return 'next call', st.secondary, string.format('Chosen for %s: used when %s is called.', mate.name, mate.name)
+    elseif live.state == 'addon' then
+        return 'chosen', nil, string.format('Chosen for %s, but an add-on runs %s.', mate.name, mate.name)
+    end
+
+    return 'Apply needed', st.warn, string.format('Chosen for %s, which does not run it now. Apply calls %s again.', mate.name, mate.name)
+end
+
+-- (0.3.5) The second line of the status area: what the selected mate RUNS, in the server's words. text, tone.
+function M.running_line(m, d)
+    local live = M.cap('live') and m.live or nil
+    local function name(num)
+        return num > 0 and M.set_label(num) or 'default job rules'
+    end
+
+    if live == nil then
+        return 'not reported by this server' .. (m.chosen > 0 and ('  (chosen: ' .. name(m.chosen) .. ')') or ''), 'note'
+    elseif S.liveUnsure then
+        return 'checking...', 'note'
+    elseif S.liveFailed then
+        return 'not confirmed: the server did not answer', 'gold'
+    elseif live.state == 'off' or not m.out then
+        return 'nothing: not called.  Next call: ' .. name(m.chosen), 'note'
+    elseif live.state == 'set' then
+        local other = d ~= nil and d.num ~= live.num
+        return name(live.num) .. (live.dropped > 0 and string.format('  (%d rule%s skipped)', live.dropped, live.dropped == 1 and '' or 's') or '')
+            .. (other and '   - not the set open here' or ''), 'ok'
+    elseif live.state == 'job' then
+        return 'default job rules', 'text'
+    elseif live.state == 'fallback' then
+        return 'default job rules  (the chosen Rule Set is not used)', 'bad'
+    elseif live.state == 'pending' then
+        return name(live.num) .. '   - Apply needed for: ' .. name(m.chosen), 'gold'
+    elseif live.state == 'addon' then
+        return 'rules of an add-on (not Squads, not Rule Sets)', 'note'
+    end
+
+    return 'not reported for this call', 'note'
+end
+
 local function sets_panel(mate, panelH)
     local g = imgui()
     heading(mate.job .. ' Rule Sets')
-    wrapped(M.theme.secondary, string.format('%s uses: %s', mate.name, mate.chosen > 0 and M.set_label(mate.chosen) or 'default job rules'))
-    tooltip(M.DEFAULT_RULES_HELP)
     -- (0.3.1) as high as its rows (at least 3), at most half the panel; "in use" (green) and "editing" (highlight) differ
-    local listH = M.list_height(#S.sets, row_h(), math.max(s(80), (panelH or s(400)) * 0.5), 3)
+    -- (0.3.5) with room, the list shows more sets: up to what the panel has left above the buttons below it
+    local listH = M.list_height(#S.sets, row_h(), math.max(s(80), (panelH or s(400)) * 0.5, (panelH or s(400)) - s(250)), 3)
     child('##gsq-sets', { 0, listH }, function()
         if #S.sets == 0 then
             wrapped(M.theme.secondary, 'No ' .. mate.job .. ' Rule Sets yet. Press New or choose a Starter.')
@@ -5192,26 +5658,19 @@ local function sets_panel(mate, panelH)
         for _, set in ipairs(S.sets) do
             local mine = string.find(set.flags, 'o', 1, true) ~= nil
             local ro = string.find(set.flags, 'r', 1, true) ~= nil
-            local inUse = set.num == mate.chosen
             local editing = S.draft ~= nil and S.draft.num == set.num
-            local marks = {}
-            if inUse then
-                marks[#marks + 1] = 'in use'
-            end
-
-            if editing then
-                marks[#marks + 1] = 'editing' .. (S.draft.dirty and ', not saved' or '')
-            end
-
-            local label = string.format('%d  %s%s', set.num, set.name, #marks > 0 and ('   (' .. table.concat(marks, ', ') .. ')') or '')
+            -- (0.3.5) three things a row can say at once: SELECTED (the frame), what the MATE does with it (the text
+            -- colour and a word), and that it is open in the editor. "active" is the server's word (M.set_mark).
+            local mark, tone, markTip = M.set_mark(set.num, mate)
+            -- (0.3.6) the row is the set's name. Only "active" is said on it (green: the server reports that the mate runs
+            -- it); what is chosen for the next call, Apply needed and unsaved changes are in the status area below the
+            -- rules and in this row's tooltip, not squeezed in after the name
+            local active = mark == 'active'
+            local label = string.format('%d  %s%s', set.num, set.name, active and '   (active)' or '')
             local selected = S.selectedSet == set.num
-            local list = {}
-            if selected then
-                list = { { 'ImGuiCol_Header', M.theme.rowSel }, { 'ImGuiCol_HeaderHovered', times(M.theme.rowSel, 1.25) } }
-            end
-
-            if inUse then
-                list[#list + 1] = { 'ImGuiCol_Text', M.theme.ok }
+            local list = row_colors(selected)
+            if active and tone then
+                list[#list + 1] = { 'ImGuiCol_Text', tone }
             end
 
             with_colors(list, function()
@@ -5219,10 +5678,11 @@ local function sets_panel(mate, panelH)
                     M.select_set(set.num) -- (one click selects and opens it)
                 end
             end)
+            row_outline(selected)
 
             tooltip(string.format('Rule Set %d: %s\n%d rules, %s%s%s%s', set.num, set.name, set.rules,
                 mine and 'yours' or 'written by hand (copy it to change it)', ro and ', read-only' or '',
-                inUse and ('\nIn use: ' .. mate.name .. ' uses this set.') or '', editing and '\nOpen in the editor.' or ''))
+                markTip and ('\n' .. markTip) or '', editing and ('\nOpen in the editor' .. (S.draft.dirty and ', with unsaved changes.' or '.')) or ''))
         end
     end)
 
@@ -5325,31 +5785,11 @@ local function sets_panel(mate, panelH)
     end
 
     g.Separator()
-    heading('Use it')
+    -- (0.3.4) Save, Assign and Apply are in one place now: the bar below the rules, which shows the ones that fit the
+    -- open set and this mate. Here: what the mate would leave out, and the way back to its default job rules.
+    heading('Check and reset')
     if sel then
-        -- (0.3.1) never ambiguous whether unsaved edits are applied: while this set has unsaved changes, Save first
-        local unsaved = S.draft ~= nil and S.draft.num == sel.num and S.draft.dirty == true
-        local disable = unsaved and g.BeginDisabled ~= nil
-        if disable then
-            g.BeginDisabled(true)
-        end
-
-        local clicked = false
-        scoped(nil, function() if disable then g.EndDisabled() end end, function()
-            with_colors({ { 'ImGuiCol_Button', M.theme.tabSel }, { 'ImGuiCol_ButtonHovered', times(M.theme.tabSel, 1.2) } }, function()
-                clicked = button('Assign & Apply##gsq-assign')
-            end)
-        end)
-        if clicked and not unsaved then M.assign_apply(mate.slot, sel.num) end
-        tooltip(string.format('Use the saved "%s" for %s now: assigns it (!squad ruleset) and, when %s is summoned, calls '
-            .. 'the squad again (!squad reapply). Unsaved changes are not included: Save first.', sel.name, mate.name, mate.name))
-        if unsaved then
-            same_if_fits(s(160))
-            colored(M.theme.gold, 'Save first')
-            tooltip('This Rule Set has unsaved changes. Press Save (below the rules), then Assign & Apply uses them.')
-        end
         local checkLabel = mate.out and 'Check' or ('Check (' .. mate.name .. ' not summoned)')
-        same_if_fits(s(80))
         if button(checkLabel .. '##gsq-check') then M.check_set(mate.slot, sel.num) end
         tooltip('Which rules ' .. mate.name .. ' would leave out now, and why. The server checks with ' .. mate.name
             .. '\'s current level and sub job, so ' .. mate.name .. ' must be called (out).'
@@ -5360,7 +5800,7 @@ local function sets_panel(mate, panelH)
     if button('Restore default job rules##gsq-off') then M.assign(mate.slot, nil, true) end
     tooltip(mate.name .. ' stops using its Rule Set and goes back to the usual ' .. mate.job .. ' job rules (applied at once '
         .. 'when summoned). Your saved Rule Sets are kept. The Squad Role and Mode (Squad menu) filter those job rules again.')
-    -- (the separate "Apply now" button is gone: Assign & Apply also re-calls a mate after its set was changed and saved)
+    -- (the separate "Apply now" button is gone; 0.3.4: Assign, Apply and their Save forms are in the bar below the rules)
     local r = S.restorable
     if r and r.job == mate.job and not (S.draft and S.draft.dirty) then
         if button('Restore unsaved draft##gsq-restore') then
@@ -5397,20 +5837,10 @@ local function editor_panel()
 
     -- (beta polish) always say what is being edited, by name, and for which job
     local title = (d.name and d.name ~= '' and ('"' .. d.name .. '"') or 'New Rule Set') .. ' (' .. tostring(d.job) .. (d.num > 0 and (', #' .. d.num) or ', new') .. ')'
-    heading(readonly and ('Viewing ' .. title .. ' - read-only: Copy it to change it')
-        or ('Editing ' .. title .. (d.dirty and '  - not saved' or '')))
+    -- (0.3.5) what is edited, here; whether it is saved, used or running is said once, in the status area above the
+    -- Save buttons (it stood here too, as "- not saved" and "in use by", from the selection alone)
+    heading(readonly and ('Viewing ' .. title .. ' - read-only: Copy it to change it') or ('Editing ' .. title))
     local m = M.mate()
-    -- (0.3.1) whether the set open here is the one the mate uses: a separate signal from "editing"
-    if m and d.num > 0 then
-        same_if_fits(s(160))
-        if m.chosen == d.num then
-            colored(M.theme.ok, 'in use by ' .. m.name)
-            tooltip(m.name .. ' uses this Rule Set' .. (d.dirty and ' as it was last saved: Save, then Assign & Apply to use your changes.' or '.'))
-        else
-            note('not in use')
-            tooltip(m.name .. ' does not use this Rule Set. Save it, then Assign & Apply (left) to use it.')
-        end
-    end
     if m and d.job ~= m.job then
         wrapped(M.theme.gold, string.format('This is a %s Rule Set; %s is %s now.', tostring(d.job), m.name, m.job))
     end
@@ -5441,17 +5871,35 @@ local function editor_panel()
     rule_list(d, S.cat, readonly, rulesH)
     local afterList = cursor_y()
     if not readonly then
-        if button('Add rule##gsq-add') then S.sel = M.add_rule(d, S.sel) end
-        same_if_fits(s(40))
-        if button('Up##gsq-up') then S.sel = M.move_rule(d, S.sel, -1) end
-        same_if_fits(s(50))
-        if button('Down##gsq-down') then S.sel = M.move_rule(d, S.sel, 1) end
-        same_if_fits(s(70))
-        if button('On / off##gsq-toggle') then M.toggle_rule(d, S.sel) end
-        same_if_fits(s(70))
-        if button('Remove##gsq-remove') then
-            S.sel, S.checks = M.remove_rule(d, S.sel), {}
-        end
+        -- (0.3.5) next to the list, in the smaller size: what is used all the time. A rule is switched on and off with
+        -- the tick box of its row (the On / off button did the same and is gone). Top and Bottom are in More.
+        compact(function()
+            if button('Add rule##gsq-add') then S.sel = M.add_rule(d, S.sel) end
+            tooltip('A new rule after the selected one.')
+            same_if_fits(s(40))
+            if button('Up##gsq-up') then S.sel = M.move_rule(d, S.sel, -1) end
+            tooltip('The selected rule one place up: it is tried earlier.')
+            same_if_fits(s(50))
+            if button('Down##gsq-down') then S.sel = M.move_rule(d, S.sel, 1) end
+            tooltip('The selected rule one place down: it is tried later.')
+            same_if_fits(s(70))
+            if button('Remove##gsq-remove') then
+                S.sel, S.checks = M.remove_rule(d, S.sel), {}
+            end
+            tooltip('Takes the selected rule out of this Rule Set (saved only when you press Save).')
+            -- (0.3.4) a rule's place is its priority: the two ends in one step instead of up to 31
+            same_if_fits(s(80))
+            width(s(80))
+            local more = combo('##gsq-rulemore', 0, { 1, 2 }, function(v)
+                return v == 1 and 'Move to top' or v == 2 and 'Move to bottom' or 'More'
+            end, function(v)
+                return v == 1 and 'The selected rule becomes the first: it is tried first.' or v == 2 and 'The selected rule becomes the last: it is tried last.' or nil
+            end)
+            tooltip('More for the selected rule: move it to the top or to the bottom.')
+            if more == 1 or more == 2 then
+                S.sel, S.checks = M.move_rule_end(d, S.sel, more == 1), {}
+            end
+        end)
     end
 
     g.Separator()
@@ -5467,38 +5915,239 @@ end
 
 -- (0.3.1) the Save bar: always visible below the right side's scrolling content (also with 32 rules or the Weapon
 -- Skills section open)
+-- (0.3.4) It is the one place for everything that stores or uses the Rule Set open in the editor. M.bar_state says,
+-- for that set and the selected mate, which state line to show and which actions fit: never two ways to do the same
+-- thing, and at most one that calls a mate again. What a mate RUNS comes from the server (the mates answer, server
+-- capability "live"); a server that does not report it never makes the editor say "Active".
+--   returns { state = text, tone = 'ok' | 'gold' | 'bad' | 'note', note = text or nil,
+--             actions = { { id = 'save' | 'save_apply' | 'save_assign' | 'assign' | 'apply', label, tip, primary } ... } }
+function M.bar_state(d, m)
+    local out = { actions = {} }
+    local function act(id, label, tip, primary)
+        out.actions[#out.actions + 1] = { id = id, label = label, tip = tip, primary = primary == true }
+    end
+
+    if d == nil or m == nil then
+        return out
+    end
+
+    local editable = not d.readonly and not d.uneditable
+    local isSaved = (d.num or 0) > 0
+    local inUse = isSaved and m.chosen == d.num
+    local jobOk = d.job == m.job
+    local live = m.live
+    -- what an Apply does on this server: one mate when the server said it can, else every mate that is out
+    local reach = M.cap('reapply1') and string.format('calls %s out again (about 4 seconds); the other mates stay out', m.name)
+        or 'calls every mate that is out again (this server cannot call one mate alone)'
+
+    if d.dirty and editable then
+        out.state, out.tone = isSaved and 'Unsaved changes' or 'Not saved yet', 'gold'
+        act('save', 'Save', 'Send this Rule Set to the server, which checks and stores it. No mate is touched.', false)
+        if not jobOk then
+            out.note = string.format('This is a %s Rule Set: it cannot be used by %s (%s).', tostring(d.job), m.name, m.job)
+        elseif inUse and m.out then
+            act('save_apply', 'Save & Apply', string.format('Saves, then %s, so that %s runs the saved rules. '
+                .. 'If only the name changed there is nothing to apply.', reach, m.name), true)
+        elseif inUse then
+            out.note = string.format('%s uses this Rule Set and is not summoned: the saved rules apply when it is called.', m.name)
+        elseif m.out then
+            act('save_assign', 'Save, Assign & Apply', string.format('Saves, assigns this Rule Set to %s, then %s.', m.name, reach), true)
+        else
+            act('save_assign', 'Save & Assign', string.format('Saves and assigns this Rule Set to %s. %s is not summoned: '
+                .. 'it applies when called.', m.name, m.name), true)
+        end
+
+        return out
+    end
+
+    if not isSaved then
+        out.state, out.tone = 'Not saved yet', 'gold'
+        return out
+    end
+
+    if not jobOk then
+        out.state, out.tone = 'Saved', 'note'
+        out.note = string.format('This is a %s Rule Set: it cannot be used by %s (%s).', tostring(d.job), m.name, m.job)
+        return out
+    end
+
+    -- what the mate runs (and whether it is out, and which set is chosen) is not known for sure right now: no state
+    -- is claimed and nothing that calls a mate is offered until the server has answered
+    if S.liveUnsure and M.cap('live') then
+        out.state, out.tone = string.format('Checking what %s runs...', m.name), 'note'
+        return out
+    end
+
+    if S.liveFailed and M.cap('live') then
+        out.state, out.tone = 'Not confirmed', 'gold'
+        out.note = string.format('The server did not answer when asked what %s runs. Refresh asks again.', m.name)
+        return out
+    end
+
+    if not inUse then
+        out.state, out.tone = 'Saved, not used by ' .. m.name, 'note'
+        if m.out then
+            act('assign', 'Assign & Apply', string.format('Assigns this Rule Set to %s, then %s.', m.name, reach), true)
+        else
+            act('assign', 'Assign', string.format('Assigns this Rule Set to %s. %s is not summoned: it applies when called.',
+                m.name, m.name), true)
+        end
+
+        return out
+    end
+
+    -- saved, and the set chosen for this mate
+    if not m.out then
+        out.state, out.tone = string.format('Selected for %s (applies when called)', m.name), 'note'
+        return out
+    end
+
+    local applyTip = 'Apply: ' .. reach .. '.'
+    if live == nil then
+        -- an older server does not say what the mate runs: "Apply needed" only after a Save this editor made itself
+        if S.needApply[m.slot] then
+            out.state, out.tone = 'Apply needed', 'gold'
+            out.note = string.format('%s runs the rules of its last call until it is called again.', m.name)
+            act('apply', 'Apply', applyTip, true)
+        else
+            out.state, out.tone = 'Selected for ' .. m.name, 'note'
+            out.note = 'This server does not report what a mate runs. After a change, Apply calls it again.'
+            act('apply', 'Apply', applyTip, false)
+        end
+    elseif live.state == 'set' and live.num == d.num then
+        out.state, out.tone = 'Active on ' .. m.name, 'ok'
+        if live.dropped > 0 then
+            out.note = string.format('%d rule%s cannot be used at %s\'s level or job and %s left out (Check shows which).',
+                live.dropped, live.dropped == 1 and '' or 's', m.name, live.dropped == 1 and 'is' or 'are')
+        end
+    elseif live.state == 'addon' then
+        out.state, out.tone = 'Run by an add-on', 'note'
+        out.note = string.format('An add-on runs %s: Squads and Rule Sets do not.', m.name)
+    elseif live.state == 'fallback' then
+        out.state, out.tone = 'Selected, but not used', 'bad'
+        out.note = string.format('%s runs its default job rules: %s.', m.name, M.LIVE_FB[live.fb] or 'the Rule Set could not be used')
+        act('apply', 'Apply', applyTip, false)
+    else
+        out.state, out.tone = 'Apply needed', 'gold'
+        out.note = string.format('%s runs the rules of its last call: %s.', m.name,
+            live.state == 'pending' and (M.LIVE_WHY[live.why] or 'the settings changed since') or 'it was called before this Rule Set was chosen')
+        act('apply', 'Apply', applyTip, true)
+    end
+
+    return out
+end
+
+-- one action of the bar. Returns what the editor function returned (false: refused, e.g. while it talks to the server).
+function M.bar_do(id, d, m)
+    if d == nil or m == nil then
+        return false
+    end
+
+    if id == 'save' then
+        return M.save()
+    elseif id == 'save_apply' then
+        return M.save({ kind = 'apply', slot = m.slot })
+    elseif id == 'save_assign' then
+        return M.save({ kind = 'assign', slot = m.slot })
+    elseif id == 'assign' then
+        return M.assign_apply(m.slot, d.num)
+    elseif id == 'apply' then
+        return M.apply({ slot = m.slot })
+    end
+
+    return false
+end
+
+M.BAR_IDS = { save = 'gsq-save', save_apply = 'gsq-save-apply', save_assign = 'gsq-save-assign', assign = 'gsq-assign', apply = 'gsq-apply' }
+
+-- (0.3.5) The status area, always in view under the rules, above the buttons it belongs to:
+--   Editing    which Rule Set is open, and its state for this mate (M.bar_state: unsaved, saved, Apply needed, Active...)
+--   <Mate> runs  what the mate runs now, as the SERVER reports it (M.running_line); it can be another set than the open one
+-- M.status_lines returns the two lines as { label, text, tone, extra, extraTone } for the window and for the tests.
+function M.status_lines(d, m, st)
+    st = st or M.bar_state(d, m)
+    local what = (d.name and d.name ~= '' and ('"' .. d.name .. '"') or 'New Rule Set') .. (d.num > 0 and ('  (#' .. d.num .. ')') or '  (new)')
+    local runs, tone = M.running_line(m, d)
+    return {
+        { 'Editing', what, 'text', st.state, st.tone },
+        { m.name .. ' runs', runs, tone },
+    }
+end
+
 local function save_bar(d)
     local g = imgui()
     g.Separator()
-    local busy = M.busy()
-    with_colors({ { 'ImGuiCol_Button', M.theme.goGold }, { 'ImGuiCol_ButtonHovered', times(M.theme.goGold, 1.15) },
-                  { 'ImGuiCol_Text', M.theme.goText } }, function()
-        if button((busy and 'Wait...' or (d.dirty and 'Save *' or 'Save')) .. '##gsq-save', s(110)) and not busy then
-            M.save()
-        end
-    end)
-
-    tooltip(busy and 'The editor is talking to the server; Save is possible again in a moment.'
-        or 'Send this Rule Set to the server, which checks and stores it.')
-    same_if_fits(s(160))
-    if d.dirty then
-        colored(M.theme.gold, d.num > 0 and 'Unsaved changes' or 'Not saved yet')
-    else
-        note('Saved')
-    end
-
     local m = M.mate()
-    if d.dirty and m and d.num > 0 and m.chosen == d.num then
-        same_if_fits(s(260))
-        note('(then Assign & Apply to use them)')
+    local busy = M.busy() or S.apply ~= nil
+    local st = M.bar_state(d, m)
+    local tones = { ok = M.theme.ok, gold = M.theme.warn or M.theme.gold, bad = M.theme.bad, note = M.theme.secondary, text = M.theme.text }
+    local labelW = s(96)
+    for i, line in ipairs(M.status_lines(d, m, st)) do
+        colored(M.theme.muted, line[1])
+        g.SameLine(labelW)
+        colored(tones[line[3]] or M.theme.text, line[2])
+        if i == 2 then
+            tooltip(M.DEFAULT_RULES_HELP) -- (what "default job rules" are, and that the Squad Role filters only those)
+        end
+
+        if line[4] then
+            same_if_fits(s(150))
+            colored(tones[line[5]] or M.theme.secondary, line[4])
+        end
+    end
+
+    for i, a in ipairs(st.actions) do
+        if i > 1 then
+            same_if_fits(s(170))
+        end
+
+        local label = busy and 'Wait...' or ((a.id == 'save' and d.dirty) and 'Save *' or a.label)
+        local clicked = false
+        local function draw()
+            clicked = button(label .. '##' .. M.BAR_IDS[a.id], a.id == 'save' and s(110) or nil)
+        end
+
+        if a.primary or a.id == 'save' then
+            with_colors({ { 'ImGuiCol_Button', M.theme.goGold }, { 'ImGuiCol_ButtonHovered', times(M.theme.goGold, 1.15) },
+                          { 'ImGuiCol_Text', M.theme.goText } }, draw)
+        else
+            draw()
+        end
+
+        tooltip(busy and 'The editor is talking to the server; this is possible again in a moment.' or a.tip)
+        if clicked and not busy then
+            M.bar_do(a.id, d, m)
+        end
+    end
+
+    -- (the state itself is on the Editing line above; 0.3.4 had it after the buttons)
+    if st.note then
+        wrapped(M.theme.secondary, st.note)
     end
 end
 
+-- the bar is there for every set that is open with the server's choices loaded (0.3.4: also a read-only one, which can
+-- still be assigned and applied)
 local function editor_footer_shown(d)
-    return d ~= nil and S.cat ~= nil and not d.readonly and not d.uneditable
+    return d ~= nil and S.cat ~= nil and M.mate() ~= nil
 end
 
--- what is stored now, in one sentence (the Weapon Skills panel and, 0.3.1, its collapsed section's summary)
+-- the height the bar needs: its row, and one more line when it has a note
+function M.footer_height(d)
+    if not editor_footer_shown(d) then
+        return 0
+    end
+
+    local st = M.bar_state(d, M.mate())
+    local g = imgui()
+    local row = g.GetFrameHeightWithSpacing and g.GetFrameHeightWithSpacing() or s(24)
+    row = type(row) == 'number' and row or s(24)
+    local line = g.GetTextLineHeightWithSpacing and g.GetTextLineHeightWithSpacing() or s(18)
+    line = type(line) == 'number' and line or s(18)
+    -- (0.3.5) the two status lines, then the buttons' row when there are buttons, and one more line for a note
+    return math.floor(2 * line + (#st.actions > 0 and row or 0) + (st.note and line or 0) + s(14))
+end
+
 function M.ws_stored_text(d)
     if d.source == 'c' then
         return string.format('Custom: %s%s, %s.', M.WS_MODES[d.mode] or '?', d.mode == 2 and '' or (' at ' .. d.tp .. ' TP'), M.ws_name(d.ws))
@@ -6089,7 +6738,7 @@ M.roles_section = roles_section
 -- (0.3.1) the right side: the editor and the Weapon Skills section scroll together; the Save bar stays below them
 local function right_panel(mate)
     local d = S.draft
-    local footerH = editor_footer_shown(d) and (row_h() + s(14)) or 0
+    local footerH = M.footer_height(d) -- (0.3.4: the bar's row, and its note line when it has one)
     local bodyH = math.max(s(140), available_h() - footerH)
     S.layout.bodyH = bodyH
     plain_child('##gsq-right-body', { 0, bodyH }, function()
@@ -6115,6 +6764,34 @@ local function right_panel(mate)
     end
 end
 
+-- (0.3.5) the width of the Rule Set column in a body `total` pixels wide: where the player dragged the divider to
+-- (S.leftW, at 100 %), else about 27 % of the window (220 to 300 px at 100 %). Never less than 200 px, and never so
+-- much that the editor has less than 420 px. Returns the width, its limits and the divider's own width.
+function M.split_width(total)
+    local splitW = s(6)
+    local minL = s(200)
+    local maxL = math.max(minL, total - s(420) - splitW)
+    local want = S.leftW and (S.leftW * s(1000) / 1000) or math.max(s(220), math.min(total * 0.27, s(300)))
+    return math.floor(math.max(minL, math.min(maxL, want))), minL, maxL, splitW
+end
+
+-- (0.3.6) The height of the two panels. Usually what the window has left. When the window reaches below the bottom of
+-- the game's screen (it was dragged down, or it is taller than the screen at a large Size), the panels end at the
+-- screen's bottom instead: the status area and the Save buttons, which are the last thing in the right panel, stay
+-- where they can be seen and clicked, and the rules above them scroll. Never less than 240 px (at 100 %): with a
+-- window that is almost off the screen the buttons cannot be kept on it.
+-- api.display_h: the height of the game's screen in pixels (Gambits.lua); nil when this ImGui cannot tell.
+function M.panel_height(windowRoom, statusH)
+    local h = windowRoom
+    local screen = api.display_h and api.display_h() or nil
+    local pos = U.cursor(imgui())
+    if type(screen) == 'number' and screen > 0 and pos ~= nil then
+        h = math.min(h, screen - pos[2] - (statusH or 0) - s(10))
+    end
+
+    return math.floor(math.max(s(240), h))
+end
+
 function M.draw()
     local g = imgui()
     if g == nil then
@@ -6125,6 +6802,14 @@ function M.draw()
         S.refreshing = true
         M.refresh()
     end
+
+    -- shown again after it was closed (or hidden behind another tab): what the mates run may have changed meanwhile
+    local shownNow = now()
+    if S.shownAt ~= nil and shownNow - S.shownAt > 1.5 then
+        M.live_recheck()
+    end
+
+    S.shownAt = shownNow
 
     if S.server == false then
         heading('Squad Rule Sets')
@@ -6139,28 +6824,49 @@ function M.draw()
     end
 
     -- the header: squad mate, Refresh, Ping, theme and size (controls move to a new line when the window is narrow)
-    label_text('Squad mate')
-    same()
-    width(math.max(s(180), math.min(s(280), available() - s(10))))
-    local labels, slots = {}, {}
+    -- (0.3.5) the first row, right below the title bar, as in the Profile window: the mate as a list to pick another
+    -- one from (its name; the open list says slot, jobs and whether it is summoned), then its jobs and levels
+    width(s(150))
+    local labels, names, jobsOf, slots = {}, {}, {}, {}
     for _, m in ipairs(S.mates) do
-        labels[m.slot] = string.format('%d  %s  %s %d%s%s', m.slot, m.name, m.job, m.level,
-            m.sub and (' / ' .. m.sub .. (m.subLevel and (' ' .. m.subLevel) or '')) or '', m.out and '' or '  (not summoned)')
+        jobsOf[m.slot] = string.format('%s %d%s', m.job, m.level, m.sub and (' / ' .. m.sub .. (m.subLevel and (' ' .. m.subLevel) or '')) or '')
+        labels[m.slot] = string.format('%d  %s  %s%s', m.slot, m.name, jobsOf[m.slot], m.out and '' or '  (not summoned)')
+        names[m.slot] = m.name
         slots[#slots + 1] = m.slot
     end
 
-    local picked = combo('##gsq-mate', S.mateSlot, slots, function(v) return labels[v] or tostring(v) end)
+    local picked = combo('##gsq-mate', S.mateSlot, slots, function(v) return labels[v] or tostring(v) end, nil, nil,
+        function(v) return names[v] or (v and tostring(v)) or '(none)' end)
+    tooltip('The squad mate whose Rule Sets these are. Pick another one here.')
     if picked ~= S.mateSlot then
         M.switch_mate(picked) -- (beta polish: the new mate's own Rule Set, never the previous mate's; unsaved edits kept)
+    end
+
+    do
+        local cur = M.mate()
+        if cur then
+            same(s(10))
+            label_text(jobsOf[cur.slot] or '')
+            if not cur.out then
+                same(s(8))
+                note('not summoned')
+            end
+        end
     end
 
     same_if_fits(s(70))
     if button('Refresh##gsq-refresh') then
         S.ws = nil -- (the Weapon Skills section loads again too)
         S.roles = nil -- (0.3.2: and the party roles, when their section is open)
+        S.setCache, S.catCache = {}, {} -- (0.3.4: and everything kept from earlier answers)
         M.load_mates()
     end
     tooltip('Ask the server again for your squad and its Rule Sets.')
+    -- (0.3.4) the rarely used controls (Ping, Theme, Size) are behind Options, as in the Squads menu
+    same_if_fits(s(70))
+    if button((S.showOptions and 'Options <' or 'Options >') .. '##gsq-options') then S.showOptions = not S.showOptions end
+    tooltip('Theme, size and the connection test.')
+    if S.showOptions then
     same_if_fits(s(50))
     if button('Ping##gsq-ping') then M.ping(10) end
     tooltip('Measure 10 round trips to the server (and whether the game refused any line).')
@@ -6175,8 +6881,10 @@ function M.draw()
             api.on_theme(theme)
         end
     end
+    tooltip('The colours of this window and of the Squads menu, the Profile and the Spells window, for this character.')
+    end
 
-    if api.get_scale and api.set_scale then
+    if S.showOptions and api.get_scale and api.set_scale then
         local scale = api.get_scale()
         same_if_fits(s(150))
         label_text('Size')
@@ -6199,11 +6907,22 @@ function M.draw()
         wrapped(M.theme.secondary, #S.mates == 0 and 'No squad mates yet. Make one with !squad new <name> <job>.' or 'Loading your squad...')
     else
         local total = available()
-        local panelH = math.max(s(240), available_h() - statusH)
-        local leftW = math.floor(math.max(s(240), math.min(total * 0.36, total - s(380))))
+        local panelH = M.panel_height(available_h() - statusH, statusH)
+        -- (0.3.5) the Rule Set column is narrower (about a quarter of the window; 0.3.4: 36 %), so the rule editor has
+        -- the room, and the line between the two can be dragged. Its place is kept while the add-on is loaded.
+        local leftW, minL, maxL, splitW = M.split_width(total)
+        local st = U.states(M.theme)
         with_colors({ { 'ImGuiCol_Border', M.theme.border } }, function()
             child('##gsq-left', { leftW, panelH }, function() sets_panel(mate, panelH) end)
-            same()
+            g.SameLine(0, 0)
+            local newW = U.splitter(g, '##gsq-split', splitW, panelH, leftW, minL, maxL,
+                { { 'ImGuiCol_Button', { 0, 0, 0, 0 } }, { 'ImGuiCol_ButtonHovered', st.hover }, { 'ImGuiCol_ButtonActive', st.rowFill } })
+            tooltip('Drag to make the Rule Set list wider or narrower.')
+            if newW ~= leftW then
+                S.leftW = newW / (s(1000) / 1000) -- (kept at 100 %: it follows the Size setting)
+            end
+
+            g.SameLine(0, 0)
             -- (0.3.1) one editor: the Rule Set, then Weapon Skills as a collapsible section (no tabs), Save always visible
             child('##gsq-right', { 0, panelH }, function() right_panel(mate) end)
         end)

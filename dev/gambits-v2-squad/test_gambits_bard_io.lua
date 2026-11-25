@@ -236,7 +236,7 @@ end
 section('C: the rule codec carries EFFECT.tier; every older form is unchanged')
 do
     local hello = F(run('hello 1')[1])
-    check(hello[3] == 'hello' and hello[4] == '9', 'hello: protocol version 9')
+    check(hello[3] == 'hello' and hello[4] == '10', 'hello: protocol version 10')
     local r = assert(G.decodeRule('1,SELF,NOT_STATUS,MARCH.2,,,s,VICTORY_MARCH,', 1))
     check(deq(r.cond, { 'NOT_STATUS', { effect = 'MARCH', tier = 2 } }), '"MARCH.2" -> { effect = MARCH, tier = 2 }')
     check(G.encodeRule(r, 1) == '1,SELF,NOT_STATUS,MARCH.2,,,s,VICTORY_MARCH,', 'and back, byte for byte')
