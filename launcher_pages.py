@@ -230,6 +230,13 @@ class WorldPage(SettingsPage):
         self.population_text.pack(side="left", padx=(8, 0))
 
     def extend_card(self, name, card):
+        if name == "Auction house":
+            # (2026-11-24, the user) the clear button sat on the Settings page among the GM tools; it belongs with the switch
+            line = tk.Frame(card.body, bg=PANEL)
+            line.pack(fill="x", pady=(4, 2))
+            w.button(line, "Clear the auction house...", self.clear_auction_house, small=True).pack(side="left")
+            card.note("Takes off everything the simulator listed. What you or a bot player listed stays.")
+            return
         if name == "AI chat" and hasattr(self.tab, "ai_model"):
             line = tk.Frame(card.body, bg=PANEL)
             line.pack(fill="x", pady=2, before=card.body.winfo_children()[0] if card.body.winfo_children() else None)
@@ -239,6 +246,11 @@ class WorldPage(SettingsPage):
             # downloads report their progress into the Rates tab's note: show that note here
             self.tab.ai_model_note = card.note(self.model_words())
             self.tab.ai_model_note.pack_configure(after=line)
+
+    def clear_auction_house(self):
+        page = getattr(self.app, "updates_tab", None)
+        if page is not None and hasattr(page, "clear_auction_house"):
+            page.clear_auction_house()
 
     def model_words(self):
         tp = G.tp
@@ -921,6 +933,12 @@ class CharactersPage(w.ScrollPage):
         bar.pack(fill="x", pady=(6, 2))
         w.button(bar, "Get the capture add-on...", self.get_capture).pack(side="left")
         w.button(bar, "Import a snapshot...", self.import_snapshot, primary=True).pack(side="left", padx=8)
+        # (2026-11-24) character pages on xiforever.com and the XIFO phone app (launcher_armory_gui.py)
+        try:
+            import launcher_armory_gui
+            launcher_armory_gui.attach(self, grid, 3)
+        except Exception as e:
+            tk.Label(self.body, text=f"Character page & phone app: {e}", bg=BG, fg=DIM, font=(UI_FONT, 9)).pack(anchor="w")
         tk.Label(self.body, textvariable=coop.note_text, bg=BG, fg=GOLD, font=(UI_FONT, 9), anchor="w", justify="left",
                  wraplength=1000).pack(fill="x", pady=(12, 0))
         self.bind("<Map>", lambda e: self.load(), add="+")

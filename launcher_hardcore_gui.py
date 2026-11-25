@@ -288,6 +288,10 @@ class HardcoreMenu(tk.Toplevel):
             return
         w.button(row, "PLAY HARDCORE" if c["mode"] in hc.HARDCORE else "PLAY RANDOMIZED", lambda m=c["mode"]: self.play(m),
                  primary=True, small=True).pack(side="right", padx=8)
+        if c["mode"] == 4:
+            on = bool(c.get("random_squad"))
+            w.button(row, "Random squad: ON" if on else "Random squad: OFF",
+                     lambda cid=c["charid"], n=c["name"], v=not on: self.random_squad(cid, n, v), small=True).pack(side="right")
         if c["mode"] in hc.HARDCORE:
             lower = "a regular character" if c["mode"] == 1 else "Iron"
             w.button(row, f"Step down to {lower}", lambda cid=c["charid"], n=c["name"], m=c["mode"]: self.step_down(cid, n, m),
@@ -345,6 +349,23 @@ class HardcoreMenu(tk.Toplevel):
         except Exception as e:
             messagebox.showinfo("Step down", str(e), parent=self)
             return
+        self.show_list()
+
+    def random_squad(self, charid, name, on):
+        """Randomized round 4: the random squad switch (off by default). On: the squad mates roll their own looks and jobs."""
+        try:
+            conn = _connect(self.app)
+            try:
+                hc.set_random_squad(conn, charid, on)
+            finally:
+                conn.close()
+        except Exception as e:
+            messagebox.showinfo("Random squad", str(e), parent=self)
+            return
+        messagebox.showinfo("Random squad", f"Random squad {'on' if on else 'off'} for {name}. "
+                            + ("Each squad mate rolls its own looks and jobs, like a Randomized character. " if on else
+                               "The squad mates are themselves again (their rolls are kept for next time). ")
+                            + "It takes effect at the next log in, or use !squad random on / off in game.", parent=self)
         self.show_list()
 
     def restore(self, charid, name):

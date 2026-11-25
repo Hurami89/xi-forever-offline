@@ -41,7 +41,7 @@ ONLINE_FOR = 70            # seconds since the last poll: still in the room
 POLL_WAIT = 25
 RATE = (5, 10)             # at most 5 lines in 10 seconds
 NAME_RE = re.compile(r"^[A-Za-z]{2,15}$")
-HC_KINDS = ("milestone", "delevel", "death", "start", "grant")
+HC_KINDS = ("milestone", "delevel", "death", "start", "grant", "fated")
 WEB_PREFIX = "website: "
 WEB_NAME_RE = re.compile(r"^[A-Za-z0-9_]{2,15}$")
 SITE_ORIGINS = {"https://xiforever.com", "https://www.xiforever.com"}
@@ -198,7 +198,7 @@ class Room:
             level = int(body.get("level", 0))
         except (TypeError, ValueError):
             level = 0
-        extra = clean(str(body.get("extra", "")), 20)
+        extra = clean(str(body.get("extra", "")), 30)
         world = clean(str(body.get("world", "")), 30)
         if (kind not in HC_KINDS or not NAME_RE.match(name) or mode not in ("Iron", "Steel", "Silver", "Randomized") or
                 not re.fullmatch(r"[A-Z]{3}", job) or not 0 <= level <= 99):
@@ -210,6 +210,8 @@ class Room:
             text = f"{name} (Steel) fell on {job} at level {level}{where}. Back to level 1."
         elif kind == "grant":
             text = f"{name} (Randomized) was given {job} at level {level}{where}."
+        elif kind == "fated":
+            text = f"Fate smiles on {name}{where}: a Fated monster left {extra or 'a treasure'}."
         elif kind == "death":
             text = f"{name} (Silver) has fallen: {job} {level}{', hardcore for ' + extra if extra else ''}{where}. Rest well."
         elif mode == "Randomized":

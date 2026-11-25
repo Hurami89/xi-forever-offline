@@ -5,6 +5,12 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 ## v0.3.10 · 24 November 2026
 
 ### New
+• Randomized mode, round 4:
+  - Fated monsters: when a Randomized character takes on a normal monster, 1 time in 50 Fate marks it. It becomes "Fated <name>", grows to full size, has half again its HP and hits 15% harder. Beat it for a guaranteed jackpot (a rare item of the area near its level, or an NM's treasure of about its level), announced to the area, the hub and Stinkshell.
+  - Random squad (off by default): !squad random on, or the button on the character's card in the HARDCORE menu. Each squad mate rolls its own looks and its own random job, and gets new random jobs at 18, 33 and 65, like you. Off brings your mates back as they were; on again brings the same rolls back.
+  - Milestones: every 10 levels on a job, a Randomized character gets 3 random cosmetics in the delivery box, from Fate.
+  - Fairer random drops: a random drop is as rare as what it replaces and fits the monster's level (10 below to 5 above). NMs give what NMs of about their level give, so a low NM no longer drops level 70 gear.
+  - Rangers start with a Shortbow and 99 Wooden Arrows; Corsairs with 99 Bronze Bullets and a Firefly (worn from level 5).
 • Squad backup and restore: on the Squads page, "Back up squad" saves a character's whole squad to one file (every mate's look, jobs, levels, gear, unlocked items, which Rule Set each job uses, personality and greetings). "Restore..." puts it back, on the same character or another one; the squad it replaces is saved first. Thanks Rennie.
 • Updates show their download size ("Download: about 410 MB") before you start. Thanks Jaymz.
 • GM command !skipmissions <log> <mission> (for example !skipmissions cop THE_ROAD_FORKS): marks every earlier mission in that log done, makes the one you name your current mission, and gives the key items those missions hand out. Nation rank and final reward gear stay as they are (use !setrank and !additem). Needs a GM character. Thanks Blitzace, Quaiton and Mikoto.

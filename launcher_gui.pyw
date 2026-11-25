@@ -2888,7 +2888,8 @@ class UpdatesTab(tk.Frame):
         # without one it only said there was nothing to switch
         if app.ashita and os.path.isdir(app.ashita) and rv.detected(app.ashita):
             self.build_revamped()
-        self.build_clear_ah()
+        if not getattr(app, "new_ui", False):              # (2026-11-24, the user) the newer look has it on WORLD > Auction house
+            self.build_clear_ah()
         try:                                                # (2026-11-22, Sunie) the AI hood: only where its switch file is
             import launcher_hood
             if launcher_hood.is_on(HERE):
@@ -5074,6 +5075,7 @@ class App(tk.Tk):
 
         self.conquest_ticked = self.run_conquest("tick")      # catch the world up on the time you were away (servers are not running yet)
         self.run_char_sync("sync-in")                         # (off by default) characters your other PC saved to the shared folder
+        self.run_armory("fish")                               # (when a phone is paired) what it caught: skill, delivery box, gil
         self.run_stack_mode()                                 # item stacks on the server: today's sizes (default) or the era's
 
         # broken "what a character wears" rows crash the login (2026-11-07): remove them while the servers are down
@@ -5501,6 +5503,23 @@ class App(tk.Tk):
         except Exception as e:
             self.say(f"The character folder was not used: {e}")
 
+    def run_armory(self, mode):
+        # (2026-11-24) launcher_armory.py: "fish" takes in what the paired phone caught (before the servers start), "sync"
+        # updates the character pages on xiforever.com (after they stop, only when that switch is on). Never stops PLAY.
+        try:
+            script = os.path.join(HERE, "launcher_armory.py")
+            if not os.path.exists(script):
+                return
+            done = subprocess.run(core.py_cmd(script, mode), cwd=HERE, capture_output=True, text=True, errors="replace",
+                                  timeout=90, creationflags=core.NO_WINDOW)
+            for line in (done.stdout or "").strip().splitlines():
+                self.say(line[:1].upper() + line[1:])
+            if done.returncode != 0:
+                errors = (done.stderr or "").strip().splitlines()
+                self.say(("Phone fishing" if mode == "fish" else "Character pages") + " skipped: " + (errors[-1] if errors else "unknown"))
+        except Exception as e:
+            self.say(f"Character pages / phone fishing skipped: {e}")
+
     def run_conquest(self, mode):
         # The conquest simulator (conquest_sim.py) edits the conquest table. "tick" runs before the servers start, "stamp" after they stop.
         script = os.path.join(HERE, "conquest_sim.py")
@@ -5688,6 +5707,7 @@ class App(tk.Tk):
             self.run_conquest("stamp")                         # the session is over: note the time so the tally is not repeated
             self.conquest_ticked = False
         self.run_char_sync("sync-out")                         # (off by default) your characters go to the shared folder
+        self.run_armory("sync")                                # (off by default) your character pages on xiforever.com
         for f in self.logfiles:
             try:
                 f.close()

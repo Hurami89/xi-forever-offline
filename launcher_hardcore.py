@@ -316,6 +316,7 @@ def characters(conn, bot_base=21000000, now=None):
             out.append({"charid": charid, "name": entry["name"], "mode": mode, "job": JOB_NAMES[mjob - 1] if 1 <= mjob <= len(JOB_NAMES) else "",
                         "level": level, "start": v.get("[HC]Start", 0), "dead": dead, "deaths": v.get("[HC]Deaths", 0),
                         "resets": v.get("[HC]Resets", 0), "milestones": milestones, "online": online,
+                        "random_squad": bool(v.get("[HC]RSquad", 0)),
                         "left": max(0, LOCK_DAYS * 86400 - (now - dead)) if (mode == 3 and dead) else None})
         out.sort(key=lambda e: -e["start"])
         return out
@@ -458,6 +459,24 @@ def step_down(conn, charid):
     except Exception:
         conn.rollback()
         raise
+    finally:
+        cur.close()
+
+
+def set_random_squad(conn, charid, on):
+    """Randomized round 4 (2026-11-24): the random squad switch ([HC]RSquad) of a Randomized character. The server reads
+    it at the next log in (or !squad random on | off in game, at once)."""
+    cur = conn.cursor()
+    try:
+        got = _all(cur, "SELECT value FROM char_vars WHERE charid = ? AND varname = ?", (charid, "[HC]Mode"))
+        if not got or int(got[0][0]) != 4:
+            raise ValueError("Only a Randomized character has a random squad.")
+        if on:
+            cur.execute("INSERT INTO char_vars(charid, varname, value) VALUES(?, ?, 1) ON DUPLICATE KEY UPDATE value = 1",
+                        (charid, "[HC]RSquad"))
+        else:
+            cur.execute("DELETE FROM char_vars WHERE charid = ? AND varname = ?", (charid, "[HC]RSquad"))
+        conn.commit()
     finally:
         cur.close()
 
