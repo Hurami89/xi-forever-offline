@@ -31,14 +31,14 @@ local function world(opts)
     opts = opts or {}
     local W = { handlers = {}, clock = 100, sent = {}, clicks = {}, hover = false, who = opts.who or { 'Testcharone', 1 }, scale = 1,
                 width = 620, over = {}, texts = {}, tips = {}, buttons = {}, setTooltip = {}, textWrapped = 0, colors = 0, vars = 0,
-                pushed = {}, first = {}, cells = {}, combos = {}, wins = {}, winPos = {}, login = 2, zoning = 0, flags = {}, winColors = {}, sizes = {}, at = {}, look = {}, cstack = {}, rects = {}, begins = 0, ends = 0, inputs = {}, skipped = {}, content = {}, view = nil, items = {}, openCombo = nil, pick = nil, throwAt = nil, fullBinding = true }
+                pushed = {}, first = {}, cells = {}, combos = {}, wins = {}, winPos = {}, login = 2, zoning = 0, flags = {}, winColors = {}, sizes = {}, at = {}, look = {}, cstack = {}, rects = {}, begins = 0, ends = 0, inputs = {}, skipped = {}, content = {}, view = nil, items = {}, openCombo = nil, pick = nil, throwAt = nil, fullBinding = true, fontPushes = {}, fontPops = 0, fontScales = {} }
     W.dir = os.tmpname(); os.remove(W.dir); mkdir(W.dir)
     if opts.cfg then mkdir(W.dir .. '/config/addons/servermenu'); put(W.dir .. '/config/addons/servermenu/settings.cfg', opts.cfg) end
     for _, p in ipairs(opts.prefs or {}) do assert(dofile(HERE .. '/../../addons-src/servermenu/xifo_ui.lua').write_pref(W.dir .. '/', p[1], p[2], mkdir)) end
     local L = { x = 0, endX = 0, same = false, w = 0, stack = {}, itemW = nil, inTip = false }
     local function textW(t) return #tostring(t or ''):gsub('##.*$', '') * 7 * W.scale end
     local function place(w, label)
-        if not L.same then L.x = 0 end
+        if not L.same then L.x = L.setX or 0 end; L.setX = nil   -- (a SetCursorPosX on a new line: the next control starts there)
         W.at[#W.at + 1] = { label = tostring(label), x = L.x, w = w }   -- (where each control and text starts, in drawing order)
         if L.w > 0 and not L.wrap and L.x + w > L.w + 0.5 then W.over[#W.over + 1] = string.format('%s (at %d, %d wide, in %d)', tostring(label), L.x, w, L.w) end
         L.endX, L.same = L.x + w, false
@@ -75,7 +75,15 @@ local function world(opts)
     function im.EndChild() local s = table.remove(L.stack); L.x, L.endX, L.same, L.w = s.x, s.endX, false, s.w; L.child = nil; W.childEnds = (W.childEnds or 0) + 1 end
     function im.SameLine(off, sp) if off and off > 0 then L.x = off else L.x = L.endX + (sp or 8) end; L.same = true end
     function im.NewLine() L.same, L.endX = false, 0 end
-    function im.GetContentRegionAvail() return { L.w - (L.same and L.x or 0), 400 } end
+    function im.GetContentRegionAvail() return { L.w - (L.same and L.x or (L.setX or 0)), 400 } end
+    -- (1.34) the cursor's x, and setting it: on the current line (after SameLine) or for the next line's first control
+    function im.GetCursorPosX() return L.same and L.x or (L.setX or 0) end
+    function im.SetCursorPosX(x) if L.same then L.x = x else L.setX = x end end
+    -- (1.34) the font: what the menu pushes (its size), pops, and any SetWindowFontScale
+    function im.GetFont() return 'font' end
+    function im.PushFont(_, size) W.fontPushes[#W.fontPushes + 1] = size end
+    function im.PopFont() W.fontPops = W.fontPops + 1 end
+    function im.SetWindowFontScale(v) W.fontScales[#W.fontScales + 1] = v end
     function im.GetWindowWidth() return W.width * W.scale end
     -- a window is where SetNextWindowPos put it: always with ImGuiCond_Always (1), else only the first time it is drawn
     function im.SetNextWindowPos(p, cond) W.nextPos = { p[1], p[2], cond } end
@@ -1555,5 +1563,189 @@ do
     N.close()
 end
 
+-- ================================================================= 14. (1.33) the camp's state, the pull settings, the camp bar
+section('14. (1.33) Camp: state word, Next pull at, Healer MP, Move keeps the camp, the compact camp bar follows the server')
+do
+    local function feedCamp(W, st, caps)
+        -- the usual answer, with the camp state line after the camp line (squad.lua SQUAD_CAMPX.line) and the camp capability
+        feed(W, { cap = false })
+        W.line('squadpanel:camp|1|2|0|3'); W.line('squadpanel:campst|' .. st)
+        W.line('squadpanel:cap|' .. (caps or 'reapply1,campmove')); W.line('squadpanel:end')
+    end
+    local W = world()
+    W.command('/menu squad'); feedCamp(W, '1|0|fighting|3|40|0'); W.frame(); W.frame(1.2)
+    check(W.text('Fighting, 3 pulls') ~= nil, 'the Camp row says what the camp is doing: "Fighting, 3 pulls"')
+    check(W.combos['##camppullat'] == '40%' and W.combos['##camphealermp'] == 'Default', 'Next pull at 40%, Healer MP Default')
+    check(W.button('Camp bar') ~= nil, 'the Camp bar switch is offered')
+
+    -- the settings send the commands the server knows
+    local n = #W.sent + 1
+    W.openCombo, W.pick = '##camppullat', '60%'; W.frame(); W.openCombo, W.pick = nil, nil
+    for _ = 1, 3 do W.frame(2.5) end
+    check(W.said('!squad camp pullat 60', n) == 1, 'picking 60% sends !squad camp pullat 60')
+    n = #W.sent + 1
+    W.openCombo, W.pick = '##camppullat', 'Off'; W.frame(); W.openCombo, W.pick = nil, nil
+    for _ = 1, 3 do W.frame(2.5) end
+    check(W.said('!squad camp pullat off', n) == 1, 'Off sends pullat off')
+    n = #W.sent + 1
+    W.openCombo, W.pick = '##camphealermp', '50%'; W.frame(); W.openCombo, W.pick = nil, nil
+    for _ = 1, 3 do W.frame(2.5) end
+    check(W.said('!squad camp healermp 50', n) == 1, 'Healer MP 50% sends healermp 50')
+
+    -- Move camp here: "camp move" on a server that can (cap campmove), the old "camp" otherwise
+    n = #W.sent + 1
+    W.click('Move camp here##campset')
+    check(W.said('!squad camp move', n) == 1, 'Move camp here keeps the camp (camp move)')
+
+    -- the camp bar: switched on, drawn on its own, follows a pushed change without a refresh
+    n = #W.sent + 1
+    W.click('Camp bar##campbar')
+    check(has(W.cfg(), 'camp_compact=true'), 'the switch is kept in the settings')
+    W.command('/menu'); W.frame() -- (the menu closed: the bar stays)
+    check((W.wins['Camp###sm_campbar'] or 0) > 0, 'the camp bar is drawn with the menu closed')
+    W.line('squadpanel:campst|1|1|paused|3|40|0'); W.frame()
+    check(W.text('Paused') ~= nil and W.button('Resume') ~= nil, 'a pushed change (paused) shows at once: "Paused", Resume')
+    n = #W.sent + 1
+    W.click('Resume##barpause')
+    check(W.said('!squad camp resume', n) == 1, 'Resume on the bar sends camp resume')
+    W.line('squadpanel:campst|1|0|pulling|4|40|0'); W.frame()
+    check(W.text('Pulling') ~= nil and W.button('Pause') ~= nil, 'the server\'s own pull shows as "Pulling"')
+    n = #W.sent + 1
+    W.click('Camp off##baroff')
+    check(W.said('!squad camp off', n) == 1, 'Camp off on the bar')
+    W.line('squadpanel:campst|0|0|off|4|40|0'); W.frame()
+    check(W.button('Set camp here##barset') ~= nil, 'no camp: the bar offers Set camp here')
+    check(W.begins == W.ends and W.colors == 0, 'every window ends and every colour is popped (' .. W.begins .. '/' .. W.ends .. ', ' .. W.colors .. ')')
+    W.close()
+
+    -- an older server: no campst, no settings, no bar; Move camp here is the old "camp"
+    local O = world()
+    O.command('/menu squad'); feed(O); O.frame(); O.frame(1.2)
+    check(O.combos['##camppullat'] == nil and O.button('Camp bar') == nil, 'an older server: no pull settings and no camp bar switch')
+    local m = #O.sent + 1
+    O.click('Move camp here##campset')
+    check(O.said('!squad camp', m) == 1 and O.said('camp move', m) == 0, 'an older server: Move camp here sends the old !squad camp')
+    O.close()
+end
+
+-- ================================================================= 14b. (1.34) font, launcher toggle, shortcut option, Camp layout
+section('14b. (1.34) text at the Size like Gambits; Gambits half opens AND closes; Show Gambits shortcut; Camp row wraps in place')
+do
+    -- item 4: the font is pushed at the scaled size (as the Gambits window does), not stretched with SetWindowFontScale
+    local W = world({ cfg = 'theme=squad\nbutton_wide=true\nscale=1.2\n' })
+    W.command('/menu squad'); feed(W); W.frame(); W.frame(1.2)
+    local all12 = #W.fontPushes >= 2
+    for _, size in ipairs(W.fontPushes) do all12 = all12 and math.abs(size - 13 * 1.2) < 1e-6 end
+    check(all12 and #W.fontScales == 0, '120 %: every window\'s text is the game\'s font pushed at 15.6 px (13 x 1.2), no SetWindowFontScale (' .. #W.fontPushes .. ' pushes, ' .. #W.fontScales .. ' scales)')
+    check(W.fontPops == #W.fontPushes and W.begins == W.ends, 'every pushed font is popped, in every window')
+    check(W.sizes['Squads##sm_open'][1] == 65, 'sizes are what they were at 120 % (the Squads half 65 px = 54 x 1.2)')
+    W.close()
+    local W1 = world({ cfg = 'theme=squad\nbutton_wide=true\n' })
+    W1.command('/menu squad'); feed(W1); W1.frame(); W1.frame(1.2)
+    local ones = true
+    for _, v in ipairs(W1.fontScales) do ones = ones and v == 1 end
+    check(#W1.fontPushes == 0 and ones, '100 %: no font is pushed (SetWindowFontScale(1), as before, changes nothing)')
+    W1.close()
+end
+do
+    -- item 2: the Gambits half opens and closes the editor, lit by the editor's own word (gambits.open + "/xifogambits")
+    local W = world({ cfg = 'theme=squad\nbutton_wide=true\n' })
+    local m = Ux.menu('squad')
+    local dir = W.dir .. '/config/addons/xiforever/Testcharone_1'
+    mkdir(dir); put(dir .. '/gambits.loaded', Ux.presence_text('0.3.9'))
+    feed(W); W.frame(2.1); W.frame()
+    check(not same(W.look['Gambits##sm_gsq'], m.c.sel), 'the editor is closed: the Gambits half is not lit')
+    local from = #W.sent + 1
+    W.clicks['Gambits##sm_gsq'] = true; W.frame(); W.frame()
+    check(W.sent[#W.sent] == '/gambits show' and W.said('/gambits', from) == 1 and same(W.look['Gambits##sm_gsq'], m.c.sel), 'a click opens it ("/gambits show") and the half is lit at once')
+    put(dir .. '/gambits.open', Ux.presence_text('0.3.9'))
+    check(W.command('/xifogambits') == true, 'the editor\'s line "/xifogambits" is stopped (never sent to the game)')
+    W.frame(1.5); W.frame(1.5)
+    check(same(W.look['Gambits##sm_gsq'], m.c.sel), 'Gambits says its window is shown: still lit, seconds later')
+    from = #W.sent + 1
+    W.clicks['Gambits##sm_gsq'] = true; W.frame(); W.frame()
+    check(W.sent[#W.sent] == '/gambits hide' and W.said('/gambits', from) == 1, 'a second click closes it ("/gambits hide")')
+    os.remove(dir .. '/gambits.open'); W.command('/xifogambits'); W.frame(1.5); W.frame()
+    check(not same(W.look['Gambits##sm_gsq'], m.c.sel), 'closed: no longer lit')
+    -- opened another way (a mate's Gambits button, /gambits): the editor's word lights the half; a click then closes it
+    put(dir .. '/gambits.open', Ux.presence_text('0.3.9')); W.command('/xifogambits'); W.frame()
+    check(same(W.look['Gambits##sm_gsq'], m.c.sel), 'opened elsewhere: the half follows at the next frame')
+    from = #W.sent + 1
+    W.clicks['Gambits##sm_gsq'] = true; W.frame(); W.frame()
+    check(W.said('/gambits hide', from) == 1, 'and a click closes it')
+    -- closed with its own X: the editor removes the file and says so
+    os.remove(dir .. '/gambits.open'); W.command('/xifogambits'); W.frame(1.5); W.frame()
+    from = #W.sent + 1
+    W.clicks['Gambits##sm_gsq'] = true; W.frame(); W.frame()
+    check(W.said('/gambits show', from) == 1, 'closed with its own X: the next click opens it again')
+    -- a file another game process left (a crash) is not the editor's word
+    os.remove(dir .. '/gambits.open'); W.frame(1.5)
+    put(dir .. '/gambits.open', 'Gambits 0.3.9\npid=' .. string.format('%d', (Ux.process_id() or 1) + 1) .. '\n'); W.command('/xifogambits'); W.frame(1.5); W.frame()
+    check(Ux.process_id() == nil or not same(W.look['Gambits##sm_gsq'], m.c.sel), 'a gambits.open left by another game process does not light the half')
+    W.close()
+end
+do
+    -- item 5: Show Gambits shortcut off: a Squads-only button at the same place; /gambits and the cards' buttons stay
+    local W = world({ cfg = 'theme=squad\nbutton_wide=true\nbutton_x=300\nbutton_y=180\nlauncher_gambits=false\n' })
+    mkdir(W.dir .. '/config/addons/xiforever/Testcharone_1'); put(W.dir .. '/config/addons/xiforever/Testcharone_1/gambits.loaded', Ux.presence_text('0.3.9'))
+    feed(W); W.frame(2.1); W.frame()
+    local divider = false
+    for _, a in ipairs(W.at) do divider = divider or (a.label == 'dummy' and a.w == 1) end
+    check(W.button('Squads##sm_open') and not W.button('Gambits##sm_gsq') and not divider, 'off: the launcher is the Squads half alone (no divider, no Gambits half)')
+    check(W.winPos['##servermenu_button'] and W.winPos['##servermenu_button'][1] == 300 and W.winPos['##servermenu_button'][2] == 180, 'at the saved place (300, 180)')
+    W.clicks['Squads##sm_open'] = true; W.frame(); feed(W); W.frame(2.1); W.frame()
+    check(W.button('Gambits##gsq4') ~= nil, 'the Gambits buttons on the mates\' cards stay')
+    -- the Options row turns it on again (and writes the setting as the menu's other settings are written)
+    local im = package.loaded['imgui']
+    im.Checkbox = function(label, t) if W.clicks[label] then W.clicks[label] = nil; t[1] = not t[1]; return true end return false end
+    W.clicks['Options##options'] = true; W.frame(); W.frame()
+    W.clicks['Show Gambits shortcut##smgsqshortcut'] = true; W.frame(); W.frame(3)
+    check(W.button('Gambits##sm_gsq') ~= nil and has(W.cfg(), 'launcher_gambits=true'), 'Options > Show Gambits shortcut: the Gambits half is back, and saved')
+    W.close()
+    local D = world({ cfg = 'theme=squad\nbutton_wide=true\n' })
+    D.frame()
+    check(D.button('Gambits##sm_gsq') ~= nil, 'the default (no setting): the combined Squads | Gambits launcher')
+    D.close()
+end
+do
+    -- item 7: an active Camp at a narrow width and at 120 %: every control inside the window, the kinds wrap under Anything
+    for _, case in ipairs({ { w = 620, cfg = '' }, { w = 470, cfg = '' }, { w = 600, cfg = 'scale=1.2\n' } }) do
+        local W = world({ cfg = 'theme=squad\nbutton_wide=true\n' .. case.cfg })
+        W.width = case.w
+        W.command('/menu squad'); feed(W, { cap = false })
+        W.line('squadpanel:camp|1|2|1|0'); W.line('squadpanel:campst|1|1|paused|0|0|0'); W.line('squadpanel:campwant|-')
+        for _, k in ipairs({ 'Wandering_Sapling', 'Goblin_Ambusher', 'Goblin_Tinkerer', 'Crane_Fly', 'Hill_Lizard', 'Forest_Hare' }) do W.line('squadpanel:campmob|' .. k .. '|15|22|2|1') end
+        W.line('squadpanel:cap|reapply1,campmove'); W.line('squadpanel:end')
+        W.frame(); W.frame(1.2)
+        local tag = case.w .. ' px' .. (case.cfg ~= '' and ' at 120 %' or '')
+        local campOver = {}
+        for _, o in ipairs(W.over) do if o:find('camp') or o:find('Paused') or o:find('Pull') or o:find('Healer') or o:find('Next pull') then campOver[#campOver + 1] = o end end
+        check(#campOver == 0, tag .. ': every Camp control is inside the window (' .. table.concat(campOver, '; ') .. ')')
+        check(W.text('Paused, 0 pulls') ~= nil, tag .. ': the state is shown whole ("Paused, 0 pulls")')
+        local anyX, kinds, aligned = nil, 0, true
+        for _, a in ipairs(W.at) do
+            if a.label == 'Anything##campany' then anyX = a.x end
+            if anyX and a.label:find('##campkind', 1, true) then
+                kinds = kinds + 1
+                aligned = aligned and a.x >= anyX - 0.5
+            end
+        end
+        check(anyX ~= nil and kinds == 6 and aligned, tag .. ': all 6 kinds are drawn, none starts left of "Anything" (wrapped ones line up under it)')
+        local wrappedUnder = false
+        for _, a in ipairs(W.at) do if a.label:find('##campkind', 1, true) and math.abs(a.x - anyX) < 0.5 then wrappedUnder = true end end
+        check((case.w > 600 and case.cfg == '') or wrappedUnder, tag .. ': at this width some kinds wrap, and they start exactly under "Anything"')
+        W.close()
+    end
+end
+
+do
+    -- (1.34) the Camp bar switch is read back after a reload (1.33 wrote camp_compact but did not read it)
+    local W = world({ cfg = 'theme=squad\nbutton_wide=true\ncamp_compact=true\n' })
+    feed(W, { cap = false })
+    W.line('squadpanel:camp|1|2|0|1'); W.line('squadpanel:campst|1|0|idle|1|0|0'); W.line('squadpanel:end')
+    W.frame(); W.frame()
+    check((W.wins['Camp###sm_campbar'] or 0) > 0, 'a saved camp_compact=true shows the Camp bar after a reload')
+    W.close()
+end
 io.write(string.format('\npassed %d, failed %d\n', passed, failed))
 os.exit(failed == 0 and 0 or 1)

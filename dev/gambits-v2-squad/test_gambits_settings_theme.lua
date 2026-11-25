@@ -349,6 +349,34 @@ do
     W.unload(); remove(dir)
 end
 
+-- (0.3.9) the Squads launcher's Gambits half: the window's real state in gambits.open, and "/xifogambits" when it changes
+section('4b. (0.3.9) the window\'s state for the Squads launcher')
+do
+    local dir = install({})
+    local W = session(dir, nil)
+    W.login('Aldo', 1); W.frame()
+    local open = dir .. '/config/addons/xiforever/Aldo_1/gambits.open'
+    local function lines() local n = 0 for _, l in ipairs(W.queued or {}) do if l == '/xifogambits' then n = n + 1 end end return n end
+    W.frame(); W.frame()
+    check(not exists(open) and lines() <= 1, 'closed: no gambits.open')
+    local n0 = lines()
+    W.command('/gambits'); W.frame()
+    check(exists(open) and lines() == n0 + 1, '/gambits opens it: gambits.open is written and one /xifogambits line says so')
+    W.frame(); W.frame()
+    check(lines() == n0 + 1, 'nothing more while it stays open (written only on a change)')
+    W.G.open[1] = false; W.frame()   -- (the window's own X: ImGui sets the open flag to false while drawing)
+    check(not exists(open) and lines() == n0 + 2, 'closed with its X: the file goes and one line says so')
+    W.command('/gambits show 2'); W.frame()
+    check(exists(open) and lines() == n0 + 3, 'opened on a mate ("/gambits show 2", a card\'s button): the same')
+    W.command('/gambits hide'); W.frame()
+    check(not exists(open) and lines() == n0 + 4, '/gambits hide: the same')
+    check(W.command('/xifogambits') == true, 'its own line is stopped here too, when the Squads menu is not loaded')
+    W.command('/gambits'); W.frame()
+    W.unload()
+    check(not exists(open), 'unloaded while open: the file is removed with gambits.loaded')
+    remove(dir)
+end
+
 -- (0.3.6) the window is never taller or wider than the game's screen, also at a large Size
 do
     local dir = install({})

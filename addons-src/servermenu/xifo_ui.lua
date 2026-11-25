@@ -78,10 +78,24 @@ function U.theme(name, fallback)
     return U.THEMES[name], name
 end
 
--- ---------------------------------------------------------------- one window's colours and metrics
--- (the Gambits window has pushed exactly this list since 0.3.1)
-function U.window_colors(c)
+-- ---------------------------------------------------------------- scrollbars
+-- (2026-11-25) a scrollbar in every window and panel of both add-ons, from the palette: the track a faint band of the
+-- window colour, the grab the palette's button colour, brighter under the mouse, and the palette's accent (tabSel: Classic
+-- gold-brown, Squad gold, Crimson red) while it is dragged. Before, only the Gambits grab was set and everything else was
+-- ImGui's / Ashita's own (a red track and grab in the Squads menu whatever the theme).
+function U.scrollbar_colors(c)
     return {
+        { 'ImGuiCol_ScrollbarBg', { c.window[1], c.window[2], c.window[3], 0.55 } },
+        { 'ImGuiCol_ScrollbarGrab', c.button },
+        { 'ImGuiCol_ScrollbarGrabHovered', times(c.button, 1.45) },
+        { 'ImGuiCol_ScrollbarGrabActive', c.tabSel },
+    }
+end
+
+-- ---------------------------------------------------------------- one window's colours and metrics
+-- (the Gambits window has pushed exactly this list since 0.3.1; the scrollbar entries follow it since 2026-11-25)
+function U.window_colors(c)
+    local list = {
         { 'ImGuiCol_WindowBg', c.window }, { 'ImGuiCol_ChildBg', c.panel }, { 'ImGuiCol_PopupBg', c.window },
         { 'ImGuiCol_Text', c.text }, { 'ImGuiCol_TextDisabled', c.muted }, { 'ImGuiCol_Border', c.border },
         { 'ImGuiCol_Separator', c.border }, { 'ImGuiCol_FrameBg', c.header },
@@ -93,6 +107,13 @@ function U.window_colors(c)
         { 'ImGuiCol_TitleBg', c.title or c.header }, { 'ImGuiCol_TitleBgActive', c.titleActive or c.header },
         { 'ImGuiCol_TitleBgCollapsed', c.title or c.header },
     }
+    for _, item in ipairs(U.scrollbar_colors(c)) do
+        if item[1] ~= 'ImGuiCol_ScrollbarGrab' then -- (the grab is in the list above already: the same value)
+            list[#list + 1] = item
+        end
+    end
+
+    return list
 end
 
 -- the shared metrics (the Gambits editor's): padding 8x8, frame 4x3, spacing 6x4, and the palette's own rounding
@@ -188,6 +209,9 @@ function U.menu(name)
         m.window[#m.window + 1] = { 'ImGuiCol_TitleBg', c.title or c.header }
         m.window[#m.window + 1] = { 'ImGuiCol_TitleBgActive', c.titleActive or c.header }
         m.window[#m.window + 1] = { 'ImGuiCol_TitleBgCollapsed', c.title or c.header }
+        for _, item in ipairs(U.scrollbar_colors(c)) do -- (2026-11-25) the same scrollbars as the Gambits window
+            m.window[#m.window + 1] = item
+        end
         local st = U.states(c)
         m.c.rowFill, m.c.rowLine, m.c.hover = st.rowFill, st.rowLine, st.hover
     end

@@ -76,12 +76,17 @@ do
     -- (1.28) the menu has ImGui's own title bar now: three title colours were added to the list, from the Squad palette's
     -- own title / titleActive. The 13 colours of 1.26 are what they were.
     local TITLE = { ImGuiCol_TitleBg = U.THEMES.squad.title, ImGuiCol_TitleBgActive = U.THEMES.squad.titleActive, ImGuiCol_TitleBgCollapsed = U.THEMES.squad.title }
-    local n, ok, titles = 0, true, 0
+    -- (2026-11-25) and the four scrollbar colours, the palette's own (U.scrollbar_colors)
+    local SCROLL = {}
+    for _, pair in ipairs(U.scrollbar_colors(U.THEMES.squad)) do SCROLL[pair[1]] = pair[2] end
+    local n, ok, titles, scrolls = 0, true, 0, 0
     for _, pair in ipairs(m.window) do
         if WIN[pair[1]] ~= nil then n = n + 1; ok = ok and same(pair[2], WIN[pair[1]])
         elseif TITLE[pair[1]] ~= nil then titles = titles + 1; ok = ok and same(pair[2], TITLE[pair[1]])
+        elseif SCROLL[pair[1]] ~= nil then scrolls = scrolls + 1; ok = ok and same(pair[2], SCROLL[pair[1]])
         else ok = false end
     end
+    check(ok and scrolls == 4, 'and the four scrollbar colours of the Squad palette (' .. scrolls .. ')')
     check(ok and n == 13, 'the 13 window colours menuWindow pushed (' .. n .. ')')
     check(ok and titles == 3, 'and the three title bar colours of 1.28, the Squad palette\'s own (' .. titles .. ')')
     local BTN = { ImGuiCol_WindowBg = { 0.05, 0.06, 0.09, 0.70 }, ImGuiCol_Border = { 0.89, 0.74, 0.40, 0.55 }, ImGuiCol_Button = { 0.13, 0.16, 0.26, 0.95 },
@@ -105,7 +110,25 @@ do
         and by.ImGuiStyleVar_ChildRounding == 10 and by.ImGuiStyleVar_FrameRounding == 8 and by.ImGuiStyleVar_FrameBorderSize == 1,
           'padding 8x8, frame 4x3, spacing 6x4, rounding 6/5/4 (here at 200 %), frame border 1')
     check(#U.window_vars(U.THEMES.classic) == 4, 'Classic pushes no rounding, as before')
-    check(#U.window_colors(U.THEMES.crimson) == 22, 'the 22 window colours of the Gambits window')
+    check(#U.window_colors(U.THEMES.crimson) == 25, 'the 22 window colours of the Gambits window and three more scrollbar colours (2026-11-25)')
+end
+
+section('(2026-11-25) scrollbars: one look in both add-ons, from the palette, in every theme')
+do
+    for _, name in ipairs(U.THEME_ORDER) do
+        local c = U.THEMES[name]
+        local want = {}
+        for _, pair in ipairs(U.scrollbar_colors(c)) do want[pair[1]] = pair[2] end
+        check(same(want.ImGuiCol_ScrollbarGrab, c.button) and same(want.ImGuiCol_ScrollbarGrabActive, c.tabSel)
+            and want.ImGuiCol_ScrollbarGrabHovered[1] >= c.button[1] and want.ImGuiCol_ScrollbarBg[4] < 1,
+            name .. ': grab = the button colour, brighter on hover, the accent while dragged; a faint track')
+        local gm, mm = {}, {}
+        for _, pair in ipairs(U.window_colors(c)) do gm[pair[1]] = pair[2] end
+        for _, pair in ipairs(U.menu(name).window) do mm[pair[1]] = pair[2] end
+        local okAll = true
+        for k, v in pairs(want) do okAll = okAll and same(gm[k], v) and same(mm[k], v) end
+        check(okAll, name .. ': the Gambits window and every Squads window push the same four scrollbar colours')
+    end
 end
 
 -- ---------------------------------------------------------------- a counting ImGui

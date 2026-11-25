@@ -452,6 +452,126 @@ function M.mod_problem(arg)
     return nil
 end
 
+-- (community feedback F1/F2, server version 11) the enemy family and count conditions. The values travel as text, exactly as
+-- the server's gambits_squad.lua G.decodeCount reads them:
+--   ENEMY_FAMILY  "GOBLIN"                                   the enemy is a Goblin (the rule may be for yourself or the party)
+--   PARTY_COUNT   "AT_LEAST.2" or "AT_LEAST.2.ASLEEP"        party members (with that status) near the mate
+--   ENEMY_COUNT   "AT_LEAST.3.30.10"                         monsters fighting the party within 10 yalms of the enemy,
+--                                                             above 30% HP
+M.COUNT_SERVER = 11
+M.FAMILY_ORDER = {
+    'GOBLIN', 'ORC', 'QUADAV', 'YAGUDO', 'SAHAGIN', 'TONBERRY', 'ANTICA', 'GIGAS', 'BUGBEAR', 'LAMIAE', 'MAMOOL_JA', 'TROLL',
+    'DEMON', 'AHRIMAN', 'IMP', 'SKELETON', 'GHOST', 'CORSE', 'HOUND', 'DOOMED', 'QUTRUB', 'SHADOW', 'BAT', 'FLOCK_BAT', 'BIRD',
+    'COCKATRICE', 'BEE', 'BEETLE', 'CRAWLER', 'SPIDER', 'SCORPION', 'FLY', 'ANTLION', 'WORM', 'SLIME', 'FLAN', 'LEECH',
+    'CRAB', 'PUGIL', 'FROG', 'SEA_MONK', 'URAGNITE', 'BOMB', 'CLUSTER', 'GOLEM', 'DOLL', 'EVIL_WEAPON', 'MAGIC_POT',
+    'BEHEMOTH', 'BUFFALO', 'COEURL', 'DHALMEL', 'MANTICORE', 'RABBIT', 'RAM', 'SHEEP', 'TIGER', 'OPO_OPO', 'LIZARD', 'RAPTOR',
+    'EFT', 'ADAMANTOISE', 'BUGARD', 'MANDRAGORA', 'FUNGUAR', 'SAPLING', 'TREANT', 'CACTAUR', 'MORBOL', 'DRAGON', 'WYVERN',
+    'HYDRA', 'PUK', 'ELEMENTAL', 'HIPPOGRYPH',
+}
+M.COUNT_CMPS = { 'AT_LEAST', 'EXACTLY', 'AT_MOST', 'MORE_THAN', 'FEWER_THAN' }
+M.COUNT_CMP_LABEL = { AT_LEAST = 'at least', EXACTLY = 'exactly', AT_MOST = 'at most', MORE_THAN = 'more than', FEWER_THAN = 'fewer than' }
+M.COUNT_CMP_SHORT = { AT_LEAST = '>= ', EXACTLY = '= ', AT_MOST = '<= ', MORE_THAN = '> ', FEWER_THAN = '< ' }
+M.PCOUNT_STATUS = { '', 'ASLEEP', 'PETRIFICATION', 'POISON', 'PARALYSIS', 'SILENCE', 'BLINDNESS', 'DISEASE', 'CURSE_I', 'DOOM' }
+M.PARTY_COUNT_MAX, M.ENEMY_COUNT_MAX = 18, 30
+
+-- "AT_LEAST.2.ASLEEP" -> 'AT_LEAST', 2, 'ASLEEP' (status nil = every member); nil for anything else
+function M.pcount_parse(arg)
+    local cmp, n, status = string.match(tostring(arg or ''), '^([A-Z_]+)%.(%d+)%.?([A-Z0-9_]*)$')
+    if cmp == nil or M.COUNT_CMP_LABEL[cmp] == nil then
+        return nil
+    end
+
+    return cmp, tonumber(n), status ~= '' and status or nil
+end
+
+-- "AT_LEAST.3.30.10" -> 'AT_LEAST', 3, 30, 10 (hp 0 and radius 10 when left out); nil for anything else
+function M.ecount_parse(arg)
+    local text = tostring(arg or '')
+    local cmp, n, hp, radius = string.match(text, '^([A-Z_]+)%.(%d+)%.(%d+)%.(%d+)$')
+    if cmp == nil then
+        cmp, n, hp = string.match(text, '^([A-Z_]+)%.(%d+)%.(%d+)$')
+    end
+
+    if cmp == nil then
+        cmp, n = string.match(text, '^([A-Z_]+)%.(%d+)$')
+    end
+
+    if cmp == nil or M.COUNT_CMP_LABEL[cmp] == nil then
+        return nil
+    end
+
+    return cmp, tonumber(n), tonumber(hp or '0'), tonumber(radius or '10')
+end
+
+function M.count_problem(kind, arg)
+    if kind == 'y' then
+        return string.match(tostring(arg or ''), '^[A-Z][A-Z0-9_]*$') == nil and 'needs a monster family' or nil
+    elseif kind == 'p' then
+        local cmp, n, status = M.pcount_parse(arg)
+        if cmp == nil then
+            return 'needs a comparison and a number'
+        elseif n > M.PARTY_COUNT_MAX then
+            return string.format('needs a number 0-%d', M.PARTY_COUNT_MAX)
+        elseif status ~= nil and status ~= 'ASLEEP' and not string.match(status, '^[A-Z][A-Z0-9_]*$') then
+            return 'needs a status effect'
+        end
+    elseif kind == 'q' then
+        local cmp, n, hp, radius = M.ecount_parse(arg)
+        if cmp == nil then
+            return 'needs a comparison and a number'
+        elseif n > M.ENEMY_COUNT_MAX then
+            return string.format('needs a number 0-%d', M.ENEMY_COUNT_MAX)
+        elseif hp > 99 then
+            return 'the HP must be 0-99%'
+        elseif radius < 1 or radius > 30 then
+            return 'the reach must be 1-30 yalms'
+        end
+    end
+
+    return nil
+end
+
+-- "Party members asleep: at least 2", "Enemies above 30% HP within 10 yalms of the enemy: at least 3", "Enemy is a Goblin"
+function M.count_text(id, arg)
+    if id == 'ENEMY_FAMILY' then
+        return 'Enemy is ' .. (arg and arg ~= '' and M.pretty(arg) or '?')
+    elseif id == 'PARTY_COUNT' then
+        local cmp, n, status = M.pcount_parse(arg)
+        if cmp == nil then
+            return 'Party members: ?'
+        end
+
+        return string.format('Party members%s: %s %d', status == 'ASLEEP' and ' asleep' or (status and (' with ' .. M.pretty(status)) or ''),
+            M.COUNT_CMP_LABEL[cmp], n)
+    elseif id == 'ENEMY_COUNT' then
+        local cmp, n, hp, radius = M.ecount_parse(arg)
+        if cmp == nil then
+            return 'Enemies: ?'
+        end
+
+        return string.format('Enemies%s within %d yalms: %s %d', hp > 0 and string.format(' above %d%% HP', hp) or '', radius,
+            M.COUNT_CMP_LABEL[cmp], n)
+    end
+
+    return nil
+end
+
+function M.count_short(id, arg)
+    if id == 'ENEMY_FAMILY' then
+        return (arg and arg ~= '' and M.pretty(arg) or '?')
+    elseif id == 'PARTY_COUNT' then
+        local cmp, n, status = M.pcount_parse(arg)
+        return string.format('%s %s%s', status == 'ASLEEP' and 'Asleep' or (status and M.pretty(status) or 'Members'),
+            cmp and M.COUNT_CMP_SHORT[cmp] or '? ', tostring(n or '?'))
+    elseif id == 'ENEMY_COUNT' then
+        local cmp, n, hp = M.ecount_parse(arg)
+        return string.format('Enemies%s %s%s', hp and hp > 0 and string.format(' >%d%%', hp) or '', cmp and M.COUNT_CMP_SHORT[cmp] or '? ',
+            tostring(n or '?'))
+    end
+
+    return nil
+end
+
 -- a row the editor may not change: "?" from the server (kept exactly as it is), or a condition the server's catalog
 -- does not describe (its value cannot be checked here). Returns why, or nil.
 function M.protected(r, cat)
@@ -548,6 +668,11 @@ function M.check_draft(d, cat)
                 end
             elseif c and c.kind == 'm' then
                 local why = M.mod_problem(pair[2])
+                if why then
+                    return string.format('rule %d: %s %s', i, M.cond_label(pair[1]), why)
+                end
+            elseif c and (c.kind == 'y' or c.kind == 'p' or c.kind == 'q') then
+                local why = M.count_problem(c.kind, pair[2]) -- (F1/F2, server version 11)
                 if why then
                     return string.format('rule %d: %s %s', i, M.cond_label(pair[1]), why)
                 end
@@ -993,8 +1118,10 @@ M.CAT_KINDS  = { 't', 'c', 'f', 'j', 's' }
 M.CATM_KINDS = { 't', 'c', 'f', 'j', 's', 'u' } -- (version 4, one mate's catalog: u = allowed by job and level, not confirmed)
 local CAT_ENTRY = {
     t = '^[A-Z][A-Z_]*$',
-    c = '^[A-Z][A-Z0-9_]*:[nrejm][:%d]*$', -- (j: a job ability argument, server version 5 when asked for with catm "j";
-                                           --  m: a modifier and a number, MOD_LT, server version 6 with catm "jm")
+    c = '^[A-Z][A-Z0-9_]*:[nrejmypq][:%d]*$', -- (j: a job ability argument, server version 5 when asked for with catm "j";
+                                           --  m: a modifier and a number, MOD_LT, server version 6 with catm "jm";
+                                           --  y / p / q: an enemy family, a party count, an enemy count, server version 11
+                                           --  with catm "jmf")
     f = '^[A-Z][A-Z0-9_]*$',
     j = '^[A-Z][A-Z0-9_]*:%d+s?$',
     s = '^[A-Z][A-Z0-9_]*:%d+s?$',
@@ -1122,8 +1249,11 @@ function M.load_catalog_for(m)
 
     -- (version 5) "j": this editor reads conditions with a job ability argument (JA_ON_COOLDOWN)
     -- (version 6, job expansion) "jm": modifier arguments too (MOD_LT)
+    -- (version 11, community feedback) "jmf": enemy family and count arguments too (ENEMY_FAMILY, PARTY_COUNT, ENEMY_COUNT)
     local words = { 'catm', tostring(m.slot) }
-    if (S.server.version or 0) >= 6 then
+    if (S.server.version or 0) >= M.COUNT_SERVER then
+        words[3] = 'jmf'
+    elseif (S.server.version or 0) >= 6 then
         words[3] = 'jm'
     elseif (S.server.version or 0) >= 5 then
         words[3] = 'j'
@@ -3066,6 +3196,11 @@ M.SUBJECTS = {
     -- (job expansion, server version 6) Utsusemi shadows / Blink images left below a number (MOD_LT): Utsusemi again
     -- before the last shadow goes
     { key = 'SHADOWS', label = 'Shadows / images', ops = { { 'below', 'MOD_LT' } }, default = 'UTSUSEMI.2' },
+    -- (community feedback F1/F2, server version 11) the enemy's family, and counts: offered only when the server's catalog
+    -- describes them (catm "jmf")
+    { key = 'FAMILY',  label = 'Enemy family',  ops = { { 'is', 'ENEMY_FAMILY' } }, default = 'GOBLIN' },
+    { key = 'PCOUNT',  label = 'Party members', ops = { { 'count', 'PARTY_COUNT' } }, default = 'AT_LEAST.2.ASLEEP' },
+    { key = 'ECOUNT',  label = 'Enemies',       ops = { { 'count', 'ENEMY_COUNT' } }, default = 'AT_LEAST.3.0.10' },
     -- (job expansion) the advanced conditions: offered only with "More conditions" ticked (a saved rule with one is
     -- always shown)
     { key = 'SKILLCHAIN', label = 'Skillchain', ops = { { 'a magic burst is possible', 'MB_AVAILABLE' },
@@ -3114,6 +3249,12 @@ M.SUBJECT_HELP = {
         .. 'or job ability.',
     COOLDOWN   = 'True while the squad mate cannot use the job ability yet because of its recast, whatever the rule\'s target is.',
     SHADOWS    = 'How many Utsusemi shadows or Blink images the target has left.',
+    FAMILY     = 'The kind of monster the squad mate is fighting (Goblin, Orc, Bat ...). It looks at the enemy whatever the rule\'s '
+        .. 'target is, so "Self" or "Party" rules can use it: Enemy family is Goblin -> Barfira.',
+    PCOUNT     = 'How many party members (you, the party and the mates, within 20 yalms of this mate) match: all of them, the ones '
+        .. 'asleep, or the ones with a status. E.g. at least 2 asleep -> Curaga, otherwise -> Cure.',
+    ECOUNT     = 'How many monsters fighting the party are within reach of the mate\'s enemy, above an HP %. Monsters only '
+        .. 'standing nearby do not count. E.g. at least 3 above 30% -> Stonega, otherwise -> Stone.',
     SKILLCHAIN = 'The enemy\'s skillchain state (target Enemy only): an open skillchain, or a magic burst window now.',
     LEVEL      = 'The target\'s level.',
     TIMER      = 'True the first time, then once every so many seconds.',
@@ -3167,6 +3308,9 @@ M.COND_LABELS = {
     HAS_MP_MPP_GTE     = { 'MP (mages) at least', '%' },
     JA_ON_COOLDOWN     = { 'On cooldown:', 'ja' },
     MOD_LT             = { 'Below:', 'mod' },
+    ENEMY_FAMILY       = { 'Enemy is', 'family' },   -- (F1/F2, server version 11)
+    PARTY_COUNT        = { 'Party members', 'pcount' },
+    ENEMY_COUNT        = { 'Enemies', 'ecount' },
 }
 
 local ROMAN = { I = true, II = true, III = true, IV = true, V = true, VI = true }
@@ -3206,7 +3350,8 @@ function M.cond_unit(id, cat)
     end
 
     local c = cat and cat.conds and cat.conds[id or '']
-    return c and (c.kind == 'e' and 'effect' or c.kind == 'j' and 'ja' or c.kind == 'm' and 'mod' or c.kind == 'r' and '' or nil) or nil
+    return c and (c.kind == 'e' and 'effect' or c.kind == 'j' and 'ja' or c.kind == 'm' and 'mod' or c.kind == 'r' and ''
+        or c.kind == 'y' and 'family' or c.kind == 'p' and 'pcount' or c.kind == 'q' and 'ecount' or nil) or nil
 end
 
 -- "UTSUSEMI.2" -> "Utsusemi shadows below 2"
@@ -3231,6 +3376,8 @@ function M.cond_text(id, arg, cat)
         return (arg and arg ~= '' and M.pretty(arg) or '?') .. ' is on cooldown' -- "Provoke is on cooldown"
     elseif unit == 'mod' then
         return M.mod_text(arg)
+    elseif unit == 'family' or unit == 'pcount' or unit == 'ecount' then
+        return M.count_text(id, arg) -- (F1/F2)
     elseif unit == nil then
         return label
     elseif unit == 'effect' and M.tier_song(arg) then
@@ -3315,6 +3462,8 @@ function M.cond_short(id, arg, cat)
         local name, n = M.mod_parse(arg)
         local short = { UTSUSEMI = 'Shadows', BLINK = 'Images' }
         return (name and short[name] or '?') .. ' < ' .. tostring(n or '?')
+    elseif id == 'ENEMY_FAMILY' or id == 'PARTY_COUNT' or id == 'ENEMY_COUNT' then
+        return M.count_short(id, arg) -- (F1/F2)
     end
 
     return M.cond_text(id, arg, cat)
@@ -3598,6 +3747,23 @@ local function available()
     return s(600)
 end
 
+-- (0.3.9) the width of a text in the current font, in pixels. Ashita's CalcTextSize hands back two numbers (x, y); a
+-- table is read too. Without the call: 7 px a character at this Size.
+local function text_w(text)
+    local g = imgui()
+    if g.CalcTextSize then
+        local ok, a = pcall(g.CalcTextSize, tostring(text or ''))
+        if ok and type(a) == 'table' then
+            return tonumber(a[1] or a.x) or 0
+        elseif ok and type(a) == 'number' then
+            return a
+        end
+    end
+
+    return #tostring(text or '') * s(7)
+end
+M.text_w = text_w
+
 -- (0.3.5) the width for the control that holds a rule's value: at least `min`, and what is left of the row up to `max`
 -- (default 340), so a long choice can be read while its list is closed. `keep`: room to leave for what follows it.
 local function fill_w(min, keep, max)
@@ -3831,6 +3997,50 @@ local function int_input(id, value)
     return value
 end
 
+-- (0.3.9) the width a whole-number field needs to show `digits` digits WITH its - / + buttons, at this Size and font:
+-- the digits, the frame's padding on both sides, and the two square step buttons (each a frame high) with their gaps.
+-- (0.3.8 gave the Enemies condition's fields a fixed 60 px: at 120 % the buttons took all of it and the value was gone.)
+function M.int_field_w(digits)
+    local g = imgui()
+    local frameH = nil
+    if g.GetFrameHeight then
+        local ok, h = pcall(g.GetFrameHeight)
+        frameH = ok and type(h) == 'number' and h or nil
+    end
+
+    frameH = frameH or s(19)
+    return math.floor(text_w(string.rep('0', math.max(1, digits or 2))) + s(8) + 2 * (frameH + s(4)) + s(6) + 0.5)
+end
+
+-- (0.3.9) a whole-number field with the words around it ("above HP %" [ 30 - + ], "within" [ 10 - + ] "yalms") as ONE
+-- group: it moves to the next line together, at `indent`, when it does not fit the rest of this one, so a label is never
+-- parted from its field or its unit, and the field is always wide enough for its value. Returns what int_input returns.
+local function num_group(id, before, value, digits, after, indent, tip)
+    local fieldW = M.int_field_w(digits)
+    local total = (before and (text_w(before) + s(4)) or 0) + fieldW + (after and (s(4) + text_w(after)) or 0)
+    same_if_fits(total, indent)
+    if before then
+        label_text(before)
+        same(s(4))
+    end
+
+    width(fieldW)
+    local v = int_input(id, value)
+    if tip then
+        tooltip(tip)
+    end
+
+    if after then
+        same(s(4))
+        label_text(after)
+    end
+
+    return v
+end
+M.num_group_width = function(before, digits, after)
+    return (before and (text_w(before) + s(4)) or 0) + M.int_field_w(digits) + (after and (s(4) + text_w(after)) or 0)
+end
+
 -- ---------------------------------------------------------------- edits without ImGui (the window calls these; tests too)
 local function cond_keys(slot)
     if slot == 2 then
@@ -3869,6 +4079,9 @@ function M.set_condition(r, slot, cond, cat)
         r[ak] = string.format('%d', math.max(spec.lo, math.min(spec.hi, v)))
     elseif spec and spec.kind == 'm' then
         r[ak] = (sn and sn.subj.default) or 'UTSUSEMI.2' -- (job expansion) MOD_LT: "MODIFIER.number"
+    elseif spec and (spec.kind == 'y' or spec.kind == 'p' or spec.kind == 'q') then
+        -- (F1/F2) "GOBLIN", "AT_LEAST.2.ASLEEP", "AT_LEAST.3.0.10"
+        r[ak] = (sn and sn.subj.default) or ({ y = 'GOBLIN', p = 'AT_LEAST.2', q = 'AT_LEAST.3.0.10' })[spec.kind]
     else
         r[ak] = nil
     end
@@ -4156,15 +4369,10 @@ local function condition_editor(r, slot, cat, labelW)
 
     local spec = cat.conds[cond]
     if spec and spec.kind == 'r' then
-        same_if_fits(s(150), labelW)
-        width(s(110))
-        r[ak] = int_input('##gsq-val' .. slot, r[ak])
-        tooltip(string.format('A whole number, %d to %d. Kept exactly as you type it.', spec.lo, spec.hi))
+        -- (0.3.9) the field as wide as its largest value needs, with its unit, as one group
         local unit = M.cond_unit(cond, cat)
-        if unit and unit ~= '' and unit ~= 'effect' then
-            same(s(3))
-            g.Text(unit)
-        end
+        r[ak] = num_group('##gsq-val' .. slot, nil, r[ak], #tostring(spec.hi), (unit and unit ~= '' and unit ~= 'effect') and unit or nil, labelW,
+            string.format('A whole number, %d to %d. Kept exactly as you type it.', spec.lo, spec.hi))
 
         local n = tonumber(r[ak] or '')
         if n == nil or n < spec.lo or n > spec.hi or n ~= math.floor(n) then
@@ -4209,13 +4417,66 @@ local function condition_editor(r, slot, cat, labelW)
         width(s(170))
         local chosen = combo('##gsq-mod' .. slot, name, M.MOD_ORDER, function(v) return v and M.MODS[v][3] or '(choose)' end,
             function(v) return M.MODS[v or ''] and string.format('%s left on the target (%d-%d).', M.MODS[v][3], M.MODS[v][1], M.MODS[v][2]) end)
-        same_if_fits(s(110), labelW)
-        width(s(110))
-        local typed = int_input('##gsq-modn' .. slot, tostring(n or 2))
-        r[ak] = string.format('%s.%s', chosen or 'UTSUSEMI', typed ~= nil and typed ~= '' and typed or '2')
-        tooltip('True while the target has fewer than this many left (Utsusemi shadows or Blink images). '
+        local typed = num_group('##gsq-modn' .. slot, nil, tostring(n or 2), 2, nil, labelW,
+            'True while the target has fewer than this many left (Utsusemi shadows or Blink images). '
             .. 'E.g. Utsusemi shadows below 2: cast Utsusemi again before the last shadow is gone.')
+        r[ak] = string.format('%s.%s', chosen or 'UTSUSEMI', typed ~= nil and typed ~= '' and typed or '2')
         local why = M.mod_problem(r[ak])
+        if why then
+            same()
+            colored(M.theme.bad, '(' .. why .. ')')
+        end
+    elseif spec and spec.kind == 'y' then
+        -- (F1, server version 11) ENEMY_FAMILY: one monster family; a saved name outside the list stays
+        local names = {}
+        for _, n in ipairs(M.FAMILY_ORDER) do names[#names + 1] = n end
+        local inList = false
+        for _, n in ipairs(names) do inList = inList or n == r[ak] end
+        if r[ak] and not inList then names[#names + 1] = r[ak] end
+        local famW = math.max(s(150), text_w('Adamantoise') + s(34))   -- (0.3.9) the longest name in the list, and the arrow
+        same_if_fits(famW, labelW)
+        width(famW)
+        r[ak] = combo('##gsq-fam' .. slot, r[ak], names, function(v) return v and M.pretty(v) or '(choose)' end) or r[ak]
+        tooltip('The enemy the squad mate fights is this kind of monster. Works with any target: Self, Party, Enemy ...')
+    elseif spec and (spec.kind == 'p' or spec.kind == 'q') then
+        -- (F2, server version 11) PARTY_COUNT / ENEMY_COUNT: comparison, number, and the filter
+        local cmp, n, a, b
+        if spec.kind == 'p' then
+            cmp, n, a = M.pcount_parse(r[ak])
+        else
+            cmp, n, a, b = M.ecount_parse(r[ak])
+        end
+
+        -- (0.3.9) each part a group that wraps whole, to the value column: the comparison with its count, then (Party
+        -- members) the filter, or (Enemies) "above HP %" with its field and "within" with its field and "yalms". Every field
+        -- is as wide as its largest value needs (count 2 digits, HP 2, reach 2) with its - / + buttons.
+        local cmpW = math.max(s(96), text_w('fewer than') + s(34))
+        same_if_fits(cmpW + s(6) + M.int_field_w(2), labelW)
+        width(cmpW)
+        cmp = combo('##gsq-cmp' .. slot, cmp or 'AT_LEAST', M.COUNT_CMPS, function(v) return M.COUNT_CMP_LABEL[v or ''] or '?' end) or 'AT_LEAST'
+        same(s(6))
+        width(M.int_field_w(2))
+        local typed = tonumber(int_input('##gsq-cnt' .. slot, tostring(n or 2))) or n or 2
+        tooltip(spec.kind == 'p' and string.format('How many members (0-%d).', M.PARTY_COUNT_MAX) or string.format('How many monsters (0-%d).', M.ENEMY_COUNT_MAX))
+        if spec.kind == 'p' then
+            local statusW = math.max(s(130), text_w('with Petrification') + s(34))
+            same_if_fits(statusW, labelW)
+            width(statusW)
+            local status = combo('##gsq-pst' .. slot, a or '', M.PCOUNT_STATUS, function(v)
+                return (v == nil or v == '') and 'any member' or (v == 'ASLEEP' and 'asleep' or ('with ' .. M.pretty(v)))
+            end)
+            r[ak] = string.format('%s.%d%s', cmp, typed, (status and status ~= '') and ('.' .. status) or '')
+            tooltip('Counted: living party members within 20 yalms of this mate, the mate included. "asleep" = Sleep, Sleep II or Lullaby.')
+        else
+            local hp = tonumber(num_group('##gsq-ehp' .. slot, 'above HP %', tostring(a or 0), 2, nil, labelW,
+                'Only monsters above this HP % count (0: any HP).')) or a or 0
+            local radius = tonumber(num_group('##gsq-erad' .. slot, 'within', tostring(b or 10), 2, 'yalms', labelW,
+                'Counted: monsters fighting the party (their target is one of you, or they have enmity on one of you) within '
+                .. 'this many yalms of the mate\'s enemy, the enemy included (1-30). Monsters only standing nearby are not counted.')) or b or 10
+            r[ak] = string.format('%s.%d.%d.%d', cmp, typed, hp, radius)
+        end
+
+        local why = M.count_problem(spec.kind, r[ak])
         if why then
             same()
             colored(M.theme.bad, '(' .. why .. ')')
@@ -6074,6 +6335,16 @@ function M.status_lines(d, m, st)
     }
 end
 
+-- (0.3.9) where the values of the status lines start: after the widest label and a gap, at least 96 px at this Size
+function M.status_label_w(lines)
+    local w = s(96)
+    for _, line in ipairs(lines) do
+        w = math.max(w, math.floor(text_w(line[1]) + s(10) + 0.5))
+    end
+
+    return w
+end
+
 local function save_bar(d)
     local g = imgui()
     g.Separator()
@@ -6081,11 +6352,18 @@ local function save_bar(d)
     local busy = M.busy() or S.apply ~= nil
     local st = M.bar_state(d, m)
     local tones = { ok = M.theme.ok, gold = M.theme.warn or M.theme.gold, bad = M.theme.bad, note = M.theme.secondary, text = M.theme.text }
-    local labelW = s(96)
-    for i, line in ipairs(M.status_lines(d, m, st)) do
+    -- (0.3.9) the label column is as wide as its longest label ("Sturgeon runs" at 120 % did not fit 96 px and the
+    -- value was drawn over it); a value that does not fit the rest of the line wraps there, under itself
+    local lines = M.status_lines(d, m, st)
+    local labelW = M.status_label_w(lines)
+    for i, line in ipairs(lines) do
         colored(M.theme.muted, line[1])
         g.SameLine(labelW)
-        colored(tones[line[3]] or M.theme.text, line[2])
+        if text_w(line[2]) > available() then
+            wrapped(tones[line[3]] or M.theme.text, line[2])
+        else
+            colored(tones[line[3]] or M.theme.text, line[2])
+        end
         if i == 2 then
             tooltip(M.DEFAULT_RULES_HELP) -- (what "default job rules" are, and that the Squad Role filters only those)
         end
@@ -6125,6 +6403,9 @@ local function save_bar(d)
         wrapped(M.theme.secondary, st.note)
     end
 end
+
+-- (0.3.9) for the tests only, as M._S: the two parts whose layout they check (a condition's row, the status lines)
+M._draw = { condition_editor = condition_editor, save_bar = save_bar }
 
 -- the bar is there for every set that is open with the server's choices loaded (0.3.4: also a read-only one, which can
 -- still be assigned and applied)

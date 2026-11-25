@@ -66,7 +66,8 @@ try {
             @{ n = 'song tiers + import/export 0.3.3 (test_gambits_bard_io.lua)'; a = @('test_gambits_bard_io.lua', $lua, $gl, $ja, $add, $Work, $Server) },
             @{ n = 'picker list cache (test_gambits_view_cache.lua)';   a = @('test_gambits_view_cache.lua', $lua, $gl, $ja, $add, $Work, $Server) },
     @{ n = 'Save / Apply, live state, caches 0.3.4 (test_gambits_save_apply.lua)'; a = @('test_gambits_save_apply.lua', $lua, $gl, $ja, $add, $Work) },
-    @{ n = 'settings follow the character, theme default 0.3.4 (test_gambits_settings_theme.lua)'; a = @('test_gambits_settings_theme.lua', $add) }
+    @{ n = 'settings follow the character, theme default 0.3.4 (test_gambits_settings_theme.lua)'; a = @('test_gambits_settings_theme.lua', $add) },
+    @{ n = 'enemy family and counts, v11 (test_gambits_feedback.lua)'; a = @('test_gambits_feedback.lua', $lua, $gl, $ja, $add, $Work, $Server) }
         )
         foreach ($s in $suites) {
             $out = & $run.exe @pre @($s.a) 2>&1 | ForEach-Object { "$_" }

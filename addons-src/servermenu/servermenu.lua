@@ -37,7 +37,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.32';   -- (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.34';   -- (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -305,6 +305,9 @@ local S = {
     -- the button
     cfg = { button_x = '18', button_y = '240', button_locked = 'false', button_hidden = 'false', button_wide = 'false', tab = 'Squad', spell = 'Dia', scale = '1',
             button_opacity = '100', menu_opacity = '100',     -- (1.26g, K-Andy) percent; /menu opacity
+            -- (1.34) the launcher's Gambits half (Options > Show Gambits shortcut), and the compact Camp bar of 1.33 (which
+            -- had no default here, so it was saved but not read back after a reload: only keys listed here are read)
+            launcher_gambits = 'true', camp_compact = 'false',
             theme = '' },   -- (1.27) classic | squad | crimson; '' = not decided yet (see the load event)
     cfgDirty = false, cfgSavedAt = -1000, buttonPos = nil, dragging = false, dragFrom = nil, dragMoved = false,
 };
@@ -800,6 +803,14 @@ local function onLine(payload)
     end
     local camp = parseCamp(payload);
     if camp then S.incomingCamp = camp; return; end
+    -- (1.33, community feedback F5-F7) campst|<camp 1/0>|<paused 1/0>|<state>|<pulls>|<next pull at enemy HP %>|<healer MP %>:
+    -- in a panel answer, or by itself when the camp changed (squad.lua SQUAD_CAMPX.push); then it is applied at once
+    local stOn, stPaused, stState, stPulls, stAt, stMp = payload:match('^campst|([01])|([01])|(%a+)|(%d+)|(%d+)|(%d+)$');
+    if stOn then
+        X.campSt({ on = stOn == '1', paused = stPaused == '1', state = stState, pulls = tonumber(stPulls), pullAt = tonumber(stAt),
+                   healerMp = tonumber(stMp) });
+        return;
+    end
     -- (squad.lua for servermenu 1.17) campbots|<bot players in your party, comma list or ->|<the bot pulling or ->
     local cbNames, cbPuller = payload:match('^campbots|([^|]*)|([^|]*)$');
     if cbNames then
@@ -1294,12 +1305,30 @@ local function px(n)
     if type(n) ~= 'number' or n <= 0 then return n; end
     local us = userScale();
     local size = has('GetFontSize') and imgui.GetFontSize() or 13;
-    if S.scaledNow and type(size) == 'number' then size = size / us; end   -- (inside our window the font is scaled already)
+    -- (inside our window, or while our window's font is pushed, the font is scaled already)
+    if (S.scaledNow or S.fontPushed) and type(size) == 'number' then size = size / us; end
     local scale = (type(size) == 'number' and size > 0) and math.max(1, math.min(3, size / 13)) or 1;
     return math.floor(n * scale * us + 0.5);
 end
 
+-- (1.34) The text of every window of this menu at its Size, the way the Gambits window does it: the game's font pushed
+-- AT the scaled size (ImGui 1.92: PushFont(font, size) lays the letters out for that size), before the window begins and
+-- popped after it ends. Until 1.33 the font was drawn at its own size and stretched by SetWindowFontScale, so at 120 %
+-- the Squads menu's letters were softer than the Gambits window's at the same Size. SetWindowFontScale stays the fallback
+-- for a binding without PushFont. Returns whether a font was pushed; X.popFont(pushed) closes it exactly.
+function X.pushFont()
+    local us = userScale();
+    if us == 1 or S.fontPushed or not (has('PushFont') and has('GetFont') and has('GetFontSize')) then return false; end
+    local ok = pcall(function () imgui.PushFont(imgui.GetFont(), imgui.GetFontSize() * us); end);
+    S.fontPushed = ok;
+    return ok;
+end
+function X.popFont(pushed)
+    if pushed then pcall(imgui.PopFont); S.fontPushed = false; end
+end
+
 local function scaleWindow()
+    if S.fontPushed then S.scaledNow = true; return; end   -- (1.34: the font is the scaled one already)
     if has('SetWindowFontScale') then imgui.SetWindowFontScale(userScale()); S.scaledNow = true; end
 end
 local function G(name) return rawget(_G, name); end
@@ -1348,6 +1377,23 @@ end
 -- starts a new line: nothing is cut off at the window's edge any more (the top row needed 850 px in a 592 px window)
 function X.fit(w, spacing)
     return U.same_if_fits(imgui, px(w), spacing or 6);
+end
+-- (1.34) the cursor's x in the window (Ashita hands back a number), or nil
+function X.cursorX()
+    if not has('GetCursorPosX') then return nil; end
+    local ok, x = pcall(imgui.GetCursorPosX);
+    return (ok and type(x) == 'number') and x or nil;
+end
+-- (1.34) the next control on this line when `w` PIXELS (measured: text widths, px() sizes) still fit, else on a new line
+-- starting at `indentX` (the column the group belongs to), so a wrapped group lines up under its row, not at the edge
+function X.fitAt(w, indentX, spacing)
+    local stayed = U.same_if_fits(imgui, w, spacing or 6);
+    if not stayed and indentX and has('SetCursorPosX') then pcall(imgui.SetCursorPosX, indentX); end
+    return stayed;
+end
+-- (1.34) start a new line at `x` (after the previous line's last control)
+function X.lineAt(x)
+    if x and has('SetCursorPosX') then pcall(imgui.SetCursorPosX, x); end
 end
 -- (1.28) a tab: the same in every window of the menu. The main ones (Squad / Dualbox / Auto, Stats / Gear) are
 -- U.SIZE.tab high; `compact` is the smaller kind for a choice inside a view (Equipment / Look). The selected one has
@@ -1509,15 +1555,17 @@ local function campRow()
     if camp == nil then return; end
     X.rowLabel('Camp');
     if button(camp.on and 'Move camp here' or 'Set camp here', 'campset', 124, 0, camp.on and 'on' or nil) then
-        campCommand('camp'); camp.on = true;
+        X.campSetOrMove(camp);
     end
-    tooltip('Your squad holds this spot and fights whatever comes within 20 yalms of it');
+    tooltip(camp.on and X.caps and X.caps.campmove and 'The camp moves to where you stand; the puller, the picks and Start / Pause stay'
+        or 'Your squad holds this spot and fights whatever comes within 20 yalms of it');
     if camp.on then
         imgui.SameLine(0, 6);
         if button('Camp off', 'campoff', 84, 0) then campCommand('camp off'); camp.on = false; end
         tooltip('They follow you again');
     end
-    X.fit(170, 14);
+    local contentX = px(U.SIZE.labelCol);   -- (1.34) where this row's controls start: a wrapped group goes back to here
+    X.fitAt(X.textW('Puller') + X.sv(8) + px(110), contentX, 14);
     dimText('Puller'); imgui.SameLine(0, 8);
     local names, current = { 'You' }, 'You';
     local tips = { You = 'You pull: bring monsters back to camp and the squad joins in' };
@@ -1549,7 +1597,7 @@ local function campRow()
     end
     local someonePulls = camp.puller ~= 0 or camp.botPuller ~= nil;
     if camp.on and someonePulls then
-        X.fit(72);
+        X.fitAt(px(72), contentX);
         -- (1.22) a new camp waits for Start before the first pull (squad.lua, from Jon Tanta's Squad Update)
         local fresh = camp.paused and (camp.pulls or 0) == 0;
         if button(camp.paused and (fresh and 'Start' or 'Resume') or 'Pause', 'camppause', 72, 0, camp.paused and 'selected' or nil) then
@@ -1558,15 +1606,22 @@ local function campRow()
         tooltip(camp.paused and (fresh and 'The puller starts pulling' or 'The puller goes back to pulling') or 'No new pulls (the squad still holds camp)');
     end
     if camp.on then
-        X.fit(60, 12);
-        dimText(camp.pulls == 1 and '1 pull' or (tostring(camp.pulls or 0) .. ' pulls'));
+        -- (1.33) what the camp is doing now (campst), before the pull count; (1.34) measured, so it is never cut at the
+        -- window's edge ("Paused, 0" was the end of "Paused, 0 pulls")
+        local stateText = camp.state and X.CAMP_STATE[camp.state] or nil;
+        local line = (stateText and (stateText .. ', ') or '') .. (camp.pulls == 1 and '1 pull' or (tostring(camp.pulls or 0) .. ' pulls'));
+        X.fitAt(X.textW(line), contentX, 12);
+        dimText(line);
     end
+    X.campSettings(camp, someonePulls, contentX);
     -- what the mate pulls: any number of kinds of monster around the camp, each one toggles
     if camp.on and someonePulls and camp.kinds then
+        X.lineAt(contentX);
         dimText('Pull'); imgui.SameLine(0, 8);
         local wants = camp.wants or {};
         local any = true;
         for _ in pairs(wants) do any = false; end
+        local anyX = X.cursorX() or contentX;   -- (1.34) the kinds that do not fit this line start again under Anything
         if button('Anything', 'campany', 82, 0, any and 'selected' or nil) then
             campCommand('camp want any');
             camp.wants, camp.want = {}, nil;
@@ -1577,7 +1632,7 @@ local function campRow()
                 local key = k.name:lower():gsub('_', ' ');
                 -- (1.24) the count is how many are up right now; none up = all defeated and waiting to come back
                 local label = string.format('%s lv%d%s %s', (k.name:gsub('_', ' ')), k.lo, k.hi ~= k.lo and ('-' .. k.hi) or '', k.count > 0 and ('x' .. k.count) or '(none up)');
-                U.same_if_fits(imgui, X.textW(label) + X.sv(12), 6);
+                X.fitAt(X.textW(label) + X.sv(12), anyX);
                 if button(label, 'campkind' .. k.name, 0, 0, wants[key] and 'selected' or nil) then
                     campCommand('camp want ' .. k.name);
                     wants[key] = (not wants[key]) and true or nil;
@@ -1588,6 +1643,133 @@ local function campRow()
             end
         end
     end
+end
+
+-- ---------------------------------------------------------------- (1.33) camp state, pull settings, the compact camp bar
+-- Community feedback F5-F7 (2026-11-25). The server's campst line (squad.lua SQUAD_CAMPX) carries the camp's state and the two
+-- pull settings, in each panel answer and by itself whenever the camp changes (a command, a click, the server's own pulls),
+-- so the Camp row and the compact bar show what is true without a refresh. An older server sends no campst: no state word,
+-- no pull settings, and the compact bar's toggle is not offered.
+X.CAMP_STATE = { idle = 'Ready', pulling = 'Pulling', fighting = 'Fighting', paused = 'Paused', off = 'No camp' };
+X.PULL_AT = { '0', '25', '40', '50', '60', '75' };
+X.PULL_AT_LABEL = { ['0'] = 'Off', ['25'] = '25%', ['40'] = '40%', ['50'] = '50%', ['60'] = '60%', ['75'] = '75%' };
+X.PULL_AT_HELP = {
+    ['0'] = 'One monster at a time: the next pull starts after the fight (the default)',
+    ['25'] = 'The puller fetches the next monster once this one is at 25% HP, if no link or pet is on the party and the puller is not the one it hits',
+};
+for _, k in ipairs({ '40', '50', '60', '75' }) do X.PULL_AT_HELP[k] = 'The same at ' .. k .. '% HP: earlier means more overlap'; end
+X.HEALER_MP = { '0', '20', '30', '40', '50', '60', '80' };
+X.HEALER_MP_LABEL = { ['0'] = 'Default', ['20'] = '20%', ['30'] = '30%', ['40'] = '40%', ['50'] = '50%', ['60'] = '60%', ['80'] = '80%' };
+X.HEALER_MP_HELP = {
+    ['0'] = 'Every mate with MP needs 30% MP before a pull (the default)',
+};
+for _, k in ipairs({ '20', '30', '40', '50', '60', '80' }) do
+    X.HEALER_MP_HELP[k] = 'The healers (mates with the Role Healer, else the White Mages) need ' .. k .. '% MP; the other mates 30%. No healer out: no change';
+end
+
+function X.campSt(st)
+    local function apply(camp)
+        camp.on, camp.paused, camp.pulls, camp.state = st.on, st.paused, st.pulls, st.state;
+        camp.pullAt, camp.healerMp = st.pullAt, st.healerMp;
+    end
+    if S.incomingCamp then apply(S.incomingCamp); return; end
+    if S.camp then
+        apply(S.camp);
+    elseif st.on then
+        S.camp = { on = true, puller = 0 };
+        apply(S.camp);
+        ask(1);   -- (the puller and the kinds come with a full answer)
+    end
+end
+
+-- Set camp here / Move camp here. A server that can move a camp (cap|campmove) keeps the puller, the picks and Start / Pause;
+-- an older one sets a new camp, as before.
+function X.campSetOrMove(camp)
+    if camp.on and X.caps and X.caps.campmove then campCommand('camp move'); else campCommand('camp'); end
+    camp.on = true;
+end
+
+function X.campSettings(camp, someonePulls, contentX)
+    if not camp.on or camp.pullAt == nil then return; end   -- (an older server: no campst, nothing to show)
+    contentX = contentX or px(U.SIZE.labelCol);
+    X.lineAt(contentX);   -- (1.34) under the Camp row's controls, not at the window's edge
+    local first = true;
+    if someonePulls then
+        -- (1.34) each label with its list is one group: it moves to the next line whole, back under the first one
+        local at = tostring(camp.pullAt or 0);
+        if X.PULL_AT_LABEL[at] == nil then X.PULL_AT_LABEL[at] = at .. '%'; end
+        dimText('Next pull at'); imgui.SameLine(0, 6);
+        local pick = combo('camppullat', at, X.PULL_AT, 70, X.PULL_AT_HELP, nil, X.PULL_AT_LABEL);
+        if pick then campCommand('camp pullat ' .. (pick == '0' and 'off' or pick)); camp.pullAt = tonumber(pick); end
+        tooltip('Enemy HP at which the puller fetches the next monster while the squad finishes this one');
+        local mp = tostring(camp.healerMp or 0);
+        if X.HEALER_MP_LABEL[mp] == nil then X.HEALER_MP_LABEL[mp] = mp .. '%'; end
+        X.fitAt(X.textW('Healer MP') + X.sv(6) + px(80), contentX, 12);
+        dimText('Healer MP'); imgui.SameLine(0, 6);
+        local pickMp = combo('camphealermp', mp, X.HEALER_MP, 80, X.HEALER_MP_HELP, nil, X.HEALER_MP_LABEL);
+        if pickMp then campCommand('camp healermp ' .. (pickMp == '0' and 'default' or pickMp)); camp.healerMp = tonumber(pickMp); end
+        tooltip('MP the healers need before the next pull');
+        first = false;
+    end
+    local compact = S.cfg.camp_compact == 'true';
+    local barLabel = compact and 'Hide camp bar' or 'Camp bar';
+    if not first then X.fitAt(X.textW(barLabel) + X.sv(12), contentX, 12); end
+    if button(barLabel, 'campbar', 0, 0, compact and 'selected' or nil) then
+        setCfg('camp_compact', compact and 'false' or 'true');
+    end
+    tooltip('A small window with the camp\'s state and its Start / Pause, Camp on / off and Move buttons, open while you play');
+end
+
+-- the compact camp bar: its own small window, shown while it is switched on and the server said what the camp is doing
+function X.campBar()
+    if S.cfg.camp_compact ~= 'true' or not X.inWorld() then return; end
+    local camp = S.camp;
+    if camp == nil or camp.pullAt == nil then return; end
+    -- (the server tells the menu about changes for 30 minutes after the last panel answer: ask once in a while so the bar
+    --  keeps following while the menu itself stays closed)
+    if not S.open[1] and now() - (S.lastAsk or 0) > 600 then ask(0); end
+    local flags = 0;
+    for _, name in ipairs({ 'ImGuiWindowFlags_NoResize', 'ImGuiWindowFlags_NoScrollbar', 'ImGuiWindowFlags_NoCollapse',
+                            'ImGuiWindowFlags_AlwaysAutoResize', 'ImGuiWindowFlags_NoFocusOnAppearing' }) do
+        flags = flags + (G(name) or 0);
+    end
+    if has('SetNextWindowPos') then imgui.SetNextWindowPos({ 240, 240 }, G('ImGuiCond_FirstUseEver') or 4); end
+    local token = U.push(imgui, X.menu.window, X.vars());   -- (the menu's theme and metrics; popped again below)
+    local open = { true };
+    local fontPushed = X.pushFont();   -- (1.34) the text at this Size, laid out for it (see X.pushFont)
+    local shown = imgui.Begin('Camp###sm_campbar', open, flags);
+    local ok, err = pcall(function ()
+        if not shown then return; end
+        scaleWindow();
+        local state = camp.on and (camp.paused and 'paused' or camp.state or 'idle') or 'off';
+        colorText(state == 'fighting' and C.warn or (state == 'pulling' and C.good or C.dim), X.CAMP_STATE[state] or state);
+        imgui.SameLine(0, 10);
+        if camp.on then
+            local someonePulls = camp.puller ~= 0 or camp.botPuller ~= nil;
+            if someonePulls then
+                local fresh = camp.paused and (camp.pulls or 0) == 0;
+                if button(camp.paused and (fresh and 'Start' or 'Resume') or 'Pause', 'barpause', 66, 0, camp.paused and 'selected' or nil) then
+                    campCommand(camp.paused and (fresh and 'camp start' or 'camp resume') or 'camp pause'); camp.paused = not camp.paused;
+                end
+                tooltip(camp.paused and 'The puller starts pulling' or 'No new pulls (the squad still holds camp)');
+                imgui.SameLine(0, 4);
+            end
+            if button('Move here', 'barmove', 76, 0) then X.campSetOrMove(camp); end
+            tooltip('The camp moves to where you stand');
+            imgui.SameLine(0, 4);
+            if button('Camp off', 'baroff', 70, 0) then campCommand('camp off'); camp.on = false; end
+            tooltip('They follow you again');
+        else
+            if button('Set camp here', 'barset', 104, 0) then campCommand('camp'); camp.on = true; end
+            tooltip('Your squad holds this spot and fights whatever comes within 20 yalms of it');
+        end
+    end);
+    S.scaledNow = false;
+    imgui.End();
+    X.popFont(fontPushed);
+    U.pop(imgui, token);
+    if not open[1] then setCfg('camp_compact', 'false'); end
+    if not ok then error(err, 0); end
 end
 
 -- ---------------------------------------------------------------- the Style row (range, weapon skills) and body size
@@ -1778,6 +1960,35 @@ function X.openGambits(slot)
     local chat = chatManager();
     -- (1.30) without a slot (the launcher's Gambits half): the editor opens on the mate it had last
     if chat then pcall(function() chat:QueueCommand(1, slot and string.format('/gambits show %d', slot) or '/gambits show'); end); end
+    X.gsqShownGuess = { value = true, at = now() };   -- (lit at once; the editor's own word follows in a frame or two)
+end
+function X.closeGambits()
+    local chat = chatManager();
+    if chat then pcall(function() chat:QueueCommand(1, '/gambits hide'); end); end
+    X.gsqShownGuess = { value = false, at = now() };
+end
+
+-- (1.34) Is the Gambits window shown right now? Gambits 0.3.9 keeps a small file (gambits.open, beside gambits.loaded) while
+-- its window is shown and says "/xifogambits" whenever that changes, however it changed (its X, /gambits, a card's
+-- button, this launcher). The file is read again at once on that line, and once a second otherwise. For a second after a
+-- click the click's own result is shown (the command is still on its way). An older Gambits has no such file: the half
+-- then never shows lit and works as an open button, as before.
+X.GAMBITS_SIGNAL = '/xifogambits';
+function X.gambitsShown(force)
+    local t = now();
+    if force or X.gsqOpenAt == nil or t - X.gsqOpenAt > 1 then
+        X.gsqOpenAt = t;
+        local dir = U.pref_dir(installPath(), (X.follow and X.follow.id) or U.current_identity());
+        X.gsqOpen = dir ~= nil and U.presence_valid(dir .. 'gambits.open');   -- (false without the file)
+    end
+    local guess = X.gsqShownGuess;
+    if guess and t - guess.at < 1 then return guess.value; end
+    return X.gsqOpen == true;
+end
+
+-- (1.34) Options > "Show Gambits shortcut" (setting launcher_gambits; on unless it was turned off)
+function X.gambitsShortcut()
+    return S.cfg.launcher_gambits ~= 'false';
 end
 
 -- (1.32) "/xifotheme": the character's theme was just chosen, look at it now. A line between the two add-ons, never
@@ -1833,6 +2044,16 @@ function X.optionsRow()
     local om = combo('smopmenu', X.opacityText('menu_opacity'), steps, 64);
     if om then setCfg('menu_opacity', om); end
     tooltip('How see-through the menu\'s background is');
+    -- (1.34) the launcher's Gambits half: on by default; off leaves a Squads-only button at the same place
+    X.fit(190, 16);
+    local shortcut = X.gambitsShortcut();
+    if has('Checkbox') then
+        local box = { shortcut };
+        if imgui.Checkbox('Show Gambits shortcut##smgsqshortcut', box) and box[1] ~= shortcut then setCfg('launcher_gambits', box[1] and 'true' or 'false'); end
+    elseif button((shortcut and '[x] ' or '[ ] ') .. 'Show Gambits shortcut', 'smgsqshortcut', 0, 0, shortcut and 'selected' or nil) then
+        setCfg('launcher_gambits', shortcut and 'false' or 'true');
+    end
+    tooltip('The Gambits half of the Squads | Gambits launcher. Off: a Squads button only, at the same place. /gambits and the Gambits buttons on the mates stay.');
     if has('Separator') then imgui.Separator(); end
 end
 
@@ -2774,6 +2995,7 @@ local function menuWindow()
         local bg = X.childBg(op);
         if bg then faded = U.push(imgui, { { 'ImGuiCol_ChildBg', bg } }); end
     end
+    local fontPushed = X.pushFont();   -- (1.34) the text at this Size, laid out for it (see X.pushFont)
     local shown = imgui.Begin('Squads - XI: Forever Offline###sm_menu', S.open, flags);
     local ok, err = pcall(function ()
         if not shown then return; end
@@ -2795,6 +3017,7 @@ local function menuWindow()
     S.scaledNow = false;
     imgui.End();
     if faded then U.pop(imgui, faded); end
+    X.popFont(fontPushed);
     U.pop(imgui, token);
     if not ok then error(err, 0); end
 end
@@ -2833,6 +3056,9 @@ function X.launcherMenu(id)
                 if imgui.MenuItem(string.format('Opacity %d%%%s', pct, tonumber(S.cfg.button_opacity or '100') == pct and '   (now)' or '')) then
                     setCfg('button_opacity', pct);
                 end
+            end
+            if imgui.MenuItem(X.gambitsShortcut() and 'Hide Gambits shortcut' or 'Show Gambits shortcut') then   -- (1.34)
+                setCfg('launcher_gambits', X.gambitsShortcut() and 'false' or 'true');
             end
             if imgui.MenuItem('Hide button  (/menu button brings it back)') then
                 setCfg('button_hidden', 'true');
@@ -2885,6 +3111,7 @@ local function buttonWindow()
         flags = flags + (G(name) or 0);
     end
     if S.cfg.button_locked == 'true' then flags = flags + (G('ImGuiWindowFlags_NoMove') or 0); end
+    local fontPushed = X.pushFont();   -- (1.34) the text at this Size, laid out for it (see X.pushFont)
     local shown = imgui.Begin('##servermenu_button', { true }, flags);
     local ok, err = pcall(function ()
         if not shown then return; end
@@ -2928,18 +3155,27 @@ local function buttonWindow()
         half('Squads', 'sm_open', 54, S.open[1] == true, false, 'Squads  (/menu)   drag to move, right-click for options', function ()
             setOpen(not S.open[1]);
         end);
-        -- the thin line between the two halves
-        imgui.SameLine(0, 0);
-        local pos = U.cursor(imgui);   -- (xifo_ui's: the menu's own position helpers stand further down in this file)
-        if pos then U.frame(imgui, pos[1], pos[2] + px(3), 1, px(X.LAUNCHER_H - 6), C.line, nil, 0); end
-        if has('Dummy') then imgui.Dummy({ 1, px(X.LAUNCHER_H) }); end
-        imgui.SameLine(0, 0);
-        local loaded = X.gambitsLoaded();
-        half('Gambits', 'sm_gsq', 60, false, not loaded,
-            loaded and 'Gambits: the Rule Set editor, on the squad mate it had last   (drag to move)'
-                or 'Gambits is not loaded for this character (/addon load gambits).', function ()
-            if loaded then X.openGambits(); else say('Gambits is not loaded: /addon load gambits'); end
-        end);
+        -- (1.34) Options > "Show Gambits shortcut" off: the Squads half alone, at the same saved place (the window sizes
+        -- itself to what it holds, so the control is simply shorter). /gambits and the cards' Gambits buttons stay.
+        if X.gambitsShortcut() then
+            -- the thin line between the two halves
+            imgui.SameLine(0, 0);
+            local pos = U.cursor(imgui);   -- (xifo_ui's: the menu's own position helpers stand further down in this file)
+            if pos then U.frame(imgui, pos[1], pos[2] + px(3), 1, px(X.LAUNCHER_H - 6), C.line, nil, 0); end
+            if has('Dummy') then imgui.Dummy({ 1, px(X.LAUNCHER_H) }); end
+            imgui.SameLine(0, 0);
+            local loaded = X.gambitsLoaded();
+            -- (1.34) Gambits opens AND closes its window, like the Squads half, and is lit while the window is really
+            -- shown, however it was opened or closed (its X, /gambits, a card's button): the editor's own word
+            local shownNow = loaded and X.gambitsShown();
+            half('Gambits', 'sm_gsq', 60, shownNow, not loaded,
+                loaded and (shownNow and 'Gambits: close the Rule Set editor   (drag to move)'
+                    or 'Gambits: the Rule Set editor, on the squad mate it had last   (drag to move)')
+                    or 'Gambits is not loaded for this character (/addon load gambits).', function ()
+                if not loaded then say('Gambits is not loaded: /addon load gambits'); return; end
+                if X.gambitsShown() then X.closeGambits(); else X.openGambits(); end
+            end);
+        end
         S.buttonHot = hot;
         -- when ImGui moved the window by its edge, remember where it went
         if not S.dragging and has('GetWindowPos') then
@@ -2952,6 +3188,7 @@ local function buttonWindow()
     end);
     S.scaledNow = false;
     imgui.End();
+    X.popFont(fontPushed);
     U.pop(imgui, token);
     if not ok then error(err, 0); end
 end
@@ -3758,6 +3995,7 @@ local function renderSheet()
     end);
     local token = U.push(imgui, colors, X.vars());
     local flags = (G('ImGuiWindowFlags_NoCollapse') or 0);
+    local fontPushed = X.pushFont();   -- (1.34) the text at this Size, laid out for it (see X.pushFont)
     local shown = imgui.Begin(title, S.sheetOpen, flags);
     local ok, err = pcall(function ()
         if not shown then return; end
@@ -3815,6 +4053,7 @@ local function renderSheet()
     end);
     S.scaledNow = false;
     imgui.End();
+    X.popFont(fontPushed);
     U.pop(imgui, token);
     if not ok then error(err, 0); end
 end
@@ -3837,6 +4076,7 @@ local function renderActions()
         return { { 'ImGuiCol_WindowBg', C.panel }, { 'ImGuiCol_Border', C.line }, { 'ImGuiCol_Text', C.text } };
     end);
     local token = U.push(imgui, colors, X.vars());
+    local fontPushed = X.pushFont();   -- (1.34) the text at this Size, laid out for it (see X.pushFont)
     local shown = imgui.Begin(title, S.actionsOpen, G('ImGuiWindowFlags_NoCollapse') or 0);
     local ok, err = pcall(function ()
         if not shown then return; end
@@ -3883,6 +4123,7 @@ local function renderActions()
     end);
     S.scaledNow = false;
     imgui.End();
+    X.popFont(fontPushed);
     U.pop(imgui, token);
     if not ok then error(err, 0); end
 end
@@ -3891,6 +4132,7 @@ local function render()
     if not imgui then return; end
     buttonWindow();
     menuWindow();
+    X.campBar();   -- (1.33) the compact camp bar, when switched on
     renderSheet();
     renderActions();
 end
@@ -3976,6 +4218,14 @@ ashita.events.register('command', 'servermenu_command', function (e)
     if first == X.THEME_SIGNAL then
         e.blocked = true;
         X.syncTheme(now(), true);
+        return;
+    end
+    -- (1.34) the Gambits window was just shown or hidden (Gambits 0.3.9 says so, also when it stopped the line first):
+    -- the launcher's Gambits half follows at its next frame
+    if first == X.GAMBITS_SIGNAL then
+        e.blocked = true;
+        X.gsqShownGuess = nil;
+        X.gambitsShown(true);
         return;
     end
     -- (1.26n) a chat line another add-on or you sent (never blocked or changed: it still runs as it is):

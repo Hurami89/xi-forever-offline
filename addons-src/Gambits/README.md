@@ -81,6 +81,20 @@ chosen for the next call and whether Apply is needed stand in the status area. W
 bottom of the game's screen, the panels end at the screen so the Save buttons stay reachable, and the window is never
 larger than the screen.
 
+**0.3.9.** The number fields of a condition (HP below, Enemies, Party members, the effect count) are wide enough for their
+value at any Size, and a field wraps to the next line together with its label, unit and step buttons. The status
+line's label column fits its longest label, so "runs" no longer covers the mate's name, and a long Rule Set name wraps
+instead of running off the window. Scrollbars take the theme's colours. The Squads launcher's Gambits half now shows
+whether this window is open and closes it again.
+
+**0.3.8.** Three new conditions, offered when the server has them (gambits_squad.lua version 11 and its map server):
+**Enemy family** (the enemy is a Goblin, an Orc, a Bat ...; it looks at the enemy whatever the rule's target is, so
+"Enemy family is Goblin -> Barfira" works on Self or Party), **Party members** (how many members within 20 yalms match:
+all, asleep, or with a status; e.g. at least 2 asleep -> Curaga, otherwise Cure) and **Enemies** (how many monsters fighting
+the party are near the enemy, above an HP %; e.g. at least 3 above 30% -> Stonega, otherwise Stone). Monsters only standing
+nearby are not counted. Rules that fix a status (Sleep -> Cure, Petrification -> Stona) now also run after a fight, while
+you are not engaged.
+
 **0.3.7.** A theme picked here is in the Squads menu at its next frame, and one picked there is here at the next frame:
 the add-on that saves the choice tells the other to read it. A window that opens reads it before its first frame.
 

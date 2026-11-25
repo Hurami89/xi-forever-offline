@@ -21,7 +21,7 @@ share codes).
 
 addon.name    = 'Gambits'
 addon.author  = 'XI: Forever Offline'
-addon.version = '0.3.7'
+addon.version = '0.3.9'
 addon.desc    = 'Gambits: Rule Sets for your squad mates (Target -> Conditions -> Action).'
 addon.link    = ''
 
@@ -389,8 +389,10 @@ function G.presence(id)
         local old = U.pref_dir(base, G.presenceId)
         if old then
             os.remove(old .. 'gambits.loaded')
+            os.remove(old .. 'gambits.open') -- (0.3.9)
         end
     end
+    G.openSaid = nil -- (0.3.9) the new character's folder is told the window's state at the next frame
 
     G.presenceId = id
     local dir = base and U.pref_dir(base, id) or nil
@@ -403,6 +405,37 @@ function G.presence(id)
             f:close()
         end
     end
+end
+
+-- (0.3.9) The window's real state for the Squads menu's launcher: a small file gambits.open beside gambits.loaded while
+-- the window is shown (made the same way: with the game process's id), and the line "/xifogambits" whenever it changes,
+-- however it changed (the window's X, /gambits, a mate's Gambits button, the launcher). Looked at once a frame, after
+-- the window was drawn; it only writes when the state changed. The line carries nothing: the file stays the one source.
+G.OPEN_SIGNAL = '/xifogambits'
+function G.announce_open()
+    local shown = G.open[1] == true
+    if shown == G.openSaid or G.presenceId == nil then
+        return
+    end
+
+    G.openSaid = shown
+    local base = install_path()
+    local dir = base and U.pref_dir(base, G.presenceId) or nil
+    if dir then
+        if shown then
+            local f = io.open(dir .. 'gambits.open', 'w')
+            if f then
+                f:write(U.presence_text(addon.version))
+                f:close()
+            end
+        else
+            os.remove(dir .. 'gambits.open')
+        end
+    end
+
+    pcall(function()
+        AshitaCore:GetChatManager():QueueCommand(1, G.OPEN_SIGNAL)
+    end)
 end
 
 -- The theme in use: the character's shared choice when one was made (here or in the Squads menu), else this add-on's
@@ -729,7 +762,7 @@ ashita.events.register('load', 'gv2_load', guarded('load', G.start))
 ashita.events.register('unload', 'gv2_unload', guarded('unload', function()
     Ed.on_unload()
     save_settings()
-    G.presence(nil)
+    G.presence(nil) -- (removes gambits.loaded and, 0.3.9, gambits.open)
 end))
 
 ashita.events.register('command', 'gv2_command', guarded('command', function(e)
@@ -742,6 +775,12 @@ ashita.events.register('command', 'gv2_command', guarded('command', function(e)
     if string.lower(e.command:match('^%s*(%S+)') or '') == G.THEME_SIGNAL then
         e.blocked = true
         G.sync_theme(now(), true)
+        return
+    end
+
+    -- (0.3.9) this add-on's own line to the Squads menu: never sent to the game
+    if string.lower(e.command:match('^%s*(%S+)') or '') == G.OPEN_SIGNAL then
+        e.blocked = true
         return
     end
 
@@ -784,6 +823,7 @@ ashita.events.register('d3d_present', 'gv2_present', guarded('present', function
     Ed.tick()
     G.sync_theme(now())
     render()
+    G.announce_open() -- (0.3.9) after the window was drawn: its X may have closed it in this frame
 end))
 
 return G
