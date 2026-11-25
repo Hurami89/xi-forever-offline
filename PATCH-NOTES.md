@@ -24,6 +24,10 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Character transfer: "is logged in" after a crash or a hard server stop. The import now clears the leftover login itself when the server is not running; no Repair needed. Thanks Hasuko.
 • Launcher music: on PCs where Windows' old player fails ("MCI error 277"), the theme now plays through Windows Media Foundation instead. Thanks lilibun, Hexblood and Sterling.
 • Your own .gguf AI model: the import now starts Ollama's service itself when it is not running, and shows a readable error if something else goes wrong. Thanks AerynGunn.
+• PLAY: no more "FINAL_FANTASY_XI.msi" / "network resource that is unavailable" box when the game you copied from was deleted or moved. The launcher puts the copy's FFXi.dll back where Windows expects it. Don't uninstall FINAL FANTASY XI from Windows' Apps list: the copy needs those entries.
+• Server: a character that had already left a zone could still be counted as leaving it on the zone's next tick. Thanks wildcabbagepatch.
+• Co-op page: no more "'BooleanVar' object is not callable" box every few seconds; if it happens it is only noted in logs\coop-error.log. Thanks Jker_s81.
+• Character transfer: a capture with an unusual character size (from some other servers) no longer stops the import ("Out of range value for column 'size'"). Thanks Jker_s81.
 • San d'Oria mission 6-1: after the cutscene, a chat line now says which key item King Destin wants (a Dreamrose) and where to find it (Western Altepa Desert). Thanks lilibun.
 
 ## v0.3.8 · 24 November 2026
