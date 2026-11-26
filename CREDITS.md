@@ -63,6 +63,7 @@ All of the launcher's music was made for XI: Forever Offline by **JØ (jnull)**,
 - "Beyond the Veil": the 8-Bit theme's song (`assets/press/beyond_the_veil.mp3`).
 - "TOMORROW.EXE": the Aero theme's song (`assets/press/tomorrow_exe.mp3`), by JØ with **Nox** (her voice, with JØ's).
 - "Roots": the Chronicle theme's song (`assets/press/chronicle_roots.mp3`).
+- The Windurst theme's song (`assets/press/windurst_theme.mp3`).
 - "No Signal, All Vibes": the Vaporwave theme's song.
 - The Vaporwave theme's opener: a short piece that plays the first time the launcher opens, before "No Signal, All Vibes"
   takes over.
