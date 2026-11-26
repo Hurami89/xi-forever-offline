@@ -30,7 +30,7 @@ Each comes from its official release page and keeps its own license.
 |---|---|---|
 | [Ashita v4](https://github.com/AshitaXI/Ashita-v4beta) and its bundled addons and plugins | atom0s and the Ashita team and contributors | GPL v3 |
 | [XIUI](https://github.com/tirem/XIUI) | Team XIUI | GPL v3 |
-| [XIUIplus](https://github.com/Team-XIUI/xiuiplus-releases) | Team XIUI+ | see its release page |
+| [XIUIplus](https://github.com/Team-XIUI/XIUIplus) | Team XIUI+ | see its release page |
 | [AutoBot](https://github.com/Buckfutt/AutoBot-Ashita) | K0D3R | MIT |
 | [mobdb](https://github.com/ThornyFFXI/mobdb) | Thorny | MIT |
 | Journal ([Nexus Mods, FFXI mod 44](https://www.nexusmods.com/finalfantasy11/mods/44)) | Kxteel | MIT |

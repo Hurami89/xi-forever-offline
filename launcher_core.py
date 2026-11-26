@@ -713,6 +713,11 @@ class ScriptManager:
             kept.append(line)
         if on:
             kept.append(f"/addon load {name}" if kind == "addon" else f"/load {name}")
+            # (2026-11-25, Ricc) an add-on needs Ashita's addons plugin loaded before it, or the line does nothing
+            # (a second window's script could be missing it)
+            if kind == "addon" and not any(re.match(r"^\s*/load\s+addons\s*$", x, re.I) for x in kept):
+                first = next((i for i, x in enumerate(kept) if re.match(r"^\s*/addon\s+load\s", x, re.I)), len(kept))
+                kept.insert(first, "/load addons")
         self._write(kept)
 
 
