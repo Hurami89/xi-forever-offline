@@ -1,5 +1,10 @@
 """Logic for the XI: Forever Offline launcher (no GUI code here, so it can be tested on its own)."""
 import json, os, re, shutil, subprocess, sys
+try:                                   # (2026-11-25) certificate checks that skip Windows' stale intermediates
+    import launcher_tls
+    launcher_tls.install()
+except Exception:
+    pass
 
 # XIFO_TEST_PLATFORM=windows: the stand-in tests check the Windows paths on a Linux machine
 IS_WINDOWS = os.name == "nt" or os.environ.get("XIFO_TEST_PLATFORM") == "windows"

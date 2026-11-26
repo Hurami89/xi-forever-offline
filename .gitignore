@@ -74,6 +74,8 @@
 !/forever_beta_shirt.py
 # (2026-11-25) Forever Patch: the same for the eyepatch (launcher_client step 5b)
 !/forever_patch.py
+# (2026-11-25) certificate checks without Windows' stale intermediate store (launcher_core installs it)
+!/launcher_tls.py
 # Linux / Steam Deck: Proton, the game's own prefix, the menu entry; the Linux build and its GitHub workflow
 !/launcher_linux.py
 !/build_release.sh
