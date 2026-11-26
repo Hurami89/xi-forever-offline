@@ -534,13 +534,19 @@ class PlayPage:
             app.dual_btn.imgs = small
             tk.Canvas.configure(app.dual_btn, width=small["normal"].width(), height=small["normal"].height())
             app.dual_btn._show()
+        # (2026-11-25, the user: "one play screen ... might make it better than having a HARDCORE, PLAY and DUALBOX
+        # button") with the character screen on at PLAY, Hardcore, Randomized and second-window characters are made and
+        # played from its cards: no HARDCORE or DUALBOX button. "Show this at PLAY" off brings both back.
+        one_screen = bool(app.cfg.get("char_cards", True))
         try:                             # (2026-11-23) HARDCORE beside DUALBOX (launcher_hardcore_gui.py)
             import launcher_hardcore_gui
-            launcher_hardcore_gui.attach(app, self)
+            launcher_hardcore_gui.attach(app, self, button=not one_screen)
             if getattr(app, "hardcore_btn", None) is not None:
                 self.made.append(app.hardcore_btn)
         except Exception:
             log_problem("The HARDCORE button could not be made")
+        if one_screen:
+            app.dual_btn.pack_forget()
         self.strip.pack(in_=row, side="left", fill="x", expand=True)
         self.strip.lift()
         self.status_label.pack_forget()
@@ -552,10 +558,30 @@ class PlayPage:
         self.hint = tk.Label(self.strip, text="PLAY starts your world, then the game.", bg=BG, fg=DIM, font=(UI_FONT, 9), anchor="w")
         self.hint.pack(side="top", fill="x")
         self.made.append(self.hint)
+        try:                             # (2026-11-25) the character cards, also when PLAY is set to skip them
+            import launcher_charcards_gui
+            self.cards_link = w.link(self.strip, "Choose a character", lambda: launcher_charcards_gui.open_cards(app))
+            self.cards_link.pack(side="top", anchor="w", pady=(2, 0))
+            self.made.append(self.cards_link)
+            if app.cfg.get("char_cards", True):   # the hardcore list (step down, random squad, restore) without its button
+                import launcher_hardcore_gui
+                self.hc_link = w.link(self.strip, "Hardcore and Randomized characters",
+                                      lambda: launcher_hardcore_gui.open_menu(app))
+                self.hc_link.pack(side="top", anchor="w", pady=(2, 0))
+                self.made.append(self.hc_link)
+        except Exception:
+            log_problem("The character cards link could not be made")
         if not self.player:              # the dev PC: the server lights and the log, shown in the picture's place
             self.log_link = w.link(self.strip, "Show the server log", self.toggle_log)
             self.log_link.pack(side="bottom", anchor="w", pady=(6, 0))
             self.made.append(self.log_link)
+
+    def dual_spot(self):
+        """PLAY and STOP go before DUALBOX, when DUALBOX is shown (the one PLAY screen hides it: None = at the end)."""
+        try:
+            return self.app.dual_btn if self.app.dual_btn.winfo_manager() else None
+        except Exception:
+            return None
 
     def tile(self, parent, name, page):
         outer = self.frame(parent, bg=BORDER, cursor="hand2")
@@ -600,10 +626,10 @@ class PlayPage:
                 self.running_shown = running
                 if running:
                     app.play_btn.pack_forget()
-                    app.stop_btn.pack(side="left", padx=(0, 18), before=app.dual_btn)
+                    app.stop_btn.pack(side="left", padx=(0, 18), before=self.dual_spot())
                 else:
                     app.stop_btn.pack_forget()
-                    app.play_btn.pack(side="left", padx=(0, 18), before=app.dual_btn)
+                    app.play_btn.pack(side="left", padx=(0, 18), before=self.dual_spot())
             if busy != self.busy_shown:
                 self.busy_shown = busy
                 if busy:

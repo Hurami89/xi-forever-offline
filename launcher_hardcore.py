@@ -68,7 +68,8 @@ RULES = {
     4: ["The Randomized profile's rates at home (2.5x experience); a world you visit uses its own rates", "You pick only the name: race, face, size and nation are rolled",
         "One random job to start, another at 18, 33 and 65 (of the 18 era jobs); only those can be played",
         "Job quests still unlock jobs for your squad mates", "Drops, chests, caskets and battlefield crates are random but fit",
-        "Its own auction house (stock rotates, prices swing 20% more); trading, normal deaths, any party",
+        "Its own auction house (stock rotates, prices swing 20% more); trading, any party",
+        "Normal deaths, or permadeath if you choose it when you make the character (it falls like Silver)",
         "Squad spells of level 18 and up come from scrolls (always on, whatever the Rates switch says)"],
 }
 
@@ -173,7 +174,9 @@ def world_lua(kit, is_open=False, world_name=""):
 def pending_lua(kit):
     entries = [e for e in settings(kit)["pending"] if isinstance(e, dict) and NAME_RE.match(str(e.get("name", "")))
                and e.get("mode") in MODES]
-    body = ", ".join(f"{{ name = {_lua_string(e['name'])}, mode = {int(e['mode'])} }}" for e in entries)
+    body = ", ".join(f"{{ name = {_lua_string(e['name'])}, mode = {int(e['mode'])}"
+                     + (", perma = 1" if e.get("perma") else "") + (", rsquad = 1" if e.get("rsquad") else "") + " }"
+                     for e in entries)
     return ("-- Written by the XI: Forever Offline launcher (HARDCORE menu). These characters become hardcore the first time they\n"
             "-- log in, if they have not gained a level yet. Do not edit.\n"
             f"return {{ {body} }}\n")
@@ -200,12 +203,18 @@ def write_server_files(kit, server_dir, is_open=False, world_name=""):
     return problems
 
 
-def add_pending(kit, server_dir, name, mode, charid=None):
+def add_pending(kit, server_dir, name, mode, charid=None, perma=False, rsquad=False):
+    """perma / rsquad (2026-11-25, the user): a Randomized character made with permadeath (it falls like Silver) and with
+    its squad randomized from the start. The server reads both at the character's first log in."""
     s = settings(kit)
     s["pending"] = [e for e in s["pending"] if isinstance(e, dict) and str(e.get("name", "")).lower() != name.lower()]
     entry = {"name": name, "mode": int(mode), "at": int(time.time())}
     if charid:
         entry["charid"] = int(charid)
+    if int(mode) == 4 and perma:
+        entry["perma"] = 1
+    if int(mode) == 4 and rsquad:
+        entry["rsquad"] = 1
     s["pending"].append(entry)
     save_settings(kit, s)
     if server_dir:
@@ -322,7 +331,9 @@ def characters(conn, bot_base=21000000, now=None):
                         "level": level, "start": v.get("[HC]Start", 0), "dead": dead, "deaths": v.get("[HC]Deaths", 0),
                         "resets": v.get("[HC]Resets", 0), "milestones": milestones, "online": online,
                         "random_squad": bool(v.get("[HC]RSquad", 0)),
-                        "left": max(0, LOCK_DAYS * 86400 - (now - dead)) if (mode == 3 and dead) else None})
+                        "perma": mode == 3 or (mode == 4 and bool(v.get("[HC]Perma", 0))),
+                        "left": max(0, LOCK_DAYS * 86400 - (now - dead))
+                        if ((mode == 3 or (mode == 4 and v.get("[HC]Perma", 0))) and dead) else None})
         out.sort(key=lambda e: -e["start"])
         return out
     finally:
@@ -497,14 +508,16 @@ def restore(conn, charid):
 
 
 def expire_fallen(conn, bot_base=21000000, now=None):
-    """Silver characters that fell 7 or more days ago are deleted the way the game deletes one (taken off the account;
-    the login server frees the name). Returns their names."""
+    """Silver characters (and Randomized ones made with permadeath, [HC]Perma = 1) that fell 7 or more days ago are deleted
+    the way the game deletes one (taken off the account; the login server frees the name). Returns their names."""
     now = int(now or time.time())
     cur = conn.cursor()
     try:
-        rows = _all(cur, "SELECT c.charid, c.charname FROM chars c JOIN char_vars m ON m.charid = c.charid AND m.varname = ? AND m.value = 3 "
+        rows = _all(cur, "SELECT c.charid, c.charname FROM chars c JOIN char_vars m ON m.charid = c.charid AND m.varname = ? AND m.value IN (3, 4) "
                          "JOIN char_vars d ON d.charid = c.charid AND d.varname = ? AND d.value > 0 AND d.value <= ? "
-                         "WHERE c.accid > 0 AND c.accid < ?", ("[HC]Mode", "[HC]Dead", now - LOCK_DAYS * 86400, bot_base))
+                         "LEFT JOIN char_vars p ON p.charid = c.charid AND p.varname = ? "
+                         "WHERE c.accid > 0 AND c.accid < ? AND (m.value = 3 OR p.value = 1)",
+                    ("[HC]Mode", "[HC]Dead", now - LOCK_DAYS * 86400, "[HC]Perma", bot_base))
         gone = []
         has_original = "original_accid" in _columns(cur, "chars")
         for charid, name in rows:

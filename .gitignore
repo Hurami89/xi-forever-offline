@@ -36,6 +36,8 @@
 !/launcher_armory.py
 !/launcher_armory_gui.py
 !/launcher_ventures.py
+!/launcher_charcards.py
+!/launcher_charcards_gui.py
 !/hardcore_profiles.json
 !/launcher_revamped.py
 !/launcher_thirdparty.py
@@ -152,6 +154,7 @@
 !/addons-src/autora/
 !/addons-src/hcicons/
 !/addons-src/vanasync/
+!/addons-src/autologin/
 
 # ---- server modules (copies kept with the kit) ----
 !/squad-behavior/

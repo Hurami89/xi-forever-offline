@@ -3880,7 +3880,7 @@ class App(tk.Tk):
         # PLAY, STOP and DUALBOX, then UPDATE and LOGS (pictures in assets\\ui; plain text buttons if they are missing)
         main_row = tk.Frame(homebox, bg=BG)
         main_row.pack(pady=(8, 6))
-        self.play_btn = self.ui_button(main_row, "play", self.start, "PLAY")
+        self.play_btn = self.ui_button(main_row, "play", self.play_pressed, "PLAY")      # (2026-11-25) the character cards first
         self.play_btn.pack(side="left", padx=10)
         self.stop_btn = self.ui_button(main_row, "stop", self.stop, "STOP")
         self.stop_btn.pack(side="left", padx=10)
@@ -4656,6 +4656,17 @@ class App(tk.Tk):
             print("stinkshell:", e)
 
     # ----- buttons -----
+    def play_pressed(self):
+        """PLAY: (2026-11-25) the character cards (launcher_charcards_gui.py): pick a character and it logs straight in.
+        Off, or nothing to show: straight to start() as before."""
+        try:
+            import launcher_charcards_gui
+            launcher_charcards_gui.play_pressed(self)
+        except Exception as e:
+            self.say(f"The character cards could not be shown ({e}).")
+            self.autologin_slot = None
+            self.start()
+
     def start(self):
         if self.running:
             return
@@ -4705,6 +4716,11 @@ class App(tk.Tk):
                 gp.save(HERE, self.gamepad)
             except OSError:
                 pass
+        try:                                   # (2026-11-25) a character card picked: log it straight in, this launch only
+            import launcher_charcards_gui
+            launcher_charcards_gui.before_start(self, visit)
+        except Exception as e:
+            self.say(f"Character cards: {e}")
         try:                                   # (2026-11-23) small fixes to downloaded add-ons (thirdparty.json "fixups")
             for item in tp.load_manifest(HERE):
                 if item.get("fixups") and self.ashita:
@@ -5416,6 +5432,11 @@ class App(tk.Tk):
         if core.count_running("xiloader") >= 2:
             messagebox.showinfo("Second character", "A second game window is already open.")
             return
+        try:                                    # (2026-11-25, Ricc) the add-ons ticked for the second window need Ashita's
+            import setup_dualbox                # addons plugin in its script first; an older script never had it
+            setup_dualbox.ensure_script(os.path.join(self.ashita, "scripts", "dualbox.txt"))
+        except Exception:
+            pass
         self.launch_extra(boot2, "ashita2.log")
         self.say("Starting the second character... (the first time it shows character creation)")
 
@@ -5706,6 +5727,12 @@ class App(tk.Tk):
 
     def cleanup(self):
         had_servers = bool(self.procs)
+        if had_servers:                                              # (2026-11-25) the character cards learn new levels
+            try:                                                     # and places while the database is still up
+                import launcher_charcards_gui
+                launcher_charcards_gui.refresh_after_game(self)
+            except Exception:
+                pass
         relay = getattr(self, "venture_relay", None)                # (2026-11-25) Ventures: the relay stops with the game
         if relay is not None:
             relay.stop()
