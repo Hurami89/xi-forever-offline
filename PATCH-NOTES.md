@@ -18,6 +18,9 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Portable fishing: the rods that can also land legendary fish (Lu Shang's, Ebisu, Judges) are in the app now, so a character holding one sees all its rods. Thanks Hasuko.
 • !squad give <spell> finds a spell scroll by the spell's name ("!squad give sneak"), not only as "scroll of sneak". Thanks jainfarstrider.
 • Treasure Hunter is era again: your own Thief's hits no longer raise it during a fight. It stays at what your trait and gear give (TH1 at 15, TH2 at 45, plus gear), the same as a squad Thief. Two Thieves still don't stack; the monster keeps the highest.
+• Hardcore: your squad mates earn exp at your Hardcore mode's rate (3.5x on Silver, for example), not the world's normal rate. Thanks Teutonic84.
+• Squad mates take Yagudo Drinks like juices (Refresh for 3 minutes). Thanks Hasuko.
+• XIUIplus installs again: it's only released as a test build right now, and the launcher was looking for a regular release. Thanks Hexblood and Dermit.
 
 ## v0.3.11 · 25 November 2026
 

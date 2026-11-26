@@ -159,6 +159,7 @@
       "source": {
         "type": "github_release",
         "repo": "Team-XIUI/xiuiplus-releases",
+        "prereleases": true,
         "tag": "latest",
         "asset": "^XIUIplus\\.dll$",
         "sha256sums": "SHA256SUMS.txt"
