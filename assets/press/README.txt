@@ -25,6 +25,9 @@ Themes work the same way (launcher_theme.py). A theme is a .json in here with a 
                                        Theme page, ahead of any limited-time theme (only one theme should say it; Chronicle from
                                        2026-11-24, Aero before that). The launcher's own look is then called "Classic" there and
                                        stays pickable. art-src\scripts\chron_buttons.py and chron_banners.py draw its pictures.
+    windurst.json                      an undated theme to pick (2026-11-25): a storybook of Windurst. art-src\scripts\wind_buttons.py
+                                       and wind_banners.py draw its pictures (windurst-ui, windurst_*__theme-windurst.jpg); its button
+                                       labels come from chron_buttons.BUTTONS, so a new button needs no line of its own there.
     title__center__theme-8bit.png      a theme's own banner (__theme- and the theme's short name, here 8bit): shown only while that
                                        theme is worn, and then in place of the usual banners. art-src\scripts\bit_banners.py makes
                                        the 8-Bit theme's twelve (1056 x 424: on most screens the Play page shows them pixel for pixel)

@@ -108,6 +108,14 @@ song that plays and who made it.
   by `art-src/scripts/chron_buttons.py` and `chron_banners.py` around official FINAL FANTASY XI concept art (the job
   pencil sketches, and the concept paintings of Bahamut, the avatars, Behemoth, Khimaira, the five races, the chocobo
   and a dragon), © SQUARE ENIX. The leather, gold, vellum and lettering are original; the captions are our own words.
+- Cherry Swash font (the lettering on the Windurst theme's buttons and banners): Natalia Kasatkina (SIL Open Font
+  License). Fondamento (the handwritten lines on the Windurst banners): Astigmatic (SIL Open Font License). Both in
+  `art-src/fonts`, with the licences.
+- **Windurst theme** pictures (`assets/press/windurst-ui`, `assets/press/windurst_*__theme-windurst.jpg`): drawn in code by
+  `art-src/scripts/wind_buttons.py` and `wind_banners.py` around official FINAL FANTASY XI art (the colour concept art of
+  Shantotto, Ajido-Marujido, Apururu, the Tarutaru and Mithra, the mages, a Cardian, Mandragora, Dhalmel and Yagudo, and
+  the pictures of Kupipi, the Star Onion Brigade, the Starlight Celebration and a Windurst street), © SQUARE ENIX. The
+  wood, lacquer, stars and lettering are original; the captions are our own words.
 
 ## Crystal Boy mini games
 
