@@ -7,7 +7,8 @@ A launcher sends its characters' cards (SYNC): looks, jobs, gear, skills, squad.
 The phone app pairs with a launcher (a 6-character code that lasts 10 minutes), reads its own characters (hidden ones
 too) and sends back what it caught with portable fishing; the launcher takes that in at the next PLAY.
 
-  POST /armory/api/sync        (launcher key)  {"cards": [card...], "remove": [name...]} -> {"results": {name: "ok"|error}}
+  POST /armory/api/sync        (launcher key)  {"cards": [card...], "remove": [name...]} -> {"results": {name: "ok"|error},
+                                                "links": {...}, "yours": [every name this launcher has on the armory]}
   POST /armory/api/pair        (launcher key)  -> {"code", "expires"}
   POST /armory/api/unpair      (launcher key)  forgets every phone paired with this launcher
   POST /armory/api/claim       (phone key)     {"code"} -> {"ok", "names"}
@@ -29,6 +30,7 @@ import argparse
 import hashlib
 import html
 import json
+import urllib.request
 import math
 import os
 import re
@@ -43,6 +45,11 @@ try:                                        # (2026-11-25) Ventures: squad mates
 except Exception as _e:                     # (the rest of the armory keeps working without it)
     ventures_hub = None
     print("ventures off:", _e, flush=True)
+try:                                        # (2026-11-25) Tetra Master PvP in the app
+    import tetra_hub
+except Exception as _e:
+    tetra_hub = None
+    print("tetra master pvp off:", _e, flush=True)
 
 NAME_RE = re.compile(r"^[A-Za-z]{3,15}$")
 KEY_RE = re.compile(r"^[0-9a-f]{32,64}$")
@@ -185,6 +192,18 @@ def clean_card(raw):
             "catches": num(f.get("catches"), 0, 10 ** 7),
             "rate": round(max(0.0, min(20.0, float(f.get("rate", 1.0) or 0))), 2),
         }
+    # (2026-11-25) Tetra Master: unlocked at Luto Mewrilah (TM_STARTER), the collection with its hidden numbers, the deck
+    tm = raw.get("tetra")
+    if isinstance(tm, dict):
+        cards = []
+        for c in (tm.get("cards") or [])[:200]:
+            if isinstance(c, dict) and num(c.get("id"), 1, 250) and c.get("type") in ("P", "M", "X", "A"):
+                cards.append({"uid": num(c.get("uid"), 1, 10 ** 6, 1), "id": num(c.get("id"), 1, 250, 1), "type": c["type"],
+                              "arrows": num(c.get("arrows"), 0, 255), "atk": num(c.get("atk"), 0, 255),
+                              "pdef": num(c.get("pdef"), 0, 255), "mdef": num(c.get("mdef"), 0, 255)})
+        card["tetra"] = {"unlocked": bool(tm.get("unlocked")), "cards": cards,
+                         "deck": [num(u, 1, 10 ** 6, 1) for u in (tm.get("deck") or [])[:5]],
+                         "gilRate": round(max(0.0, min(10.0, float(tm.get("gilRate", 1.0) or 0))), 2)}
     if len(json.dumps(card)) > MAX_CARD:
         raise ValueError("card too big")
     return card
@@ -198,6 +217,9 @@ def public_card(card):
     f.pop("rods", None)
     f.pop("bait", None)
     out["fishing"] = f
+    tm = out.get("tetra")
+    if isinstance(tm, dict):                 # strangers see how many cards, not which (nor their hidden numbers)
+        out["tetra"] = {"unlocked": bool(tm.get("unlocked")), "count": len(tm.get("cards") or [])}
     return out
 
 
@@ -207,6 +229,7 @@ class Armory:
         self.folder = folder
         self.lock = threading.RLock()
         self.ventures = ventures_hub.Ventures(folder, self.lock) if ventures_hub else None
+        self.tetra = None
         os.makedirs(os.path.join(folder, "cards"), exist_ok=True)
         self.state = {"names": {}, "phones": {}, "pairs": {}, "queue": {}, "done": {}}
         path = os.path.join(folder, "state.json")
@@ -222,11 +245,49 @@ class Armory:
                     self.cards[rec["card"]["name"].lower()] = rec
                 except (OSError, ValueError, KeyError):
                     pass
+        self.tetra = tetra_hub.Tetra(folder, self) if tetra_hub else None
 
     def _write(self, path, data):
         with open(path + ".part", "w", encoding="utf-8") as handle:
             json.dump(data, handle)
         os.replace(path + ".part", path)
+
+    # (2026-11-25, the user: gear slots show the item's picture, as the squad profile does) the same public 32x32 item
+    # icons the launcher uses, fetched once per item and kept in <folder>/icons. Only items some card wears are fetched.
+    ICON_URL = "https://static.ffxiah.com/images/icon/{}.png"
+
+    def worn(self, item_id):
+        with self.lock:
+            for rec in self.cards.values():
+                card = rec["card"]
+                if any(e.get("id") == item_id for e in card.get("equip", [])):
+                    return True
+                if any(e.get("id") == item_id for m in card.get("squad", []) for e in m.get("equip", [])):
+                    return True
+        return False
+
+    def icon(self, item_id):
+        """The item's 32x32 PNG, or None."""
+        folder = os.path.join(self.folder, "icons")
+        path = os.path.join(folder, "%d.png" % item_id)
+        if os.path.exists(path):
+            with open(path, "rb") as handle:
+                return handle.read()
+        if not self.worn(item_id):
+            return None
+        try:
+            req = urllib.request.Request(self.ICON_URL.format(item_id), headers={"User-Agent": "XIForeverOffline-Armory/1"})
+            with urllib.request.urlopen(req, timeout=6) as res:
+                data = res.read(64 * 1024 + 1)
+        except Exception:
+            return None
+        if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > 64 * 1024:
+            return None
+        os.makedirs(folder, exist_ok=True)
+        with open(path + ".part", "wb") as handle:
+            handle.write(data)
+        os.replace(path + ".part", path)
+        return data
 
     def save(self):
         self._write(os.path.join(self.folder, "state.json"), self.state)
@@ -279,7 +340,9 @@ class Armory:
             rec = self.cards.get(name.lower())
             if res == "ok" and rec:
                 links[name] = "/c/" + quote(rec["card"]["name"]) + ("?k=" + rec["token"] if rec["vis"] == "link" else "")
-        return {"results": results, "links": links}
+        # (2026-11-25, the user: the armory still showed deleted characters) every card this launcher owns, so it can
+        # ask for the ones whose character is gone from its world to be taken down
+        return {"results": results, "links": links, "yours": self.owner_names(owner)}
 
     def pair(self, owner):
         with self.lock:
@@ -339,7 +402,7 @@ class Armory:
                     c["_link"] = "/c/" + quote(c["name"]) + ("?k=" + rec["token"] if rec["vis"] == "link" else "")
                     cards.append(c)
             pending = [{"id": r["id"], "char": r["char"], "made": r["made"], "count": sum(c["count"] for c in r["catches"]),
-                        "skill": r["skill"], "gil": r["gil"]} for r in self.state["queue"].get(owner, [])]
+                        "skill": r["skill"], "gil": r["gil"], "tetra": r.get("tetra")} for r in self.state["queue"].get(owner, [])]
             return {"cards": cards, "pending": pending}
 
     def fish(self, owner, body):
@@ -369,6 +432,21 @@ class Armory:
             report = {"id": rid, "char": rec["card"]["name"], "made": int(time.time()), "catches": catches,
                       "skill": num(body.get("skill"), 0, 1100), "gil": num(body.get("gil"), 0, 10 ** 8),
                       "gilFound": num(body.get("gilFound"), 0, 10 ** 7), "bait": used}
+            # (2026-11-25) Tetra Master against the computer on the phone: gil won and cards that went up a class.
+            # The gil is capped at 40 hard perfect wins at the world's rate in one report.
+            tm = body.get("tetra")
+            if isinstance(tm, dict):
+                rate = float(((rec["card"].get("tetra") or {}).get("gilRate")) or 1.0)
+                owned = {c["uid"]: c for c in (rec["card"].get("tetra") or {}).get("cards", [])}
+                ups = []
+                for u in (tm.get("upgrades") or [])[:200]:
+                    if isinstance(u, dict) and u.get("type") in ("X", "A"):
+                        c = owned.get(num(u.get("uid"), 1, 10 ** 6, -1))
+                        if c and c["id"] == num(u.get("id"), 1, 250):
+                            ups.append({"uid": c["uid"], "id": c["id"], "type": u["type"]})
+                report["tetra"] = {"gil": min(num(tm.get("gil"), 0, 10 ** 7), int(40 * 1600 * rate) + 1),
+                                   "wins": num(tm.get("wins"), 0, 10000), "played": num(tm.get("played"), 0, 10000),
+                                   "upgrades": ups}
             q.append(report)
             self.save()
             return {"ok": True}
@@ -388,75 +466,87 @@ class Armory:
 
 # ---------------------------------------------------------------------------------------------------- pages (2004)
 CSS = """
-@font-face{font-family:Selawik;src:url(/armory/static/selawk.ttf)}
-@font-face{font-family:Selawik;font-weight:bold;src:url(/armory/static/selawkb.ttf)}
 *{box-sizing:border-box}
-body{margin:0;font-family:Selawik,'Segoe UI',Tahoma,Verdana,sans-serif;color:#0b2a44;font-size:15px;
- background:#7ec3f2 url(/armory/static/sky.jpg) center top/cover fixed}
-a{color:#0a5fc2}
-.wrap{max-width:980px;margin:0 auto;padding:14px}
-.top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.top img.logo{height:64px}
+body{margin:0;font:400 15px/1.55 'Alegreya Sans','Trebuchet MS','Segoe UI',sans-serif;color:#2a2416;
+ background-color:#070d24;background-image:radial-gradient(1px 1px at 12% 18%,rgba(255,255,255,.55) 50%,transparent 51%),
+ radial-gradient(1px 1px at 63% 42%,rgba(255,255,255,.45) 50%,transparent 51%),radial-gradient(1.5px 1.5px at 35% 77%,rgba(207,226,255,.55) 50%,transparent 51%),
+ linear-gradient(#0b1434,#070d24 600px);background-size:220px 180px,260px 210px,310px 240px,100% 100%;background-attachment:fixed}
+a{color:#23408f;text-decoration-color:#d9b45a}
+a:hover{color:#9a5b12}
+.wrap{max-width:1040px;margin:0 auto;padding:0 0 14px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;min-height:150px;padding:18px 20px;
+ background:#0e1840 url(/img/vana-header.webp) right bottom/auto 100% no-repeat;border:2px solid #8f7a45;border-bottom:0;
+ box-shadow:inset 0 -40px 30px -20px rgba(9,15,40,.9)}
+.brand{text-decoration:none;color:#f3e7c3;font-family:Cinzel,Georgia,serif;line-height:1}
+.brand b{font-size:44px;color:#f3e7c3;text-shadow:0 2px 0 #000,0 0 12px rgba(217,180,90,.5)}
+.brand span{font-size:13px;letter-spacing:.22em;color:#d9b45a;margin-left:8px;font-weight:700}
+.brand i{display:block;font:italic 14px 'Alegreya Sans',sans-serif;letter-spacing:0;color:#c9d3ef;margin-top:4px}
 .nav{display:flex;gap:6px;flex-wrap:wrap}
-.nav a{display:inline-block;padding:7px 14px;border-radius:14px;border:1px solid #1d6a10;color:#fff;font-weight:bold;
- text-decoration:none;background:linear-gradient(#c9f2a8,#5dc03a 45%,#2e9a18 55%,#45b32a);text-shadow:0 1px 0 #145a0a}
-.nav a.blue{border-color:#0b3d91;background:linear-gradient(#a8dbff,#3d97ee 45%,#1567d9 55%,#1d74e2);text-shadow:0 1px 0 #08306e}
-.win{border:1px solid #0b3d91;border-radius:9px 9px 4px 4px;overflow:hidden;background:#1d6edb;margin-bottom:14px;
- box-shadow:0 4px 12px rgba(6,44,92,.45)}
-.win>.title{height:32px;display:flex;align-items:center;gap:8px;padding:0 8px;color:#fff;font-weight:bold;
- text-shadow:1px 1px 1px #08306e;background:linear-gradient(#a8dbff,#3d97ee 12%,#1567d9 55%,#1d74e2)}
-.win>.title .caps{margin-left:auto;display:flex;gap:3px}
-.win>.title .caps span{width:22px;height:20px;border:1px solid #fff;border-radius:4px;display:inline-block;
- background:linear-gradient(#7cc1ff,#2e7fe6)}
-.win>.title .caps span.x{background:linear-gradient(#f7a28c,#e04a2a,#c33318)}
-.win>.body{background:#eef6fd;margin:0 3px 3px;padding:12px}
-.pane{background:#fff;border:1px solid #7f9db9;border-radius:3px}
-.strip{background:linear-gradient(#fff,#d6eafa);border-bottom:1px solid #b9d5ec;padding:5px 9px;font-weight:bold;color:#155aa8}
-.card{display:grid;grid-template-columns:240px 1fr;gap:14px}
+.nav a{display:inline-block;padding:6px 13px;border-radius:3px;border:1px solid #d9b45a;color:#1b2a5e;font:700 13px Cinzel,Georgia,serif;
+ text-decoration:none;background:linear-gradient(#fbf1d2,#e6cf94);box-shadow:0 2px 4px rgba(0,0,0,.4)}
+.nav a.blue{color:#f3e7c3;background:linear-gradient(#2a3f86,#172a63 55%,#0c1638)}
+.nav a:hover{filter:brightness(1.1)}
+.sheet{background:#f3e9cf;border:2px solid #8f7a45;padding:22px;box-shadow:0 0 0 1px #2b220f,0 0 40px rgba(0,0,0,.6)}
+.win{border:1px solid #a9b8db;outline:1px solid #0c1638;border-radius:4px;overflow:hidden;background:#f7efd9;margin-bottom:16px;
+ box-shadow:0 3px 10px rgba(20,24,50,.35)}
+.win>.title{height:30px;display:flex;align-items:center;gap:8px;padding:0 10px;color:#f3e7c3;font:700 14px Cinzel,Georgia,serif;letter-spacing:.03em;
+ text-shadow:0 1px 0 #000;background:linear-gradient(#2a3f86,#172a63 55%,#0c1638);border-bottom:1px solid #d9b45a}
+.win>.title img{display:none}
+.win>.title::before{content:"";width:10px;height:16px;flex:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16'%3E%3Cpath d='M5 0l5 5v6l-5 5-5-5V5z' fill='%237fcbe6'/%3E%3Cpath d='M5 0v8L0 5z' fill='%23e6f7ff'/%3E%3Cpath d='M5 8l5-3v6l-5 5z' fill='%23387ea3' opacity='.7'/%3E%3C/svg%3E") center/contain no-repeat}
+.win>.title .caps{display:none}
+.win>.body{padding:12px}
+.pane{background:#fffaf0;border:1px solid #c4ab6c;border-radius:2px}
+.strip{background:linear-gradient(#efe2bd,#e3d1a0);border-bottom:1px solid #c4ab6c;padding:5px 9px;font:700 13px Cinzel,Georgia,serif;color:#1b2a5e}
+.card{display:grid;grid-template-columns:240px 1fr;gap:16px}
 @media(max-width:700px){.card{grid-template-columns:1fr}}
-.portrait{border:1px solid #7f9db9;border-radius:6px;padding:5px;background:#fff;position:relative;align-self:start}
-.portrait img.face{width:100%;display:block;border-radius:3px}
+.portrait{border:2px solid #8f7a45;outline:1px solid #2b220f;padding:4px;background:#0c1638;position:relative;align-self:start}
+.portrait img.face{width:100%;display:block}
 .portrait img.mode{position:absolute;right:10px;top:10px;width:52px}
-.name{font-size:34px;font-weight:bold;color:#155aa8;margin:0;line-height:1.1}
-.sub{color:#4a6b84;margin:4px 0 10px}
-.job{font-size:20px;font-weight:bold}
+.name{font:700 34px/1.1 Cinzel,Georgia,serif;color:#1b2a5e;margin:0}
+.sub{color:#6b5a35;margin:4px 0 10px}
+.job{font:700 19px Cinzel,Georgia,serif;color:#2a2416}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.chip{background:#fff;border:1px solid #b9d5ec;border-radius:12px;padding:3px 10px;font-size:13px}
-.chip.hc{background:#f6eefb;border-color:#d9c2ea;color:#7a1fa2;font-weight:bold}
-.chip.dead{background:#3a2a44;color:#fff;border-color:#3a2a44}
-.equip{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px}
-.slot{background:linear-gradient(#fbfdff,#e3eef9);border:1px solid #9cc2e4;border-radius:4px;padding:5px 6px;min-height:52px}
-.slot b{display:block;font-size:10.5px;color:#4a6b84;text-transform:uppercase;letter-spacing:.5px}
+.chip{background:#fffaf0;border:1px solid #c4ab6c;border-radius:2px;padding:2px 9px;font-size:13px}
+.chip.hc{background:#efe3f6;border-color:#a98bc0;color:#5a1a7d;font-weight:bold}
+.chip.dead{background:#2b2238;color:#f3e7c3;border-color:#2b2238}
+.equip{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px;background:#172a63}
+.slot{display:flex;align-items:center;gap:7px;background:linear-gradient(#22357a,#13235a);border:1px solid #5d6fa8;border-radius:2px;
+ padding:5px 6px;min-height:52px;color:#f3e7c3}
+.slot .ico{width:32px;height:32px;flex:none;border:1px solid #d9b45a;background:#0c1638}
+.slot b{display:block;font-size:10.5px;color:#a9b8db;text-transform:uppercase;letter-spacing:.5px}
 .slot span{font-size:12.5px}
-.slot.empty span{color:#a7bccb}
+.slot.empty span{color:#6f7ea8}
 table{border-collapse:collapse;width:100%}
-td,th{padding:5px 8px;border-bottom:1px solid #eef3f8;text-align:left}
-th{font-size:12.5px;color:#4a6b84}
+td,th{padding:5px 8px;border-bottom:1px solid #eadcb4;text-align:left}
+th{font:700 12.5px Cinzel,Georgia,serif;color:#6b5a35}
 .jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:5px;padding:8px}
-.jobs div{background:#fff;border:1px solid #b9d5ec;border-radius:4px;text-align:center;padding:4px}
-.jobs div b{display:block;font-size:12px;color:#4a6b84}
-.jobs div.max{background:linear-gradient(#fff8d8,#ffe58a);border-color:#d7b13b}
+.jobs div{background:#fffaf0;border:1px solid #c4ab6c;border-radius:2px;text-align:center;padding:4px}
+.jobs div b{display:block;font:700 12px Cinzel,Georgia,serif;color:#6b5a35}
+.jobs div.max{background:linear-gradient(#fff3c8,#e8c872);border-color:#b88a35}
 .jobs div.off{opacity:.35}
-.bar{height:9px;background:#e3eef9;border-radius:5px;overflow:hidden;border:1px solid #b9d5ec}
-.bar i{display:block;height:100%;background:linear-gradient(#9be27a,#2e9a18)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bar{height:9px;background:#e9dcb8;border-radius:1px;overflow:hidden;border:1px solid #c4ab6c}
+.bar i{display:block;height:100%;background:linear-gradient(#7fcbe6,#387ea3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:700px){.grid2{grid-template-columns:1fr}}
 .mates{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:8px}
-.mate{background:#fff;border:1px solid #b9d5ec;border-radius:6px;padding:6px;text-align:center}
-.mate img{width:100%;border-radius:4px}
+.mate{background:#fffaf0;border:1px solid #c4ab6c;border-radius:2px;padding:6px;text-align:center}
+.mate img{width:100%}
 .mate details{text-align:left;font-size:12px}
-.list td img{width:44px;border-radius:3px;vertical-align:middle}
-.list td img.m{width:24px}
+.list td img{width:44px;border:1px solid #8f7a45;vertical-align:middle}
+.list td img.m{width:24px;border:0}
 form.search{display:flex;gap:6px;margin-bottom:10px}
-form.search input{flex:1;padding:7px;border:1px solid #7f9db9;border-radius:3px;font:inherit}
-form.search button,.btn{padding:6px 14px;border:1px solid #2c5f99;border-radius:4px;background:linear-gradient(#fff,#d9e7f5);font:inherit;cursor:pointer}
-.foot{text-align:center;color:#fff;text-shadow:0 0 3px #0b3d91;font-size:12px;margin:18px 0}
+form.search input{flex:1;padding:7px;border:1px solid #8f7a45;border-radius:2px;font:inherit;background:#fffaf0}
+form.search button,.btn{padding:6px 14px;border:1px solid #d9b45a;border-radius:3px;color:#f3e7c3;font:700 13px Cinzel,Georgia,serif;cursor:pointer;
+ background:linear-gradient(#2a3f86,#172a63 55%,#0c1638)}
+.foot{text-align:center;color:#c9d3ef;font-size:12px;margin:0;padding:12px;background:linear-gradient(#172a63,#0c1638);
+ border:2px solid #8f7a45;border-top:1px solid #d9b45a}
+.foot a{color:#e8c872}
 .b88 img{width:88px;height:31px}
-.fame{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;align-items:start}
-@media(max-width:520px){.equip{grid-template-columns:repeat(2,1fr)}.top img.logo{height:48px}.nav a{padding:5px 10px;font-size:13px}.name{font-size:28px}}
+.fame{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px;align-items:start}
+@media(max-width:520px){.equip{grid-template-columns:repeat(2,1fr)}.brand b{font-size:32px}.brand span{font-size:10px;letter-spacing:.12em;margin-left:5px}.top{min-height:120px;padding:12px}.nav a{padding:5px 9px;font-size:12px}.name{font-size:26px}.sheet{padding:12px}}
 .fame ol{margin:0;padding:8px 8px 8px 34px}
 .fame li{padding:3px 0}
-.empty-note{color:#4a6b84;padding:10px}
+.empty-note{color:#6b5a35;padding:10px}
 """
 
 
@@ -468,9 +558,9 @@ def page(title, body, desc="", image=""):
     nav = ('<div class="nav"><a class="blue" href="/">xiforever.com</a><a href="/armory">Armory</a>'
            '<a href="/armory/fame">Hall of Fame</a><a class="blue" href="/app/">Get the app</a></div>')
     return (f'<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>{esc(title)}</title>{meta}<link rel="icon" href="/armory/static/icon.png"><style>{CSS}</style></head><body>'
-            f'<div class="wrap"><div class="top"><a href="/armory"><img class="logo" src="/armory/static/logo_tile.png" alt="XI: Forever Offline"></a>{nav}</div>'
-            f'{body}<div class="foot">XI: Forever Offline Armory &middot; characters synced from players\' own worlds &middot; '
+            f'<title>{esc(title)}</title>{meta}<link rel="icon" href="/armory/static/icon.png"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Alegreya+Sans:ital,wght@0,400;0,700;1,400&display=swap"><style>{CSS}</style></head><body>'
+            f'<div class="wrap"><div class="top"><a class="brand" href="/armory"><b>XI</b><span>FOREVER OFFLINE</span><i>The Armory</i></a>{nav}</div>'
+            f'<div class="sheet">{body}</div><div class="foot">XI: Forever Offline Armory &middot; characters synced from players\' own worlds &middot; '
             f'Unofficial fan project, not affiliated with Square Enix. FINAL FANTASY XI &copy; SQUARE ENIX CO., LTD.</div></div></body></html>')
 
 
@@ -497,7 +587,9 @@ def equip_grid(equip):
     cells = []
     for s in order:
         e = by.get(s)
-        cells.append(f'<div class="slot{"" if e else " empty"}"><b>{labels[s]}</b><span>{esc(e["name"]) if e else "(empty)"}</span></div>')
+        icon = (f'<img class="ico" src="/armory/i/{int(e["id"])}.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+                if e and e.get("id") else '<i class="ico"></i>')
+        cells.append(f'<div class="slot{"" if e else " empty"}">{icon}<div><b>{labels[s]}</b><span>{esc(e["name"]) if e else "(empty)"}</span></div></div>')
     return '<div class="equip">' + "".join(cells) + "</div>"
 
 
@@ -555,7 +647,7 @@ def character_page(rec):
     body += win("Fame", f'<div class="pane"><table>{fame_rows or "<tr><td>Not yet famous.</td></tr>"}</table></div>', "buddy_game.png") + "</div>"
     if mates:
         body += win(c["name"] + "'s Squad", f'<div class="pane"><div class="mates">{mates}</div></div>', "buddy_game.png")
-    body += f'<div style="text-align:center;color:#fff;text-shadow:0 0 3px #0b3d91">Last synced {ago(rec["synced"])}</div>'
+    body += f'<div style="text-align:center;color:#6b5a35;font-size:13px">Last synced {ago(rec["synced"])}</div>'
     desc = f'{race} {sex} {job_line(c)} of {NATIONS.get(c["nation"], "")}' + (f', {MODES[hc["mode"]]} mode' if hc else "")
     return page(f'{c["name"]} - XI: Forever Offline', body, desc, face_url(c["race"], c["face"]))
 
@@ -697,6 +789,10 @@ def make_handler(arm, static):
                     return self.send(404, b"not found", "text/plain")
                 with open(full, "rb") as handle:
                     return self.send(200, handle.read(), TYPES[os.path.splitext(full)[1]], "public, max-age=86400")
+            m = re.fullmatch(r"/armory/i/(\d{1,5})\.png", path)
+            if m:
+                data = arm.icon(int(m.group(1)))
+                return self.send(200, data, "image/png", "public, max-age=604800") if data else self.send(404, b"not found", "text/plain")
             if path == "/armory":
                 return self.html(200, armory_page(arm, clean_text(qs.get("q", [""])[0], 20), num(qs.get("page", ["1"])[0], 1, 10000, 1)))
             if path == "/armory/fame":
@@ -745,11 +841,33 @@ def make_handler(arm, static):
                 if not owner:
                     return self.reply(403, {"error": "no key"})
                 return self.reply(200, arm.reports(owner))
+            if path in ("/armory/api/tm/lobby", "/armory/api/tm/poll"):
+                if not arm.tetra:
+                    return self.reply(503, {"error": "Tetra Master matches are not running on this server yet."})
+                phone = self.phone()
+                owner = phone and arm.owner_of_phone(phone)
+                if not owner:
+                    return self.reply(403, {"error": "This phone is not paired. Pair it from the launcher's Characters page."})
+                if path == "/armory/api/tm/lobby":
+                    return self.reply(200, arm.tetra.lobby(owner, qs.get("char", [""])[0]))
+                return self.reply(200, arm.tetra.poll(phone, qs.get("t", [""])[0], qs.get("since", ["0"])[0]))
             return self.html(404, not_found())
 
         def do_POST(self):
             path = urlparse(self.path).path.rstrip("/")
             body = self.body()
+            if path in ("/armory/api/tm/queue", "/armory/api/tm/move", "/armory/api/tm/leave"):
+                if not arm.tetra:
+                    return self.reply(503, {"error": "Tetra Master matches are not running on this server yet."})
+                phone = self.phone()
+                owner = phone and arm.owner_of_phone(phone)
+                if not owner:
+                    return self.reply(403, {"error": "This phone is not paired."})
+                if path == "/armory/api/tm/queue":
+                    return self.reply(200, arm.tetra.queue(owner, phone, body))
+                if path == "/armory/api/tm/move":
+                    return self.reply(200, arm.tetra.move(phone, body))
+                return self.reply(200, arm.tetra.leave(phone, body))
             if path.startswith("/armory/api/ventures/"):
                 if not arm.ventures:
                     return self.reply(503, {"error": "Ventures are not running on this server yet."})

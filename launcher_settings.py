@@ -225,6 +225,12 @@ S("main.LAND_KINGS_TIMED", "rules", "Comforts", FLAG, "Land kings on a timer",
       "(Honey Wine, Blue Pondweed, Beastly Shank). On = the era: the ??? is gone, a king appears by itself 21 to 24 "
       "hours after the last one fell, and from the fourth kill in a row Nidhogg, Aspidochelone or King Behemoth "
       "can come in its place. The hours count while the servers are off too. (sparkiie)")
+S("main.NM_TIMER_MODE", "rules", "Comforts", NUMBER, "Timed NMs between sessions", step=1,
+  tip="What happens to timed NMs (Argus, Leech King and the like) while your servers are off. "
+      "0 = the game's own: every start rolls fresh timers, so short sessions can miss them. 1 = paused (default): a "
+      "timer stops while the servers are off and goes on where it was. 2 = real time: timers keep running while "
+      "they're off, so one that came due while you were away is up soon after you start. Lottery NMs follow the "
+      "lottery settings instead, and the land kings their own switch. (Trinity, Akiraheaven, VRTRA)")
 S("main.EPHEMERAL_MOOGLES", "rules", "Comforts", FLAG, "Ephemeral Moogles",
   tip="The crafting guilds' Ephemeral Moogles (from Seekers of Adoulin) are there and keep your crystals for you. "
       "On by default. (Gilder, stanky kong)")

@@ -3213,7 +3213,7 @@ class UpdatesTab(tk.Frame):
         bar = tk.Frame(self, bg=BG)
         bar.pack(anchor="w", padx=14)
         for text, command in (("Check for updates", lambda: self.player_check(False)), ("Update now", self.player_update),
-                              ("Repair...", self.player_repair)):
+                              ("Repair...", self.player_repair), ("Start the world over...", self.player_erase)):
             button = tk.Button(bar, text=text, command=command, bg=PANEL, fg=FG, relief="flat", padx=14, pady=6)
             button.pack(side="left", padx=(0, 8))
             self.buttons.append(button)
@@ -3310,6 +3310,60 @@ class UpdatesTab(tk.Frame):
             self.lines.put(("line", "Repair: installing " + ", ".join(
                 f"{label} {info[key]['newest']}" for key, label in (("kit", "launcher"), ("server", "server")) if info[key]["newer"]) + " again..."))
             self.after(0, self.player_update)
+        threading.Thread(target=work, daemon=True).start()
+
+    def player_erase(self):
+        """(2026-11-25, the user: "a server erase button ... that will erase everything, characters etc.") starts the
+        world over: every character, squad, bot player and record goes; the game logins, launcher settings and add-ons
+        stay. A full copy of the database is saved first (launcher_world_keep.erase_world)."""
+        if self.app.running:
+            messagebox.showwarning("Close the game first", "The servers are running. Close the game (it stops the servers), then start over.")
+            return
+        if self.busy:
+            return
+        cfg = self.app.cfg
+        if not cfg.get("mariadb_dir") or not cfg.get("server_dir"):
+            messagebox.showinfo("Start the world over", "This only works for a world with the kit's own database (a normal install).", parent=self)
+            return
+        typed = simpledialog.askstring(
+            "Start the world over",
+            "This erases EVERYTHING in your world: all your characters, their items and gil, your squad mates, the bot "
+            "players, the auction house, linkshells, mail and Hardcore records. Characters away visiting another world "
+            "are erased too.\n\nKept: your game logins (you sign in as before), the launcher's settings, add-ons and "
+            "the character backup files.\n\nA full copy of the old world is saved first (backups\\world, "
+            "db-before-erase-...).\n\nType ERASE to start over:", parent=self)
+        if (typed or "").strip() != "ERASE":
+            if typed is not None:
+                messagebox.showinfo("Start the world over", "Nothing was erased (you need to type ERASE).", parent=self)
+            return
+        self.busy = True
+        for button in self.buttons:
+            button.configure(state="disabled")
+
+        def work():
+            started = None
+            try:
+                import launcher_setup
+                import launcher_world_keep as wk
+                started = launcher_setup.start_portable(cfg)
+                wk.erase_world(cfg, HERE, cfg["server_dir"], log=lambda text: self.lines.put(("line", text)))
+                done = "Your world was started over. Press PLAY and make a new character."
+            except Exception as e:
+                done = f"Your world was not started over: {e}"
+            finally:
+                if started is not None:
+                    try:
+                        launcher_setup.stop_portable(cfg)
+                    except Exception:
+                        pass
+            self.lines.put(("line", done))
+
+            def finish():
+                self.busy = False
+                for button in self.buttons:
+                    button.configure(state="normal")
+                messagebox.showinfo("Start the world over", done, parent=self)
+            self.after(0, finish)
         threading.Thread(target=work, daemon=True).start()
 
     def player_update(self):

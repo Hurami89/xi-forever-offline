@@ -857,6 +857,8 @@ RATE_FIELDS = [
     ("map.AH_ANYWHERE",                 "map.lua",  "AH_ANYWHERE",                 "Auction house from anywhere (1 = on)", 1,  0,   1,     "int"),
     # (2026-11-22, sparkiie; the user: a comfort switch, off = as it is today) Fafnir, Adamantoise and Behemoth by timer
     ("main.LAND_KINGS_TIMED",           "main.lua", "LAND_KINGS_TIMED",            "Land kings on a timer (1 = on, 0 = called at the ???)", 0, 0, 1, "int"),
+    # (2026-11-25, the user: a launcher switch) custom/late/nm_timers.lua: timed NMs keep their timers between sessions
+    ("main.NM_TIMER_MODE",              "main.lua", "NM_TIMER_MODE",               "Timed NMs between sessions (0 = fresh at every start, 1 = paused while off, 2 = real time)", 1, 0, 2, "int"),
     # (2026-11-22, suggestions: Dugahst; the user: on by default) server: custom/late/comforts.lua
     ("main.GUILD_SHOPS_ALWAYS_OPEN",    "main.lua", "GUILD_SHOPS_ALWAYS_OPEN",     "Guild shops always open (1 = on, 0 = era hours)", 1, 0, 1, "int"),
     # (2026-11-23, Gilder, stanky kong; the user: on by default) Seekers of Adoulin's crystal storage at the crafting guilds

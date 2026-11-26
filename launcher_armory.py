@@ -280,6 +280,17 @@ def home_characters(conn):
         conn.rollback()
 
 
+def existing_names(conn):
+    """The lower-case names of every player character this world still has: its own, those away visiting and visitors
+    (a deleted character has account 0). Bots are left out. Used to take deleted characters off the armory."""
+    cur = conn.cursor()
+    try:
+        return {str(r[0]).lower() for r in _all(cur, "SELECT charname FROM chars WHERE accid > 0 AND accid < ?", (BOT_ACCOUNT_BASE,))}
+    finally:
+        cur.close()
+        conn.rollback()
+
+
 def item_names(cur, ids):
     ids = sorted({int(i) for i in ids if i})
     if not ids:
@@ -288,26 +299,48 @@ def item_names(cur, ids):
     return {int(r[0]): pretty_item(r[1]) for r in _all(cur, f"SELECT itemid, name FROM item_basic WHERE itemid IN ({marks})", ids)}
 
 
-def fishing_rates(kit=HERE):
-    """{0: the world's fishing skill-up rate, mode: a hardcore profile's} (the server's map.FISHING_SKILL_MULTIPLIER, which
-    the phone uses too). Missing files: 1.0."""
+def fishing_rates(kit=HERE, key="map.FISHING_SKILL_MULTIPLIER"):
+    """{0: the world's rate, mode: a hardcore profile's} for one of the launcher's rates (by default the fishing skill-up
+    rate, map.FISHING_SKILL_MULTIPLIER, which the phone uses too; main.TM_GIL_RATE for Tetra Master). Missing files: 1.0."""
     out = {0: 1.0}
     try:
         import launcher_core as core
-        out[0] = float(core.load_rates(kit).get("map.FISHING_SKILL_MULTIPLIER", 1.0))
+        out[0] = float(core.load_rates(kit).get(key, 1.0))
     except Exception:
         pass
     try:
         import launcher_hardcore as hc
         for mode, rates in hc.profiles(kit).items():
-            if "map.FISHING_SKILL_MULTIPLIER" in rates:
-                out[int(mode)] = float(rates["map.FISHING_SKILL_MULTIPLIER"])
+            if key in rates:
+                out[int(mode)] = float(rates[key])
     except Exception:
         pass
     return out
 
 
-def build_card(conn, charid, world="", rates=None):
+TM_TYPES = "PMXA"
+
+
+def tetra_cards(cur, charid):
+    """(2026-11-25) The character's Tetra Master cards, as the server keeps them (modules/custom/lua/tetramaster.lua):
+    TM_STARTER = 1 once Luto Mewrilah gave the starter deck (that unlocks Tetra Master in the app); TM_N cards,
+    TM_A<i> = id + 256 * arrows + 65536 * class, TM_B<i> = attack + 256 * physical + 65536 * magical defence;
+    TM_D1..TM_D5 the deck (card numbers)."""
+    v = {str(k): int(val or 0) for k, val in _all(cur, "SELECT varname, value FROM char_vars WHERE charid = ? AND varname LIKE ?",
+                                                    (charid, "TM_%"))}
+    cards = []
+    for i in range(1, min(v.get("TM_N", 0), 200) + 1):
+        a, b = v.get(f"TM_A{i}", 0), v.get(f"TM_B{i}", 0)
+        cid = a % 256
+        if a <= 0 or not 1 <= cid <= 250:
+            continue
+        cards.append({"uid": i, "id": cid, "arrows": (a // 256) % 256, "type": TM_TYPES[(a // 65536) % 4],
+                      "atk": b % 256, "pdef": (b // 256) % 256, "mdef": (b // 65536) % 256})
+    deck = [v.get(f"TM_D{k}", 0) for k in range(1, 6) if v.get(f"TM_D{k}", 0)]
+    return {"unlocked": v.get("TM_STARTER", 0) == 1, "cards": cards, "deck": deck}
+
+
+def build_card(conn, charid, world="", rates=None, tm_rates=None):
     """The card of one character, as the armory takes it (see armory_service.clean_card)."""
     cur = conn.cursor()
     try:
@@ -341,6 +374,7 @@ def build_card(conn, charid, world="", rates=None):
                     if _has(cur, "squad_equip") else []
                 mates.append({"name": str(mname), "race": int(mrace or 1), "face": int(mface or 0), "mjob": int(mjob or 1),
                               "sjob": int(msjob or 0), "level": int((lvl or [1])[0] or 1), "gear": [(int(s), int(i)) for s, i in gear if i]})
+        tetra = tetra_cards(cur, charid)
         names = item_names(cur, [i for _, i in equip_rows] + [i for m in mates for _, i in m["gear"]]
                            + [i for i, _ in inv if int(i) in rods or int(i) in baits])
     finally:
@@ -372,6 +406,9 @@ def build_card(conn, charid, world="", rates=None):
     mode = int(hcv.get("[HC]Mode", 0) or 0)
     rates = rates or {0: 1.0}
     card["fishing"]["rate"] = round(max(0.0, min(20.0, float(rates.get(mode, rates.get(0, 1.0))))), 2)
+    tm_rates = tm_rates or {0: 1.0}
+    tetra["gilRate"] = round(max(0.0, min(10.0, float(tm_rates.get(mode, tm_rates.get(0, 1.0))))), 2)
+    card["tetra"] = tetra
     if mode:
         card["hardcore"] = {"mode": int(hcv["[HC]Mode"]), "dead": bool(int(hcv.get("[HC]Dead", 0) or 0)),
                             "deaths": int(hcv.get("[HC]Deaths", 0) or 0), "resets": int(hcv.get("[HC]Resets", 0) or 0),
@@ -394,12 +431,14 @@ def sync(cfg, kit=HERE, log=print, names=None):
     conn = connect(cfg)
     try:
         chars = [c for c in home_characters(conn) if names is None or c[1] in names]
+        still_here = existing_names(conn) if names is None else None
         world = cfg.get("world_name") or ""
         rates = fishing_rates(kit)
+        tm_rates = fishing_rates(kit, "main.TM_GIL_RATE")
         cards = []
         for charid, name in chars:
             try:
-                cards.append(build_card(conn, charid, world, rates))
+                cards.append(build_card(conn, charid, world, rates, tm_rates))
             except Exception as e:                    # one odd character never stops the others
                 log(f"{name}: not synced ({e})")
     finally:
@@ -418,6 +457,20 @@ def sync(cfg, kit=HERE, log=print, names=None):
     results = out.get("results") or {}
     for name, res in results.items():
         log(f"{name}: " + ("on your character page" if res == "ok" else res))
+    # (2026-11-25, the user: deleted characters stayed on the armory) a full sync takes down the cards of characters
+    # that are gone from this world; an older armory server sends no "yours" and nothing happens
+    gone = [n for n in (out.get("yours") or []) if still_here is not None and str(n).lower() not in still_here]
+    if gone:
+        try:
+            removed = call(data, "/armory/api/sync", {"cards": [], "remove": gone[:40]})
+            for name, res in (removed.get("results") or {}).items():
+                log(f"{name}: taken off the armory (the character was deleted)")
+                results[name] = res
+                data["links"].pop(name, None)
+                data["visibility"].pop(name, None)
+            save(data, kit)
+        except Exception as e:
+            log(f"Deleted characters could not be taken off the armory ({e}).")
     return results
 
 
@@ -482,6 +535,22 @@ def apply_reports(conn, reports, log=print):
                         cur.execute("UPDATE char_inventory SET quantity = quantity - ? WHERE charid = ? AND location = ? AND slot = ?",
                                     (take, charid, loc, slot))
                     left -= take
+            # (2026-11-25) Tetra Master on the phone: gil won (above, in gilFound) and cards that went up a class
+            tm = rep.get("tetra") or {}
+            upgraded = 0
+            for u in tm.get("upgrades") or []:
+                uid, cid, kind = int(u.get("uid", 0) or 0), int(u.get("id", 0) or 0), str(u.get("type", ""))
+                if kind not in ("X", "A") or not 1 <= uid <= 200:
+                    continue
+                row = _one(cur, "SELECT value FROM char_vars WHERE charid = ? AND varname = ?", (charid, f"TM_A{uid}"))
+                if not row or int(row[0]) % 256 != cid:
+                    continue                          # that card was sold or changed in the game since
+                a = int(row[0])
+                old = TM_TYPES[(a // 65536) % 4]
+                if TM_TYPES.index(kind) > TM_TYPES.index(old):
+                    a = (a % 65536) + 65536 * TM_TYPES.index(kind)
+                    cur.execute("UPDATE char_vars SET value = ? WHERE charid = ? AND varname = ?", (a, charid, f"TM_A{uid}"))
+                    upgraded += 1
             # the catches, in stacks, into the delivery box
             stacks = {}
             for c in rep.get("catches") or []:
@@ -505,9 +574,15 @@ def apply_reports(conn, reports, log=print):
                         slot += 1
                         count -= q
             fish = sum(int(c.get("count", 0) or 0) for c in rep.get("catches") or [] if int(c.get("item", 0) or 0) != GIL)
-            log(f"{name}: {fish} catch{'es' if fish != 1 else ''} from your phone in the delivery box"
-                + (f", fishing +{gained / 10:.1f}" if gained else "")
-                + (f", gil {'+' if delta > 0 else ''}{delta}" if delta else "") + ".")
+            if tm and not fish and not gained:
+                wins = int(tm.get("wins", 0) or 0)
+                log(f"{name}: Tetra Master on your phone, {wins} win{'s' if wins != 1 else ''}"
+                    + (f", gil +{delta}" if delta > 0 else "")
+                    + (f", {upgraded} card{'s' if upgraded != 1 else ''} up a class" if upgraded else "") + ".")
+            else:
+                log(f"{name}: {fish} catch{'es' if fish != 1 else ''} from your phone in the delivery box"
+                    + (f", fishing +{gained / 10:.1f}" if gained else "")
+                    + (f", gil {'+' if delta > 0 else ''}{delta}" if delta else "") + ".")
             done.append(str(rep["id"]))
         conn.commit()
     except Exception:
