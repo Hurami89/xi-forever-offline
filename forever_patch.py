@@ -2,8 +2,8 @@
 
 What it changes in the FINAL FANTASY XI folder (originals kept once in backups\\forever-patch):
   * Look: head model 517 (unused by any item) gets the Eyepatch's model with a new texture in the Forever Beta
-    Shirt's colours: royal purple leather, gold straps and studs, a glowing crystal where the Eyepatch has its cross,
-    and FOREVER / BETA in gold on the strap. Built from the player's own game files; no Square Enix art is stored in the kit.
+    Shirt's colours: royal purple leather, gold straps and studs, a big glowing crystal in the middle of the patch
+    (the Eyepatch's cross is covered), FOREVER above it and BETA below it in gold, and the same on the strap. Built from the player's own game files; no Square Enix art is stored in the kit.
   * Item: the empty armor slot 23867 in ROM\\286\\73.DAT gets name, description, the Eyepatch icon recoloured,
     and 5 charges / 15 hours like the Forever Beta Shirt.
 The server side is modules\\custom\\lua\\forever_patch.lua + modules\\custom\\sql\\forever_patch.sql.
@@ -17,7 +17,7 @@ KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, KIT)
 import forever_beta_shirt as fbs                     # shared: game files, DXT3 encoder, item record helpers
 
-VERSION = 1                       # bump when the design changes, so installs rebuild
+VERSION = 2                       # bump when the design changes, so installs rebuild
 ITEM_ID, TEMPLATE_ID = 23867, 11482
 NEW_MODEL = 517                   # a free head model (all 7 races have their own file; no item uses it)
 SRC_FILES = {"HumeM": "ROM/218/124", "HumeF": "ROM/219/62", "ElvaanM": "ROM/219/65", "ElvaanF": "ROM/219/70",
@@ -151,20 +151,28 @@ def strap_rows(img):
     rows = [y for y in range(180, h) if sum(1 for x in range(0, w, 4) if a.getpixel((x, y)) > 128) > 40]
     return (min(rows), max(rows)) if rows else (210, 245)
 
-def design(img):
+PATCH_CENTRE = {"default": (118, 98), "Mithra": (134, 112)}   # middle of the patch on the texture (2026-11-25, v2)
+
+
+def patch_text(out, orig, cx, cy):
+    """FOREVER above the crystal and BETA below it, gold with a dark edge, on the patch itself."""
+    return strap_text(out, orig, [("FOREVER", (cx - 62, cy - 58, cx + 62, cy - 38)),
+                                  ("BETA", (cx - 34, cy + 38, cx + 34, cy + 58))])
+
+
+def design(img, race="default"):
     out = recolor(img)
     box = cross_box(img)
-    if box:
-        x0, y0, x1, y1 = box; cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-        # cover the old cross with the patch's own purple, then the crystal on top
+    if box:                                   # the old cross goes under the patch's own purple
         H, S, V, metal, *_ = masks(img)
         pm = metal.filter(ImageFilter.MaxFilter(5)).crop((0, 0) + img.size)
         ring = ImageChops.subtract(pm.filter(ImageFilter.MaxFilter(9)), pm)
         avg = ImageStat.Stat(out.convert("RGB"), ring).mean
         cover = Image.new("RGBA", img.size, tuple(int(v) for v in avg) + (255,))
         out = Image.composite(cover, out, pm.filter(ImageFilter.GaussianBlur(1.5)))
-        cw = max(24, int((x1 - x0) * 0.9)); ch = max(40, int((y1 - y0) * 1.55))
-        put(out, glow(crystal_sprite(cw, ch), 4, 0.8), cx, cy + (y1 - y0) * 0.12)
+    cx, cy = PATCH_CENTRE.get(race, PATCH_CENTRE["default"])
+    put(out, glow(crystal_sprite(44, 64), 5, 0.9), cx, cy)        # bigger, in the middle of the patch
+    out = patch_text(out, img, cx, cy)
     sy0, sy1 = strap_rows(img)
     out = strap_text(out, img, [("FOREVER", (2, sy0, 112, sy1)), ("BETA", (148, sy0, 204, sy1))])
     a = img.getchannel("A"); out = out.convert("RGB"); out.putalpha(a)
@@ -189,12 +197,12 @@ def find_texture(d):
     raise RuntimeError("no texture in the eyepatch model")
 
 
-def build_model(src):
+def build_model(src, race="default"):
     d = bytearray(src)
     off, w, h = find_texture(src)
     n = w * h
     img = Image.frombytes("RGBA", (w, h), bytes(src[off:off + n]), "bcn", (2,))
-    new = design(img)
+    new = design(img, race)
     enc = fbs.dxt3_encode(new)
     if len(enc) != n:
         raise RuntimeError("texture encoder size mismatch (%d of %d bytes)" % (len(enc), n))
@@ -285,7 +293,7 @@ def _apply_look(g, st, rebuild, log):
         if rebuild or fbs.sha(fbs.read(np_)) != st.get("models", {}).get(race):
             src = fbs.read(sp)
             keep_original(g, new_files[race])
-            data, _ = build_model(src)
+            data, _ = build_model(src, race)
             fbs.write(np_, data)
             st.setdefault("models", {})[race] = fbs.sha(data); st.setdefault("eyepatch", {})[race] = fbs.sha(src)
             done.append(race)
@@ -400,7 +408,7 @@ def main():
     else:
         out = os.path.join(KIT, "logs", "forever-patch"); os.makedirs(out, exist_ok=True)
         for race, p in SRC_FILES.items():
-            _, img = build_model(fbs.read(fbs.gpath(g, p)))
+            _, img = build_model(fbs.read(fbs.gpath(g, p)), race)
             img.save(os.path.join(out, race + ".png")); print("preview", race)
 
 
