@@ -181,7 +181,7 @@ def played(seconds):
 
 def set_autologin(script_path, slot):
     """Puts (slot = 0..15) or takes out (slot = None) the one-launch autologin block at the top of the start script.
-    It must come first: Ashita runs the script when the game starts, before the log in, and other blocks wait."""
+    It goes right after "/load addons" (the /addon command needs it), before any /wait, so it is set up before the log in."""
     try:
         with open(script_path, encoding="utf-8-sig") as f:
             lines = f.read().splitlines()
@@ -198,7 +198,14 @@ def set_autologin(script_path, slot):
             continue
         kept.append(line)
     if slot is not None:
-        kept = [BEGIN, f"/addon load autologin {int(slot)}", END] + kept
+        # (2026-11-25, the user: "it doesn't skip the login") /addon only exists once Ashita's add-on loader is up, so the
+        # block goes right after "/load addons" (still before any /wait); a script without that line gets it in the block
+        block = [BEGIN, f"/addon load autologin {int(slot)}", END]
+        at = next((i for i, l in enumerate(kept) if l.strip().lower() == "/load addons"), None)
+        if at is None:
+            kept = [BEGIN, "/load addons", f"/addon load autologin {int(slot)}", END] + kept
+        else:
+            kept = kept[:at + 1] + block + kept[at + 1:]
     with open(script_path, "w", encoding="utf-8", newline="\r\n") as f:
         f.write("\n".join(kept).rstrip("\n") + "\n")
     return True
