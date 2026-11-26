@@ -5996,6 +5996,17 @@ local function sets_panel(mate, panelH)
         end
 
         tooltip('A starting point for a new ' .. mate.job .. ' Rule Set (' .. #tpls .. ' to choose from).' .. starterNote)
+    elseif mate.job == 'SMN' and M.cap('smn') and M.SMN_STARTERS[1] then
+        -- (F13) a Summoner's starter: avatar settings and pact rules (a Rule Set has no pet actions), shown in the Summoner
+        -- section below as an unsaved starter. Saving it is your choice; Rule Sets and assignments are never touched.
+        same_if_fits(s(170))
+        if button('Starter: ' .. M.SMN_STARTERS[1].name .. '##gsq-tpl-smn') then
+            M.smn_use_starter(mate, 1)
+        end
+
+        tooltip(M.SMN_STARTERS[1].about .. '\n\nOptional: it opens in the Summoner section below as an unsaved starter to look '
+            .. 'at and change. Saving puts its settings and pact rules on ' .. mate.name .. ' (replacing ' .. mate.name
+            .. '\'s pact rules); Rule Sets and their assignments are not changed.')
     end
 
     same_if_fits(s(70))
@@ -6642,11 +6653,894 @@ local function ws_section(mate)
 
     if open then
         ws_panel(mate, true)
+        M.wx_block(mate)
     else
         wrapped(M.theme.secondary, M.ws_summary(mate))
     end
 end
 M.ws_section = ws_section
+
+-- ---------------------------------------------------------------- (F12, server capability "wsset") the WS gear set
+-- One optional set per mate and main job, armor and accessories only: the server puts it on right before a weapon
+-- skill and takes it off when the damage is done. The server checks every piece (given to the squad, job, level, slot,
+-- a Rare item once) and says why a piece is left out. Requests: wxg (load), wxs (one piece), wxc (clear), wxl (choices).
+M.WX_SLOTS = { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
+M.WX_SLOT_NAMES = { [4] = 'Head', [5] = 'Body', [6] = 'Hands', [7] = 'Legs', [8] = 'Feet', [9] = 'Neck', [10] = 'Waist',
+                    [11] = 'Ear 1', [12] = 'Ear 2', [13] = 'Ring 1', [14] = 'Ring 2', [15] = 'Back' }
+
+-- GSQ|n|wx|slot|JOB|pieces|out|eng|active, then GSQ|n|wxp|eqslot|itemId|ok|Name|why ... -> d, or nil + why
+function M.parse_wx(items)
+    local f = items[1]
+    if f == nil or f[3] ~= 'wx' or #f < 9 then
+        return nil, 'the answer was not readable'
+    end
+
+    local d = { slot = tonumber(f[4]), job = f[5], count = tonumber(f[6]) or 0, out = f[7] == '1', engine = f[8] == '1',
+                active = f[9] == '1', pieces = {} }
+    for i = 2, #items do
+        local p = items[i]
+        local eq = tonumber(p[4] or '')
+        if p[3] ~= 'wxp' or eq == nil or M.WX_SLOT_NAMES[eq] == nil then
+            return nil, 'a line of the WS set was not readable'
+        end
+
+        d.pieces[eq] = { id = tonumber(p[5]) or 0, ok = p[6] == '1', name = (string.gsub(p[7] or '?', '_', ' ')),
+                         why = (p[8] ~= nil and p[8] ~= '-') and p[8] or nil }
+    end
+
+    if d.slot == nil then
+        return nil, 'the answer was not readable'
+    end
+
+    return d
+end
+
+-- GSQ|n|wxl|id:level:Name,... lines -> { { id, level, name } ... }, or nil + why
+function M.parse_wxl(items)
+    local list = {}
+    for _, f in ipairs(items) do
+        if f[3] ~= 'wxl' then
+            return nil, 'a line of the item list was not readable'
+        end
+
+        for _, entry in ipairs(split(f[4] or '', ',')) do
+            local id, level, name = string.match(entry, '^(%d+):(%d+):([%w_]+)$')
+            if id == nil then
+                return nil, 'the item list was cut or changed (' .. entry .. ')'
+            end
+
+            list[#list + 1] = { id = tonumber(id), level = tonumber(level), name = (string.gsub(name, '_', ' ')) }
+        end
+    end
+
+    return list
+end
+
+local function wx_request(words, slot, done, failWhat)
+    read_request(words, function(items)
+        local d, why = M.parse_wx(items)
+        if d == nil or d.slot ~= slot then
+            return false, why or 'the answer was for another mate'
+        end
+
+        S.wx = S.wx and S.wx.slot == slot and S.wx or { slot = slot }
+        S.wx.data, S.wx.loading, S.wx.error = d, false, nil
+        if done then
+            done(d)
+        end
+
+        return true
+    end, function(why)
+        if S.wx and S.wx.slot == slot then
+            S.wx.loading = false
+            if failWhat == nil then
+                S.wx.error = why
+            end
+        end
+
+        say((failWhat or 'Could not load the WS gear set') .. ': ' .. why, false)
+    end)
+end
+
+function M.wx_load(slot)
+    S.wx = { slot = slot, loading = true, eq = S.wx and S.wx.slot == slot and S.wx.eq or 4 }
+    wx_request({ 'wxg', tostring(slot) }, slot)
+end
+
+function M.wx_list(slot, eq)
+    read_request({ 'wxl', tostring(slot), tostring(eq) }, function(items)
+        local list, why = M.parse_wxl(items)
+        if list == nil then
+            return false, why
+        end
+
+        if S.wx and S.wx.slot == slot then
+            S.wx.choices, S.wx.choicesFor = list, eq
+        end
+
+        return true
+    end, function(why)
+        say('Could not load the item list: ' .. why, false)
+    end)
+end
+
+-- store one piece (itemId 0 = none): the server checks it and answers with the whole set
+function M.wx_set(slot, eq, itemId)
+    if M.busy() then
+        return busy_say()
+    end
+
+    S.progress = 'Saving the WS gear set...'
+    wx_request({ 'wxs', tostring(slot), tostring(eq), tostring(itemId) }, slot, function(d)
+        S.progress = nil
+        say(string.format('WS gear set saved (server checked): %d piece%s.%s', d.count, d.count == 1 and '' or 's',
+            d.out and ' In use from the next weapon skill.' or ' It applies when the mate is called.'))
+    end, 'WS gear set NOT saved')
+    return true
+end
+
+function M.wx_clear(slot)
+    if M.busy() then
+        return busy_say()
+    end
+
+    wx_request({ 'wxc', tostring(slot) }, slot, function()
+        say('WS gear set cleared: the normal outfit for weapon skills too.')
+    end, 'WS gear set NOT cleared')
+    return true
+end
+
+function M.wx_summary(d)
+    if d == nil then
+        return 'Loading...'
+    elseif d.count == 0 then
+        return 'No WS gear set: weapon skills use the normal outfit.'
+    end
+
+    local bad = 0
+    for _, p in pairs(d.pieces) do
+        bad = bad + (p.ok and 0 or 1)
+    end
+
+    return string.format('%d piece%s for weapon skills%s.', d.count, d.count == 1 and '' or 's',
+        bad > 0 and string.format(' (%d left out now)', bad) or '')
+end
+
+-- the WS gear set block inside the Weapon Skills section
+function M.wx_block(mate)
+    if not M.cap('wsset') then
+        return
+    end
+
+    local g = imgui()
+    g.Separator()
+    heading('WS gear set: ' .. mate.name .. ' (' .. mate.job .. ')')
+    wrapped(M.theme.secondary, 'Armor and accessories worn only for the weapon skill itself: on right before it, off again when '
+        .. 'its damage is done. Weapons and the look never change. Pieces follow the same rules as !squad equip.')
+    local x = S.wx
+    if x == nil or x.slot ~= mate.slot then
+        if not M.busy() then
+            M.wx_load(mate.slot)
+        end
+
+        note('Loading...')
+        return
+    end
+
+    if x.error then
+        colored(M.theme.bad, 'Could not load it: ' .. M.readable(x.error))
+        if button('Try again##gsq-wx-retry') then S.wx = nil end
+        return
+    end
+
+    local d = x.data
+    if d == nil then
+        note('Loading...')
+        return
+    end
+
+    wrapped(M.theme.secondary, M.wx_summary(d))
+    if not d.engine then
+        wrapped(M.theme.gold, 'This needs the updated map server (xi_map) to be used in a fight.')
+    end
+
+    for _, eq in ipairs(M.WX_SLOTS) do
+        local p = d.pieces[eq]
+        if p then
+            colored(p.ok and M.theme.text or M.theme.bad, string.format('%-7s %s', M.WX_SLOT_NAMES[eq], p.name))
+            if not p.ok and p.why then
+                tooltip('Left out now: ' .. p.why .. '. That slot keeps the normal gear.')
+            end
+
+            same_if_fits(s(80))
+            if button('Remove##gsq-wx-del-' .. eq) then M.wx_set(mate.slot, eq, 0) end
+        end
+    end
+
+    label_text('Slot')
+    g.SameLine(s(60))
+    width(s(110))
+    local eq = combo('##gsq-wx-eq', x.eq or 4, M.WX_SLOTS, function(v) return M.WX_SLOT_NAMES[v] end)
+    if eq ~= x.eq then
+        x.eq, x.choices, x.pick = eq, nil, nil
+    end
+
+    same_if_fits(s(260))
+    if x.choices == nil or x.choicesFor ~= x.eq then
+        if button('Show items##gsq-wx-list') then M.wx_list(mate.slot, x.eq) end
+        tooltip('The items ' .. mate.name .. ' may wear there (given to your squad, or all gear with "Squad gets all gear").')
+    else
+        local ids = {}
+        local names = {}
+        for _, it in ipairs(x.choices) do
+            ids[#ids + 1] = it.id
+            names[it.id] = string.format('%s (Lv%d)', it.name, it.level or 0)
+        end
+
+        width(s(240))
+        x.pick = combo('##gsq-wx-item', x.pick or ids[1], ids, function(v) return names[v] or tostring(v) end)
+        same_if_fits(s(80))
+        if x.pick and button('Put in set##gsq-wx-put') then M.wx_set(mate.slot, x.eq, x.pick) end
+        if #ids == 0 then
+            note('(nothing ' .. mate.name .. ' can wear there)')
+        end
+    end
+
+    if d.count > 0 then
+        if button('Clear the WS gear set##gsq-wx-clear') then M.wx_clear(mate.slot) end
+        tooltip('Weapon skills use the normal outfit again.')
+        same_if_fits(s(80))
+    end
+
+    if button('Refresh##gsq-wx-refresh') then S.wx = nil end
+end
+
+-- ---------------------------------------------------------------- (F13, server capability "smn") the Summoner section
+-- Per SMN mate: the avatar setting, how it behaves (normal attacks, Rage, Ward, between pulls, support out of combat,
+-- whether rules may switch the avatar) and ordered pact rules ("use PACT on TARGET when COND"). The server owns what the
+-- mate may do and what it pays (summon MP, perpetuation, the player's Blood Pact check). Requests: smg (load), sms
+-- (settings), smr (one rule), smd (delete), smm (move), smp (the pact list).
+M.SMN_AVATARS = { [0] = 'Auto (weakness)', 'Carbuncle', 'Ifrit', 'Titan', 'Leviathan', 'Garuda', 'Shiva', 'Ramuh', 'Fenrir', 'Keep current' }
+M.SMN_MODES = { [0] = 'Auto (job default)', 'Off', 'Rules only' }
+M.SMN_BETWEEN = { [0] = 'Keep it out', 'Release it', 'Release when MP < 50%' }
+M.SMN_TARGETS = { 'SELF', 'MASTER', 'PARTY', 'ENEMY' }
+M.SMN_TARGET_NAMES = { SELF = 'Itself', MASTER = 'You', PARTY = 'A party member', ENEMY = 'The enemy' }
+M.SMN_CONDS = { 'ALWAYS', 'NOT_STATUS', 'STATUS', 'HPP_LT', 'HPP_GTE', 'MY_MPP_GTE', 'MY_MPP_LT' }
+M.SMN_COND_NAMES = { ALWAYS = 'Always', NOT_STATUS = 'Lacks status', STATUS = 'Has status', HPP_LT = 'HP % below',
+                     HPP_GTE = 'HP % at least', MY_MPP_GTE = 'My MP % at least', MY_MPP_LT = 'My MP % below' }
+M.SMN_WHENS = { 'COMBAT', 'IDLE', 'ANY' }
+M.SMN_WHEN_NAMES = { COMBAT = 'In combat', IDLE = 'Out of combat', ANY = 'Both' }
+M.SMN_HELP = {
+    avatar = 'Auto: the avatar the enemy is weakest to (switches when a new fight starts). Keep current: never switches by itself. '
+        .. 'A pact rule may still switch to the avatar it needs, unless you turn that off below.',
+    engage = 'Whether the avatar fights the mate\'s target with normal attacks. Rage, its timer and MP never stop them.',
+    rage = 'Auto: the strongest Rage for the level whenever it is ready (with the MP left over after protected rules). '
+        .. 'Rules only: only your Rage rules. A kind of pact you have rules for never uses the job default.',
+    ward = 'Auto: the job default wards (heals first, then debuffs, then buffs you lack). Rules only: only your Ward rules.',
+    between = 'What happens to the avatar a few seconds after a fight. It is always released before the mate rests.',
+    idle = 'Out-of-combat support: rules set to Out of combat or Both may call an avatar and use its pact between fights.',
+    switch = 'Whether a pact rule may switch to the avatar it needs (only when the summon, the pact and the upkeep while it '
+        .. 'waits are affordable).',
+    protect = 'Protected: the mate keeps this pact\'s MP for it; the default Rage is not used when it would dip below.',
+}
+
+function M.parse_smn(items)
+    local f = items[1]
+    if f == nil or f[3] ~= 'smn' or #f < 18 then
+        return nil, 'the answer was not readable'
+    end
+
+    local d = { slot = tonumber(f[4]), job = f[5], avatar = tonumber(f[6]) or 0, engage = f[7] == '1', rage = tonumber(f[8]) or 0,
+                ward = tonumber(f[9]) or 0, between = tonumber(f[10]) or 0, idle = f[11] == '1', ruleSwitch = f[12] == '1',
+                out = f[13] == '1', current = f[14] ~= '-' and f[14] or nil, intent = f[15] ~= '-' and f[15] or nil,
+                mp = tonumber(f[16]), maxmp = tonumber(f[17]), engine = f[18] == '1', rules = {} }
+    for i = 2, #items do
+        local r = items[i]
+        if r[3] ~= 'smr' or #r < 11 then
+            return nil, 'a rule line was not readable'
+        end
+
+        d.rules[#d.rules + 1] = { on = r[5] == '1', pact = r[6], target = r[7], cond = r[8], arg = r[9], when = r[10], protect = r[11] == '1' }
+    end
+
+    if d.slot == nil then
+        return nil, 'the answer was not readable'
+    end
+
+    return d
+end
+
+function M.parse_smp(items)
+    local list = {}
+    for _, f in ipairs(items) do
+        if f[3] ~= 'smp' then
+            return nil, 'a line of the pact list was not readable'
+        end
+
+        for _, entry in ipairs(split(f[4] or '', ',')) do
+            local name, avatar, level, kind, aim, effect, usable = string.match(entry, '^([%w_]+):([%w_]+):(%d+):(%a+):(%a+):([%w_%-]+):([01])$')
+            if name == nil then
+                return nil, 'the pact list was cut or changed (' .. entry .. ')'
+            end
+
+            list[#list + 1] = { name = name, avatar = avatar, level = tonumber(level), kind = kind, aim = aim,
+                                effect = effect ~= '-' and effect or nil, usable = usable == '1' }
+        end
+    end
+
+    return list
+end
+
+-- the rule as one readable line
+function M.smn_rule_text(r)
+    local cond = M.SMN_COND_NAMES[r.cond] or r.cond
+    if r.cond ~= 'ALWAYS' then
+        cond = cond .. ' ' .. tostring(r.arg)
+    end
+
+    return string.format('%s on %s when %s (%s)%s', M.pretty(r.pact or '?'), M.SMN_TARGET_NAMES[r.target] or r.target, cond,
+        M.SMN_WHEN_NAMES[r.when] or r.when, r.protect and ', protected' or '')
+end
+
+local function smn_request(words, slot, done, failWhat)
+    read_request(words, function(items)
+        local d, why = M.parse_smn(items)
+        if d == nil or d.slot ~= slot then
+            return false, why or 'the answer was for another mate'
+        end
+
+        S.smn = S.smn and S.smn.slot == slot and S.smn or { slot = slot }
+        S.smn.data, S.smn.loading, S.smn.error = d, false, nil
+        S.smn.edit = { avatar = d.avatar, engage = d.engage, rage = d.rage, ward = d.ward, between = d.between, idle = d.idle,
+                       ruleSwitch = d.ruleSwitch }
+        if done then
+            done(d)
+        end
+
+        return true
+    end, function(why, kind, job)
+        if S.smn and S.smn.slot == slot then
+            S.smn.loading = false
+            if failWhat == nil then
+                S.smn.error = (job and job.code == 'notsmn') and 'notsmn' or why
+            end
+        end
+
+        if not (job and job.code == 'notsmn') then
+            say((failWhat or 'Could not load the Summoner settings') .. ': ' .. why, false)
+        end
+    end)
+end
+
+function M.smn_load(slot)
+    S.smn = { slot = slot, loading = true }
+    smn_request({ 'smg', tostring(slot) }, slot)
+    read_request({ 'smp', tostring(slot) }, function(items)
+        local list, why = M.parse_smp(items)
+        if list == nil then
+            return false, why
+        end
+
+        if S.smn and S.smn.slot == slot then
+            S.smn.pacts = list
+        end
+
+        return true
+    end, function() end)
+end
+
+function M.smn_save_settings(slot, e)
+    if M.busy() then
+        return busy_say()
+    end
+
+    S.progress = 'Saving the Summoner settings...'
+    smn_request({ 'sms', tostring(slot), tostring(e.avatar), e.engage and '1' or '0', tostring(e.rage), tostring(e.ward),
+        tostring(e.between), e.idle and '1' or '0', e.ruleSwitch and '1' or '0' }, slot, function(d)
+        S.progress = nil
+        say('Summoner settings saved (server confirmed).' .. (d.out and ' In use now.' or ' They apply when the mate is called.'))
+    end, 'Summoner settings NOT saved')
+    return true
+end
+
+-- rule n = the position (count + 1 adds one)
+function M.smn_save_rule(slot, n, r)
+    if M.busy() then
+        return busy_say()
+    end
+
+    local arg = (r.cond == 'ALWAYS') and '0' or tostring(r.arg or '')
+    if arg == '' then
+        say('The condition needs a value (a status such as HASTE, or a percentage).', false)
+        return false
+    end
+
+    smn_request({ 'smr', tostring(slot), tostring(n), r.on == false and '0' or '1', r.pact, r.target, r.cond, arg, r.when,
+        r.protect and '1' or '0' }, slot, function()
+        say(string.format('Pact rule %d saved (server checked).', n))
+    end, 'Pact rule NOT saved')
+    return true
+end
+
+function M.smn_delete_rule(slot, n)
+    if M.busy() then
+        return busy_say()
+    end
+
+    smn_request({ 'smd', tostring(slot), tostring(n) }, slot, function() say('Pact rule removed.') end, 'Pact rule NOT removed')
+    return true
+end
+
+function M.smn_move_rule(slot, n, dir)
+    if M.busy() then
+        return busy_say()
+    end
+
+    smn_request({ 'smm', tostring(slot), tostring(n), tostring(dir) }, slot, nil, 'Pact rule NOT moved')
+    return true
+end
+
+-- the example: "use Hastega when you lack Haste" (in a fight and out of it; its MP is protected)
+function M.smn_hastega_example()
+    return { on = true, pact = 'HASTEGA', target = 'MASTER', cond = 'NOT_STATUS', arg = 'HASTE', when = 'ANY', protect = true }
+end
+
+-- (F13) the Summoner starter: the job's template, the same idea as the Rule Set starters (M.TEMPLATES), but made of the
+-- Summoner section's settings and pact rules, because a Rule Set has no pet actions. Using it only fills an unsaved
+-- starter in the Summoner section; "Save starter" puts it on the mate. Nothing else is changed.
+M.SMN_STARTERS = { {
+    name = 'Basic Summoner',
+    about = 'Garuda for support. Normal avatar attacks on (the avatar keeps fighting when Rage is skipped). '
+        .. 'Rule 1 (Ward): Hastega on you when you lack Haste, its MP protected - needs level 48 for Hastega, and Garuda '
+        .. '(level 10; with spells from scrolls, Garuda\'s pact). Below level 48 the rule waits and the mate uses rule 2. '
+        .. 'Rule 2 (Rage): Claw on the enemy only while the mate has at least 60% MP, so MP is kept for support. '
+        .. 'Garuda is called and switched to by the pact rules, which check the summon cost, the pact cost and the Blood '
+        .. 'Pact timer. The avatar is released before the mate rests (always). Avatar: Keep current (no switching for '
+        .. 'weakness). Rage and Ward: Rules only.',
+    settings = { avatar = 9, engage = true, rage = 2, ward = 2, between = 0, idle = false, ruleSwitch = true },
+    rules = {
+        { on = true, pact = 'HASTEGA', target = 'MASTER', cond = 'NOT_STATUS', arg = 'HASTE', when = 'COMBAT', protect = true },
+        { on = true, pact = 'CLAW', target = 'ENEMY', cond = 'MY_MPP_GTE', arg = '60', when = 'COMBAT', protect = false },
+    },
+} }
+
+local function copyStarter(t)
+    local out = { name = t.name, about = t.about, settings = {}, rules = {} }
+    for k, v in pairs(t.settings) do out.settings[k] = v end
+    for i, r in ipairs(t.rules) do
+        local c = {}
+        for k, v in pairs(r) do c[k] = v end
+        out.rules[i] = c
+    end
+
+    return out
+end
+
+-- open the starter (a copy) in the mate's Summoner section, not saved
+function M.smn_use_starter(mate, index)
+    local t = M.SMN_STARTERS[index or 1]
+    if t == nil then
+        return nil, 'no Summoner starter'
+    end
+
+    if S.smn == nil or S.smn.slot ~= mate.slot then
+        S.smn = nil -- (the section loads the mate's own settings first, then shows the starter beside them)
+        S.smnStarterFor = { slot = mate.slot, starter = copyStarter(t) }
+    else
+        S.smn.starter = copyStarter(t)
+    end
+
+    S.smnOpen = true
+    say(t.name .. ' starter opened in the Summoner section (not saved yet).')
+    return true
+end
+
+-- the !gsq requests that put a starter on a mate as ONE change (server capability "smn1"): begin, the settings, every
+-- rule (each checked when it arrives, nothing written), then the commit, which checks it all and only then replaces the
+-- mate's settings and pact rules. A refused part changes nothing.
+function M.smn_starter_requests(slot, starter)
+    local e = starter.settings
+    local out = { { 'smb', tostring(slot) },
+                  { 'smbs', tostring(slot), tostring(e.avatar), e.engage and '1' or '0', tostring(e.rage), tostring(e.ward),
+                    tostring(e.between), e.idle and '1' or '0', e.ruleSwitch and '1' or '0' } }
+    for i, r in ipairs(starter.rules) do
+        out[#out + 1] = { 'smbr', tostring(slot), tostring(i), r.on == false and '0' or '1', r.pact, r.target, r.cond,
+                          r.cond == 'ALWAYS' and '0' or tostring(r.arg or ''), r.when, r.protect and '1' or '0' }
+    end
+
+    out[#out + 1] = { 'smbc', tostring(slot), tostring(#starter.rules) }
+    return out
+end
+
+-- Save starter: the parts one after the other; the commit's answer is the mate's new state. On any refusal the open
+-- save is dropped (smba) and the mate keeps what it had.
+function M.smn_apply_starter(slot, starter)
+    if M.busy() then
+        return busy_say()
+    end
+
+    if not M.cap('smn1') then
+        say('Saving a starter needs the updated server (it is saved as one change there).', false)
+        return false
+    end
+
+    local list = M.smn_starter_requests(slot, starter)
+    local function fail(i, why)
+        read_request({ 'smba', tostring(slot) }, function() return true end, function() end)
+        say(string.format('%s NOT saved: %s. Nothing was changed.', starter.name, M.readable(why or '?')), false)
+    end
+
+    local function step(i)
+        local words = list[i]
+        if i == #list then
+            smn_request(words, slot, function()
+                if S.smn then
+                    S.smn.starter = nil
+                end
+
+                say(starter.name .. ' saved for this mate (server confirmed): its settings and ' .. #starter.rules .. ' pact rules.')
+            end, starter.name .. ' NOT saved (nothing was changed)')
+            return
+        end
+
+        read_request(words, function(items)
+            local f = items[1]
+            if f == nil or f[3] ~= 'smb' then
+                return false, 'the answer was not readable'
+            end
+
+            step(i + 1)
+            return true
+        end, function(why) fail(i, why) end)
+    end
+
+    step(1)
+    return true
+end
+
+function M.smn_dirty()
+    local m = S.smn
+    if not (m and m.data and m.edit) then
+        return false
+    end
+
+    local d, e = m.data, m.edit
+    return d.avatar ~= e.avatar or d.engage ~= e.engage or d.rage ~= e.rage or d.ward ~= e.ward or d.between ~= e.between
+        or d.idle ~= e.idle or d.ruleSwitch ~= e.ruleSwitch
+end
+
+local function onoff(id, value, help)
+    local v = combo(id, value and 1 or 0, { 1, 0 }, function(x) return x == 1 and 'On' or 'Off' end)
+    tooltip(help or '')
+    return v == 1
+end
+
+-- the fields of one pact rule (r is changed in place); pacts = the server's pact list
+local function smn_rule_fields(r, pacts, idPrefix)
+    local g = imgui()
+    local labelW = s(150)
+    local function label(text)
+        label_text(text)
+        g.SameLine(labelW)
+    end
+
+    local names, labels = {}, {}
+    for _, p in ipairs(pacts or {}) do
+        names[#names + 1] = p.name
+        labels[p.name] = string.format('%s (%s %s, Lv%d)%s', M.pretty(p.name), M.pretty(p.avatar), p.kind, p.level, p.usable and '' or ' - not yet')
+    end
+    if #names == 0 then
+        names = { r.pact }
+    end
+
+    label('Pact')
+    width(s(260))
+    r.pact = combo('##' .. idPrefix .. '-pact', r.pact, names, function(v) return labels[v] or M.pretty(v) end)
+    label('Target')
+    width(s(180))
+    r.target = combo('##' .. idPrefix .. '-tgt', r.target, M.SMN_TARGETS, function(v) return M.SMN_TARGET_NAMES[v] end)
+    label('When the target')
+    width(s(180))
+    r.cond = combo('##' .. idPrefix .. '-cond', r.cond, M.SMN_CONDS, function(v) return M.SMN_COND_NAMES[v] end)
+    if r.cond ~= 'ALWAYS' then
+        same_if_fits(s(140))
+        width(s(130))
+        r.arg = text_field('##' .. idPrefix .. '-arg', tostring(r.arg or ''), 24)
+        tooltip((r.cond == 'NOT_STATUS' or r.cond == 'STATUS') and 'A status effect name, such as HASTE or PROTECT.' or 'A percentage, 0-100.')
+    end
+    label('Use it')
+    width(s(180))
+    r.when = combo('##' .. idPrefix .. '-when', r.when, M.SMN_WHENS, function(v) return M.SMN_WHEN_NAMES[v] end)
+    label('Protect its MP')
+    width(s(90))
+    local p = combo('##' .. idPrefix .. '-prot', r.protect and 1 or 0, { 1, 0 }, function(x) return x == 1 and 'On' or 'Off' end)
+    tooltip(M.SMN_HELP.protect)
+    r.protect = p == 1
+    label('Rule')
+    width(s(90))
+    local on = combo('##' .. idPrefix .. '-on', r.on ~= false and 1 or 0, { 1, 0 }, function(x) return x == 1 and 'On' or 'Off' end)
+    tooltip('A rule that is off is kept but not used.')
+    r.on = on == 1
+end
+
+-- (F13) the Summoner starter, open and not saved: its settings and rules can be changed here, then saved on the mate
+function M.smn_starter_panel(mate, m)
+    local g = imgui()
+    local st = m.starter
+    heading('Starter: ' .. st.name .. ' (not saved yet)')
+    wrapped(M.theme.secondary, st.about)
+    local e = st.settings
+    local labelW = s(150)
+    local function label(text)
+        label_text(text)
+        g.SameLine(labelW)
+    end
+
+    local function onoffS(id, value, help)
+        local v = combo(id, value and 1 or 0, { 1, 0 }, function(x) return x == 1 and 'On' or 'Off' end)
+        tooltip(help or '')
+        return v == 1
+    end
+
+    label('Avatar')
+    width(s(180))
+    e.avatar = combo('##gsq-smst-av', e.avatar, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, function(v) return M.SMN_AVATARS[v] end)
+    tooltip(M.SMN_HELP.avatar)
+    label('Normal attacks')
+    width(s(90))
+    e.engage = onoffS('##gsq-smst-eng', e.engage, M.SMN_HELP.engage)
+    label('Rage')
+    width(s(180))
+    e.rage = combo('##gsq-smst-rage', e.rage, { 0, 1, 2 }, function(v) return M.SMN_MODES[v] end)
+    tooltip(M.SMN_HELP.rage)
+    label('Ward')
+    width(s(180))
+    e.ward = combo('##gsq-smst-ward', e.ward, { 0, 1, 2 }, function(v) return M.SMN_MODES[v] end)
+    tooltip(M.SMN_HELP.ward)
+    label('Between pulls')
+    width(s(180))
+    e.between = combo('##gsq-smst-btw', e.between, { 0, 1, 2 }, function(v) return M.SMN_BETWEEN[v] end)
+    tooltip(M.SMN_HELP.between)
+    label('Support out of combat')
+    width(s(90))
+    e.idle = onoffS('##gsq-smst-idle', e.idle, M.SMN_HELP.idle)
+    label('Rules may switch')
+    width(s(90))
+    e.ruleSwitch = onoffS('##gsq-smst-sw', e.ruleSwitch, M.SMN_HELP.switch)
+
+    g.Separator()
+    heading('Starter pact rules (in order)')
+    for i, r in ipairs(st.rules) do
+        colored(r.on and M.theme.text or M.theme.secondary, string.format('%d. %s%s', i, r.on and '' or '(off) ', M.smn_rule_text(r)))
+        same_if_fits(s(80))
+        if button('Edit##gsq-smst-ed' .. i) then
+            st.editing = i
+        end
+    end
+
+    if st.editing and st.rules[st.editing] then
+        g.Separator()
+        heading('Starter rule ' .. st.editing)
+        smn_rule_fields(st.rules[st.editing], m.pacts, 'gsq-smst-r')
+        if button('Done##gsq-smst-done') then st.editing = nil end
+    end
+
+    g.Separator()
+    with_colors({ { 'ImGuiCol_Button', M.theme.goGold }, { 'ImGuiCol_ButtonHovered', times(M.theme.goGold, 1.15) },
+                  { 'ImGuiCol_Text', M.theme.goText } }, function()
+        if button('Save starter for ' .. mate.name .. '##gsq-smst-save') then
+            M.smn_apply_starter(mate.slot, st)
+        end
+    end)
+    local old = m.data and #m.data.rules or 0
+    tooltip(string.format('Puts these settings and %d pact rules on %s%s. Rule Sets and their assignments are not changed.',
+        #st.rules, mate.name, old > 0 and string.format(' (replacing its %d pact rule%s)', old, old == 1 and '' or 's') or ''))
+    same_if_fits(s(80))
+    if button('Discard starter##gsq-smst-drop') then m.starter = nil end
+    tooltip('Close the starter without saving: ' .. mate.name .. ' keeps its own settings and rules.')
+end
+
+local function smn_panel(mate)
+    local g = imgui()
+    local m = S.smn
+    if m == nil or m.slot ~= mate.slot then
+        if not M.busy() then
+            M.smn_load(mate.slot)
+        end
+
+        note('Loading...')
+        return
+    end
+
+    if m.error == 'notsmn' then
+        note(mate.name .. ' is not a Summoner now.')
+        return
+    elseif m.error then
+        colored(M.theme.bad, 'Could not load them: ' .. M.readable(m.error))
+        if button('Try again##gsq-smn-retry') then S.smn = nil end
+        return
+    end
+
+    local d, e = m.data, m.edit
+    if d == nil or e == nil then
+        note('Loading...')
+        return
+    end
+
+    if S.smnStarterFor and S.smnStarterFor.slot == mate.slot then
+        m.starter, S.smnStarterFor = S.smnStarterFor.starter, nil
+    end
+
+    if not d.engine then
+        wrapped(M.theme.gold, 'The map server here does not charge avatar upkeep yet (xi_map update needed); the rest works.')
+    end
+
+    if m.starter then
+        return M.smn_starter_panel(mate, m)
+    end
+
+    if d.out then
+        wrapped(M.theme.secondary, string.format('Now: %s%s. MP %s/%s.', d.current and M.pretty(d.current) or 'no avatar',
+            d.intent and (', on its way to ' .. M.pretty(d.intent)) or '', tostring(d.mp or '?'), tostring(d.maxmp or '?')))
+    else
+        wrapped(M.theme.secondary, mate.name .. ' is not summoned: the settings and rules apply when called.')
+    end
+
+    local labelW = s(150)
+    local function label(text)
+        label_text(text)
+        g.SameLine(labelW)
+    end
+
+    label('Avatar')
+    width(s(180))
+    e.avatar = combo('##gsq-smn-av', e.avatar, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, function(v) return M.SMN_AVATARS[v] end)
+    tooltip(M.SMN_HELP.avatar)
+    label('Normal attacks')
+    width(s(90))
+    e.engage = onoff('##gsq-smn-eng', e.engage, M.SMN_HELP.engage)
+    label('Rage')
+    width(s(180))
+    e.rage = combo('##gsq-smn-rage', e.rage, { 0, 1, 2 }, function(v) return M.SMN_MODES[v] end)
+    tooltip(M.SMN_HELP.rage)
+    label('Ward')
+    width(s(180))
+    e.ward = combo('##gsq-smn-ward', e.ward, { 0, 1, 2 }, function(v) return M.SMN_MODES[v] end)
+    tooltip(M.SMN_HELP.ward)
+    label('Between pulls')
+    width(s(180))
+    e.between = combo('##gsq-smn-btw', e.between, { 0, 1, 2 }, function(v) return M.SMN_BETWEEN[v] end)
+    tooltip(M.SMN_HELP.between)
+    label('Support out of combat')
+    width(s(90))
+    e.idle = onoff('##gsq-smn-idle', e.idle, M.SMN_HELP.idle)
+    label('Rules may switch')
+    width(s(90))
+    e.ruleSwitch = onoff('##gsq-smn-sw', e.ruleSwitch, M.SMN_HELP.switch)
+
+    local dirty = M.smn_dirty()
+    with_colors({ { 'ImGuiCol_Button', M.theme.goGold }, { 'ImGuiCol_ButtonHovered', times(M.theme.goGold, 1.15) },
+                  { 'ImGuiCol_Text', M.theme.goText } }, function()
+        if button((dirty and 'Save settings *' or 'Save settings') .. '##gsq-smn-save') then
+            M.smn_save_settings(mate.slot, e)
+        end
+    end)
+    tooltip('Store these for ' .. mate.name .. ' (the server checks them). An out mate uses them at once.')
+
+    g.Separator()
+    heading('Pact rules (in order: the first one that fits is used)')
+    if #d.rules == 0 then
+        note('No pact rules: the job default (the settings above) decides.')
+    end
+
+    for i, r in ipairs(d.rules) do
+        colored(r.on and M.theme.text or M.theme.secondary, string.format('%d. %s%s', i, r.on and '' or '(off) ', M.smn_rule_text(r)))
+        same_if_fits(s(220))
+        if button('Edit##gsq-smn-ed' .. i) then
+            m.draft = { n = i, on = r.on, pact = r.pact, target = r.target, cond = r.cond, arg = r.arg, when = r.when, protect = r.protect }
+        end
+        g.SameLine(0, s(4))
+        if i > 1 and button('Up##gsq-smn-up' .. i) then M.smn_move_rule(mate.slot, i, -1) end
+        g.SameLine(0, s(4))
+        if i < #d.rules and button('Down##gsq-smn-dn' .. i) then M.smn_move_rule(mate.slot, i, 1) end
+        g.SameLine(0, s(4))
+        if button('Delete##gsq-smn-del' .. i) then M.smn_delete_rule(mate.slot, i) end
+    end
+
+    local r = m.draft
+    if r == nil then
+        if #d.rules < 8 and button('New pact rule##gsq-smn-new') then
+            m.draft = { n = #d.rules + 1, on = true, pact = 'HASTEGA', target = 'MASTER', cond = 'NOT_STATUS', arg = 'HASTE', when = 'COMBAT', protect = false }
+        end
+        same_if_fits(s(260))
+        if #d.rules < 8 and button('Add example: Hastega when you lack Haste##gsq-smn-ex') then
+            M.smn_save_rule(mate.slot, #d.rules + 1, M.smn_hastega_example())
+        end
+        tooltip('Garuda is called only if needed and affordable (summon + Hastega + upkeep while it waits); it is not used if you '
+            .. 'get Haste from someone else first; only one Summoner goes for it; in a fight Garuda keeps attacking afterwards.')
+        return
+    end
+
+    g.Separator()
+    heading(r.n > #d.rules and 'New pact rule' or ('Rule ' .. r.n))
+    local names, labels = {}, {}
+    for _, p in ipairs(m.pacts or {}) do
+        names[#names + 1] = p.name
+        labels[p.name] = string.format('%s (%s %s, Lv%d)%s', M.pretty(p.name), M.pretty(p.avatar), p.kind, p.level, p.usable and '' or ' - not yet')
+    end
+    if #names == 0 then
+        names = { r.pact }
+    end
+
+    label('Pact')
+    width(s(260))
+    r.pact = combo('##gsq-smn-pact', r.pact, names, function(v) return labels[v] or M.pretty(v) end)
+    label('Target')
+    width(s(180))
+    r.target = combo('##gsq-smn-tgt', r.target, M.SMN_TARGETS, function(v) return M.SMN_TARGET_NAMES[v] end)
+    label('When the target')
+    width(s(180))
+    r.cond = combo('##gsq-smn-cond', r.cond, M.SMN_CONDS, function(v) return M.SMN_COND_NAMES[v] end)
+    if r.cond ~= 'ALWAYS' then
+        same_if_fits(s(140))
+        width(s(130))
+        r.arg = text_field('##gsq-smn-arg', tostring(r.arg or ''), 24)
+        tooltip((r.cond == 'NOT_STATUS' or r.cond == 'STATUS') and 'A status effect name, such as HASTE or PROTECT.' or 'A percentage, 0-100.')
+    end
+    label('Use it')
+    width(s(180))
+    r.when = combo('##gsq-smn-when', r.when, M.SMN_WHENS, function(v) return M.SMN_WHEN_NAMES[v] end)
+    label('Protect its MP')
+    width(s(90))
+    r.protect = onoff('##gsq-smn-prot', r.protect, M.SMN_HELP.protect)
+    label('Rule')
+    width(s(90))
+    r.on = onoff('##gsq-smn-on', r.on ~= false, 'A rule that is off is kept but not used.')
+
+    if button('Save rule##gsq-smn-rsave') then
+        if M.smn_save_rule(mate.slot, r.n, r) then
+            m.draft = nil
+        end
+    end
+    same_if_fits(s(80))
+    if button('Cancel##gsq-smn-rcancel') then m.draft = nil end
+end
+M.smn_panel = smn_panel
+
+local function smn_section(mate)
+    if not M.cap('smn') or mate.job ~= 'SMN' then
+        return
+    end
+
+    local g = imgui()
+    g.Separator()
+    local open = S.smnOpen == true
+    if g.CollapsingHeader then
+        if g.SetNextItemOpen then
+            g.SetNextItemOpen(open)
+        end
+
+        open = g.CollapsingHeader('Summoner: ' .. mate.name .. '##gsq-smn-section') == true
+    elseif button((open and '[-] ' or '[+] ') .. 'Summoner: ' .. mate.name .. '##gsq-smn-section') then
+        open = not open
+    end
+
+    tooltip('How ' .. mate.name .. ' uses avatars and Blood Pacts: settings and pact rules, separate from Rule Sets.')
+    S.smnOpen = open -- (for this session; not a saved setting, so the settings file stays as it was)
+
+    if open then
+        smn_panel(mate)
+    else
+        local m = S.smn
+        if m and m.slot == mate.slot and m.data then
+            wrapped(M.theme.secondary, string.format('Avatar: %s. %d pact rule%s.', M.SMN_AVATARS[m.data.avatar] or '?', #m.data.rules,
+                #m.data.rules == 1 and '' or 's'))
+        else
+            wrapped(M.theme.secondary, 'Open to see and change ' .. mate.name .. '\'s avatar settings and pact rules.')
+        end
+    end
+end
+M.smn_section = smn_section
 
 -- ---------------------------------------------------------------- (0.3.2) party roles (!gsq version 7: prl, prs)
 -- Who the Rule Sets' Tank / Melee / Mage / Ranged targets (and a Bard's role songs) mean: the server's party roles
@@ -7025,13 +7919,14 @@ local function right_panel(mate)
     plain_child('##gsq-right-body', { 0, bodyH }, function()
         local afterList = editor_panel()
         ws_section(mate)
+        smn_section(mate) -- (F13) a Summoner's avatar settings and pact rules
         roles_section() -- (0.3.2) the whole party, not only this mate
         local bottom = cursor_y()
         if afterList and bottom then
             -- what the editor needs below its rule list (next frame's limit): the largest seen while the same set, the
             -- same Weapon Skills state and the same panel height are shown; anything else starts measuring again
             local key = tostring(d) .. '|' .. tostring(S.wsOpen == true) .. '|' .. tostring(S.rolesOpen == true) .. '|'
-                .. tostring(math.floor(bodyH / row_h()))
+                .. tostring(S.smnOpen == true) .. '|' .. tostring(math.floor(bodyH / row_h()))
             local measured = math.max(0, bottom - afterList)
             if S.layout.restKey ~= key then
                 S.layout.restKey, S.layout.restH = key, measured
