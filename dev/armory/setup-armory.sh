@@ -16,6 +16,9 @@ install -m 644 "$HERE/update_app_web.py" /opt/xifo-armory/update_app_web.py
 # (2026-11-25) Ventures: the simulation and the camps built from the server's data (dev/ventures/build_venture_data.py)
 install -m 644 "$HERE/ventures.py" /opt/xifo-armory/ventures.py
 install -m 644 "$HERE/ventures_hub.py" /opt/xifo-armory/ventures_hub.py
+install -m 644 "$HERE/tetra_rules.py" /opt/xifo-armory/tetra_rules.py      # (2026-11-25) Tetra Master PvP
+install -m 644 "$HERE/tetra_hub.py" /opt/xifo-armory/tetra_hub.py
+install -m 644 "$HERE/tetra_cards.json" /opt/xifo-armory/tetra_cards.json
 install -m 644 "$HERE/venture_data.json" /opt/xifo-armory/venture_data.json
 mkdir -p /var/lib/xifo-app-web/releases
 chown -R xifo-armory:xifo-armory /var/lib/xifo-app-web
