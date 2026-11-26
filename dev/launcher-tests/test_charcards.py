@@ -75,15 +75,26 @@ class Script(unittest.TestCase):
             return f.read().splitlines()
 
     def test_block_goes_first_and_is_replaced_and_removed(self):
+        # a script without "/load addons": the block brings it, first of all
         cc.set_autologin(self.path, 2)
         lines = self.read()
-        self.assertEqual(lines[:3], [cc.BEGIN, "/addon load autologin 2", cc.END])
-        self.assertEqual(lines[3:], ["/load thirdparty", "/addon load servermenu", "/wait 10"])
+        self.assertEqual(lines[:4], [cc.BEGIN, "/load addons", "/addon load autologin 2", cc.END])
+        self.assertEqual(lines[4:], ["/load thirdparty", "/addon load servermenu", "/wait 10"])
         cc.set_autologin(self.path, 0)
         self.assertEqual(self.read().count("/addon load autologin 0"), 1)
         self.assertNotIn("/addon load autologin 2", self.read())
         cc.set_autologin(self.path, None)
         self.assertEqual(self.read(), ["/load thirdparty", "/addon load servermenu", "/wait 10"])
+
+    def test_block_goes_after_load_addons(self):
+        # (2026-11-25) /addon only works once the add-on loader is up: the block sits right after "/load addons"
+        with open(self.path, "w") as f:
+            f.write("/load thirdparty\n/load addons\n/addon load servermenu\n/wait 10\n")
+        cc.set_autologin(self.path, 3)
+        self.assertEqual(self.read(), ["/load thirdparty", "/load addons", cc.BEGIN, "/addon load autologin 3", cc.END,
+                                       "/addon load servermenu", "/wait 10"])
+        cc.set_autologin(self.path, None)
+        self.assertEqual(self.read(), ["/load thirdparty", "/load addons", "/addon load servermenu", "/wait 10"])
 
     def test_missing_script(self):
         self.assertFalse(cc.set_autologin(os.path.join(self.dir, "none.txt"), 1))
