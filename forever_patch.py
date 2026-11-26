@@ -3,7 +3,7 @@
 What it changes in the FINAL FANTASY XI folder (originals kept once in backups\\forever-patch):
   * Look: head model 517 (unused by any item) gets the Eyepatch's model with a new texture in the Forever Beta
     Shirt's colours: royal purple leather, gold straps and studs, a big glowing crystal in the middle of the patch
-    (the Eyepatch's cross is covered), FOREVER above it and BETA below it in gold, and the same on the strap. Built from the player's own game files; no Square Enix art is stored in the kit.
+    (the Eyepatch's cross is covered), FOREVER above it and BETA below it in gold. Built from the player's own game files; no Square Enix art is stored in the kit.
   * Item: the empty armor slot 23867 in ROM\\286\\73.DAT gets name, description, the Eyepatch icon recoloured,
     and 5 charges / 15 hours like the Forever Beta Shirt.
 The server side is modules\\custom\\lua\\forever_patch.lua + modules\\custom\\sql\\forever_patch.sql.
@@ -17,7 +17,7 @@ KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, KIT)
 import forever_beta_shirt as fbs                     # shared: game files, DXT3 encoder, item record helpers
 
-VERSION = 2                       # bump when the design changes, so installs rebuild
+VERSION = 3                       # bump when the design changes, so installs rebuild
 ITEM_ID, TEMPLATE_ID = 23867, 11482
 NEW_MODEL = 517                   # a free head model (all 7 races have their own file; no item uses it)
 SRC_FILES = {"HumeM": "ROM/218/124", "HumeF": "ROM/219/62", "ElvaanM": "ROM/219/65", "ElvaanF": "ROM/219/70",
@@ -173,8 +173,7 @@ def design(img, race="default"):
     cx, cy = PATCH_CENTRE.get(race, PATCH_CENTRE["default"])
     put(out, glow(crystal_sprite(44, 64), 5, 0.9), cx, cy)        # bigger, in the middle of the patch
     out = patch_text(out, img, cx, cy)
-    sy0, sy1 = strap_rows(img)
-    out = strap_text(out, img, [("FOREVER", (2, sy0, 112, sy1)), ("BETA", (148, sy0, 204, sy1))])
+    # (v3, 2026-11-25, the user: no text on the strap; it shows by the ear and backwards on the other side)
     a = img.getchannel("A"); out = out.convert("RGB"); out.putalpha(a)
     return out
 
