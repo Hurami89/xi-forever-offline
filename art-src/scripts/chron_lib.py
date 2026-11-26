@@ -133,7 +133,7 @@ def paper_cut(img, thr=232):
     rgb = img.convert('RGB')
     a = np.asarray(rgb, dtype=np.int16)
     white = (a.min(axis=2) > thr) & ((a.max(axis=2) - a.min(axis=2)) < 24)
-    m = Image.fromarray((white * 255).astype(np.uint8), 'L')
+    m = Image.fromarray((white * 255).astype(np.uint8), 'L').copy()   # a copy: newer Pillow may share the array's read-only memory
     w, h = m.size
     px = m.load()
     for s in [(x, 0) for x in range(0, w, 3)] + [(x, h - 1) for x in range(0, w, 3)] + \
