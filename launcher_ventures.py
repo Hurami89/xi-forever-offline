@@ -36,6 +36,23 @@ def folder(kit=HERE):
 
 
 # ----------------------------------------------------------------------------------------------- roster
+RANGED_JOBS = {11: (25, 26), 17: (25, 26), 10: (41, 42)}     # RNG, COR: the bow or gun; BRD: the instrument
+
+
+def _weapon_skill(cur, squad_id, job):
+    """(2026-11-25) The weapon skill of what this mate holds for the app's Ventures picture: the main hand
+    (item_weapon.skill), or for a Ranger, Corsair or Bard what's in the ranged slot. 0 = unknown (the job's usual)."""
+    try:
+        rows = dict(A._all(cur, "SELECT e.slot, w.skill FROM squad_equip e JOIN item_weapon w ON w.itemId = e.itemid "
+                                "WHERE e.squad_id = ? AND e.job = ? AND e.slot IN (0, 2)", (squad_id, job)))
+    except Exception:
+        return 0
+    ranged = int(rows.get(2) or 0)
+    if ranged and ranged in RANGED_JOBS.get(job, ()):
+        return ranged
+    return int(rows.get(0) or 0)
+
+
 def build_roster(conn):
     cur = conn.cursor()
     try:
@@ -53,11 +70,12 @@ def build_roster(conn):
                 for mid, slot, mname, race, face, mjob, sjob in A._all(
                         cur, "SELECT id, slot, name, race, face, mjob, sjob FROM squad_mate WHERE charid = ? ORDER BY slot", (charid,)):
                     row = A._one(cur, "SELECT level, exp FROM squad_job WHERE squad_id = ? AND job = ?", (mid, mjob))
+                    weapon = _weapon_skill(cur, mid, int(mjob or 1))
                     look = int(rs.get(f"[HC]RSLook{mid}", 0) or 0) if random_squad else 0
                     if 1000 <= look < 9000:
                         race, face = look // 1000, (look // 10) % 100
                     mates.append({"slot": int(slot), "name": str(mname), "race": int(race or 1), "face": int(face or 0),
-                                  "job": int(mjob or 1), "sjob": int(sjob or 0), "level": int((row or [1, 0])[0] or 1),
+                                  "weapon": weapon, "job": int(mjob or 1), "sjob": int(sjob or 0), "level": int((row or [1, 0])[0] or 1),
                                   "exp": int((row or [1, 0])[1] or 0)})
             chars.append({"name": name, "mates": mates})
         bots = []

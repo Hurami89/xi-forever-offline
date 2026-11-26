@@ -98,7 +98,8 @@ class Ventures:
                 if not mname:
                     continue
                 mates.append({"slot": _num(m.get("slot"), 0, 31), "name": mname, "race": _num(m.get("race"), 1, 8, 1),
-                              "face": _num(m.get("face"), 0, 15), "job": _num(m.get("job"), 1, 22, 1),
+                              "face": _num(m.get("face"), 0, 15), "weapon": _num(m.get("weapon"), 0, 60),
+                              "job": _num(m.get("job"), 1, 22, 1),
                               "sjob": _num(m.get("sjob"), 0, 22), "level": _num(m.get("level"), 1, 99, 1),
                               "exp": _num(m.get("exp"), 0, 100000)})
             bots = [{"name": b["name"], "race": _num(b.get("race"), 1, 8, 1)} for b in (ch.get("bots") or [])[:30]

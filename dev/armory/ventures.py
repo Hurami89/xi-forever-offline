@@ -285,7 +285,8 @@ def simulate(seed, camp_id, mates, hours, start, bots=None):
     return {"camp": camp_id, "solo": solo, "party": party, "events": events, "hours": hours, "start": int(start),
             "end": int(start) + total,
             "mates": [{"slot": m.get("slot"), "name": m["name"], "job": m["job"], "race": m.get("race", 1),
-                       "face": m.get("face", 0), "level": m["start"], "exp": m["exp0"]} for m in mates]}
+                       "face": m.get("face", 0), "weapon": m.get("weapon", 0), "level": m["start"],
+                       "exp": m["exp0"]} for m in mates]}
 
 
 def _rescale(events, mates, hours):
