@@ -153,13 +153,12 @@
       "name": "XIUIplus (alpha)",
       "author": "Team-XIUI",
       "license": "not stated (download only)",
-      "homepage": "https://github.com/Team-XIUI/xiuiplus-releases",
+      "homepage": "https://github.com/Team-XIUI/XIUIplus",
       "interface": "xiuiplus",
       "into": "ashita",
       "source": {
         "type": "github_release",
-        "repo": "Team-XIUI/xiuiplus-releases",
-        "prereleases": true,
+        "repo": "Team-XIUI/XIUIplus",
         "tag": "latest",
         "asset": "^XIUIplus\\.dll$",
         "sha256sums": "SHA256SUMS.txt"

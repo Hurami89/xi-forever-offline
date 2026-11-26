@@ -108,6 +108,9 @@ def settings(kit):
     value.setdefault("hardcore_only", False)
     value.setdefault("share", True)
     value.setdefault("pending", [])
+    # (2026-11-25, the user) visitors play at the rates they bring from home. Only The Hub turns this on (by hand, in its
+    # hardcore.json: "visitor_rates": true); every other world plays visitors at its own rates.
+    value.setdefault("visitor_rates", False)
     return value
 
 
@@ -163,7 +166,8 @@ def world_lua(kit, is_open=False, world_name=""):
     s = settings(kit)
     return ("-- Written by the XI: Forever Offline launcher (HARDCORE menu) at every PLAY. Do not edit.\n"
             f"return {{ hardcore_only = {_lua_value(bool(s['hardcore_only']))}, hub = {_lua_value(bool(is_open))}, "
-            f"share = {_lua_value(bool(s['share']))}, world = {_lua_string(world_name)} }}\n")
+            f"share = {_lua_value(bool(s['share']))}, visitor_rates = {_lua_value(bool(s['visitor_rates']) and bool(is_open))}, "
+            f"world = {_lua_string(world_name)} }}\n")
 
 
 def pending_lua(kit):

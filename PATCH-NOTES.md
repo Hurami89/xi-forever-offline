@@ -8,7 +8,9 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • VanaSync, battle music by JØ, our Head of Music (VanaSync by JØ × NOX). Off by default: switch on "vanasync" on OPTIONS > Addons. While it's on and your world runs, a small VanaSync player window opens, and fights get JØ's battle themes: "Against the Odds" when you're alone, "Beyond the Veil" in a party and "The March of Many" in an alliance. The game's own music fades out only while a VanaSync song really plays and comes back 5 seconds after the fight; sound effects and voices stay as they are. Close the window or type /vanasync restore and the game's music is back. More of JØ's music (zones, his album Resonance of Vana'diel) is coming in later packs. Windows only for now.
 • XIFO app 1.2.2: sound for portable fishing and Ventures. Chiptune effects (the cast, a bite, every tap of the fight, a catch, a lost fish, skill-ups, sending a venture off and the homecoming) and a music loop for each, all made for the app. Sounds and Music switches on both screens.
 • Tetra Master: /tm volume 0-100 (default 40) sets how loud the card sounds and the music are. Thanks Jaymz.
+• The Hub: you keep your own rates there. Your experience, drops, gil, skill-ups, crafting, fishing, digging and Tetra Master rates come with you from your own world, so friends on 1x and 10x can party together and each gets their own. A monster's drops and gil use the rate of whoever claimed it. Fights stay the same for everyone (monster HP, damage, your HP and MP). Steel and Silver characters keep their own rates as always. Other open worlds still play visitors at the host's rates.
 • Iron and Randomized characters play at the rates of the world they're in: their own profile at home, the host's rates when visiting. Steel and Silver keep their own rates in every world.
+• Character cards: PLAY now shows a card for each of your characters, with their portrait, job, level and where they are. Pick one and you go straight into the game as that character, with no character list. CHARACTER SCREEN (the last card) is the game's own list, for making a new character. Don't want it? Untick "Show this at PLAY"; the "Choose a character" link under PLAY still opens it. Cards are for the characters on the account PLAY logs in to (the second character from DUALBOX still uses its own list). Needs the new server (the login server now always lists your characters in the same order).
 
 ### Fixes
 • Ventures: the exp, gil and items your mates bring home now reach the game. The game's part of Ventures was missing from the v0.3.11 server, so nothing arrived. Nothing is lost: finished ventures wait on xiforever.com until your game takes them in. Thanks Hasuko, Lunali and Kluze.
@@ -21,7 +23,7 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Treasure Hunter is era again: your own Thief's hits no longer raise it during a fight. It stays at what your trait and gear give (TH1 at 15, TH2 at 45, plus gear), the same as a squad Thief. Two Thieves still don't stack; the monster keeps the highest.
 • Hardcore: your squad mates earn exp at your Hardcore mode's rate (3.5x on Silver, for example), not the world's normal rate. Thanks Teutonic84.
 • Squad mates take Yagudo Drinks like juices (Refresh for 3 minutes). Thanks Hasuko.
-• XIUIplus installs again: it's only released as a test build right now, and the launcher was looking for a regular release. Thanks Hexblood and Dermit.
+• XIUIplus installs again: its team moved the downloads to a new page (github.com/Team-XIUI/XIUIplus), and the launcher was still looking in the old place. Thanks Hexblood, Dermit and gisela.
 
 ## v0.3.11 · 25 November 2026
 
