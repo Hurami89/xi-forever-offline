@@ -12,6 +12,10 @@
   its own volume when a fight begins or ends, after the add-on's one request to fade; the request is now repeated
   once a second while VanaSync plays (four times a second for two seconds around a combat change), and full volume is
   asked for a few more times after the music is handed back. Not yet confirmed in the real game.
+- `/vanasync open` (or `/vsync open`) in game brings the player window back after it was closed (Hexblood). The
+  add-on's next three snapshots carry `"open": true`; the host keeps the request (`GameBridge.take_open()`, one window
+  per ten seconds) and the launcher, which owns the window, opens it again within its five-second check. An app window
+  that is still there is closed first, so two players never play at once. Not yet tried on Windows.
 
 ## 0.1.1 · Live in XI: Forever Offline (2026-11-25)
 

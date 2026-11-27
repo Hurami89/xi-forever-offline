@@ -166,6 +166,29 @@ class AddonTests(unittest.TestCase):
         self.g.events["unload"]()
         self.assertEqual([b[6] for _, b in self.injected()], [0, 127, 0, 127])
 
+    def test_open_asks_for_the_player_window(self):
+        # (2026-11-26, Hexblood) /vanasync open: the next three snapshots carry "open": true, then it stops asking
+        self.frame(reply=False)                           # the player answers: connected
+        for command in ("/vanasync open", "/vsync show"):
+            cmd = self.lua.table_from({"command": command, "blocked": False})
+            self.g.events["command"](cmd)
+            self.assertTrue(cmd.blocked)
+            asked = []
+            for _ in range(4):
+                self.frame(reply=False)
+                asked.append(self.last_snapshot().get("open") is True)
+            self.assertEqual(asked, [True, True, True, False])
+            self.assertIn("Opening the VanaSync player", self.g.printed[len(self.g.printed)])
+        self.assertEqual(self.injected(), [])             # asking for the window never touches the music
+
+    def test_open_without_the_player_says_so(self):
+        cmd = self.lua.table_from({"command": "/vanasync open", "blocked": False})
+        self.g.events["command"](cmd)
+        self.assertTrue(cmd.blocked)
+        self.frame()
+        self.assertNotIn("open", self.last_snapshot())
+        self.assertIn("not running", self.g.printed[len(self.g.printed)])
+
     def test_other_commands_pass_through(self):
         cmd = self.lua.table_from({"command": "/echo hi", "blocked": False})
         self.g.events["command"](cmd)
@@ -250,6 +273,63 @@ class LauncherTests(unittest.TestCase):
             self.assertNotIn("failed", self.state)
         finally:
             blocker.close()
+
+    def ask_open(self):
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.settimeout(5)
+        try:
+            probe.sendto(json.dumps({"v": 1, "engaged": False, "cutscene": False, "members": 1, "alliance": False,
+                                     "zone": 230, "open": True}).encode(), ("127.0.0.1", vs.GAME_PORT))
+            probe.recvfrom(1024)                          # answered: the host has read it
+        finally:
+            probe.close()
+
+    def test_open_request_opens_the_window_again_once(self):
+        # (2026-11-26, Hexblood) /vanasync open in game: tick() opens the player window again, once per request
+        self.on = True
+        self.tick()
+        self.tick()
+        self.assertEqual(len(self.opened), 1)             # nothing asked, nothing opened
+        self.ask_open()
+        self.tick()
+        self.assertEqual(len(self.opened), 2)
+        self.ask_open()                                   # the add-on sends the request three times: still one window
+        self.tick()
+        self.assertEqual(len(self.opened), 2)
+
+    def test_reopen_closes_our_window_first_and_leaves_a_browser_tab_alone(self):
+        self.on = True
+        self.tick()
+        player = self.state["player"]
+
+        class Window:
+            closed = False
+
+            def poll(self):
+                return 1 if self.closed else None
+
+            def terminate(self):
+                self.closed = True
+
+            def wait(self, timeout=None):
+                return 0
+        window = player.window = Window()
+        player.reopen()
+        self.assertTrue(window.closed)                    # never two players at once
+        self.assertEqual(len(self.opened), 2)
+        real_find = vs.find_edge
+        vs.find_edge = lambda: None                       # no Edge or Chrome: the player is a tab in the browser
+        try:
+            player.window = None
+            player.server.game.seen_page()                # the tab is still asking for the game's state
+            player.reopen()
+            self.assertEqual(len(self.opened), 2)
+            self.assertTrue(any("already open" in line for line in self.logs))
+            player.server.game.page_at -= vs.Player.PAGE_FRESH + 1   # the tab was closed a while ago
+            player.reopen()
+            self.assertEqual(len(self.opened), 3)
+        finally:
+            vs.find_edge = real_find
 
     def test_window_command(self):
         cmd = vs.window_command("msedge.exe", "D:\\data")

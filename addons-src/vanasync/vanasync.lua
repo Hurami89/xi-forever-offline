@@ -13,8 +13,9 @@
     world runs, the launcher starts the VanaSync player window
     (launcher_vanasync.py); the add-on only talks to it over loopback UDP.
 
-    Commands: /vanasync [status|restore|fade <time>|debug]
-    (restore toggles: keep the game's own music on no matter what)
+    Commands: /vanasync [status|open|restore|fade <time>|debug]   (/vsync works too)
+    (open brings the player window back after it was closed;
+     restore toggles: keep the game's own music on no matter what)
 ]]
 
 addon.name    = 'vanasync'
@@ -51,6 +52,10 @@ local gave_at = nil        -- when the music was handed back (nil = not handed b
 local burst_until = 0      -- combat just started or stopped: repeat faster until then
 local was_engaged = nil
 local hold = false         -- /vanasync restore: keep the game's music on until asked again
+-- (2026-11-26, Hexblood: "I could not find a way to open it back up while in game if I accidently closed the window")
+-- /vanasync open: the next few snapshots carry "open": true and the launcher opens the player window again.
+local OPEN_SNAPSHOTS = 3
+local ask_open = 0         -- snapshots left that still carry the request
 
 local function msg(text)
     print(('\30\81[VanaSync]\30\01 %s'):format(text))
@@ -103,9 +108,10 @@ local function snapshot()
     }
 end
 
-local function encode(t)
-    return ('{"v":1,"engaged":%s,"cutscene":%s,"members":%d,"alliance":%s,"zone":%d}'):format(
-        tostring(t.engaged), tostring(t.cutscene), t.members, tostring(t.alliance), t.zone)
+local function encode(t, open)
+    return ('{"v":1,"engaged":%s,"cutscene":%s,"members":%d,"alliance":%s,"zone":%d%s}'):format(
+        tostring(t.engaged), tostring(t.cutscene), t.members, tostring(t.alliance), t.zone,
+        open and ',"open":true' or '')
 end
 
 ashita.events.register('load', 'vanasync_load', function()
@@ -135,7 +141,8 @@ ashita.events.register('d3d_present', 'vanasync_tick', function()
         last_send = now
         local ok, state = pcall(snapshot)
         if ok then
-            udp:send(encode(state))
+            udp:send(encode(state, ask_open > 0))
+            if ask_open > 0 then ask_open = ask_open - 1 end
             if was_engaged ~= nil and state.engaged ~= was_engaged then burst_until = now + BURST end
             was_engaged = state.engaged
         end
@@ -167,7 +174,8 @@ end)
 
 ashita.events.register('command', 'vanasync_command', function(e)
     local args = e.command:args()
-    if #args == 0 or args[1]:lower() ~= '/vanasync' then return end
+    local name = #args > 0 and args[1]:lower() or ''
+    if name ~= '/vanasync' and name ~= '/vsync' then return end
     e.blocked = true
     local sub = (args[2] or 'status'):lower()
     if sub == 'restore' then
@@ -177,6 +185,13 @@ ashita.events.register('command', 'vanasync_command', function(e)
             msg('Game music kept on. /vanasync restore again lets VanaSync take over.')
         else
             msg('VanaSync may take over the music again.')
+        end
+    elseif sub == 'open' or sub == 'show' then
+        if socket.gettime() - last_reply < OWNER_TIMEOUT then
+            ask_open = OPEN_SNAPSHOTS
+            msg('Opening the VanaSync player. Give it a few seconds.')
+        else
+            msg('VanaSync is not running. It starts with the world while this add-on is switched on in the launcher.')
         end
     elseif sub == 'fade' and tonumber(args[3]) then
         settings.fade = tonumber(args[3])

@@ -151,6 +151,7 @@ class GameBridge:
     """
     FRESH = 3.0
     OWNER_FRESH = 2.0
+    OPEN_QUIET = 10.0   # one "/vanasync open" in game is one window: later requests are ignored this long
 
     def __init__(self, port):
         self.lock = threading.Lock()
@@ -158,6 +159,9 @@ class GameBridge:
         self.received = 0.0
         self.owner = False
         self.owner_at = 0.0
+        self.open_asked = False
+        self.open_taken = -self.OPEN_QUIET
+        self.page_at = None
         self.sock = None
         if port:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -179,6 +183,17 @@ class GameBridge:
                 "cutscene": raw.get("cutscene") is True,
                 "members": max(1, min(18, members)), "zone": max(0, min(9999, zone))}
 
+    @staticmethod
+    def asks_open(data):
+        """True when a snapshot carries "open": true: the player typed /vanasync open in game."""
+        if b'"open"' not in data:
+            return False
+        try:
+            raw = json.loads(data.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            return False
+        return isinstance(raw, dict) and raw.get("open") is True
+
     def run(self):
         while True:
             try:
@@ -193,10 +208,13 @@ class GameBridge:
                 state = self.parse(data)
             except (ValueError, UnicodeDecodeError):
                 continue
+            asks = self.asks_open(data)
             now = time.monotonic()
             with self.lock:
                 self.state, self.received = state, now
                 own = self.owner and now - self.owner_at < self.OWNER_FRESH
+                if asks and now - self.open_taken > self.OPEN_QUIET:
+                    self.open_asked = True
             try:
                 self.sock.sendto(json.dumps({"own": own}).encode(), address)
             except OSError:
@@ -211,6 +229,23 @@ class GameBridge:
     def set_owner(self, own):
         with self.lock:
             self.owner, self.owner_at = bool(own), time.monotonic()
+
+    def take_open(self):
+        """True once after the add-on asked for the player window. Whoever hosts the window (the launcher) asks this."""
+        with self.lock:
+            asked, self.open_asked = self.open_asked, False
+            if asked:
+                self.open_taken = time.monotonic()
+            return asked
+
+    def seen_page(self):
+        with self.lock:
+            self.page_at = time.monotonic()
+
+    def page_age(self):
+        """Seconds since a player page last asked for the game's state; None when none ever did."""
+        with self.lock:
+            return None if self.page_at is None else time.monotonic() - self.page_at
 
     def close(self):
         if self.sock:
@@ -293,6 +328,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/tracks":
             return self.reply(200, self.server.catalog.list())
         if path == "/api/game":
+            self.server.game.seen_page()
             return self.reply(200, self.server.game.snapshot())
         if path == "/api/bootstrap":
             return self.reply(200, {"defaults": self.server.defaults, "tracks": self.server.catalog.list()})

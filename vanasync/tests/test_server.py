@@ -8,7 +8,32 @@ from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from server import Catalog, MAX_IMPORT, PACK
+from server import Catalog, GameBridge, MAX_IMPORT, PACK
+
+
+class GameBridgeOpenTest(unittest.TestCase):
+    # (2026-11-26) "/vanasync open" in game: the add-on's snapshot carries "open": true
+    SNAPSHOT = b'{"v":1,"engaged":false,"cutscene":false,"members":1,"alliance":false,"zone":230,"open":true}'
+
+    def test_only_a_real_open_flag_counts_and_the_snapshot_is_unchanged(self):
+        self.assertTrue(GameBridge.asks_open(self.SNAPSHOT))
+        self.assertFalse(GameBridge.asks_open(self.SNAPSHOT.replace(b',"open":true', b'')))
+        self.assertFalse(GameBridge.asks_open(b'{"v":1,"open":"true"}'))
+        self.assertFalse(GameBridge.asks_open(b'["open", true]'))
+        self.assertFalse(GameBridge.asks_open(b'not json "open"'))
+        state = GameBridge.parse(self.SNAPSHOT)
+        self.assertEqual(state["zone"], 230)
+        self.assertNotIn("open", state)
+
+    def test_taken_once_and_page_age(self):
+        bridge = GameBridge(0)
+        self.assertFalse(bridge.take_open())
+        bridge.open_asked = True
+        self.assertTrue(bridge.take_open())
+        self.assertFalse(bridge.take_open())
+        self.assertIsNone(bridge.page_age())
+        bridge.seen_page()
+        self.assertLess(bridge.page_age(), 1)
 
 
 class CatalogTest(unittest.TestCase):
