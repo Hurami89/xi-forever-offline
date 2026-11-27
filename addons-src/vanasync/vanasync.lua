@@ -19,7 +19,7 @@
 
 addon.name    = 'vanasync'
 addon.author  = 'XI: Forever Offline (VanaSync by JØ × NOX)'
-addon.version = '0.1.0'
+addon.version = '0.1.2'
 addon.desc    = 'Plays VanaSync battle music and hands the game music back when it stops.'
 addon.link    = 'https://xiforever.com'
 
@@ -30,6 +30,12 @@ local HOST, GAME_PORT = '127.0.0.1', 8766
 local SEND_EVERY = 0.25    -- seconds between snapshots
 local OWNER_TIMEOUT = 1.5  -- no reply this long: give the music back to the game
 local FULL, SILENT = 127, 0
+-- (2026-11-26, Zaltyz525, JØ: "the regular battle theme is playing underneath") One request was not enough: the game
+-- starts a new track at its own volume when a fight begins or ends, after our request, and the cached level meant we
+-- never asked again. While VanaSync owns the music the request is repeated (at once, no fade): every REPEAT seconds,
+-- and every BURST_EVERY seconds for BURST seconds after combat starts or stops. After the music is handed back, full
+-- volume is asked for a few more times too (GIVE_BACK_FOR seconds), so a lost request cannot leave the game silent.
+local REPEAT, BURST, BURST_EVERY, GIVE_BACK_FOR = 1.0, 2.0, 0.25, 3.0
 
 local settings = {
     fade = 30,         -- 0x060 fade time (client units; tune on the PC)
@@ -40,6 +46,10 @@ local udp = nil
 local last_send, last_reply = 0, 0
 local own = false          -- VanaSync says it is playing its own track
 local volume = nil         -- last volume we asked the client for (nil = untouched)
+local last_ask = 0         -- when we last asked for a volume
+local gave_at = nil        -- when the music was handed back (nil = not handed back, or the repeats are done)
+local burst_until = 0      -- combat just started or stopped: repeat faster until then
+local was_engaged = nil
 local hold = false         -- /vanasync restore: keep the game's music on until asked again
 
 local function msg(text)
@@ -47,9 +57,11 @@ local function msg(text)
 end
 
 -- 0x060 GP_SERV_COMMAND_MUSICVOLUME: header (id 9 bits | size 7 bits, sync), time, volume.
-local function set_music_volume(level, time)
-    if volume == level then return end
+local function set_music_volume(level, time, again)
+    if volume == level and not again then return end
+    local changed = volume ~= level
     volume = level
+    last_ask = socket.gettime()
     local t = math.max(0, math.min(0xFFFF, time or settings.fade))
     local header = 0x060 + bit.lshift(0x08 / 4, 9)
     local bytes = {
@@ -58,12 +70,15 @@ local function set_music_volume(level, time)
         bit.band(level, 0xFF), 0,
     }
     AshitaCore:GetPacketManager():AddIncomingPacket(0x060, bytes)
-    if settings.debug then msg(('game music volume -> %d'):format(level)) end
+    if settings.debug and changed then msg(('game music volume -> %d'):format(level)) end
 end
 
 local function give_back(time)
     own = false
-    if volume ~= nil and volume ~= FULL then set_music_volume(FULL, time) end
+    if volume ~= nil and volume ~= FULL then
+        set_music_volume(FULL, time)
+        gave_at = socket.gettime()
+    end
 end
 
 local function snapshot()
@@ -119,19 +134,35 @@ ashita.events.register('d3d_present', 'vanasync_tick', function()
     if now - last_send >= SEND_EVERY then
         last_send = now
         local ok, state = pcall(snapshot)
-        if ok then udp:send(encode(state)) end
+        if ok then
+            udp:send(encode(state))
+            if was_engaged ~= nil and state.engaged ~= was_engaged then burst_until = now + BURST end
+            was_engaged = state.engaged
+        end
     end
 
     if own and not hold and now - last_reply < OWNER_TIMEOUT then
-        set_music_volume(SILENT)
+        gave_at = nil
+        if volume ~= SILENT then
+            set_music_volume(SILENT)
+        elseif now - last_ask >= (now < burst_until and BURST_EVERY or REPEAT) then
+            set_music_volume(SILENT, 0, true)
+        end
     else
         give_back()
+        if gave_at ~= nil and volume == FULL then
+            if now - gave_at > GIVE_BACK_FOR then
+                gave_at = nil
+            elseif now - last_ask >= REPEAT then
+                set_music_volume(FULL, 0, true)
+            end
+        end
     end
 end)
 
 -- After zoning the client restarts its music; ask again for the level we want.
 ashita.events.register('packet_in', 'vanasync_zone', function(e)
-    if e.id == 0x000A then volume = nil end
+    if e.id == 0x000A then volume = nil; gave_at = nil end
 end)
 
 ashita.events.register('command', 'vanasync_command', function(e)

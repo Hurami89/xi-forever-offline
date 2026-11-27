@@ -8,6 +8,10 @@
   files, ids and assignments are untouched. Words in brackets and numbers elsewhere in a name stay.
 - Two more extras from J, his in-game versions of the app's tunes: "Just One More Cast" (fishing) and "Beyond the Next
   Hill" (Ventures). In the library only: nothing starts them by itself yet (the add-on does not report fishing).
+- Add-on 0.1.2: the game's own battle theme no longer plays underneath (Zaltyz525, JØ). The game starts a new track at
+  its own volume when a fight begins or ends, after the add-on's one request to fade; the request is now repeated
+  once a second while VanaSync plays (four times a second for two seconds around a combat change), and full volume is
+  asked for a few more times after the music is handed back. Not yet confirmed in the real game.
 
 ## 0.1.1 · Live in XI: Forever Offline (2026-11-25)
 

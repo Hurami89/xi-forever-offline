@@ -102,6 +102,47 @@ class AddonTests(unittest.TestCase):
         self.frame(seconds=2.0)                           # no reply for 2 s: the player went away
         self.assertEqual(self.injected()[-1], (0x60, [0x60, 0x04, 0, 0, 30, 0, 127, 0]))
 
+    def test_asks_again_while_owned(self):
+        # (2026-11-26, Zaltyz525, JØ: the game's battle theme played underneath) one request is not enough
+        self.frame(reply=True)
+        self.frame(seconds=0.5, reply=True)
+        self.assertEqual(len(self.injected()), 1)
+        self.frame(seconds=0.6, reply=True)               # a second has passed: asked again, at once (time 0)
+        self.assertEqual(self.injected()[-1], (0x60, [0x60, 0x04, 0, 0, 0, 0, 0, 0]))
+        self.assertEqual(len(self.injected()), 2)
+
+    def test_combat_change_asks_faster(self):
+        self.frame(reply=True)
+        self.g.status = 1                                 # a fight starts: the game puts its battle theme on
+        before = len(self.injected())
+        for _ in range(4):
+            self.frame(seconds=0.3, reply=True)
+        self.assertGreaterEqual(len(self.injected()) - before, 3)
+        self.assertTrue(all(b[6] == 0 for _, b in self.injected()))
+        for _ in range(8):                                # the burst is over: back to once a second
+            self.frame(seconds=0.3, reply=True)
+        count = len(self.injected())
+        self.frame(seconds=0.3, reply=True)
+        self.frame(seconds=0.3, reply=True)
+        self.assertLessEqual(len(self.injected()) - count, 1)
+
+    def test_full_volume_asked_again_after_handing_back_then_quiet(self):
+        self.frame(reply=True)
+        self.frame(reply=False)
+        self.assertEqual(self.injected()[-1], (0x60, [0x60, 0x04, 0, 0, 30, 0, 127, 0]))
+        for _ in range(3):
+            self.frame(seconds=1.05)
+        self.assertEqual([b[6] for _, b in self.injected()], [0, 127, 127, 127])
+        self.assertEqual(self.injected()[-1][1][4], 0)    # the repeats do not fade
+        for _ in range(5):
+            self.frame(seconds=1.05)
+        self.assertEqual(len(self.injected()), 4)         # and then it is left alone
+
+    def test_untouched_music_is_never_touched(self):
+        for _ in range(10):
+            self.frame(seconds=1.0, reply=False)
+        self.assertEqual(self.injected(), [])
+
     def test_player_says_not_owner(self):
         self.frame(reply=True)
         self.frame(reply=False)
