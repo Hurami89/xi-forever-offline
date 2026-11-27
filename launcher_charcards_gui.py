@@ -97,6 +97,37 @@ def before_start(app, visit=None):
         app.say(f"Logging {name} straight in.")
 
 
+def before_gm(app):
+    """Called by App.start_gm. (2026-11-26, Animelaine, Frenzo: Start GM game went to the character screen and hung there)
+    The GM game runs the same start script as the main game (setup_gm.py main_script_name), so a card's one-launch log in
+    was still in it when the GM game opened next to the main window: it tried to pick that character's slot on the GM
+    account. The block is taken out first (the main window has read it already)."""
+    import re
+    paths = []
+    scripts = getattr(app, "scripts", None)
+    if scripts is not None and getattr(scripts, "path", None):
+        paths.append(scripts.path)
+    try:
+        ashita, boot = getattr(app, "ashita", None), app.cfg.get("ashita_boot_gm")
+        ini = _os.path.join(ashita, "config", "boot", boot) if (ashita and boot) else ""
+        if ini and _os.path.exists(ini):
+            with open(ini, encoding="utf-8-sig", errors="replace") as f:
+                m = re.search(r"(?im)^\s*script\s*=\s*(\S+)", f.read())
+            own = _os.path.join(ashita, "scripts", m.group(1)) if m else ""
+            if own and _os.path.exists(own) and not any(_os.path.normcase(own) == _os.path.normcase(p) for p in paths):
+                paths.append(own)
+    except Exception:
+        pass
+    for path in paths:
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                if cc.BEGIN not in f.read():
+                    continue                          # nothing of ours in it: the file is left as it is
+            cc.set_autologin(path, None)
+        except Exception:
+            pass
+
+
 def _second_ready(app):
     """The second window is set up (setup_dualbox.py): its boot file and its account."""
     return bool(app.cfg.get("ashita_boot2")) and bool(app.cfg.get("game_user2"))

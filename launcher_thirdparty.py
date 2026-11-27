@@ -170,6 +170,10 @@ def status(item, kit, ashita, state=None, server=None):
         present, version, _why = system_file_status(item)
         return present, version if present else ""
     state = load_state(kit) if state is None else state
+    # (2026-11-26, Hasuko: Ollama put in by hand still read "not installed") Ollama comes from its own installer and
+    # this launcher only knew about the installs it had run itself. The program being there is what counts.
+    if item["id"] == "ollama" and item["source"]["type"] == "installer" and find_ollama(kit):
+        return True, (state.get("ollama") or {}).get("version", "") or "installed"
     record = state.get(item["id"])
     root = target_root(item, kit, ashita, server)
     present = bool(item.get("check")) and bool(root) and os.path.exists(os.path.join(root, item["check"]))
@@ -1079,7 +1083,11 @@ def _install(item, kit, ashita, fetch, log, server, run, started, remove_old=Tru
             import subprocess
             result = (run or subprocess.run)([path] + list(item["source"].get("args", [])))
             if result.returncode not in (0, 1638, 3010):    # 1638 = a newer one is installed, 3010 = done, restart later
-                raise RuntimeError(f"{item['name']}: the installer stopped with code {result.returncode}.")
+                # (2026-11-26, Hasuko) Ollama's quiet installer stops with a code when Ollama is already there and
+                # running; with the program in place that is not a failure
+                if not (item["id"] == "ollama" and find_ollama(kit)):
+                    raise RuntimeError(f"{item['name']}: the installer stopped with code {result.returncode}.")
+                log(f"{item['name']}: its installer stopped with code {result.returncode}, but Ollama is on this PC already - using it.")
         elif os.name == "nt":
             os.startfile(path)                     # Windows: the installer asks the player itself
             started.append(path)                   # (it is still running: its file stays until the next tidy)
@@ -1366,4 +1374,13 @@ def apply_patch(kit, ashita, folder, dry_run=False):
         if not os.path.exists(target):
             shutil.copy2(os.path.join(base, src), target)
             messages.append(f"Added {dest}.")
+        else:
+            # (2026-11-26, seraphinaspears: a quest that needs Wings of the Goddess still showed) this file is ours and
+            # it changes with the kit, so a copy that differs is brought up to date; yours is kept as <file>.before-era
+            with open(os.path.join(base, src), "rb") as ours, open(target, "rb") as theirs:
+                same = ours.read().replace(b"\r\n", b"\n") == theirs.read().replace(b"\r\n", b"\n")
+            if not same:
+                shutil.copy2(target, target + ".before-era")
+                shutil.copy2(os.path.join(base, src), target)
+                messages.append(f"Updated {dest}.")
     return messages or ["The edits were already there."]

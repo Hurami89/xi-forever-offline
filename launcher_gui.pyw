@@ -520,8 +520,11 @@ class ItemPicker(tk.Toplevel):
         self.preview_name = tk.Label(preview, text="Select an item to see its icon.", bg=BG, fg=DIM, anchor="w")
         self.preview_name.pack(side="left", padx=8)
 
-        self.stats = tk.Label(self, text="", bg=BG, fg=FG, wraplength=400, justify="left")
-        self.stats.pack(anchor="w", padx=10)
+        # (2026-11-26, Ricc: a click on Chatoyant Staff picked the piece above it) these lines sit above the list and the
+        # label grew or shrank with every pick, so the list moved under the mouse while the button was still down and
+        # then took the row that had slid under the pointer. A fixed height keeps the list where it is.
+        self.stats = tk.Label(self, text="", bg=BG, fg=FG, wraplength=400, justify="left", anchor="nw", height=5)
+        self.stats.pack(fill="x", padx=10)
         self.server_dir = getattr(parent, "cfg", {}).get("server_dir", "")
         self.info = tk.Label(self, text="", bg=BG, fg=DIM, wraplength=400, justify="left")
         self.info.pack(anchor="w", padx=10, pady=4)
@@ -5546,6 +5549,11 @@ class App(tk.Tk):
         if not path or not os.path.exists(path):
             messagebox.showinfo("GM game", "The GM account is not set up yet.\n\nOn SYSTEM > GM and testing press 'Set up GM account' first.")
             return
+        try:                                   # (2026-11-26, Animelaine) a character card's log in is not for the GM account
+            import launcher_charcards_gui
+            launcher_charcards_gui.before_gm(self)
+        except Exception:
+            pass
         if self.running and core.is_running("xiloader"):
             self.launch_extra(boot, "ashita-gm.log")
             self.say("Starting the GM game next to your other window...")
