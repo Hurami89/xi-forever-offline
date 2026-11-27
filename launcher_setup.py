@@ -689,7 +689,7 @@ def update_config(kit, values, drop=()):
 # the addon that had the name before (your own character's rules, Parser, EXP Watch, Enemy Info) is "autobox".
 OWN_ADDONS = ("Gambits", "autobox", "followme", "servermenu", "squadpanel", "stinkshell", "autora", "hcicons",
               "vanasync",   # (2026-11-25) VanaSync: copied, not started (off by default)
-              "venture")    # (2026-11-26) Ventures in the game (/venture): copied, and switched on once (enable_venture)
+              "venture")    # (2026-11-26) Ventures in the game: copied, not started (the Squads menu's Ventures button loads it)
 STOCK_ADDONS = ("distance", "fps", "move", "timestamp", "tparty", "checker", "drawdistance", "allmaps")
 STOCK_PLUGINS = ("minimap",)
 START_ADDONS = ("Gambits", "servermenu", "crystalboy")          # loaded at startup on a new install
@@ -834,25 +834,30 @@ def enable_new_addons(kit, ashita_dir, boot_name, log=print):
     return True
 
 
-def enable_venture(kit, ashita_dir, boot_name, log=print):
-    """(2026-11-26) Ventures in the game: the /venture window (addons-src/venture) is switched on ONCE per install,
-    like Tetra Master: an existing install gets it with the update, and a player who switches it off later (OPTIONS >
-    Addons) keeps it off. <Ashita>/config/addons/venture/enabled-once.txt remembers that it was done."""
-    if not os.path.isfile(os.path.join(kit, "addons-src", VENTURE_ADDON, VENTURE_ADDON + ".lua")):
+def venture_off_by_default(ashita_dir, boot_name, log=print):
+    """(2026-11-26) Ventures in the game (addons-src/venture) is NOT started with the game: the Squads menu's Ventures
+    button loads it when someone asks for it (servermenu 1.36), and OPTIONS > Addons starts it with the game for those
+    who want that. Nothing here ever switches it on.
+    The first build of that day did switch it on, once (its marker: <Ashita>/config/addons/venture/enabled-once.txt).
+    Where that marker is, its line is taken out of the start script again, once, and the marker renamed to
+    off-by-default.txt: from then on the choice is the player's. Returns True when the line was taken out."""
+    folder = os.path.join(ashita_dir, "config", "addons", VENTURE_ADDON)
+    marker, done = os.path.join(folder, "enabled-once.txt"), os.path.join(folder, "off-by-default.txt")
+    if not os.path.exists(marker) or os.path.exists(done):
         return False
     import launcher_core as core
-    marker = os.path.join(ashita_dir, "config", "addons", VENTURE_ADDON, "enabled-once.txt")
-    if os.path.exists(marker) or not os.path.isdir(os.path.join(ashita_dir, "addons", VENTURE_ADDON)):
-        return False
     manager = core.ScriptManager(ashita_dir, boot_name)
     manager.prepare()
-    if VENTURE_ADDON not in {a.lower() for a in manager.enabled("addon")}:
-        manager.set("addon", VENTURE_ADDON, True)
-        log("Ventures are in the game now: type /venture to send squad mates off to level (turn it off in OPTIONS > Addons).")
-    os.makedirs(os.path.dirname(marker), exist_ok=True)
-    with open(marker, "w", encoding="utf-8") as handle:
-        handle.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
-    return True
+    was_on = VENTURE_ADDON in {a.lower() for a in manager.enabled("addon")}
+    if was_on:
+        manager.set("addon", VENTURE_ADDON, False)
+        log("Ventures is no longer started with the game: the Squads menu has a Ventures button that opens it.")
+    try:
+        os.replace(marker, done)
+    except OSError:                     # (the marker cannot be renamed: the second one alone says it was done)
+        with open(done, "w", encoding="utf-8") as handle:
+            handle.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+    return was_on
 
 
 def enable_hcicons(ashita_dir, boot_name, log=print):

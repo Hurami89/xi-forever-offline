@@ -41,8 +41,8 @@ class Clock:
 class World:
     """A launcher relay with its own planner, a roster, and the window looking at the same Ashita folder."""
 
-    def __init__(self, chars=("Hurami",), mates=MATES):
-        self.kit, self.ashita = tempfile.mkdtemp(), tempfile.mkdtemp()
+    def __init__(self, chars=("Hurami",), mates=MATES, ashita=None):
+        self.kit, self.ashita = tempfile.mkdtemp(), ashita or tempfile.mkdtemp()
         self.clock = Clock()
         self.roster = {"chars": [{"name": c, "mates": [dict(m) for m in mates], "bots": BOTS} for c in chars]}
         self.logs = []
@@ -103,26 +103,32 @@ class AddOn(unittest.TestCase):
 
     # ---------------------------------------------------------------- before anything is there
     def test_shut_it_draws_and_reads_nothing(self):
-        win = Window(tempfile.mkdtemp(), hinted=False)
+        win = Window(tempfile.mkdtemp())
         self.assertEqual(win.frame(), [])
-        self.assertFalse(os.path.exists(os.path.join(win.ashita, "config")), "a shut window leaves the disk alone")
-        # the first time someone is logged in, the chat log says once that the window is there
-        win.frame(advance=5)
+        self.assertFalse(os.path.exists(os.path.join(win.ashita, "config", "addons", "venture")),
+                         "a shut window reads nothing of the launcher's and makes no folder for it")
+        self.assertEqual(os.listdir(os.path.join(win.ashita, "config", "addons")), ["xiforever"],
+                         "all it leaves is its word to the Squads menu that it is loaded")
+        # (1.1) nothing in the chat log: the add-on is not started with the game, so whoever has it loaded asked for it
+        for dt in (5, 10, 60):
+            win.frame(advance=dt)
         self.assertEqual(win.printed(), [])
-        win.frame(advance=10)
-        self.assertEqual(win.printed(), ["[Ventures] Send squad mates off to level while you play: type /venture."])
-        win.frame(advance=60)
-        again = Window(win.ashita, hinted=False)
-        again.frame()
-        again.frame(advance=30)
-        self.assertEqual(again.printed(), [], "said once per install")
-        self.assertEqual(len(win.printed()), 1)
-        win.lua.execute("PRINTED = {}")
+        self.assertFalse(os.path.exists(os.path.join(win.ashita, "config", "addons", "venture")))
         self.assertTrue(win.command("/venture"))
         self.assertFalse(win.command("/squad"))
         win.frame(advance=1)
         self.assertTrue(win.has("Waiting for the launcher"))
         self.assertEqual(win.printed(), [])
+        settings = os.path.join(win.ashita, "config", "addons", "venture", "settings.txt")
+        win.command("/venture sound")
+        self.assertNotIn("hinted", open(settings).read(), "the setting of 1.0's one-time chat line is gone")
+        with open(settings, "a") as f:
+            f.write("hinted = yes\n")                    # (a settings file 1.0 wrote is read without complaint)
+        again = Window(win.ashita)
+        again.command("/venture")
+        again.frame(advance=1)
+        self.assertEqual(again.printed(), [])
+        self.assertFalse(again.mod.V.cfg.sound, "and its other settings are kept")
         win.command("/venture")
         self.assertEqual(win.frame(), [])
 

@@ -25,8 +25,9 @@ local py = ...
 local sep = package.config:sub(1, 1)
 local function fix(p) if sep == '/' then return (tostring(p):gsub('\\', '/')) end return p end
 -- (the add-on writes Windows paths; on another system the stand-ins turn the slashes)
-local io_open, load_file, do_file, os_rename = io.open, loadfile, dofile, os.rename
+local io_open, load_file, do_file, os_rename, os_remove = io.open, loadfile, dofile, os.rename, os.remove
 io.open = function(p, m) return io_open(fix(p), m) end
+os.remove = function(p) return os_remove(fix(p)) end
 loadfile = function(p) return load_file(fix(p)) end
 dofile = function(p) return do_file(fix(p)) end
 os.rename = function(a, b)
@@ -43,13 +44,17 @@ ashita = {
     events = { register = function(event, name, fn) HANDLERS[event] = fn end },
     fs = { create_directory = function(p) py.mkdir(fix(p)) return true end },
 }
-local party = { GetMemberName = function(self, i) return py.me() end }
+local party = { GetMemberName = function(self, i) return py.me() end, GetMemberServerId = function(self, i) return py.me_id() end }
 local memory = { GetParty = function() return party end }
 local resources = { GetItemById = function() return nil end }
+-- what the add-on hands to Ashita's chat manager (its line to the Squads menu): kept, in order
+QUEUED = {}
+local chat = { QueueCommand = function(self, mode, command) QUEUED[#QUEUED + 1] = tostring(command) end }
 AshitaCore = {
     GetInstallPath = function() return py.ashita_path end,
     GetMemoryManager = function() return memory end,
     GetResourceManager = function() return resources end,
+    GetChatManager = function() return chat end,
     GetDirect3DDevice = function() return nil end,
 }
 package.preload['common'] = function()
@@ -95,7 +100,12 @@ function g.PushStyleColor() IM.pushedColours = IM.pushedColours + 1 end
 function g.PopStyleColor(n) IM.pushedColours = IM.pushedColours - (n or 1) end
 function g.PushStyleVar() IM.pushedVars = IM.pushedVars + 1 end
 function g.PopStyleVar(n) IM.pushedVars = IM.pushedVars - (n or 1) end
-function g.Begin(title, open, flags) IM.begun = IM.begun + 1 IM.title = title return true end
+function g.Begin(title, open, flags)
+    IM.begun = IM.begun + 1
+    IM.title = title
+    if IM.close then open[1] = false IM.close = false end      -- (the window's own X was clicked)
+    return true
+end
 function g.End() IM.begun = IM.begun - 1 end
 function g.GetContentRegionAvail() return IM.avail[1], IM.avail[2] end
 function g.GetCursorScreenPos() return IM.cursor[1], IM.cursor[2] end
@@ -148,6 +158,9 @@ class Py:
     def me(self):
         return self.win.me
 
+    def me_id(self):
+        return self.win.me_id if self.win.me else 0
+
     def mkdir(self, path):
         os.makedirs(path, exist_ok=True)
 
@@ -160,20 +173,14 @@ class Py:
 
 class Window:
     def __init__(self, ashita, addon=ADDON, time=1_800_000_000.0, me="Hurami", font=13, sized_fonts=True, width=514, font_scale=1.0,
-                 hinted=True):
+                 me_id=7):
         from PIL import ImageFont
-        self.ashita, self.addon, self.time, self.started, self.me = ashita, addon, float(time), float(time) - 100.0, me
+        self.ashita, self.addon, self.time, self.started, self.me, self.me_id = ashita, addon, float(time), float(time) - 100.0, me, me_id
         self.font_path = next((f for f in FONTS if os.path.exists(f)), None)
         self._fonts, self._images, self._ImageFont = {}, {}, ImageFont
         probe = ImageFont.truetype(self.font_path, 100) if self.font_path else None
         self._ratio = (sum(probe.getmetrics()) / 100.0) if probe else 1.2          # line height over em size
         self.textures = {}                        # ptr -> path
-        if hinted:                                # (the add-on's one-time line in the chat log has been said)
-            settings = os.path.join(ashita, "config", "addons", "venture", "settings.txt")
-            if not os.path.exists(settings):
-                os.makedirs(os.path.dirname(settings), exist_ok=True)
-                with open(settings, "w", encoding="ascii") as f:
-                    f.write("hinted = yes\n")
         self.lua = lupa.LuaRuntime(unpack_returned_tuples=True)
         self.lua.execute("BOOT = ...", None)
         self.lua.eval("function(src, py) return assert(loadstring(src))(py) end")(BOOT, Py(self))
@@ -257,6 +264,25 @@ class Window:
 
     def printed(self):
         return list(self.lua.globals().PRINTED.values())
+
+    def queued(self, clear=False):
+        """The lines the add-on handed to Ashita's chat manager (its "/xifoventure" to the Squads menu)."""
+        out = list(self.lua.globals().QUEUED.values())
+        if clear:
+            self.lua.execute("QUEUED = {}")
+        return out
+
+    def unload(self):
+        self.handlers["unload"]()
+
+    def click_x(self):
+        """The window's own X: ImGui shuts it while it is drawn, in the next frame."""
+        self.im.close = True
+
+    def marks(self, who=None):
+        """Which of the add-on's two files for the Squads menu are in a character's folder (<Name>_<Id>)."""
+        folder = os.path.join(self.ashita, "config", "addons", "xiforever", who or f"{self.me}_{self.me_id}")
+        return sorted(n for n in ("venture.loaded", "venture.open") if os.path.exists(os.path.join(folder, n)))
 
     def images(self):
         return [os.path.relpath(self.textures[c[1]], os.path.join(self.addon, "assets")).replace(os.sep, "/") for c in self.cmds if c[0] == "image"]

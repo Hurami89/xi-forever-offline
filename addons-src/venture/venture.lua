@@ -1,10 +1,14 @@
 --[[
-venture 1.0  (XI: Forever Offline, 2026-11-26)
+venture 1.1  (XI: Forever Offline, 2026-11-26)
 
 Ventures in the game: the XIFO app's Ventures screen in a window. Send squad mates off to level at a real exp camp
 of the era while you play, watch them fight, call them home, read what happened.
 
-  /venture              the window, open / shut (the chat log says so once, the first time you log in with it)
+This add-on is NOT started with the game. The Squads menu's Ventures button (servermenu 1.36, Squad tab) loads it and
+shows its window; "/addon load venture" does the same by hand, and OPTIONS > Addons in the launcher starts it with
+the game for those who want that.
+
+  /venture              the window, open / shut          /venture show, /venture hide   (what the menu's button sends)
   /venture size N       how big the scene is drawn: 1.5, 2 (default), 2.5, 3 or 4
   /venture sound        the short sounds, on / off          /venture music   the Ventures tune, on / off (starts off)
   /venture volume N     how loud both are, 0-100 (default 40)
@@ -19,6 +23,9 @@ This add-on only draws and asks. It talks to the launcher through small files in
                                                       char|seen|id, char|open
 Nothing is sent to the game server, and nothing leaves the PC from here.
 
+For the Squads menu's button it keeps two small files in the character's folder (config\addons\xiforever\<Name>_<Id>),
+as Gambits does: venture.loaded while it is loaded, venture.open while its window is shown (see "the Squads menu").
+
 The screen is the app's (xifo-app/src/VenturesScreen.tsx) and the scene is the app's (stage.lua); the pictures are
 the app's own (dev/ventures/build_venture_addon.py makes assets\ and art.lua from them). The music stays the game's
 unless you turn the tune on.
@@ -26,7 +33,7 @@ unless you turn the tune on.
 
 addon.name    = 'venture';
 addon.author  = 'XI: Forever Offline (pixel art: Kaza)';
-addon.version = '1.0';
+addon.version = '1.1';
 addon.desc    = 'Ventures: send squad mates off to level, in a window like the XIFO app.';
 addon.link    = 'https://xiforever.com';
 
@@ -73,7 +80,7 @@ local function G(name) return rawget(_G, name); end
 -----------------------------------------------------------------------
 local V = {
     open = { false },
-    cfg = { size = 2, sound = true, music = false, volume = 40, hinted = false },
+    cfg = { size = 2, sound = true, music = false, volume = 40 },
     state = nil,            -- what the launcher wrote last (state.lua)
     stateLine = nil,        -- its first line: a change means read it again
     readAt = 0, aliveAt = 0, alive = 0, askedAt = 0, startedAt = os.clock(),
@@ -113,7 +120,6 @@ local function loadSettings()
         elseif k == 'sound' then V.cfg.sound = (v ~= 'off');
         elseif k == 'music' then V.cfg.music = (v == 'on');
         elseif k == 'volume' then V.cfg.volume = math.max(0, math.min(100, tonumber(v) or 40));
-        elseif k == 'hinted' then V.cfg.hinted = (v == 'yes');
         elseif k == 'hours' then V.hours = tonumber(v) or 2; end
     end
     f:close();
@@ -125,8 +131,8 @@ local function saveSettings()
     makeDir(dir);
     local f = io.open(dir .. 'settings.txt', 'w');
     if not f then return; end
-    f:write(string.format('size = %s\nsound = %s\nmusic = %s\nvolume = %d\nhours = %d\nhinted = %s\n', tostring(V.cfg.size), V.cfg.sound and 'on' or 'off',
-        V.cfg.music and 'on' or 'off', V.cfg.volume, V.hours, V.cfg.hinted and 'yes' or 'no'));
+    f:write(string.format('size = %s\nsound = %s\nmusic = %s\nvolume = %d\nhours = %d\n', tostring(V.cfg.size), V.cfg.sound and 'on' or 'off',
+        V.cfg.music and 'on' or 'off', V.cfg.volume, V.hours));
     f:close();
 end
 
@@ -1292,27 +1298,137 @@ local function render()
 end
 
 -----------------------------------------------------------------------
+-- the Squads menu (servermenu 1.36): its Ventures button loads this add-on, shows the window and shuts it again.
+-- So that the menu knows what is so without asking, two small files are kept in the character's folder, the one the
+-- menu and Gambits share (config\addons\xiforever\<Name>_<ServerId>\), the way Gambits keeps gambits.loaded and
+-- gambits.open:
+--   venture.loaded   while this add-on is loaded for that character
+--   venture.open     while its window is shown
+-- Each holds the game process's id, so a file a crashed game left behind is not taken for this one's. Whenever one
+-- of them changes the line "/xifoventure" is said: the menu reads the files again on that line (and every second or
+-- two anyway). The line carries nothing, is never typed and never reaches the game: this add-on stops it itself, so
+-- it is harmless with an older menu or with none.
+-----------------------------------------------------------------------
+local SIGNAL = '/xifoventure';
+
+local function processId()
+    if V.pid == nil then
+        V.pid = false;
+        pcall(ffi.cdef, 'unsigned long GetCurrentProcessId(void);');
+        local ok, value = pcall(function() return tonumber(ffi.C.GetCurrentProcessId()); end);
+        if ok and value and value > 0 then V.pid = value; end
+    end
+    return V.pid or nil;
+end
+
+-- <Name>_<ServerId>: how the menu and Gambits name a character's folder (xifo_ui.lua, U.identity). nil: nobody is logged in
+local function identity()
+    local ok, name, id = pcall(function()
+        local party = AshitaCore:GetMemoryManager():GetParty();
+        return party:GetMemberName(0), party:GetMemberServerId(0);
+    end);
+    if not ok then return nil; end
+    name = tostring(name or ''):gsub('%z', ''):match('^%s*(.-)%s*$') or '';
+    id = tonumber(id) or 0;
+    if name == '' or id <= 0 then return nil; end
+    return (name:gsub('[^%w_]', '_')) .. '_' .. string.format('%d', id);
+end
+
+-- that character's folder, and the folder it is in
+local function markDir(id)
+    if id == nil then return nil; end
+    local ok, base = pcall(function() return AshitaCore:GetInstallPath(); end);
+    if not ok or type(base) ~= 'string' or base == '' then return nil; end
+    if not base:match('[\\/]$') then base = base .. '\\'; end
+    return base .. 'config\\addons\\xiforever\\' .. id .. '\\', base .. 'config\\addons\\xiforever\\';
+end
+
+local function markText()
+    local pid = processId();
+    return 'Ventures ' .. tostring(addon.version) .. '\n' .. (pid and ('pid=' .. string.format('%d', pid) .. '\n') or '');
+end
+
+local function signal()
+    pcall(function() AshitaCore:GetChatManager():QueueCommand(1, SIGNAL); end);
+end
+
+-- The character this add-on is loaded for. Another character logged in: the files move to that one's folder.
+-- nil (the add-on is being unloaded): they are removed, and nothing is said (nobody here could stop the line then).
+local function presence(id)
+    if id == V.markId then return; end
+    local old = markDir(V.markId);
+    if old then
+        os.remove(old .. 'venture.loaded');
+        os.remove(old .. 'venture.open');
+    end
+    V.markId, V.openSaid = id, false;
+    local dir, parent = markDir(id);
+    if not dir then return; end
+    makeDir(parent);
+    makeDir(dir);
+    os.remove(dir .. 'venture.open');      -- (one a crashed game left: the window's real state follows in this frame)
+    local f = io.open(dir .. 'venture.loaded', 'w');
+    if f then
+        f:write(markText());
+        f:close();
+    end
+    signal();
+end
+
+-- the window was shown or shut, however that happened (the menu's button, /venture, its own X): told once per change
+local function announceOpen()
+    local shown = V.open[1] == true;
+    if shown == V.openSaid or V.markId == nil then return; end
+    V.openSaid = shown;
+    local dir = markDir(V.markId);
+    if dir then
+        if shown then
+            local f = io.open(dir .. 'venture.open', 'w');
+            if f then
+                f:write(markText());
+                f:close();
+            end
+        else
+            os.remove(dir .. 'venture.open');
+        end
+    end
+    signal();
+end
+
+-----------------------------------------------------------------------
 -- events
 -----------------------------------------------------------------------
 ashita.events.register('load', 'venture_load', function()
     math.randomseed(os.time() + math.floor(os.clock() * 1000) + (tonumber(tostring({}):match('0x(%x+)') or '0', 16) or 0) % 100000);
     loadSettings();
+    -- loaded by the menu's button, the character is in the game already: the menu hears of it now, not a second later
+    local id = identity();
+    if id then presence(id); end
 end);
 
 ashita.events.register('unload', 'venture_unload', function()
     music(false);
     gfx.release();
+    presence(nil);
 end);
 
 ashita.events.register('command', 'venture_command', function(e)
     local args = e.command:args();
     if #args == 0 then return; end
     local cmd = args[1]:lower();
+    if cmd == SIGNAL then      -- this add-on's own line to the Squads menu: never sent to the game
+        e.blocked = true;
+        return;
+    end
     if cmd ~= '/venture' and cmd ~= '/ventures' then return; end
     e.blocked = true;
     local sub = (args[2] or ''):lower();
-    if sub == '' then
+    if sub == '' or sub == 'toggle' then
         V.open[1] = not V.open[1];
+    elseif sub == 'show' or sub == 'open' then       -- (1.1) what the Squads menu's Ventures button sends
+        V.open[1] = true;
+    elseif sub == 'hide' or sub == 'close' then
+        V.open[1] = false;
     elseif sub == 'size' then
         local v = tonumber(args[3] or '');
         if v then
@@ -1338,7 +1454,7 @@ ashita.events.register('command', 'venture_command', function(e)
         end
         say('volume ' .. tostring(V.cfg.volume) .. ' (/venture volume 0-100)');
     else
-        say('/venture (the window), /venture size <1.5-4>, /venture sound, /venture music, /venture volume <0-100>');
+        say('/venture (the window; also /venture show, /venture hide), /venture size <1.5-4>, /venture sound, /venture music, /venture volume <0-100>');
     end
 end);
 
@@ -1347,31 +1463,45 @@ ashita.events.register('d3d_present', 'venture_present', function()
     local name = myName();
     if name and name ~= V.me then
         V.me = name;
-        V.metAt = os.clock();
         if not V.whoPicked then V.who = name; end
     end
-    -- said once, the first time someone is logged in with this add-on: that the window is there
-    if not V.cfg.hinted and V.me and V.metAt and os.clock() - V.metAt > 12 then
-        V.cfg.hinted = true;
-        saveSettings();
-        say('Send squad mates off to level while you play: type /venture.');
-    end
-    if not V.open[1] then
-        if musicOpen then music(false); end
-        return;
-    end
-    pcall(readState);
-    keepFresh(V.who or V.me);
-    for id, p in pairs(V.pending) do
-        if os.clock() - p.at > 15 then
-            V.pending[id] = nil;
-            if p.what ~= 'seen' then setNote('The launcher did not answer. Is it still open?'); end
+    -- (1.1) for the Squads menu: whose folder the two small files are in, looked at once a second. A moment without a
+    -- character (a zone loading, the title screen) changes nothing: the files stay where they are until someone else
+    -- is logged in, or the add-on is unloaded.
+    local tick = os.clock();
+    if tick - (V.markAt or -10) >= 1 then
+        V.markAt = tick;
+        local id = identity();
+        if id then presence(id); end
+        -- venture.loaded is this add-on's word to the menu. Should it ever be gone while the add-on is loaded (someone
+        -- tidied the folder, or the menu took it for a file an earlier game left), it is put back, and said again.
+        local dir = markDir(V.markId);
+        local f = dir and io.open(dir .. 'venture.loaded', 'r');
+        if f then
+            f:close();
+        elseif dir then
+            local mine = V.markId;
+            V.markId = nil;
+            presence(mine);
         end
     end
-    if V.note ~= '' and now() - V.noteAt > 20 then V.note = ''; end
-    render();
+    if V.open[1] then
+        pcall(readState);
+        keepFresh(V.who or V.me);
+        for id, p in pairs(V.pending) do
+            if os.clock() - p.at > 15 then
+                V.pending[id] = nil;
+                if p.what ~= 'seen' then setNote('The launcher did not answer. Is it still open?'); end
+            end
+        end
+        if V.note ~= '' and now() - V.noteAt > 20 then V.note = ''; end
+        render();
+    elseif musicOpen then
+        music(false);
+    end
+    announceOpen();      -- (after the frame: the window's own X shuts it while it is drawn)
 end);
 
 -- (for the tests: the parts they look into)
 return { V = V, gfx = gfx, Stage = Stage, screen = screen, render = render, readState = readState, flow = flow, n = n, clockText = clockText,
-         names = names, lineOf = lineOf };
+         names = names, lineOf = lineOf, identity = identity, SIGNAL = SIGNAL };

@@ -5088,10 +5088,10 @@ class App(tk.Tk):
                                                  log=self.say)
             except Exception as e:
                 self.say(f"Could not turn Tetra Master on ({e}) - starting anyway.")
-            try:                              # (2026-11-26) Ventures in the game (/venture): switched on once
-                launcher_setup.enable_venture(HERE, cfg["ashita_dir"], cfg.get("ashita_boot", "phoenixsolo.ini"), log=self.say)
+            try:                              # (2026-11-26) Ventures in the game: not started with the game (the Squads menu's Ventures button loads it)
+                launcher_setup.venture_off_by_default(cfg["ashita_dir"], cfg.get("ashita_boot", "phoenixsolo.ini"), log=self.say)
             except Exception as e:
-                self.say(f"Could not turn the Ventures window on ({e}) - starting anyway.")
+                self.say(f"Could not take Ventures out of the game's start script ({e}) - starting anyway.")
             try:                              # (2026-11-23) the hardcore icons: on at every PLAY
                 launcher_setup.enable_hcicons(cfg["ashita_dir"], cfg.get("ashita_boot", "phoenixsolo.ini"), log=self.say)
             except Exception as e:
@@ -5648,7 +5648,7 @@ class App(tk.Tk):
 
     def start_ventures(self):
         # (2026-11-25) Ventures (launcher_ventures.py): squad mates sent off to level at a real camp, from the XIFO app
-        # or (2026-11-26) from the game's own /venture window. While the game runs, a relay keeps the game told who is
+        # or (2026-11-26) from the game's own Ventures window. While the game runs, a relay keeps the game told who is
         # away, takes in what came home (exp and gil in game, items in the delivery box) and answers the window: for
         # everyone now, since the launcher plans the ventures sent in game itself (no app, no internet needed). With an
         # app paired the squads also go to the hub. Never stops PLAY.
