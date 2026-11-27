@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2 (2026-11-26)
+
+- New bundled track from J: "Choose to Fight (Special Battle Theme XIFO Exclusive)". It is an extra (battle-pack.json
+  "extras"): seeded into the library, assigned to no slot, so Solo / Party / Alliance stay as they were.
+- Titles no longer show the copy numbers a download adds at the end of a file name (" (1)", " (2) (1)"). Display only:
+  files, ids and assignments are untouched. Words in brackets and numbers elsewhere in a name stay.
+- Two more extras from J, his in-game versions of the app's tunes: "Just One More Cast" (fishing) and "Beyond the Next
+  Hill" (Ventures). In the library only: nothing starts them by itself yet (the add-on does not report fishing).
+
 ## 0.1.1 · Live in XI: Forever Offline (2026-11-25)
 
 - Live game bridge: the XI: Forever Offline add-on `vanasync` sends combat, group size, alliance, zone and cutscene

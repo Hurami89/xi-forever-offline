@@ -95,8 +95,12 @@ class Catalog:
             return {}
         records = json.loads(manifest_path.read_text(encoding="utf-8"))
         defaults = {}
-        for slot in ("solo", "party", "alliance"):
-            record = records[slot]
+        # (2026-11-26, J's Choose to Fight update) "extras": bundled tracks that belong to no slot. They are seeded into
+        # the catalog like the three themes, so they show in the library and can be picked, and no assignment changes.
+        extras = records.get("extras") or []
+        if not isinstance(extras, list):
+            raise ValueError("Invalid bundled battle manifest")
+        for slot, record in [(s, records[s]) for s in ("solo", "party", "alliance")] + [(None, e) for e in extras]:
             filename = record["file"]
             digest = record["sha256"]
             if not re.fullmatch(r"[a-f0-9]{64}", digest):
@@ -104,7 +108,8 @@ class Catalog:
             track_id = digest[:32]
             if filename != Path(filename).name or "/" in filename or "\\" in filename:
                 raise ValueError("Invalid bundled filename")
-            defaults[slot] = track_id
+            if slot is not None:
+                defaults[slot] = track_id
             marker = self.root / (".seeded-" + track_id)
             if marker.exists():
                 continue
@@ -117,13 +122,13 @@ class Catalog:
                     continue
                 with source.open("rb") as handle:
                     if sha256_of(handle) != digest:
-                        print(f"Bundled {slot} file failed verification", flush=True)
+                        print(f"Bundled {slot or filename} file failed verification", flush=True)
                         continue
                     handle.seek(0)
                     self.add(filename, os.fstat(handle.fileno()).st_size, handle, track_id)
                 marker.touch()
             except (OSError, ValueError):
-                print(f"Bundled {slot} file could not be copied", flush=True)
+                print(f"Bundled {slot or filename} file could not be copied", flush=True)
         return defaults
 
 

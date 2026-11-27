@@ -48,7 +48,12 @@ class CatalogTest(unittest.TestCase):
     def test_bundled_tracks_seed_once_under_stable_ids(self):
         defaults = self.catalog.seed_battle_pack()
         self.assertEqual(set(defaults), {"solo", "party", "alliance"})
-        self.assertEqual(set(self.catalog.list()), set(defaults.values()))
+        # (2026-11-26) the extras (Choose to Fight, J's in-game fishing and Ventures tunes) are in the catalog too, under no slot
+        listed = self.catalog.list()
+        self.assertTrue(set(defaults.values()) <= set(listed))
+        extra = sorted(name for track, name in listed.items() if track not in defaults.values())
+        self.assertEqual(extra, ["Beyond the Next Hill.mp3", "Choose to Fight (Special Battle Theme XIFO Exclusive).mp3",
+                                 "Just One More Cast.mp3"])
         original = self.catalog.find(defaults["solo"])
         original.rename(original.with_name("My Solo.mp3"))
         self.assertEqual(self.catalog.seed_battle_pack(), defaults)
