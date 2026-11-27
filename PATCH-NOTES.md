@@ -2,14 +2,55 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
-## Unreleased
+## v0.3.13 · 27 November 2026
 
-### PlayOffline Viewer
+### New
+• Ventures in the game: the Squads menu has a Ventures button (Squad tab, next to Refresh). Click it and the XIFO app's Ventures screen opens in a window; click it again to close it. Pick squad mates, a camp and 1 to 12 hours, send them off, and watch them fight in the same pixel scene (sprites by Kaza), with the timer, Call home, the report and your past ventures. It needs no app and no internet: the launcher plans the venture and hands the exp, gil and items to the game when they're back, and the timer runs while the PC is off. With the XIFO app paired, ventures sent in game show in the app and the app's show in the game. Ventures isn't loaded until you click the button, so it costs nothing if you don't use it. Once it's open: /venture size 1.5 to 4 for a smaller or bigger scene, /venture sound, /venture music, /venture volume 0-100.
+• Squad rules, requests and resting, by wildcabbagepatch (Gambits 0.4.0 and Squads menu 1.37), built from your feedback:
+  - A rule can have up to 4 conditions, and each one can look at the rule's target, the mate itself or the enemy.
+  - New in Gambits: Magic Burst up to a tier you choose, the condition "Has an erasable debuff", the target "an add" (Sleep or Foe Lullaby on the nearest add that is awake, one mate per add), and an Examples list.
+  - Rest in fights: a mate can sit a fight out to rest when its MP is under a level you set (10 to 90%), and stands up only for its rules marked "Wake to act". Squads menu > Settings > Rest, or !squad restfight <slot> off|10-90.
+  - Camp: a Pull range setting on the Camp row, and a White Mage player counts as the healer for the camp's Healer MP.
+  - Summoners: a fixed avatar comes back after a pact rule switched to another one. If the fixed avatar can't be called, the mate calls nothing and says why. Auto goes by the target's weakness from the first summon.
+  - Raise asked for in party chat: a mate that is too far away walks in to cast when it can (out of a fight, no camp) or tells you it's too far, and you're told how it went. Bar spell requests report back the same way. Thanks Rysan.
+  - The standard Red Mage no longer casts Distract.
+• A character can keep 7 squad mates (was 6). Five can be out with you at a time, as before.
+• VanaSync 0.1.2: three more of JØ's tracks are in the player's library ("Choose to Fight", "Just One More Cast" and "Beyond the Next Hill"), and /vanasync open (or /vsync) brings the player window back if you closed it. Thanks Hexblood.
+• The launcher's standard theme plays the project's main theme now: "We Are Who We Choose" by JØ.
+• A new launcher theme, PlayOffline Viewer: choose it in Options > Theme. An opening animation leads into a left-hand Viewer menu with direct access to the launcher pages, and the character cards, Hardcore choices and co-op controls share the look. Opening music: "PlayOffline Viewer (Instrumental)" by JØ.
+• A third gift: the Forever Track Pants, track pants and sneakers in the Forever Beta colours. Fishing skill +2 (they take your feet slot too), and use them to Warp to your home point, just like the Warp Ring (wear them 8 seconds, then once every 10 minutes, never runs out). In your delivery box at your next login, once per character; new characters start with them. The Forever Beta Shirt now gives Fishing skill +1 too, so the shirt, patch and track pants together are +4.
+• Monsters that grow into an NM keep their count between play sessions: Rose Garden and Voluptuous Vilma (Yuhtunga Jungle), Snow Maiden and Father Frost (Uleguerand Range), Taisaijin (Ranguemont Pass) and the Leshy line (Lufaise Meadows). They follow RULES > Comforts, "Timed NMs between sessions" (paused while your servers are off, by default), and bot players leave those monsters alone. Before, every server start began the count again, so on an offline world they could never appear. Thanks Art-Machine.
+• !deliverybox takes everything waiting in your delivery box (ventures, phone fishing, gifts) into your inventory at once, until your inventory is full. Thanks Quaiton.
+• For GMs: !resetmissions <log> (player) starts a mission line over. It clears the line's missions, its progress and its key items, and puts your own nation back to rank 1; rewards you already have stay. Thanks Quaiton.
+• Hardcore: your own Mijin Gakure is not a knock-out. It doesn't count as a death, doesn't delevel a Steel character and doesn't end a Silver or permadeath one. Thanks Capt. Destro.
+• Auction house: a new switch on RULES, "Out of era items on the auction house", off by default. Off, the market only stocks the era's own items. Thanks Ziegh.
+• HD packs and music: Remapster's hand-drawn in-game maps are in the list (the 1024 set, installed switched off; turn it on in the window), and the window scrolls now. Thanks Zohonde and Bigbadbill.
+• TrueFPS by SQLCommit is in the add-on list, installed switched off: higher frame rates with the game still at normal speed. Tick it on OPTIONS > Addons; /truefps opens its settings. Don't load it together with the plain fps addon. Thanks Alis.
+• Bot players in the open world move smoothly, by K-Andy: their position is sent on every step and their animation keeps time.
 
-- Choose PlayOffline Viewer in Options > Theme.
-- The opening animation leads into a left-hand Viewer menu with direct access to the launcher pages.
-- Character cards, Hardcore choices and co-op controls share the new theme.
-- Opening music: PlayOffline Viewer (Instrumental) by JO (jnull).
+### Fixes
+• Short quest waits work again. Since v0.3.12, Chocobo's Wounds had gone back to one feeding per Vana'diel day and Forge Your Destiny to its 2.9 hour wait. Nobody has to start over: the chocobo takes your next clump of grass. Thanks Tetsu, Neet, Josh, Quaiton and Hexblood.
+• Squad: calling your squad while you were charmed could bring the server down 20 to 30 seconds later. You now get "You cannot call your squad while you are charmed." Thanks ChocoKings.
+• The launcher opens the first time when Ollama is installed but not running. Before, it could sit with no window until Ollama was closed. Thanks Meli, Lunali, Teutonic84 and Rennie.
+• Ollama installed by hand is recognised, and an installer that ends with an error code is not called a failure when Ollama is there. Thanks Hasuko.
+• Character transfer: the Mog House exits from your finished exit quests come along. Characters transferred before this are put right at their next login. Thanks Hasuko.
+• Start GM game opens at the window size from your Graphics page, and no longer hangs at the character screen when a character card's auto-login is set. Thanks JØ, Animelaine and Frenzo.
+• A launcher window you sized by hand keeps its size on every page. Thanks Jaymz and Dugahst.
+• Second window: if it doesn't open, the launcher now shows what the second game's loader reported. Thanks Thomas.
+• Squad gear picker in the launcher: the list no longer slides under the mouse as you click, which picked the row above the one you wanted. Thanks Ricc.
+• VanaSync: the game's own battle music could play underneath. The add-on asked the game to mute its music once, and the game turned it back up when a fight started or ended; it now keeps asking for as long as VanaSync plays. Thanks Zaltyz525, JØ and Jker_s81.
+• Phone fishing: new catches fill up the stacks already waiting in your delivery box, so 200 moat carp are 17 deliveries, not 200. Thanks Frost.
+• Ventures: Rare/Ex items (keys, quest items) are no longer in the camps' loot.
+• Bot players' quests and missions: the list they pick from was never built, so they never went on one. It is built now: 281 quests, the three nations' missions and the Zilart, Promathia and Aht Urhgan stories.
+• Bot players under level 12 get the unsplit exp share too. Thanks SprinklesAK.
+• Survival Guides that were named "Summoner" (Valkurm Dunes, North Gustaberg, the Sanctuary of Zi'Tah) have their name back. Thanks Syfin.
+• Northern San d'Oria's Survival Guide opens its menu again.
+• Windurst Walls: the Ancestry Moogle no longer freezes the game. For now it tells you where the working ones are (Port Bastok and Port San d'Oria). Thanks Ruri.
+• Squad mates only dual wield with Ninja as their main or support job (level 10 and up). Thanks Tetsu.
+• !skip works on every story again, and the skipped missions' key items are given. Thanks Garrett.
+• Forever Beta Shirt, Forever Patch and Forever Track Pants: trading one to your squad copies it, and you keep yours. Thanks krazy.
+• Journal: Atelloune's Lament is hidden (it needs a Wings of the Goddess quest).
+• Credits: the Windurst theme's song is no longer credited to JØ. It isn't his.
 
 ## v0.3.12 · 26 November 2026
 
@@ -31,7 +72,6 @@ Newest first. The launcher shows this file on SYSTEM > Patch notes; the same not
 • Squad mates wait outside towns: walk into a town and the mates who were out stay outside, then rejoin you by themselves in the next area that isn't a town, with no call timer (like your Mog House). You can still call them in town by hand. !squad town off brings them into towns with you again. Thanks Neet.
 • Squad teleports by party chat: say "d2" (or "warp ii") and your Black Mage casts Warp II on you, next to the six Teleports ("tele holla", "dem", "mea"...) and Escape. Thanks JØ.
 • Squad Summoners that play like a player, by wildcabbagepatch (experimental): summons cost MP, avatars drain it the way yours do, Blood Pacts follow your rules and costs (the recast only starts when a pact goes off) and wait for the avatar to be ready and in reach, party pacts can be aimed at you, and each mate has its own settings and pact order (Gambits: a Summoner section and a Basic Summoner starter). Also a weapon skill gear set per mate: armor and accessories it wears from the start of a weapon skill until the damage lands.
-• A third gift: the Forever Track Pants, track pants and sneakers in the Forever Beta colours. Fishing skill +2 (they take your feet slot too), and use them to Warp to your home point, just like the Warp Ring (wear them 8 seconds, then once every 10 minutes, never runs out). In your delivery box at your next login, once per character; new characters start with them. The Forever Beta Shirt now gives Fishing skill +1 too, so the shirt, patch and track pants together are +4.
 • A second gift: the Forever Patch, an eyepatch in the Forever Beta Shirt's colours, with a big crystal and FOREVER BETA on the patch. Fishing skill +1 while you wear it, and use it for the shirt's experience bonus (+75%, up to 4000 exp, 12 hours; 5 charges, 15 hours apart); using it doesn't take away the fishing bonus. It's in your delivery box at your next login, once per character; new characters start with it.
 • A gift for everyone: a Chocobo Egg in your delivery box at your next login, once per character (Hardcore and Randomized characters too). Keep it warm.
 • Timed NMs keep their timers between play sessions. RULES > Comforts, "Timed NMs between sessions": 1 = paused while your servers are off (the default: a timer goes on where it stopped), 2 = real time (timers keep running while you're away), 0 = fresh timers at every start, as before. Argus and Leech King keep whose turn it is. Lottery NMs follow the lottery settings, the land kings their own switch. Thanks Trinity, Akiraheaven and VRTRA.
