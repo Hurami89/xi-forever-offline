@@ -3875,6 +3875,8 @@ class App(tk.Tk):
         self.heroes = load_press()
         self._images.extend(self.heroes)
         self.hero_index, self.hero_ticks = (random.randrange(len(self.heroes)) if self.heroes else 0), 0
+        if globals().get("launcher_theme") and launcher_theme.worn() == "playoffline":
+            self.hero_index = 0
         self.banner_label = tk.Label(self.stage, bg=PANEL, bd=0)
         if self.heroes:
             self.banner_label.configure(image=self.heroes[self.hero_index])
@@ -4065,6 +4067,12 @@ class App(tk.Tk):
                     pass
                 tabs.add(self.rates_tab, text="  Rates  ")
         self.build_nav()
+        if self.new_ui and globals().get("launcher_theme") and launcher_theme.worn() == "playoffline":
+            try:
+                import launcher_playoffline
+                launcher_playoffline.decorate(self, HERE)
+            except Exception:
+                launcher_theme.note("PlayOffline navigation: " + traceback.format_exc())
 
     def ui_button(self, parent, name, command, text):
         images = load_ui_images(name)
@@ -6438,6 +6446,13 @@ def main():
                 os.makedirs(LOGS, exist_ok=True)
                 with open(os.path.join(LOGS, "setup-again-error.log"), "w") as f:
                     f.write(traceback.format_exc())
+        theme = globals().get("launcher_theme")
+        if theme and theme.worn() == "playoffline":
+            try:
+                import launcher_playoffline
+                launcher_playoffline.splash(HERE)
+            except Exception:
+                theme.note("PlayOffline splash: " + traceback.format_exc())
         app = App()
         bring_to_front(app)
         try:                                      # the opening theme of a limited-time look, while one is in date

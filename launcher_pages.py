@@ -66,6 +66,8 @@ def prepare(app, names):
     if tall:
         width = 1056 if names.get("coopgui") is not None else 936      # (launcher_gui.fit_window: 1100 / 980 wide)
         BANNER = (width, round(width / 2.5))
+    if names.get("launcher_theme") and names["launcher_theme"].worn() == "playoffline":
+        BANNER = (660, 264)
     G.GALLERY_W, G.GALLERY_H = BANNER      # the press and loading pictures are cut to this when they are loaded
     G.ACCENT = GOLD                         # one highlight colour: what the older pages drew in cyan is gold too
     if "CheckList" in names:                # the "download" tag in the addon and plugin lists was cyan as well

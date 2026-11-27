@@ -2,6 +2,15 @@
 
 Newest first. The launcher shows this file on SYSTEM > Patch notes; the same notes go to #patch-notes on Discord.
 
+## Unreleased
+
+### PlayOffline Viewer
+
+- Choose PlayOffline Viewer in Options > Theme.
+- The opening animation leads into a left-hand Viewer menu with direct access to the launcher pages.
+- Character cards, Hardcore choices and co-op controls share the new theme.
+- Opening music: PlayOffline Viewer (Instrumental) by JO (jnull).
+
 ## v0.3.12 · 26 November 2026
 
 ### New
