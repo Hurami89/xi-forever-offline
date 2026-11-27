@@ -39,7 +39,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.36';   -- (1.36) the Squad tab has a Ventures button: it loads the venture add-on (the XIFO app's Ventures screen as a window; the launcher copies it but does not start it with the game), shows its window and shuts it again; (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.37';   -- (1.37) a card's Settings has Rest in fights (below an MP %, the mate may sit out a fight and rest: !squad restfight, cap restfight), the Camp row has Pull range (!squad camp range, the server's value: camprange), the compact Camp bar keeps one width at the menu's Size so its buttons stay put, Healer MP's tip names you as a White Mage healer; (1.36) the Squad tab has a Ventures button: it loads the venture add-on (the XIFO app's Ventures screen as a window; the launcher copies it but does not start it with the game), shows its window and shuts it again; (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -874,6 +874,26 @@ local function onLine(payload)
         S.incomingOpts[tonumber(pslot)] = o;
         return;
     end
+    -- (1.37, F18) rf|<slot>|<0 off, else MP %>[|<Wake to act rules of the mate that is out, -1 not out>]: Rest in fights
+    -- (!squad restfight); offered with cap|...,restfight. The third field drives the "no Wake to act rule" warning.
+    local rslot, rval, rwake = payload:match('^rf|(%d+)|(%d+)|?(%-?%d*)$');
+    if rslot then
+        S.incomingOpts = S.incomingOpts or {};
+        local o = S.incomingOpts[tonumber(rslot)] or {};
+        o.rf = tonumber(rval);
+        o.rfWake = tonumber(rwake);
+        S.incomingOpts[tonumber(rslot)] = o;
+        return;
+    end
+    -- (1.37, F23) camprange|<yalms>|<1 set, 0 default>: the camp's pull search range (!squad camp range); in a panel answer or
+    -- by itself after a change (squad.lua SQUAD_CAMPX.push)
+    local crange, cown = payload:match('^camprange|(%d+)|([01])$');
+    if crange then
+        local target = S.incomingCamp or S.camp;
+        if target then target.range, target.rangeOwn = tonumber(crange), cown == '1'; end
+        X.lastRange = { range = tonumber(crange), own = cown == '1' };
+        return;
+    end
     -- (squad.lua with pull choices) campwant|<Monster_Name or -> and campmob|<Monster_Name>|<lowest lv>|<highest lv>|<how many>|<1 pullable>
     local want = payload:match('^campwant|(.+)$');
     if want and S.incomingCamp then
@@ -1676,8 +1696,15 @@ X.HEALER_MP_HELP = {
     ['0'] = 'Every mate with MP needs 30% MP before a pull (the default)',
 };
 for _, k in ipairs({ '20', '30', '40', '50', '60', '80' }) do
-    X.HEALER_MP_HELP[k] = 'The healers (mates with the Role Healer, else the White Mages) need ' .. k .. '% MP; the other mates 30%. No healer out: no change';
+    X.HEALER_MP_HELP[k] = 'The healers need ' .. k .. '% MP, resting or not: you (or your second character) when your main job is '
+        .. 'White Mage, and the mates with the Role Healer, else the White Mage mates. The other mates 30%. No healer: no change';
 end
+
+-- (1.37, F23) pull search range choices (!squad camp range 10-500; 60 = the server's default)
+X.PULL_RANGES = { '30', '45', '60', '90', '120', '200' };
+X.PULL_RANGE_LABEL = { ['30'] = '30 yalms', ['45'] = '45 yalms', ['60'] = '60 yalms', ['90'] = '90 yalms', ['120'] = '120 yalms',
+                       ['200'] = '200 yalms' };
+X.PULL_RANGE_HELP = { ['60'] = 'The default: your own area, not the far side of the zone' };
 
 function X.campSt(st)
     local function apply(camp)
@@ -1723,6 +1750,25 @@ function X.campSettings(camp, someonePulls, contentX)
         tooltip('MP the healers need before the next pull');
         first = false;
     end
+    -- (1.37, F23) the pull search range: how far from the camp the puller looks for a monster (!squad camp range). The value
+    -- shown is the server's (camprange line); a value set with the command shows as it is. Not the camp's fight reach.
+    local range = camp.range or (X.lastRange and X.lastRange.range);
+    if someonePulls and range ~= nil then
+        local cur = tostring(range);
+        if X.PULL_RANGE_LABEL[cur] == nil then X.PULL_RANGE_LABEL[cur] = cur .. ' yalms'; end
+        local list = {};
+        for _, v in ipairs(X.PULL_RANGES) do list[#list + 1] = v; end
+        local listed = false;
+        for _, v in ipairs(list) do listed = listed or v == cur; end
+        if not listed then list[#list + 1] = cur; end   -- (a custom value from the command stays selectable)
+        X.fitAt(X.textW('Pull range') + X.sv(6) + px(96), contentX, 12);
+        dimText('Pull range'); imgui.SameLine(0, 6);
+        local pickR = combo('camprange', cur, list, 96, X.PULL_RANGE_HELP, nil, X.PULL_RANGE_LABEL);
+        if pickR and pickR ~= cur then campCommand('camp range ' .. pickR); camp.range = tonumber(pickR); end
+        tooltip('How far from the camp the puller looks for a monster to pull (measured flat from the camp, not counting monsters '
+            .. 'far above or below). The squad still fights only what comes within 20 yalms of the camp. 60 is the default.');
+        first = false;
+    end
     local compact = S.cfg.camp_compact == 'true';
     local barLabel = compact and 'Hide camp bar' or 'Camp bar';
     if not first then X.fitAt(X.textW(barLabel) + X.sv(12), contentX, 12); end
@@ -1730,6 +1776,32 @@ function X.campSettings(camp, someonePulls, contentX)
         setCfg('camp_compact', compact and 'false' or 'true');
     end
     tooltip('A small window with the camp\'s state and its Start / Pause, Camp on / off and Move buttons, open while you play');
+end
+
+-- (1.37, F24) the compact camp bar keeps one width at the menu's Size: room for the widest state word and the widest row of
+-- buttons any camp state shows, so the buttons stay where they are (and inside the screen) as the camp goes from Ready to
+-- Pulling to Paused or No camp. textW / px / sv: the measures of the window's font and Size (testable without ImGui).
+-- Returns the state column's width, the window's width, and where the buttons start (from the window's left edge).
+X.CAMP_BAR_ROWS = {
+    { { 'Start', 66 }, { 'Move here', 76 }, { 'Camp off', 70 } },   -- (Resume / Pause have the same width as Start)
+    { { 'Move here', 76 }, { 'Camp off', 70 } },
+    { { 'Set camp here', 104 } },
+};
+function X.campBarLayout(textW, pxF, svF)
+    local stateW = 0;
+    for _, label in pairs(X.CAMP_STATE) do stateW = math.max(stateW, textW(label)); end
+    local rowW = 0;
+    for _, row in ipairs(X.CAMP_BAR_ROWS) do
+        local w = 0;
+        for i, b in ipairs(row) do
+            -- a button is as wide as asked, or its text and padding when that is wider (ImGui grows it)
+            w = w + math.max(pxF(b[2]), textW(b[1]) + 2 * svF(4)) + (i > 1 and svF(4) or 0);
+        end
+        rowW = math.max(rowW, w);
+    end
+    local pad, gap = svF(8), svF(10);
+    local buttonsX = pad + stateW + gap;
+    return stateW, buttonsX + rowW + pad, buttonsX;
 end
 
 -- the compact camp bar: its own small window, shown while it is switched on and the server said what the camp is doing
@@ -1746,6 +1818,12 @@ function X.campBar()
         flags = flags + (G(name) or 0);
     end
     if has('SetNextWindowPos') then imgui.SetNextWindowPos({ 240, 240 }, G('ImGuiCond_FirstUseEver') or 4); end
+    -- (1.37, F24) the width measured last frame at this Size (the first frame sizes itself, then it stays)
+    local barKey = tostring(userScale());
+    local barW = X.campBarW and X.campBarW[barKey];
+    if barW and has('SetNextWindowSizeConstraints') then
+        pcall(imgui.SetNextWindowSizeConstraints, { barW, 0 }, { barW, 4096 });
+    end
     local token = U.push(imgui, X.menu.window, X.vars());   -- (the menu's theme and metrics; popped again below)
     local open = { true };
     local fontPushed = X.pushFont();   -- (1.34) the text at this Size, laid out for it (see X.pushFont)
@@ -1753,9 +1831,12 @@ function X.campBar()
     local ok, err = pcall(function ()
         if not shown then return; end
         scaleWindow();
+        local _, totalW, buttonsX = X.campBarLayout(X.textW, px, X.sv);
+        X.campBarW = X.campBarW or {};
+        X.campBarW[barKey] = totalW;
         local state = camp.on and (camp.paused and 'paused' or camp.state or 'idle') or 'off';
         colorText(state == 'fighting' and C.warn or (state == 'pulling' and C.good or C.dim), X.CAMP_STATE[state] or state);
-        imgui.SameLine(0, 10);
+        imgui.SameLine(buttonsX, 0);   -- (1.37, F24) the buttons always start here, whatever the state word
         if camp.on then
             local someonePulls = camp.puller ~= 0 or camp.botPuller ~= nil;
             if someonePulls then
@@ -1852,6 +1933,45 @@ X.POSITION_HELP = {
         .. 'anywhere behind the monster, this mate is in line for your Trick Attack (and takes the hate it moves). '
         .. 'One mate takes this spot; others set to it stand behind.',
 };
+-- (1.37, F18) Rest in fights: below this MP % the mate may sit out a fight (nothing attacking it) and rest; Off = as before.
+-- It takes effect at once (!squad restfight <slot> off | <n>). Offered when the server says cap|...,restfight.
+X.REST_FIGHT = { '0', '20', '30', '40', '50', '60' };
+X.REST_FIGHT_LABEL = { ['0'] = 'Off', ['20'] = 'MP < 20%', ['30'] = 'MP < 30%', ['40'] = 'MP < 40%', ['50'] = 'MP < 50%', ['60'] = 'MP < 60%' };
+X.REST_FIGHT_HELP = { ['0'] = 'Fights through, as before (the default)' };
+for _, k in ipairs({ '20', '30', '40', '50', '60' }) do
+    X.REST_FIGHT_HELP[k] = 'Below ' .. k .. '% MP, with nothing attacking it, it stays out of the fight and rests (first recovery '
+        .. 'after 20 s, then every 10 s). Up again at ' .. math.min(100, tonumber(k) + 20) .. '% MP, when hit or moved, when you go '
+        .. 'away, or when the fight ends. Only Gambits rules marked "Wake to act" run meanwhile (it stands up for one, then rests '
+        .. 'again); with the default job rules, or none marked, it does nothing while it rests.';
+end
+function X.restFightRow(mate, opt)
+    -- (the short label fits the Settings column, as wide as "Position"; the tooltip names it in full)
+    dimText('Rest'); tooltip('Rest in fights: below this MP, with nothing attacking it, the mate sits out the fight and rests. '
+        .. 'While it rests it only uses Gambits rules marked "Wake to act" (a Rule Set in Gambits): without one it does '
+        .. 'nothing until it is up again, so a healer should have its Cure rules marked.');
+    imgui.SameLine(px(X.COL.setLabel), 0);
+    local current = tostring(opt.rf or 0);
+    if X.REST_FIGHT_LABEL[current] == nil then X.REST_FIGHT_LABEL[current] = 'MP < ' .. current .. '%'; end
+    local pick = combo('restfight' .. mate.slot, current, X.REST_FIGHT, 120, X.REST_FIGHT_HELP, nil, X.REST_FIGHT_LABEL);
+    if pick then
+        enqueue(string.format('/say !squad restfight %d %s', mate.slot, pick == '0' and 'off' or pick));
+        opt.rf = tonumber(pick);
+        ask(1.5);
+    end
+    -- (1.37) the mate that is out has no rule that may run while it rests: say so beside the setting (the server's count;
+    -- nothing when the mate is not out or the server does not report it)
+    if opt.rfWake == 0 then
+        local rs = S.rs and S.rs[mate.slot];
+        local onSet = rs ~= nil and rs.state == 'set';
+        imgui.SameLine(0, 8);
+        colorText((opt.rf or 0) > 0 and C.warn or C.dim, onSet and 'No Wake to act rule' or 'Default job rules: no Wake');
+        tooltip((onSet and 'Its Gambits Rule Set has no rule marked "Wake to act".'
+                or 'This mate runs its default job rules, which have no "Wake to act" rules.')
+            .. ' While it rests in a fight it then only rests: no Cure, no buffs, nothing, until it is up again. To let it act, '
+            .. 'give it a Rule Set in Gambits and mark the rules it may use while resting (e.g. its Cure rules) "Wake to act".');
+    end
+end
+
 function X.positionRow(mate, opt)
     dimText('Position'); imgui.SameLine(px(X.COL.setLabel), 0);
     local current = X.POSITIONS[(opt.pos or 0) + 1] or 'normal';
@@ -2482,6 +2602,7 @@ function X.mateCard(mate)
             if mode then changeMate(mate, 'mode', mode); end
             if opt then styleRow(mate, opt); end
             if opt and X.caps and X.caps.matepos then X.positionRow(mate, opt); end
+            if opt and X.caps and X.caps.restfight then X.restFightRow(mate, opt); end
             if opt and opt.size == 0 then sizeRow(mate, opt); end
         end
     end
