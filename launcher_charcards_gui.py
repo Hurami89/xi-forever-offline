@@ -7,8 +7,10 @@ world and the game and logs that character straight in (Ashita's autologin addon
 CHARACTER SCREEN, is the game's own list (to make a character). "Show this at PLAY" turns the screen off (cfg
 "char_cards"); the "Choose a character" link under PLAY (launcher_pages.PlayPage) still opens it.
 """
+import os as _os
 import random
 import threading
+import time as _time
 import tkinter as tk
 
 import launcher_charcards as cc
@@ -113,6 +115,67 @@ def _launch_second(app, slot, name=None):
     app.start_second()
     if slot is not None and name:
         app.say(f"Logging {name} straight in, in the second window.")
+    try:
+        if _second_ready(app) and app.running:          # (it was really started: not one of start_second's notices)
+            _watch_second(app, _time.time())
+    except Exception:
+        pass
+
+
+def _second_loader_log(began):
+    """The text of the log the game loader started after `began` (xiloader keeps one per start), or ''."""
+    folder = _os.path.join(_os.environ.get("APPDATA", ""), "xiloader", "logs")
+    best, best_time = "", 0.0
+    try:
+        for name in _os.listdir(folder):
+            if name.lower().startswith("xiloader-") and name.lower().endswith(".log"):
+                path = _os.path.join(folder, name)
+                made = _os.path.getctime(path)
+                if made >= began - 3 and made > best_time:
+                    best, best_time = path, made
+        if best:
+            with open(best, encoding="utf-8", errors="replace") as handle:
+                return handle.read()
+    except OSError:
+        pass
+    return ""
+
+
+def second_window_report(loader_log, ashita_tail, trouble_marks):
+    """The lines the launcher shows when the second window did not come up (2026-11-26, Thomas: "the second window
+    never opens", with nothing on screen to say why)."""
+    lines = ["The second window did not open."]
+    rows = [row.strip() for row in loader_log.splitlines() if row.strip()]
+    trouble = [row for row in rows if any(mark in row.lower() for mark in trouble_marks)]
+    if trouble:
+        lines.append("Its game loader said: " + " | ".join(trouble[-3:]))
+    elif rows:
+        lines.append("Its game loader's last line: " + rows[-1])
+    else:
+        lines.append("Its game loader (xiloader) wrote no log, so Ashita did not get as far as starting it.")
+    for row in [r for r in ashita_tail.splitlines() if r.strip()][-5:]:
+        lines.append("ashita2.log: " + row.strip())
+    lines.append("For a bug report, send logs\\ashita2.log from the launcher's folder.")
+    return lines
+
+
+def _watch_second(app, began, waited=0):
+    """After the second window is started: 40 seconds later with still only one game running, say why (above)."""
+    import launcher_core as core
+    try:
+        if core.count_running("xiloader") >= 2 or not app.running:
+            return
+    except Exception:
+        return
+    if waited < 40:
+        app.after(5000, lambda: _watch_second(app, began, waited + 5))
+        return
+    try:
+        tail = core.tail(_os.path.join(cc.HERE, "logs", "ashita2.log"), 8)
+        for line in second_window_report(_second_loader_log(began), tail, core.LOADER_TROUBLE):
+            app.say(line)
+    except Exception:
+        pass
 
 
 def _second_after_main(app, slot, name, waited=0):
