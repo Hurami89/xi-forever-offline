@@ -147,17 +147,51 @@ def find_ollama(kit=None):
     return found
 
 
-def ollama_models(run=None):
-    """The model names Ollama has pulled ([] when Ollama is missing or not running)."""
+def ollama_list(exe, timeout=20):
+    """`ollama list` without a pipe: (its exit code, or None when it did not finish or start; what it printed).
+
+    (2026-11-26; Meli, Lunali, Teutonic84, Rennie: "the launcher does not open the first time" unless Ollama is already
+    running) When Ollama is not running, `ollama list` starts it, and the Ollama it started keeps hold of the pipe this
+    launcher was reading the answer from. Reading a pipe waits for everyone who holds it, so the launcher sat there,
+    before its window was drawn, for as long as Ollama lived: close Ollama, or start the launcher a second time, and
+    it opened. A file has no such wait: only `ollama list` itself is waited for, and only for `timeout` seconds."""
     import subprocess
+    import tempfile
+    with tempfile.TemporaryFile() as out:
+        try:
+            proc = subprocess.Popen([exe, "list"], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.DEVNULL,
+                                    creationflags=NO_WINDOW)
+        except OSError:
+            return None, ""
+        try:
+            code = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                proc.kill()
+            except OSError:
+                pass
+            code = None
+        try:
+            out.seek(0)
+            text = out.read().decode("utf-8", errors="replace")
+        except OSError:
+            text = ""
+    return code, text
+
+
+def ollama_models(run=None):
+    """The model names Ollama has pulled ([] when Ollama is missing or not running). `run` is a stand-in for tests."""
     exe = find_ollama()
     if not exe:
         return []
-    try:
-        out = (run or subprocess.run)([exe, "list"], capture_output=True, text=True, errors="replace", timeout=20, creationflags=NO_WINDOW)
-    except Exception:
-        return []
-    return [line.split()[0] for line in (out.stdout or "").splitlines()[1:] if line.strip()]
+    if run is None:
+        _code, text = ollama_list(exe)
+    else:
+        try:
+            text = run([exe, "list"], capture_output=True, text=True, errors="replace", timeout=20, creationflags=NO_WINDOW).stdout or ""
+        except Exception:
+            return []
+    return [line.split()[0] for line in text.splitlines()[1:] if line.strip()]
 
 
 def status(item, kit, ashita, state=None, server=None):
@@ -254,8 +288,12 @@ def remove_model(model, run=None, start=None, wait=5):
     exe = find_ollama()
     if not exe:
         raise RuntimeError("Ollama is not installed, so there is no model to remove.")
+    if run is None:                          # the real thing: never through a pipe (see ollama_list)
+        answers = ollama_list(exe)[0] == 0
+    else:
+        answers = run([exe, "list"], capture_output=True, text=True, errors="replace", timeout=20, creationflags=NO_WINDOW).returncode == 0
     run = run or subprocess.run
-    if run([exe, "list"], capture_output=True, text=True, errors="replace", timeout=20, creationflags=NO_WINDOW).returncode != 0:
+    if not answers:
         if start is None:
             subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=NO_WINDOW,
                              **({} if os.name == "nt" else {"start_new_session": True}))
@@ -708,7 +746,7 @@ def pull_model(model, log=print, popen=None):
     exe = find_ollama()
     if not exe:
         raise RuntimeError("Ollama is not installed yet (install it first).")
-    if not ollama_models() and subprocess.run([exe, "list"], capture_output=True, creationflags=NO_WINDOW).returncode != 0:
+    if not ollama_models() and ollama_list(exe)[0] != 0:
         subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=NO_WINDOW,
                          **({} if os.name == "nt" else {"start_new_session": True}))
         time.sleep(5)
