@@ -688,7 +688,8 @@ def update_config(kit, values, drop=()):
 # (2026-11-19) "Gambits" is now the squad Rule Set editor (wildcabbagepatch's Gambits v2, first shipped as GambitsV2);
 # the addon that had the name before (your own character's rules, Parser, EXP Watch, Enemy Info) is "autobox".
 OWN_ADDONS = ("Gambits", "autobox", "followme", "servermenu", "squadpanel", "stinkshell", "autora", "hcicons",
-              "vanasync")   # (2026-11-25) VanaSync: copied, not started (off by default)
+              "vanasync",   # (2026-11-25) VanaSync: copied, not started (off by default)
+              "venture")    # (2026-11-26) Ventures in the game (/venture): copied, and switched on once (enable_venture)
 STOCK_ADDONS = ("distance", "fps", "move", "timestamp", "tparty", "checker", "drawdistance", "allmaps")
 STOCK_PLUGINS = ("minimap",)
 START_ADDONS = ("Gambits", "servermenu", "crystalboy")          # loaded at startup on a new install
@@ -696,6 +697,7 @@ START_ADDONS = ("Gambits", "servermenu", "crystalboy")          # loaded at star
 # at startup once (new installs and existing ones). Only the files the addon uses are copied: the sound effects as .wav,
 # the music as .mp3 (the .wav music and the .mp3 sound effects in Nalfey's asset pack are left out).
 TM_ADDON = "tetramaster"
+VENTURE_ADDON = "venture"
 TM_SKIP = ("*.before-*", "*.bak", "mus_quadmist.wav", "snd_*.mp3", "screenshots")
 
 
@@ -773,6 +775,18 @@ def migrate_gambits_names(kit, ashita_dir, log=print):
     return messages
 
 
+def _copy_changed(src, dst):
+    """shutil's copy for a big folder that seldom changes (the Ventures window's 500 pictures): a file that is there
+    already with the same size and time is left alone, so PLAY does not write 20 MB every time."""
+    try:
+        a, b = os.stat(src), os.stat(dst)
+        if a.st_size == b.st_size and abs(a.st_mtime - b.st_mtime) < 2:
+            return dst
+    except OSError:
+        pass
+    return shutil.copy2(src, dst)
+
+
 def install_own_addons(kit, ashita_dir):
     """Copies the kit's addons (addons-src, crystalboy) into Ashita and makes Crystal Boy's folders."""
     addons = os.path.join(ashita_dir, "addons")
@@ -780,7 +794,8 @@ def install_own_addons(kit, ashita_dir):
         src = os.path.join(kit, "addons-src", name)
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(addons, name), dirs_exist_ok=True,
-                            ignore=shutil.ignore_patterns("*.before-*", "*.bak"))
+                            ignore=shutil.ignore_patterns("*.before-*", "*.bak"),
+                            copy_function=_copy_changed if name == VENTURE_ADDON else shutil.copy2)
     src = os.path.join(kit, "crystalboy")
     if os.path.isdir(src):
         shutil.copytree(src, os.path.join(addons, "crystalboy"), dirs_exist_ok=True,
@@ -813,6 +828,27 @@ def enable_new_addons(kit, ashita_dir, boot_name, log=print):
     if TM_ADDON not in {a.lower() for a in manager.enabled("addon")}:
         manager.set("addon", TM_ADDON, True)
         log("Tetra Master is now on (type /tm in game; turn it off in OPTIONS > Addons).")
+    os.makedirs(os.path.dirname(marker), exist_ok=True)
+    with open(marker, "w", encoding="utf-8") as handle:
+        handle.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+    return True
+
+
+def enable_venture(kit, ashita_dir, boot_name, log=print):
+    """(2026-11-26) Ventures in the game: the /venture window (addons-src/venture) is switched on ONCE per install,
+    like Tetra Master: an existing install gets it with the update, and a player who switches it off later (OPTIONS >
+    Addons) keeps it off. <Ashita>/config/addons/venture/enabled-once.txt remembers that it was done."""
+    if not os.path.isfile(os.path.join(kit, "addons-src", VENTURE_ADDON, VENTURE_ADDON + ".lua")):
+        return False
+    import launcher_core as core
+    marker = os.path.join(ashita_dir, "config", "addons", VENTURE_ADDON, "enabled-once.txt")
+    if os.path.exists(marker) or not os.path.isdir(os.path.join(ashita_dir, "addons", VENTURE_ADDON)):
+        return False
+    manager = core.ScriptManager(ashita_dir, boot_name)
+    manager.prepare()
+    if VENTURE_ADDON not in {a.lower() for a in manager.enabled("addon")}:
+        manager.set("addon", VENTURE_ADDON, True)
+        log("Ventures are in the game now: type /venture to send squad mates off to level (turn it off in OPTIONS > Addons).")
     os.makedirs(os.path.dirname(marker), exist_ok=True)
     with open(marker, "w", encoding="utf-8") as handle:
         handle.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")

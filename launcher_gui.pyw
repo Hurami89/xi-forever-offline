@@ -5088,6 +5088,10 @@ class App(tk.Tk):
                                                  log=self.say)
             except Exception as e:
                 self.say(f"Could not turn Tetra Master on ({e}) - starting anyway.")
+            try:                              # (2026-11-26) Ventures in the game (/venture): switched on once
+                launcher_setup.enable_venture(HERE, cfg["ashita_dir"], cfg.get("ashita_boot", "phoenixsolo.ini"), log=self.say)
+            except Exception as e:
+                self.say(f"Could not turn the Ventures window on ({e}) - starting anyway.")
             try:                              # (2026-11-23) the hardcore icons: on at every PLAY
                 launcher_setup.enable_hcicons(cfg["ashita_dir"], cfg.get("ashita_boot", "phoenixsolo.ini"), log=self.say)
             except Exception as e:
@@ -5175,7 +5179,7 @@ class App(tk.Tk):
         self.conquest_ticked = self.run_conquest("tick")      # catch the world up on the time you were away (servers are not running yet)
         self.run_char_sync("sync-in")                         # (off by default) characters your other PC saved to the shared folder
         self.run_armory("fish")                               # (when a phone is paired) what it caught: skill, delivery box, gil
-        self.start_ventures()                                 # (when an app is paired) squads for Ventures, and the relay while you play
+        self.start_ventures()                                 # Ventures: the relay while you play (and the squads to the hub when an app is paired)
         self.run_stack_mode()                                 # item stacks on the server: today's sizes (default) or the era's
 
         # broken "what a character wears" rows crash the login (2026-11-07): remove them while the servers are down
@@ -5532,6 +5536,17 @@ class App(tk.Tk):
         except Exception:
             pass
 
+    def gm_graphics(self, boot):
+        """(2026-11-26, JØ: "match the player's intended window resolution") The GM boot file gets the Graphics page's
+        values too (window size and mode, quality), like the main boot file at PLAY. It used to keep whatever it had on the
+        day 'Set up GM account' made it, so a later change on the Graphics page never reached the GM game."""
+        try:
+            if self.graphics_tab is not None and self.ashita and boot:
+                core.apply_graphics(os.path.join(self.ashita, "config", "boot", boot), self.graphics_tab.collect(),
+                                    self.cfg.get("ffxi_client_dir"))
+        except Exception:
+            pass
+
     def start_gm(self):
         """Opens the game as the GM account (set up on the Settings page). With the servers off it starts them too, like PLAY."""
         if not self.cfg.get("ashita_boot_gm"):
@@ -5554,6 +5569,7 @@ class App(tk.Tk):
             launcher_charcards_gui.before_gm(self)
         except Exception:
             pass
+        self.gm_graphics(boot)             # (2026-11-26, JØ) the same window size and quality as the main game
         if self.running and core.is_running("xiloader"):
             self.launch_extra(boot, "ashita-gm.log")
             self.say("Starting the GM game next to your other window...")
@@ -5631,22 +5647,24 @@ class App(tk.Tk):
             self.say(f"Character pages / phone fishing skipped: {e}")
 
     def start_ventures(self):
-        # (2026-11-25) Ventures (launcher_ventures.py): squad mates sent off from the XIFO app to level at a real camp.
-        # Only when an app is paired. The squads go to the hub now; while the game runs, a relay keeps the game told who
-        # is away and takes in what came home (exp and gil in game, items in the delivery box). Never stops PLAY.
+        # (2026-11-25) Ventures (launcher_ventures.py): squad mates sent off to level at a real camp, from the XIFO app
+        # or (2026-11-26) from the game's own /venture window. While the game runs, a relay keeps the game told who is
+        # away, takes in what came home (exp and gil in game, items in the delivery box) and answers the window: for
+        # everyone now, since the launcher plans the ventures sent in game itself (no app, no internet needed). With an
+        # app paired the squads also go to the hub. Never stops PLAY.
         try:
             import launcher_armory
             import launcher_ventures
-            if not launcher_armory.load(HERE).get("paired"):
-                return
-            try:
-                n = launcher_ventures.send_roster(self.cfg, HERE)
-                self.say(f"Ventures: {n} squad mate(s) ready in the XIFO app.")
-            except Exception as e:
-                self.say(f"Ventures: the squads were not sent ({e}).")
-            self.venture_relay = launcher_ventures.Relay(self.cfg, HERE, log=lambda text: self.q.put(("log", text)))
-            self.venture_relay.roster_at = time.time()
-            self.venture_relay.start()
+            relay = launcher_ventures.Relay(self.cfg, HERE, log=lambda text: self.q.put(("log", text)))
+            if launcher_armory.load(HERE).get("paired"):
+                try:
+                    n = launcher_ventures.send_roster(self.cfg, HERE)
+                    self.say(f"Ventures: {n} squad mate(s) ready in the XIFO app.")
+                    relay.roster_at = time.time()
+                except Exception as e:
+                    self.say(f"Ventures: the squads were not sent ({e}).")
+            self.venture_relay = relay
+            relay.start()
         except Exception as e:
             self.say(f"Ventures skipped: {e}")
 
