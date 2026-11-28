@@ -2074,7 +2074,9 @@ do
     local none = false
     for _, t in ipairs(W.texts or {}) do none = none or has(t, 'No bot players in your party') end
     check(W.button('Refresh##botsrefresh') ~= nil, 'a Refresh button')
+    W.line('squadpanel:botopt|Kelric|0|0')
     W.line('squadpanel:botp|Kelric|WHM|30|BLM|15|0|')
+    W.line('squadpanel:botopt|Chuchumi|3|3')
     W.line('squadpanel:botp|Chuchumi|BLM|28|-|0|4|Nukes')
     W.line('squadpanel:bots|WHM|3|Healer')
     W.line('squadpanel:bots|BLM|4|Nukes')
@@ -2087,6 +2089,15 @@ do
     from = #W.sent + 1
     W.click('Job rules##botoff2')
     check(W.said('/say !bots gambit Chuchumi off panel', from) == 1, 'Job rules for a bot on a set says !bots gambit Chuchumi off panel')
+    check(W.button('Tank##botrole1_1') ~= nil and W.button('Far##botrange2_3') ~= nil, 'each bot has Role and Range buttons')
+    from = #W.sent + 1
+    W.click('Tank##botrole1_1')
+    check(W.said('/say !bots set Kelric role tank panel', from) == 1, 'Tank for Kelric says !bots set Kelric role tank panel')
+    from = #W.sent + 1
+    W.click('Far##botrange2_3')
+    check(W.said('!bots set Chuchumi range', from) == 0, 'Far for Chuchumi, already far: nothing is sent')
+    W.click('Mid##botrange1_2')
+    check(W.said('/say !bots set Kelric range mid panel', from) == 1, 'Mid for Kelric says !bots set Kelric range mid panel')
     check(W.colors == 0 and W.vars == 0 and W.begins == W.ends, 'the Bots tab pops what it pushes')
     W.close()
 end
