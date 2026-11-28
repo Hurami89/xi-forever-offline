@@ -92,6 +92,9 @@
 !/Create Desktop Shortcut.bat
 !/make-shortcut.ps1
 !/build_release.ps1
+# the one-file installer (XI Forever Offline Setup.exe): its script and its build
+!/build_installer.ps1
+!/installer/
 !/package_server.py
 !/package_kit.py
 !/RELEASING.md
