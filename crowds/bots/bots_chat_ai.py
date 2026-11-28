@@ -90,6 +90,17 @@ ROMANCE_NATURES = {
 }
 
 
+def festival_text(server):
+    """(2026-11-27) a seasonal event that is on right now (festival_now.txt, written by doll_festival.lua)."""
+    path = os.path.join(server or "", "modules", "custom", "lua", "festival_now.txt")
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = " ".join(line.strip() for line in f if line.strip())
+    except OSError:
+        return ""
+    return (text + " You can mention it if it fits, like any player would.\n") if text else ""
+
+
 def romance_text(server, bot, to):
     path = os.path.join(server or "", "modules", "custom", "lua", "romance_bots.txt")
     try:
@@ -423,6 +434,7 @@ def answer_lines(cfg, req, stub=False):
     gossip = as_list(info.get("gossip"))[:3]
     world_text = ("Talk around the server lately (other players): " + "; ".join(gossip) + ".\n") if gossip else ""
     world_text += romance_text(SERVER_DIR, bot, to)
+    world_text += festival_text(SERVER_DIR)
     examples = examples_for(text, req.get("kind"), persona)
     if examples:
         world_text += ("How you and the people around you type (only the feel, never copy these): "

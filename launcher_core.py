@@ -941,7 +941,7 @@ RATE_DEFAULTS.update({"squad_keep_gear": False})   # gear given to the squad is 
 RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
 RATE_DEFAULTS.update({"weddings": True})   # (2026-11-27) the 2009 wedding service (modules/wedding, from KiplingFFXI); dev-only switch on the Era page
 RATE_DEFAULTS.update({"short_quest_waits": True})   # Chocobo's Wounds 1 minute, Forge Your Destiny 1 hour (late/quest_waits.lua)
-RATE_DEFAULTS.update({"event_harvest": True, "event_starlight": True, "event_egg_hunt": True, "event_horro": True})   # one switch per seasonal event (events_mode.lua)
+RATE_DEFAULTS.update({"event_harvest": True, "event_starlight": True, "event_egg_hunt": True, "event_horro": True, "event_doll": True})   # one switch per seasonal event (events_mode.lua)
 RATE_DEFAULTS.update({"events": "date"})   # seasonal events: "date" (their own dates), "on" (all year), "off" (events_mode.lua)
 RATE_DEFAULTS.update({"modern_stacks": True})   # item stacks as in today's game (12 / 99); off = Phoenix's era stacks (stack_mode.py)
 RATE_DEFAULTS.update({"full_bags": True})   # every bag (inventory, Mog Safe, Satchel, Sack, Case, Wardrobes) at 80 from the start (crystalboy_quests.lua)
@@ -1130,9 +1130,9 @@ def write_crowds_config(server_dir, rates):
         f.write("return { short = %s }\n" % ("true" if rates.get("short_quest_waits", True) else "false"))
     with open(os.path.join(module_dir, "events_config.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Written by the XI: Forever Offline launcher (Rates tab). Do not edit: it is rewritten every launch.\n")
-        f.write("return { mode = '%s', harvest = %s, starlight = %s, egg_hunt = %s, horro = %s }\n" % (
+        f.write("return { mode = '%s', harvest = %s, starlight = %s, egg_hunt = %s, horro = %s, doll_festival = %s }\n" % (
             clean_events(rates.get("events", "date")),
-            *("true" if rates.get(k, True) else "false" for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro"))))
+            *("true" if rates.get(k, True) else "false" for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro", "event_doll"))))
 
 
 EVENTS_MODES = ("date", "on", "off")
@@ -1282,7 +1282,7 @@ def load_rates(here):
             rates["weddings"] = bool(saved["weddings"])
         if "events" in saved:
             rates["events"] = clean_events(saved["events"])
-        for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro"):
+        for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro", "event_doll"):
             if k in saved:
                 rates[k] = bool(saved[k])
         for key, lo, hi in (("bots_roster", 0, BOTS_ROSTER_MAX), ("bots_online", 0, BOTS_ONLINE_MAX)):
@@ -1389,7 +1389,7 @@ def apply_preset(rates, name):
                          ("bots", True), ("bots_roster", 300), ("bots_online", 180), ("bots_growth", "realistic"), ("buff_range", "retail"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
                          ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False), ("training_dummies", False), ("training_dummies_explicit", False), ("bots_pass_loot", True), ("squad_all_gear", False),
-                         ("short_quest_waits", True), ("weddings", True), ("events", "date"), ("event_harvest", True), ("event_starlight", True), ("event_egg_hunt", True), ("event_horro", True)):
+                         ("short_quest_waits", True), ("weddings", True), ("events", "date"), ("event_harvest", True), ("event_starlight", True), ("event_egg_hunt", True), ("event_horro", True), ("event_doll", True)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
     if out["buff_range"] not in BUFF_RANGES:

@@ -51,7 +51,7 @@ CHAR_KEYS = ("map.EXP_RATE", "map.DROP_RATE_MULTIPLIER", "map.MOB_GIL_MULTIPLIER
 OWN_CHOICES = ("bots", "bots_roster", "bots_online", "bots_growth", "bots_pass_loot", "bot_social", "bot_memory", "bot_story",
                "bot_gates", "crowds", "crowds_per_zone", "crowds_chat", "crowds_chat_amount", "crowds_chat_ai", "crowds_field",
                "crowds_field_parties", "crowd_gates", "crowd_meet", "events", "event_harvest", "event_starlight",
-               "event_egg_hunt", "event_horro")
+               "event_egg_hunt", "event_horro", "event_doll")
 # the user's rules, whatever a profile file says: Steel and Silver never teleport
 FIXED = {2: {"main.HOMEPOINT_TELEPORT": 0, "main.ENABLE_SURVIVAL_GUIDE": 0},
          3: {"main.HOMEPOINT_TELEPORT": 0, "main.ENABLE_SURVIVAL_GUIDE": 0}}

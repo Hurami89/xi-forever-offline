@@ -1829,7 +1829,7 @@ class RatesTab(tk.Frame):
             ttk.Spinbox(inner, from_=field[5], to=field[6], increment=1 if field[7] == "int" else 0.25,
                         textvariable=var, width=8).grid(row=row, column=1, padx=6, pady=2)
             row += 1
-        for k in (2, 41, 20, 18, 25, 23, 0, 24, 30, 31, 32, 33):   # (41: weddings, dev only)    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
+        for k in (2, 41, 20, 18, 25, 23, 0, 24, 30, 31, 32, 33, 42):   # (41: weddings, dev only)    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
             R[k], row = row, row + 1
         row = header("World", row)
         # (34-35: crowd members through the gates / stopping for each other; 36-39: bot players' emotes, death memory,
@@ -2025,14 +2025,15 @@ class RatesTab(tk.Frame):
                        variable=self.short_quest_waits, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
                        wraplength=520, justify="left").grid(row=R[23], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         # (2026-11-18) seasonal events: by their dates (default), all year, or none (events_mode.lua)
-        tk.Label(inner, text="Seasonal events (Harvest Festival, Starlight, Egg Hunt, Horro's Visit)", bg=BG, fg=FG,
+        tk.Label(inner, text="Seasonal events (Harvest Festival, Starlight, Egg Hunt, Horro's Visit, Doll Festival)", bg=BG, fg=FG,
                  anchor="w", width=38, wraplength=300, justify="left").grid(row=R[24], column=0, sticky="w", padx=6, pady=2)
         self.events = tk.StringVar(value=self.EVENTS_LABELS[core.clean_events(rates.get("events", "date"))])
         ttk.Combobox(inner, values=list(self.EVENTS_LABELS.values()), state="readonly", textvariable=self.events,
                      width=16).grid(row=R[24], column=1, padx=6, pady=2)
         # (2026-11-20) one switch per event: on = it runs on its dates (or all year with "Always on"), off = never
         for slot, key, name in ((30, "event_harvest", "Harvest Festival"), (31, "event_starlight", "Starlight Celebration"),
-                                (32, "event_egg_hunt", "Egg Hunt"), (33, "event_horro", "Horro's Visit")):
+                                (32, "event_egg_hunt", "Egg Hunt"), (33, "event_horro", "Horro's Visit"),
+                                (42, "event_doll", "Doll Festival")):
             var = tk.BooleanVar(value=rates.get(key, True))
             setattr(self, key, var)
             tk.Checkbutton(inner, text="   " + name, variable=var, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG,
@@ -2140,7 +2141,7 @@ class RatesTab(tk.Frame):
 
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
                  "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "squad_all_gear", "short_quest_waits", "weddings",
-                 "event_harvest", "event_starlight", "event_egg_hunt", "event_horro") + tuple(core.EXTRAS_KEYS)
+                 "event_harvest", "event_starlight", "event_egg_hunt", "event_horro", "event_doll") + tuple(core.EXTRAS_KEYS)
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
                  ("bots_growth", "bots_growth"), ("buff_range", "buff_range"), ("squad_call_cooldown", "squad_call_cooldown"))
@@ -2264,7 +2265,7 @@ class RatesTab(tk.Frame):
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
         rates["weddings"] = bool(self.weddings.get())
         rates["events"] = self.events_value()
-        for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro"):
+        for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro", "event_doll"):
             rates[k] = bool(getattr(self, k).get())
         rates["bots_head_start"] = bool(self.bots_head_start.get()) and not self.head_start_done
         rates["bots_head_start_done"] = self.head_start_done
