@@ -2064,5 +2064,32 @@ do
         .. (where and (' (' .. where .. ')') or ''))
 end
 
+-- ================================================================= 16. (1.40) the Bots tab
+section('16. (1.40) Bots tab: the bot players in your party and a Rule Set for each while it stays in the party')
+do
+    local W = world()
+    W.command('/menu bots'); W.frame(); for _ = 1, 4 do W.frame(2.5) end
+    check(W.said('!bots party panel') >= 1, 'opening the tab asks the server: !bots party panel')
+    W.line('squadpanel:botend|0'); W.frame()
+    local none = false
+    for _, t in ipairs(W.texts or {}) do none = none or has(t, 'No bot players in your party') end
+    check(W.button('Refresh##botsrefresh') ~= nil, 'a Refresh button')
+    W.line('squadpanel:botp|Kelric|WHM|30|BLM|15|0|')
+    W.line('squadpanel:botp|Chuchumi|BLM|28|-|0|4|Nukes')
+    W.line('squadpanel:bots|WHM|3|Healer')
+    W.line('squadpanel:bots|BLM|4|Nukes')
+    W.line('squadpanel:botend|2'); W.frame(); W.frame()
+    check(W.button('Job rules##botoff1') ~= nil and W.button('3 Healer##botset1_3') ~= nil, 'Kelric (WHM): Job rules and the WHM set 3')
+    check(W.button('4 Nukes##botset2_4') ~= nil and not W.button('3 Healer##botset2_3'), 'Chuchumi (BLM): only the BLM set')
+    local from = #W.sent + 1
+    W.click('3 Healer##botset1_3')
+    check(W.said('/say !bots gambit Kelric 3 panel', from) == 1, 'a click on a set says !bots gambit Kelric 3 panel')
+    from = #W.sent + 1
+    W.click('Job rules##botoff2')
+    check(W.said('/say !bots gambit Chuchumi off panel', from) == 1, 'Job rules for a bot on a set says !bots gambit Chuchumi off panel')
+    check(W.colors == 0 and W.vars == 0 and W.begins == W.ends, 'the Bots tab pops what it pushes')
+    W.close()
+end
+
 io.write(string.format('\npassed %d, failed %d\n', passed, failed))
 os.exit(failed == 0 and 0 or 1)

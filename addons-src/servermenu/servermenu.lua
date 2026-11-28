@@ -1,5 +1,5 @@
 --[[
-servermenu 1.39
+servermenu 1.40
 One menu for XI: Forever Offline, opened from a small Squads button on the screen. It replaces the Squad panel (/sq still works).
 
   Squad        your squad mates: call, dismiss, role, mode, main and support job, and a Profile button per mate with
@@ -39,7 +39,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.39';   -- (1.39, UnNamedKiller) the Gear view's Weapon type: Main and Sub combos beside Weapons (!squad weapon, cap weapontype), choosing a kind unlocks that slot; the server's lines about a piece put on, taken off or a look changed from the Gear view are kept out of the chat log, and a line that says something went wrong is shown in the Gear view instead; (1.38) a Randomized world's random squad: a mate's Job and Sub lists hold only the jobs fate gave it, and the Jobs row names them (server line fj); (UnNamedKiller) gear locks: a padlock on each Equipment slot (!squad gearlock, cap gearlock, squadsheet:lock), a locked slot is left alone by Auto-equip, and the server's lock lines are kept out of the chat log after a click; (1.37) a card's Settings has Rest in fights (below an MP %, the mate may sit out a fight and rest: !squad restfight, cap restfight), the Camp row has Pull range (!squad camp range, the server's value: camprange), the compact Camp bar keeps one width at the menu's Size so its buttons stay put, Healer MP's tip names you as a White Mage healer; (1.36) the Squad tab has a Ventures button: it loads the venture add-on (the XIFO app's Ventures screen as a window; the launcher copies it but does not start it with the game), shows its window and shuts it again; (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.40';   -- (1.40) a Bots tab: the bot players in your party, and a Gambits Rule Set of the bot's job for each one while it stays in your party (!bots party panel, !bots gambit; server lines botp, bots, botend); (1.39, UnNamedKiller) the Gear view's Weapon type: Main and Sub combos beside Weapons (!squad weapon, cap weapontype), choosing a kind unlocks that slot; the server's lines about a piece put on, taken off or a look changed from the Gear view are kept out of the chat log, and a line that says something went wrong is shown in the Gear view instead; (1.38) a Randomized world's random squad: a mate's Job and Sub lists hold only the jobs fate gave it, and the Jobs row names them (server line fj); (UnNamedKiller) gear locks: a padlock on each Equipment slot (!squad gearlock, cap gearlock, squadsheet:lock), a locked slot is left alone by Auto-equip, and the server's lock lines are kept out of the chat log after a click; (1.37) a card's Settings has Rest in fights (below an MP %, the mate may sit out a fight and rest: !squad restfight, cap restfight), the Camp row has Pull range (!squad camp range, the server's value: camprange), the compact Camp bar keeps one width at the menu's Size so its buttons stay put, Healer MP's tip names you as a White Mage healer; (1.36) the Squad tab has a Ventures button: it loads the venture add-on (the XIFO app's Ventures screen as a window; the launcher copies it but does not start it with the game), shows its window and shuts it again; (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -117,7 +117,7 @@ local VITAL_COLORS =
 local function hasBit(mask, bit)
     return math.floor((tonumber(mask) or 0) / bit) % 2 == 1;
 end
-local TABS  = { 'Squad', 'Dualbox', 'Auto' };
+local TABS  = { 'Squad', 'Bots', 'Dualbox', 'Auto' };
 
 -- (role clarity) what a squad mate's Role really does, from the server's squad.lua behaviorFilter / ROLE_KEEPS /
 -- EMERGENCY_HP (tank 40, damage 30) and MODE_HEAL_SHIFT (+15 / -15, kept between 15 and 90). Text only: the server
@@ -713,6 +713,7 @@ end
 local queueDuo -- (the second window's command batch, defined further down)
 
 local function onLine(payload)
+    if X.botLine and X.botLine(payload) then return; end   -- (1.40) the Bots tab's lines
     -- the server handles the addon channel packet (packets/c2s/0x1f0_addon_channel.h): chan|<version>. An older server never says it.
     local chanVersion = payload:match('^chan|(%d+)$');
     if chanVersion then
@@ -3275,8 +3276,93 @@ local function autoTab()
     dimText('Weaponskill: the best one you have learned for your weapon (the Best Weapon Skill row of your sheet).');
 end
 
+-- ---------------------------------------------------------------- (1.40) the Bots tab
+-- The bot players in your party and the Rule Set (Gambits) each one uses while it stays in your party. The server
+-- (bots.lua !bots party panel) answers squadpanel:botp|Name|JOB|lvl|SUB|slvl|set number (0 = its job rules)|set name,
+-- squadpanel:bots|JOB|num|name for every Rule Set of those jobs, then squadpanel:botend|count.
+X.bots = { list = {}, sets = {}, loaded = false, asked = -1000, waiting = 0 };
+
+function X.botLine(payload)
+    local name, job, lvl, sub, slvl, num, setName = payload:match('^botp|([^|]*)|([^|]*)|(%d+)|([^|]*)|(%d+)|(%d+)|(.*)$');
+    if name then
+        X.botsIn = X.botsIn or { list = {}, sets = {} };
+        X.botsIn.list[#X.botsIn.list + 1] = { name = name, job = job, lvl = tonumber(lvl), sub = sub, slvl = tonumber(slvl), num = tonumber(num), setName = setName };
+        return true;
+    end
+    local sjob, snum, sname = payload:match('^bots|([^|]*)|(%d+)|(.*)$');
+    if sjob then
+        X.botsIn = X.botsIn or { list = {}, sets = {} };
+        X.botsIn.sets[sjob] = X.botsIn.sets[sjob] or {};
+        table.insert(X.botsIn.sets[sjob], { num = tonumber(snum), name = sname });
+        return true;
+    end
+    if payload:match('^botend|%d+$') then
+        local got = X.botsIn or { list = {}, sets = {} };
+        X.bots.list, X.bots.sets, X.bots.loaded, X.bots.waiting = got.list, got.sets, true, 0;
+        X.botsIn = nil;
+        return true;
+    end
+    return false;
+end
+
+function X.askBots(delay)
+    X.botsIn = nil;
+    enqueue('/say !bots party panel', delay or 0);
+    X.bots.asked, X.bots.waiting = now(), now() + (delay or 0) + 5;
+end
+
+function X.botsTab()
+    local b = X.bots;
+    if b.asked < 0 or (#S.queue == 0 and now() - b.asked > 20) then X.askBots(); end   -- current while it is shown
+    if button('Refresh', 'botsrefresh', 90, 0, now() < b.waiting and 'busy' or nil) then X.askBots(); end
+    tooltip('Ask the server again which bot players are in your party');
+    imgui.SameLine(0, 10);
+    dimText(b.loaded and (#b.list .. ' bot player' .. (#b.list == 1 and '' or 's') .. ' in your party') or 'Asking the server...');
+    gap(4);
+    dimText('Give a bot player one of your Gambits Rule Sets for its job. It uses the set while it stays in your party,');
+    dimText('then goes back to its own job rules. Conditions a bot cannot judge (skillchains, some newer ones) never fire.');
+    gap(4);
+    if b.loaded and #b.list == 0 then
+        colorText(C.text, 'No bot players in your party.');
+        dimText('Invite one with /tell <Name> join my party, then press Refresh.');
+        return;
+    end
+    for i, bot in ipairs(b.list) do
+        if i > 1 and has('Separator') then imgui.Separator(); end
+        do
+            colorText(C.gold, bot.name);
+            imgui.SameLine(0, 10);
+            colorText(C.text, string.format('%s %d', bot.job, bot.lvl or 0) .. ((bot.sub ~= '-' and bot.sub ~= '') and string.format(' / %s %d', bot.sub, bot.slvl or 0) or ''));
+            imgui.SameLine(0, 12);
+            dimText(bot.num ~= 0 and string.format('Using Rule Set %d: %s', bot.num, bot.setName) or 'Using its own job rules');
+            gap(2);
+            local own = bot.num == 0;
+            if button('Job rules', 'botoff' .. i, 90, 0, own and 'selected' or nil) and not own then
+                enqueue(string.format('/say !bots gambit %s off panel', bot.name), 0);
+                X.bots.waiting = now() + 5;
+            end
+            tooltip('The rules every ' .. bot.job .. ' bot player uses');
+            local sets = b.sets[bot.job] or {};
+            for _, set in ipairs(sets) do
+                local label = string.format('%d %s', set.num, set.name);
+                X.fit(math.max(90, #label * 8));
+                local chosen = bot.num == set.num;
+                if button(label, 'botset' .. i .. '_' .. set.num, 0, 0, chosen and 'selected' or nil) and not chosen then
+                    enqueue(string.format('/say !bots gambit %s %d panel', bot.name, set.num), 0);
+                    X.bots.waiting = now() + 5;
+                end
+            end
+            if #sets == 0 then
+                imgui.SameLine(0, 10);
+                dimText('No ' .. bot.job .. ' Rule Sets yet: make one in Gambits (SQUAD tab).');
+            end
+        end
+        gap(4);
+    end
+end
+
 -- ---------------------------------------------------------------- the menu window
-local TAB_DRAW = { Squad = squadTab, Dualbox = dualboxTab, Auto = autoTab, Diagnostics = diagnosticsTab };
+local TAB_DRAW = { Squad = squadTab, Bots = X.botsTab, Dualbox = dualboxTab, Auto = autoTab, Diagnostics = diagnosticsTab };
 
 local function setTab(name)
     if TAB_DRAW[name] then S.tab = name; setCfg('tab', name); end
@@ -4693,7 +4779,7 @@ ashita.events.register('load', 'servermenu_load', function ()
         S.cfg.button_wide = 'true';
         saveCfg();
     end
-    S.tab = (S.cfg.tab == 'Squad' or S.cfg.tab == 'Dualbox' or S.cfg.tab == 'Auto') and S.cfg.tab or 'Squad';
+    S.tab = (S.cfg.tab == 'Squad' or S.cfg.tab == 'Bots' or S.cfg.tab == 'Dualbox' or S.cfg.tab == 'Auto') and S.cfg.tab or 'Squad';
     S.spell[1] = S.cfg.spell ~= '' and S.cfg.spell or 'Dia';
     if not imgui then say('ImGui is not available, so there is no menu. The squad commands still work.'); return; end
     say('servermenu ' .. tostring(addon.version) .. ' loaded. Click the Squads button, or type /menu.');
@@ -4741,7 +4827,7 @@ ashita.events.register('text_in', 'servermenu_text_in', function (e)
     -- FFXI's own chat parser prints this generic line after an addon sends a /say command, even when the
     -- server ran it. Only while one of our commands is in flight, so a real failed command is still shown.
     if now() < S.hideUntil and text:match('^%.%.%.%s*A command error occurred%.$') then e.blocked = true; return; end
-    if now() < S.hideUntil and (text:match('^!squad') or text:match(':%s*!squad%s')) then e.blocked = true; end   -- the echo of the menu's own commands
+    if now() < S.hideUntil and (text:match('^!squad') or text:match(':%s*!squad%s') or text:match('^!bots') or text:match(':%s*!bots%s')) then e.blocked = true; end   -- the echo of the menu's own commands
 end);
 
 ashita.events.register('command', 'servermenu_command', function (e)
