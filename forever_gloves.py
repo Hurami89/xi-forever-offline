@@ -22,7 +22,7 @@ KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, KIT)
 import forever_beta_shirt as fbs                     # shared: game files, DXT3 encoder, item record helpers
 
-VERSION = 2                       # bump when the design changes, so installs rebuild (2: crystals, no skin guess)
+VERSION = 3                       # bump when the design changes, so installs rebuild (2: crystals, no skin guess, 3: FOXI)
 ITEM_ID, TEMPLATE_ID, TEMPLATE_NAMES = 23869, 14070, ("Fisherman's Gloves", "Fsh. Gloves")
 SLOT = 2                          # head 0, body 1, hands 2, legs 3, feet 4
 NEW_MODEL = 517                   # a free hands model (the patch uses this set's head, the track pants its legs)
@@ -103,6 +103,12 @@ CRYSTALS = [(0.17, 0.27, 1.0),          # back of the hand, left of the seam
             (0.345, 0.62, 0.7)]         # the wrist band's buckle
 BUCKLE = {"Tarutaru": (0.56, 0.625), "Galka": (0.47, 0.575)}   # where those two races' buckle sits instead
 
+# (v3, 2026-11-27, the user: "add the letters FOXI on the gloves somewhere") FOXI in gold with a dark edge, the Forever
+# Patch's lettering, on the wrist band beside the buckle: (x0, y0, x1, y1) as fractions of the texture. The band is the
+# lighter strip at about 0.56-0.65 down (Tarutaru's 0.62-0.71). Both hands most likely share these pixels, so one
+# hand may show the word backwards, as the shirt's side text does (not checked in game).
+FOXI = {"default": (0.04, 0.565, 0.31, 0.645), "Galka": (0.06, 0.565, 0.42, 0.645), "Tarutaru": (0.14, 0.625, 0.50, 0.705)}
+
 
 def design(img, race):
     out = recolor(img)
@@ -113,6 +119,8 @@ def design(img, race):
             fx, fy = BUCKLE[race]
         w = max(6, int(w0 * 0.075 * size)); h = max(9, int(w * 1.45))
         fp.put(out, fp.glow(fp.crystal_sprite(w, h), 2, 0.8), w0 * fx, h0 * fy)
+    x0, y0, x1, y1 = FOXI.get(race, FOXI["default"])
+    out = fp.strap_text(out, img, [("FOXI", (int(w0 * x0), int(h0 * y0), int(w0 * x1), int(h0 * y1)))])
     a = img.getchannel("A"); out = out.convert("RGB"); out.putalpha(a)
     return out
 
