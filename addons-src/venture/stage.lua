@@ -115,7 +115,14 @@ return function(gfx, ART, ASSETS)
             local h = 0;
             local name = tostring(p.name or '');
             for k = 1, #name do h = (h * 31 + name:byte(k)) % 4294967296; end
-            out[#out + 1] = { kind = 'party', idx = (h + (i - 1)) % math.max(1, ART.party_count), job = p.job };
+            -- (2026-11-27, Hurami) the adventurers a venture recruits: the same job sprites as the mates, in their own race
+            if hasSheet(p.job) then
+                local race = tonumber(p.race) or 0;
+                if race < 1 or race > 8 then race = 1 + (h % 8); end
+                out[#out + 1] = { kind = 'mate', race = race, job = p.job, face = h % 16, weapon = 0 };
+            else
+                out[#out + 1] = { kind = 'party', idx = (h + (i - 1)) % math.max(1, ART.party_count), job = p.job };
+            end
         end
         while #out > 6 do out[#out] = nil; end
         return out;

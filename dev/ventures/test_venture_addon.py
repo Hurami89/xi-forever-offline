@@ -401,12 +401,20 @@ class Scene(unittest.TestCase):
         self.assertEqual(len(got), 6)
         self.assertEqual((got[0]["kind"], got[0]["job"], got[1]["job"]), ("mate", "BLM", "WAR"))
 
-        def idx(name, i):                                 # the app's: h = (h * 31 + code) >>> 0; (h + i) % 6
-            h = 0
+        def h(name):                                      # the app's: h = (h * 31 + code) >>> 0
+            v = 0
             for ch in name:
-                h = (h * 31 + ord(ch)) & 0xFFFFFFFF
-            return (h + i) % 6
-        self.assertEqual([m["idx"] for m in got[2:]], [idx(n, i) for i, n in enumerate(("Zuki", "Roru", "Mihli", "Balrahn"))])
+                v = (v * 31 + ord(ch)) & 0xFFFFFFFF
+            return v
+        # (2026-11-27) recruited adventurers are drawn like the mates: a job with a sheet, a race from the name (none given)
+        self.assertEqual([(m["kind"], m["job"], m["race"]) for m in got[2:]],
+                         [("mate", "WAR", 1 + h(n) % 8) for n in ("Zuki", "Roru", "Mihli", "Balrahn")])
+        # the hub's race wins; a job without a sheet keeps the old party sprite
+        party = self.lua.table_from([self.lua.table_from({"name": "Zuki", "job": "WAR", "race": 7}),
+                                     self.lua.table_from({"name": "Roru", "job": "GEO"})])
+        got = [dict(m) for m in self.stage.membersOf(self.lua.table_from([]), party).values()]
+        self.assertEqual((got[0]["kind"], got[0]["race"]), ("mate", 7))
+        self.assertEqual((got[1]["kind"], got[1]["idx"]), ("party", (h("Roru") + 1) % 6))
 
     def test_mate_frames(self):
         f = self.stage.mateFrame
