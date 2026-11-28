@@ -125,7 +125,7 @@ local function world(opts)
     function im.Image(_, size) place(size[1], 'image') end
     function im.ProgressBar(_, size) place(size[1], 'bar') end
     function im.BeginCombo(id, preview) place(L.itemW or 100, id); W.combos[id] = preview; return W.openCombo == id end
-    function im.Selectable(label) return W.pick ~= nil and label:sub(1, #W.pick) == W.pick end
+    function im.Selectable(label) W.offered[#W.offered + 1] = tostring(label); return W.pick ~= nil and label:sub(1, #W.pick) == W.pick end
     function im.InputText(id, buf) place(L.itemW or 100, id); if W.inputs[id] then buf[1] = W.inputs[id] end return false end
     function im.IsItemHovered() return W.hover or (W.hoverOn ~= nil and L.last == W.hoverOn) end
     function im.Separator() W.at[#W.at + 1] = { label = 'separator', x = 0, w = 0 }; L.same = false end
@@ -192,6 +192,7 @@ local function world(opts)
     function W.frame(dt)
         W.clock = W.clock + (dt or 0.05)
         W.over, W.texts, W.tips, W.buttons, W.items, W.first, W.cells, W.combos, W.sizes, W.at, W.look, W.rects, W.wins = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+        W.offered = {}   -- (1.38) the labels a list offered this frame (only drawn while it is open)
         print = function(...) W.prints[#W.prints + 1] = table.concat({ ... }, ' ') end
         W.handlers.d3d_present()
         print = realPrint
@@ -1067,6 +1068,38 @@ do
     W.command('/say !squad call 2'); W.frame()
     check(statusWords(W)['Calling...'] == 1, 'a "!squad call 2" typed in chat: mate 2 says Calling... too')
     W.close()
+end
+
+section('12c. (1.38) a random squad mate: its Job and Sub lists hold only its fated jobs (server line fj)')
+do
+    local function offeredIn(W, id)
+        W.openCombo = id; W.frame(); W.openCombo = nil
+        local out = {}
+        for _, label in ipairs(W.offered) do out[#out + 1] = label:match('^(%u%u%u)') or label:match('^(%a+)') end
+        return out
+    end
+    local W = world({ cfg = 'theme=crimson\nbutton_wide=true\n' })
+    W.command('/menu squad'); feed(W, { extra = { 'squadpanel:fj|1|WAR,BLM,PLD', 'squadpanel:fj|2|-' } }); W.frame(); W.frame()
+    W.clicks['##jobs1'] = true; W.frame(); W.frame()
+    local jobs1 = offeredIn(W, '##job1')
+    check(table.concat(jobs1, ',') == 'WAR,BLM,PLD', 'mate 1: the Job list offers only WAR, BLM, PLD (' .. table.concat(jobs1, ',') .. ')')
+    local subs1 = offeredIn(W, '##sub1')
+    check(table.concat(subs1, ',') == 'none,BLM,PLD', 'mate 1 (a WAR): the Sub list offers none and its other fated jobs (' .. table.concat(subs1, ',') .. ')')
+    check(W.text('Fated jobs: WAR (75), BLM (60), PLD (75)') ~= nil, 'the Jobs row names the fated jobs, with their levels')
+    W.hover = true; W.frame(); W.hover = false
+    local tip = false
+    for _, t in ipairs(W.tips) do tip = tip or has(t, 'only be the jobs fate gave it') end
+    check(tip, 'and the tooltip says why')
+    W.clicks['##jobs1'] = true; W.frame(); W.frame()
+    W.clicks['##jobs2'] = true; W.frame(); W.frame()
+    local jobs2 = offeredIn(W, '##job2')
+    check(#jobs2 == 18 and not W.text('Fated jobs'), 'mate 2 ("-": no random squad): all 18 jobs, no Fated line')
+    W.close()
+    local V = world({ cfg = 'theme=crimson\nbutton_wide=true\n' })
+    V.command('/menu squad'); feed(V); V.frame(); V.frame()
+    V.clicks['##jobs1'] = true; V.frame(); V.frame()
+    check(#offeredIn(V, '##job1') == 18 and not V.text('Fated jobs'), 'a server that sends no fj line: all 18 jobs, as before')
+    V.close()
 end
 
 section('12b. Jobs is a button of its own; Settings keeps its name; what is behind each')

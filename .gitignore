@@ -112,6 +112,9 @@
 # the market prices the auction house simulator lists at (HorizonXI, from "python ah_sim.py prices"); without it every
 # item fell back to a vendor-price guess (Leaping Boots for 700 gil)
 !/ah_prices.json
+# (2026-11-27) NPC shop prices (dev/ah/make_npc_prices.py) and famous items' prices: ah_sim.py caps and fills with them
+!/ah_npc_prices.json
+!/ah_famous_prices.json
 !/conquest_sim.py
 # main_auto.py (database password in it) and chat_cleanup.py (one-off patcher) are not shared
 !/house_rules.py

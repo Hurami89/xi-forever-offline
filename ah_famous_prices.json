@@ -1,0 +1,10 @@
+{
+"about": "Famous era items that HorizonXI's market file has no price for, at rough 75-era prices. ah_sim.py uses these instead of its estimate from the vendor price (which put a Kraken Club at 10,000 to 55,000 gil). Add or change any line; an item an NPC shop sells is still never priced above the shop.",
+"items": {
+"12486": 1500000,
+"16555": 3000000,
+"17440": 5000000,
+"17652": 2500000,
+"18020": 3000000
+}
+}

@@ -9,7 +9,7 @@ xi = { quest = { id = { jeuno = setmetatable({}, { __index = function(_, k) retu
        item = setmetatable({}, { __index = function(_, k) return k end }),
        questStatus = { QUEST_AVAILABLE = 0, QUEST_ACCEPTED = 1, QUEST_COMPLETED = 2 },
        questLog = { JEUNO = 3 }, fameArea = { SANDORIA = 0, BASTOK = 1, WINDURST = 2, JEUNO = 3 }, zone = { LOWER_JEUNO = 245 },
-       msg = { channel = { SAY = 0, NS_SAY = 9 } }, inv = { INVENTORY = 0 }, objType = { PC = 1, TRUST = 2 }, effect = { SIGNET = 253 },
+       msg = { channel = { SAY = 0, NS_SAY = 9 } }, inv = { INVENTORY = 0, MOGSATCHEL = 5 }, objType = { PC = 1, TRUST = 2 }, effect = { SIGNET = 253 },
        data = { fame = { rankPoints = { 0, 50, 125, 225, 325, 425, 613, 851, 1053 } } },
        module = { modifyInteractionEntry = function(f, fn) local q = { name = f:match('[^/]+$') }; q.qid = q.name:upper(); fn(q); entries[q.name] = q end,
                   registerCommand = function(name, c) commands[name] = c end } }
@@ -33,7 +33,7 @@ local function P(name, fame)
   function p:getName() return self.name end
   function p:getCharVar(v) return self.vars[v] or 0 end
   function p:setCharVar(v, x) self.vars[v] = x end
-  function p:hasItem(id) return self.bag[id] == true end
+  function p:hasItem(id, loc) if loc ~= nil then return self.bag[id] == true end return self.bag[id] == true or (self.safe or {})[id] == true end
   function p:addGil(g) self.gil = self.gil + g end
   function p:messageSpecial() end
   function p:getZoneID() return 245 end
@@ -41,6 +41,9 @@ local function P(name, fame)
   function p:delKeyItem(k) self.kis[k] = nil end
   function p:getObjType() return 1 end
   function p:hasStatusEffect(e) return self.signet and e == 253 end
+  function p:getID() return self.id or 1 end
+  function p:getContainerSize(loc) return (self.sizes or {})[loc] or 80 end
+  function p:changeContainerSize(loc, n) self.sizes = self.sizes or {}; self.sizes[loc] = (self.sizes[loc] or 80) + n end
   return p
 end
 local NOACT = {}
@@ -79,7 +82,7 @@ A.fame = 4; talkTo(A); trade(A); ok(given[#given] == 8101 and A.qs.THE_GOBBIEBAG
 -- fame 4: Part III (fame 5) not yet -> low fame takes the turn
 talkTo(A); ok(said(A, 'does not know you'), 'Part III needs fame 5')
 A.fame = 5
-A.bag[8101] = nil; local _, h = talkTo(A); ok(h[1] == 3 and said(A, 'second part'), 'next part starts before the hint about the unfinished game')
+A.bag[8101] = nil; A.safe = { [8101] = true }; local _, h = talkTo(A); ok(h[1] == 3 and said(A, 'second part'), 'next part starts before the hint about the unfinished game')
 lines(A)
 trade(A); ok(given[#given] == 8102 and A.bag[8102], 'Part III gives Jueno Recollection II')
 talkTo(A); ok(said(A, 'last part'), 'Part IV opens at fame 5'); trade(A); ok(given[#given] == 8103, 'Part IV gives Jueno Recollection III')
@@ -106,6 +109,24 @@ A.full = false; talkTo(A); ok(A.gil == 70000 and A.kis[2716], 'Jueno IV: 25,000 
 talkTo(A); ok(said(A, 'still thinks about that story'), 'all done: thank-you')
 fc.onTrigger(A, '8104 reset'); ok(not A.kis[2716] and A.vars['[CB]Done8104'] == 0, '!cbfinish 8104 reset')
 fc.onTrigger(A, '9999'); ok(said(A, '!cbfinish'), 'unknown id: usage')
+-- (2026-11-27, Hasuko) a finished part whose item is nowhere on the character: Bluffnix hands a new one
+local T = P('Transferred', 9)
+for _, f in ipairs(PARTS) do T.qs[entries[f].qid] = 2 end
+local before = #given
+local _, hit = talkTo(T)
+ok(hit and hit[1] == 1 and given[#given] == 8100 and #given == before + 1 and said(T, 'Crystal Boy'), 'Part I done, no Crystal Boy anywhere: a new one, first of all')
+talkTo(T); ok(given[#given] == 8101 and #given == before + 2 and said(T, 'Recollection is gone'), 'then a lost Recollection: a new one instead of "bring it"')
+T.bag[8101] = nil; T.safe = { [8101] = true }
+local n0 = #given; talkTo(T); ok(#given == n0 and said(T, 'Where is the Recollection'), 'one kept in the Mog Safe is not lost: he asks for it in the bag')
+T.vars['[CB]Done8102'] = 1
+for id = 8102, 8104 do T.bag[id] = (id ~= 8102) or nil end
+T.bag[8101] = true
+local n1 = #given; for _ = 1, 4 do talkTo(T) end
+local again = false; for i = n1 + 1, #given do again = again or given[i] == 8102 end
+ok(not again, 'a Recollection already told to Bluffnix is never handed out again')
+local F = P('Full', 9); F.qs[entries['The_Gobbiebag_Part_I'].qid] = 2; F.full = true
+local n2 = #given; talkTo(F); ok(#given == n2 and not said(F, 'Crystal Boy'), 'a full bag: nothing given, nothing said')
+F.full = false; F.bag[8100] = true; talkTo(F); ok(#given == n2, 'holding a Crystal Boy: no second one')
 -- exp bonus: one percent per memory key item, Signet only, players only
 local calc = overrides['xi.experiencePoints.calculate']
 super = function() return { exp = 300 } end

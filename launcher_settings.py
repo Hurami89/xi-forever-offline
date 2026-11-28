@@ -195,6 +195,10 @@ S("map.FISHING_MINIGAME", "rules", "Skills and crafting", FLAG, "Fishing minigam
       "to win in it: your skill decides the catch, lost catches and broken lines or rods.")
 S("all_crafts", "rules", "Skills and crafting", SWITCH, "Every craft can reach 100",
   tip="Off = only one craft can reach 100, like the retail rule.")
+S("main.GUILD_ALL_CONTRACTS", "rules", "Skills and crafting", FLAG, "Guild points from every guild",
+  tip="On = every guild's Union Representative takes its daily items, whichever guild you are under contract with, and "
+      "each guild has its own daily most. Changing the contract never blocks the rest of the day. Off = the game's own "
+      "rule: one contract, and only that guild takes items. (shamwow_guy)")
 S("full_bags", "rules", "Comforts", SWITCH, "Full bags from the start",
   tip="Inventory, Mog Safe, Mog Satchel, Mog Sack, Mog Case and every Mog Wardrobe open at 80. Off = the classic way: "
       "30 slots, and the Gobbiebag quests (and Phoenix's wardrobe rewards) add space. Bags never shrink.")

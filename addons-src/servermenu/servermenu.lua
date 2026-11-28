@@ -39,7 +39,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.37';   -- (1.37) a card's Settings has Rest in fights (below an MP %, the mate may sit out a fight and rest: !squad restfight, cap restfight), the Camp row has Pull range (!squad camp range, the server's value: camprange), the compact Camp bar keeps one width at the menu's Size so its buttons stay put, Healer MP's tip names you as a White Mage healer; (1.36) the Squad tab has a Ventures button: it loads the venture add-on (the XIFO app's Ventures screen as a window; the launcher copies it but does not start it with the game), shows its window and shuts it again; (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.38';   -- (1.38) a Randomized world's random squad: a mate's Job and Sub lists hold only the jobs fate gave it, and the Jobs row names them (server line fj); (1.37) a card's Settings has Rest in fights (below an MP %, the mate may sit out a fight and rest: !squad restfight, cap restfight), the Camp row has Pull range (!squad camp range, the server's value: camprange), the compact Camp bar keeps one width at the menu's Size so its buttons stay put, Healer MP's tip names you as a White Mage healer; (1.36) the Squad tab has a Ventures button: it loads the venture add-on (the XIFO app's Ventures screen as a window; the launcher copies it but does not start it with the game), shows its window and shuts it again; (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -928,6 +928,16 @@ local function onLine(payload)
             S.incomingRs[tonumber(rsSlot)] = { state = rsState, why = rsWhy, live = tonumber(rsLive), liveName = rsLiveName,
                 sel = tonumber(rsSel), selName = rsSelName, fb = tonumber(rsFb), dropped = tonumber(rsDrop), job = rsJob };
         end
+        return;
+    end
+    -- (1.38, Billy, Hasuko) fj|<slot>|<JOB>,<JOB>...: a Randomized world's random squad: the jobs fate gave this mate.
+    -- Only these are offered in the Job and Sub lists, and the Jobs row names them. fj|<slot>|- : no fated jobs (off).
+    local fjSlot, fjList = payload:match('^fj|(%d+)|(.+)$');
+    if fjSlot then
+        S.fatedJobs = S.fatedJobs or {};
+        local jobs = {};
+        for job in fjList:gmatch('(%u%u%u)') do jobs[#jobs + 1] = job; end
+        S.fatedJobs[tonumber(fjSlot)] = (#jobs > 0) and jobs or nil;
         return;
     end
     -- (1.26m, Dugahst) jl|<slot>|<JOB>:<level>,...: each job's own level, shown in the Job and Sub lists
@@ -2574,19 +2584,30 @@ function X.mateCard(mate)
             local jobTip = 'A job your character has not unlocked is refused by the server (it says so in chat).';
             dimText('Job'); imgui.SameLine(px(X.COL.setLabel), 0);
             local jl = (S.jobLevels or {})[slot] or {};
+            local fated = (S.fatedJobs or {})[slot];   -- (1.38) a random squad: only the jobs fate gave this mate
+            local jobList = fated or JOBS;
+            if fated then
+                jobTip = 'A random squad mate can only be the jobs fate gave it. It gets another at 18, 33 and 65.';
+            end
             local jobLabels = {};
             for _, j in ipairs(JOBS) do if jl[j] then jobLabels[j] = string.format('%s (%d)', j, jl[j]); end end
-            local job = combo('job' .. slot, mate.main, JOBS, 120, nil, nil, jobLabels);
+            local job = combo('job' .. slot, mate.main, jobList, 120, nil, nil, jobLabels);
             tooltip('This mate\'s main job. ' .. jobTip);
             if job then changeMate(mate, 'job', job); end
             -- (1.31) Sub in the second column: its name where Mode and WS at begin, its list where theirs begin
             local subStayed = X.column2(180);
             dimText('Sub'); imgui.SameLine(px(subStayed and X.COL.secondCtl or X.COL.setLabel), 0);
             local subs = { 'none' };
-            for _, j in ipairs(JOBS) do if j ~= mate.main then subs[#subs + 1] = j; end end
+            for _, j in ipairs(jobList) do if j ~= mate.main then subs[#subs + 1] = j; end end
             local sub = combo('sub' .. slot, mate.sub == '-' and 'none' or mate.sub, subs, 120, nil, nil, jobLabels);
             tooltip('This mate\'s support job. ' .. jobTip);
             if sub then changeMate(mate, 'sub', sub); end
+            if fated then
+                local names = {};
+                for _, j in ipairs(fated) do names[#names + 1] = jobLabels[j] or j; end
+                dimText('Fated jobs: ' .. table.concat(names, ', '));
+                tooltip(jobTip);
+            end
         end
 
         -- ---- Settings: what is changed rarely. (1.30) a thin line under the buttons, then two columns: Role | Mode,

@@ -194,12 +194,30 @@ def check_schema(conn):
 
 
 class Item:
-    __slots__ = ("itemid", "name", "stack_size", "basesell", "level", "equipment", "fair", "stack_fair", "source")
+    __slots__ = ("itemid", "name", "stack_size", "basesell", "level", "equipment", "fair", "stack_fair", "source", "cap")
 
-    def __init__(self, itemid, name, stack_size, basesell, level, equipment, fair, stack_fair=None, source="formula"):
+    def __init__(self, itemid, name, stack_size, basesell, level, equipment, fair, stack_fair=None, source="formula", cap=None):
         self.itemid, self.name, self.stack_size, self.basesell = itemid, name, stack_size, basesell
         self.level, self.equipment, self.fair = level, equipment, fair
         self.stack_fair, self.source = stack_fair, source
+        self.cap = cap     # (2026-11-27) what an NPC shop sells one for: never priced or bought above it
+
+
+# (2026-11-27, the user: "prices should be era-ish accurate or comparable to Horizon ... some items sold cheap from npcs
+# were selling a lot on the ah, we need to fix that")
+NPC_PRICE_FILE = "ah_npc_prices.json"         # dev/ah/make_npc_prices.py: the lowest NPC shop price per item
+FAMOUS_PRICE_FILE = "ah_famous_prices.json"   # famous era items Horizon's market has no price for (edit freely)
+PRICE_RULES = "npc1"                          # part of the price stamp: a change restocks at the new prices
+
+
+def load_id_prices(name, here=HERE):
+    """{itemid: price} from one of the two files above; {} when it is missing or broken."""
+    try:
+        with open(os.path.join(here, name), "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+        return {int(k): int(v) for k, v in data.get("items", {}).items() if int(v) > 0}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {}
 
 
 def spell_in_era(jobs, tag, era):
@@ -376,6 +394,7 @@ def eligible_items(conn, settings, price_data=None):
             era_rows.append((int(itemid), name, max(1, int(stack_size or 1)), int(basesell or 0), equipment, level))
     ratios = calibrate([(i, b, e, l) for i, _n, _s, b, e, l in era_rows], market, settings["prices"]) if market else {}
     rate = price_rate()
+    npc, famous = load_id_prices(NPC_PRICE_FILE), load_id_prices(FAMOUS_PRICE_FILE)
     items = {}
     for itemid, name, stack_size, basesell, equipment, level in era_rows:
         single, stack = (market.get(itemid) or [None, None])
@@ -384,6 +403,8 @@ def eligible_items(conn, settings, price_data=None):
             stack_fair = max(int(stack), basesell * stack_size + 1)
         if single:
             fair, source = max(int(single), basesell + 1), "horizon"
+        elif itemid in famous:
+            fair, source = max(famous[itemid], basesell + 1), "famous"
         elif stack_fair:
             fair, source = max(stack_fair // stack_size, basesell + 1), "horizon"
         elif basesell > 0:
@@ -400,7 +421,17 @@ def eligible_items(conn, settings, price_data=None):
             fair = max(int(fair * rate), basesell + 1)
             if stack_fair:
                 stack_fair = max(int(stack_fair * rate), basesell * stack_size + 1)
-        items[itemid] = Item(itemid, name, stack_size, basesell, level, equipment, fair, stack_fair, source)
+        # an item an NPC sells: never above the shop's price, whatever the market file or the price rate says (the
+        # shop's price is only trusted when it is above what an NPC pays for the item)
+        cap = npc.get(itemid)
+        if cap is not None and cap > basesell:
+            if fair > cap:
+                fair, source = cap, "npc"
+            if stack_fair and stack_fair > cap * stack_size:
+                stack_fair = cap * stack_size
+        else:
+            cap = None
+        items[itemid] = Item(itemid, name, stack_size, basesell, level, equipment, fair, stack_fair, source, cap)
     return items
 
 
@@ -423,6 +454,14 @@ def bot_counts(conn):
 
 
 def listing_price(item, stack, settings, rng):
+    price = _listing_price(item, stack, settings, rng)
+    cap = getattr(item, "cap", None)
+    if cap:                                   # (the jitter never lifts an NPC item above the shop's price)
+        price = min(price, cap * (item.stack_size if stack else 1))
+    return price
+
+
+def _listing_price(item, stack, settings, rng):
     st = settings["stock"]
     if not stack:
         return max(item.basesell + 1, int(item.fair * (1 + rng.uniform(-st["price_jitter"], st["price_jitter"]))))
@@ -476,6 +515,9 @@ def buy_player_listings(conn, settings, items, now, rng=None):
             value = item.stack_fair or item.fair * item.stack_size
         else:
             value = item.fair
+        cap = getattr(item, "cap", None)
+        if cap and int(price) > cap * (item.stack_size if int(stack) else 1):
+            continue  # (2026-11-27) more than an NPC shop asks for it: nobody buys that
         ratio = int(price) / max(1, value)
         if ratio <= 1.0:
             chance = 1.0
@@ -653,6 +695,7 @@ def report(items, settings):
     for it in items.values():
         sources[it.source] = sources.get(it.source, 0) + 1
     names = {"horizon": "HorizonXI market price", "estimate": "estimated from similar items' Horizon prices",
+             "npc": "an NPC shop's price (the market price was higher)", "famous": "famous item price (ah_famous_prices.json)",
              "formula": "vendor-price formula (no price file)", "fallback": "fallback price (no vendor or market price)"}
     lines = [f"Items that would be stocked: {len(items)}"]
     for key, count in sorted(sources.items()):
@@ -677,6 +720,7 @@ def price_stamp(price_data):
     # (the price rate is part of it: a new rate restocks everything at the new prices)
     rate = price_rate()
     base = "none" if not price_data else f"{price_data.get('source')}@{price_data.get('fetched')}"
+    base = f"{base}+{PRICE_RULES}"
     return base if rate == 1.0 else f"{base}x{rate:g}"
 
 
