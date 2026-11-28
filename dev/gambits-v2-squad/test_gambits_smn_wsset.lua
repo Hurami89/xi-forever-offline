@@ -352,7 +352,8 @@ do
     for t = 1, 3 do S.combatTick(mira, master, enemy, clock + t, nil, defaultGaruda) end
     check(petName(mira) == 'SHIVA' and (mira.released or 0) == 0, 'rules may not switch: Shiva stays, the Claw rule waits')
 
-    -- Rules may switch ON: the rule borrows Garuda, it stays while the rule still fits, then Shiva comes back
+    -- (2026-11-28, Discord "Summoner Gambits", the owner: "bara buffar") with a fixed avatar and Rules may switch ON:
+    -- the fixed avatar comes first; a Rage pact of another avatar (Claw) never borrows it
     reset(mira)
     master.cv = {}
     choose(IX.SHIVA)
@@ -360,19 +361,37 @@ do
     S.setRule(master, 101, 1, { pact = 'CLAW', target = 'ENEMY', cond = 'MY_MPP_GTE', arg = '50', when = 'COMBAT' })
     mira.mp = 600
     clock = clock + 100
-    S.combatTick(mira, master, enemy, clock, nil, defaultGaruda) -- (no avatar: the Claw intent calls Garuda itself)
-    check(petName(mira) == 'GARUDA', 'the Claw rule calls Garuda for its pact')
+    S.combatTick(mira, master, enemy, clock, nil, defaultGaruda)
+    check(petName(mira) == 'SHIVA', 'no avatar out: the fixed Shiva is summoned first (the Garuda rule waits)')
+    check(mira:getLocalVar('SMN_SWAP_NEXT') == clock + S.FIXED_HOLD, '... and a short hold starts with it (' .. S.FIXED_HOLD .. ' s)')
+    for t = 1, 3 do S.combatTick(mira, master, enemy, clock + S.FIXED_HOLD + t, nil, nil) end
+    check(petName(mira) == 'SHIVA' and (mira.released or 0) == 0, 'a fixed Shiva: the Claw rule (a Garuda Rage pact) never borrows Garuda')
+    S.deleteRule(master, 101, 1)
+
+    -- a missing buff of another avatar (Hastega) at the start of a fight: that avatar first, then the fixed one at once
+    -- (Garuda > Shiva, not Shiva > Garuda > Shiva)
+    reset(mira)
+    master.cv = {}
+    master.effects = {}
+    choose(IX.SHIVA)
+    S.setSettings(master, 101, { ruleSwitch = true })
+    S.setRule(master, 101, 1, { pact = 'HASTEGA', target = 'MASTER', cond = 'NOT_STATUS', arg = 'HASTE', when = 'COMBAT' })
+    mira.mp = 600
+    clock = clock + 100
+    S.combatTick(mira, master, enemy, clock, nil, defaultGaruda)
+    check(petName(mira) == 'GARUDA' and mira:getLocalVar('SMN_BORROWED') == 1,
+        'you lack Haste at the start of the fight: Garuda is called first for Hastega (no Shiva in between)')
     S.combatTick(mira, master, enemy, clock + 1, nil, nil)
     local used = mira.pet.used[#mira.pet.used]
-    check(used and used.id == xi.jobAbility.CLAW, 'Claw is sent')
+    check(used and used.id == xi.jobAbility.HASTEGA, 'Hastega is sent')
     pactGoesOff(mira)
-    S.combatTick(mira, master, enemy, clock + S.SWAP_SECONDS + 2, nil, nil)
-    check(petName(mira) == 'GARUDA', 'MP still above 50%: the Claw rule still fits, Garuda stays (no switching back and forth)')
-    mira.mp = 200 -- (33%: the rule no longer fits)
-    S.combatTick(mira, master, enemy, clock + S.SWAP_SECONDS + 3, nil, nil)
-    check(petName(mira) == 'SHIVA', 'the rule is done and no longer fits: back to Shiva (paid)')
-    local swapAt = mira:getLocalVar('SMN_SWAP_NEXT')
-    check(swapAt > clock, 'the switch back starts the switch hold too')
+    master.effects[xi.effect.HASTE] = true -- (Hastega landed on you)
+    S.combatTick(mira, master, enemy, clock + 2, nil, nil)
+    check(petName(mira) == 'SHIVA', 'the buff is done: back to Shiva at once (no 45 s hold for a borrowed buff)')
+    check(mira:getLocalVar('SMN_BORROWED') == 0 and mira:getLocalVar('SMN_SWAP_NEXT') == clock + 2 + S.FIXED_HOLD,
+        'and the next buff may borrow again after the short hold')
+    S.deleteRule(master, 101, 1)
+    master.effects = {}
 
     -- the switch hold: no switch back inside it
     reset(mira)
