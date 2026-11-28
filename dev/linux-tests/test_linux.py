@@ -189,7 +189,8 @@ class Prefix(unittest.TestCase):
                     open(os.path.join(kit, "prefix", "drive_c", "windows", "syswow64", "regedit.exe"), "w").close()
                 return 0
 
-            self.assertTrue(ll.prepare_prefix(kit, cfg, log=lambda m: None, run=run))
+            fetch = lambda url, timeout=0: b"MZ"
+            self.assertTrue(ll.prepare_prefix(kit, cfg, log=lambda m: None, run=run, fetch=fetch))
             self.assertEqual(calls[0], ["createprefix"])
             self.assertTrue(calls[1][0].endswith(os.path.join("syswow64", "regedit.exe")))
             self.assertEqual(calls[1][1], "/S")
@@ -197,11 +198,37 @@ class Prefix(unittest.TestCase):
             with open(reg, encoding="utf-16") as handle:
                 self.assertIn("PlayOnlineUS\\InstallFolder", handle.read())
             self.assertEqual(calls[1][2], ll.windows_path(reg))
-            self.assertFalse(ll.prepare_prefix(kit, cfg, log=lambda m: None, run=run))     # nothing changed
-            self.assertEqual(len(calls), 2)
+            self.assertTrue(calls[2][0].endswith("vc_redist.x86.exe"))                   # the C++ runtime, once
+            self.assertEqual(calls[2][1:], ["/install", "/quiet", "/norestart"])
+            self.assertFalse(os.path.exists(calls[2][0]))                                # its installer is removed
+            self.assertFalse(ll.prepare_prefix(kit, cfg, log=lambda m: None, run=run, fetch=fetch))   # nothing changed
+            self.assertEqual(len(calls), 3)
             cfg["ffxi_client_dir"] = os.path.join(kit, "elsewhere")
-            self.assertTrue(ll.prepare_prefix(kit, cfg, log=lambda m: None, run=run))      # the game moved: again
-            self.assertEqual(calls[2][1], "/S")                                           # (no second createprefix)
+            self.assertTrue(ll.prepare_prefix(kit, cfg, log=lambda m: None, run=run, fetch=fetch))    # the game moved
+            self.assertEqual(calls[3][1], "/S")                                           # (no second createprefix)
+            self.assertEqual(len(calls), 4)                                               # (no second runtime)
+
+    def test_vc_runtime_failure_retries(self):
+        with tempfile.TemporaryDirectory() as kit:
+            cfg = self.make_kit(kit)
+            os.makedirs(os.path.join(kit, "prefix"))
+            said = []
+            self.assertFalse(ll.ensure_vc_runtime(kit, cfg, log=said.append, run=lambda a, **kw: 1603,
+                                                  fetch=lambda url, timeout=0: b"MZ"))
+            self.assertIn("could not be installed", said[-1])
+            self.assertFalse(os.path.exists(os.path.join(kit, "prefix", ll.VC_STAMP)))   # tried again next PLAY
+            self.assertTrue(ll.ensure_vc_runtime(kit, cfg, log=said.append, run=lambda a, **kw: 0,
+                                                 fetch=lambda url, timeout=0: b"MZ"))
+            self.assertFalse(ll.ensure_vc_runtime(kit, cfg, log=said.append, run=lambda a, **kw: 0))
+
+    def test_vc_overrides(self):
+        with tempfile.TemporaryDirectory() as kit:
+            cfg = self.make_kit(kit)
+            try:
+                env = ll.game_env(kit, cfg, base={"WINEDLLOVERRIDES": "d3d9=n,b"})
+            except RuntimeError:
+                self.skipTest("no Proton in this test kit")
+            self.assertEqual(env["WINEDLLOVERRIDES"], "d3d9=n,b;" + ll.VC_OVERRIDES)
 
     def test_prefix_failure(self):
         with tempfile.TemporaryDirectory() as kit:

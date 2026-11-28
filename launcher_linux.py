@@ -292,6 +292,9 @@ def game_env(kit, cfg, base=None):
         # when it is on an SD card or a second drive
         "STEAM_COMPAT_LIBRARY_PATHS": os.path.abspath(kit),
         "WINEDEBUG": env.get("WINEDEBUG", "-all"),
+        # Microsoft's own C++ runtime first when it is in the prefix (ensure_vc_runtime puts it there), Wine's own
+        # otherwise. (2026-11-27, Xcthol: Wine's msvcp140 has no _Xregex_error, so the add-on host stopped every add-on)
+        "WINEDLLOVERRIDES": ";".join(x for x in (env.get("WINEDLLOVERRIDES", ""), VC_OVERRIDES) if x),
     })
     if cfg.get("proton_log"):
         env["PROTON_LOG"] = "1"
@@ -420,6 +423,43 @@ def game_paths(cfg, kit):
             "common": "C:\\Program Files (x86)\\Common Files"}
 
 
+VC_OVERRIDES = "msvcp140,msvcp140_1,msvcp140_2,vcruntime140,vcruntime140_1,concrt140=n,b"
+VC_RUNTIME_URL = "https://aka.ms/vc14/vc_redist.x86.exe"     # the game and Ashita are 32-bit
+VC_STAMP = "xiforever-vcrun.json"
+
+
+def ensure_vc_runtime(kit, cfg, log=print, run=None, fetch=None):
+    """Installs Microsoft's 32-bit Visual C++ runtime into the prefix once (what winetricks vcrun2022 does). Wine's own
+    msvcp140 lacks some functions: Ashita's add-on host calls std::_Xregex_error and Wine stopped it with "unimplemented
+    function" (2026-11-27, Xcthol, GE-Proton11-11). Returns True when it was installed now; a failure is only logged,
+    PLAY goes on with Wine's own runtime, and the next PLAY tries again."""
+    stamp = os.path.join(prefix_path(kit), VC_STAMP)
+    if os.path.isfile(stamp):
+        return False
+    run = run or (lambda args, **kw: run_windows(kit, cfg, args, **kw))
+    import launcher_thirdparty as tp
+    exe = os.path.join(kit, "downloads", "vc_redist.x86.exe")
+    try:
+        log("Installing Microsoft's Visual C++ runtime into the game's Windows folder (once, about 15 MB)...")
+        tp.download_file(VC_RUNTIME_URL, exe, log=log, fetch=fetch)
+        os.makedirs(os.path.join(kit, "logs"), exist_ok=True)
+        with open(os.path.join(kit, "logs", "proton-setup.log"), "ab") as out:
+            code = run([exe, "/install", "/quiet", "/norestart"], log_file=out, timeout=900)
+        if code not in (0, None, 1638, 3010):      # 1638: a newer one is already there; 3010: wants a restart
+            raise RuntimeError(f"its installer ended with code {code}")
+    except Exception as problem:
+        log(f"The Visual C++ runtime could not be installed ({problem}); Wine's own is used. PLAY tries again next time.")
+        return False
+    finally:
+        try:
+            os.remove(exe)
+        except OSError:
+            pass
+    with open(stamp, "w", encoding="utf-8") as handle:
+        json.dump({"url": VC_RUNTIME_URL, "code": code}, handle)
+    return True
+
+
 def prefix_state(kit):
     try:
         with open(os.path.join(prefix_path(kit), PREFIX_STAMP), encoding="utf-8") as handle:
@@ -434,13 +474,14 @@ def wanted_state(kit, cfg):
             "registry": len(sandbox_registry_text(cfg.get("ashita_dir", "")))}
 
 
-def prepare_prefix(kit, cfg, log=print, run=None):
+def prepare_prefix(kit, cfg, log=print, run=None, fetch=None):
     """Makes the prefix (first time) and registers the game in it. Done again only when the game folder, Proton or
-    Ashita's registry data changed, so PLAY normally skips it. Returns True when something was done."""
+    Ashita's registry data changed, so PLAY normally skips it. Then Microsoft's C++ runtime, once (ensure_vc_runtime).
+    Returns True when something was done."""
     run = run or (lambda args, **kw: run_windows(kit, cfg, args, **kw))
     want = wanted_state(kit, cfg)
     if prefix_state(kit) == want and os.path.isdir(os.path.join(prefix_path(kit), "drive_c")):
-        return False
+        return ensure_vc_runtime(kit, cfg, log=log, run=run, fetch=fetch)
     os.makedirs(prefix_path(kit), exist_ok=True)
     os.makedirs(os.path.join(kit, "logs"), exist_ok=True)
     with open(os.path.join(kit, "logs", "proton-setup.log"), "ab") as out:
@@ -460,6 +501,7 @@ def prepare_prefix(kit, cfg, log=print, run=None):
             raise RuntimeError(f"Registering the game in Proton failed (code {code}); see logs/proton-setup.log.")
     with open(os.path.join(prefix_path(kit), PREFIX_STAMP), "w", encoding="utf-8") as handle:
         json.dump(want, handle, indent=1)
+    ensure_vc_runtime(kit, cfg, log=log, run=run, fetch=fetch)
     return True
 
 
