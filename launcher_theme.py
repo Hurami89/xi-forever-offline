@@ -33,6 +33,7 @@ config.json keeps the choices:
                    limited-time theme shows by itself again, and the pick is back when it has gone
     "theme_music": false    the song is off          "theme_volume": 0.0 to 1.0    how loud it is
     "theme_plays": {"opener": 3}    how often a song with __plays- in its name has opened the launcher here (by its name up to the first tag)
+    "theme_takeover": the standard theme's "takeover" word this PC has already had (see takeover())
 ("limited_look": false, written by the first Theme page for "off", still counts as Default.)
 A theme whose .json says "standard": true (aero.json, from 2026-11-23) is what a PC wears when nothing is picked, ahead of any
 limited-time theme: it takes the place of the launcher's own look, which stays on the Theme page as "Classic" (key "default").
@@ -251,12 +252,40 @@ def picked(cfg, event):
     return pick.strip().lower()
 
 
+def takeover_tag(look):
+    """The standard theme's "takeover" word, or "" (see takeover)."""
+    tag = look.get("takeover") if isinstance(look, dict) else None
+    return tag.strip() if isinstance(tag, str) else ""
+
+
+def takeover(cfg, standard):
+    """(2026-11-27, the user: Vows of Vana'diel "for everyone on next update regardless of their last pick") A standard theme whose
+    .json has "takeover": "<word>" clears every PC's pick once, the first time the launcher opens with that word, so everyone wears
+    it; config.json then keeps "theme_takeover": "<word>" and any pick made after that holds as usual. A new word does it again."""
+    tag = takeover_tag(standard)
+    if not tag or cfg.get("theme_takeover") == tag:
+        return cfg
+    changes = {"theme": None, "theme_event": None, "limited_look": None, "theme_takeover": tag}
+    try:
+        if os.path.exists(os.path.join(HERE, "config.json")):
+            save_all(changes)
+    except Exception:
+        pass                                          # not remembered: it simply happens again next time
+    cfg = dict(cfg)
+    for key, value in changes.items():
+        if value is None:
+            cfg.pop(key, None)
+        else:
+            cfg[key] = value
+    return cfg
+
+
 def load_look():
     """The look the launcher wears this time: the theme picked on the Theme page, else the limited-time one in date, else None (its own)."""
     found = looks()
     standard = standard_look(found)
     event = event_look(found)
-    pick = picked(config(), None if standard is not None else event)     # with a standard theme a limited-time one never turns itself on
+    pick = picked(takeover(config(), standard), None if standard is not None else event)     # with a standard theme a limited-time one never turns itself on
     if pick == DEFAULT:
         return None
     for look in found:
@@ -771,6 +800,7 @@ class Controls:
         self.event = event_look(self.themes[1:])       # the limited-time one, if one is in date
         standard = standard_look(self.themes[1:])
         self.fallback = standard["key"] if standard is not None else DEFAULT    # what a PC wears with nothing picked
+        self.takeover = takeover_tag(standard)          # a pick made here counts as made after the standard theme's takeover
         if standard is not None:
             self.event = None                          # it does not turn itself on: it is simply one to pick
         self.worn = LOOK["key"] if LOOK is not None else DEFAULT       # what the launcher wears this time
@@ -868,9 +898,10 @@ class Controls:
         self.pick = key
         by_itself = self.event["key"] if self.event is not None else self.fallback
         if key == by_itself:                          # what the launcher wears with no pick at all: nothing to keep
-            self.remember({"theme": None, "theme_event": None, "limited_look": None})
+            self.remember({"theme": None, "theme_event": None, "limited_look": None, "theme_takeover": self.takeover or None})
         else:
-            self.remember({"theme": key, "theme_event": self.event["id"] if self.event is not None else None, "limited_look": None})
+            self.remember({"theme": key, "theme_event": self.event["id"] if self.event is not None else None, "limited_look": None,
+                           "theme_takeover": self.takeover or None})
         if key != self.worn:
             PLAYER.stop()
         self.refresh()
