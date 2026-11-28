@@ -928,8 +928,15 @@ for _, name in ipairs({ 'classic', 'squad', 'crimson' }) do
     end
     check(sameOrder and caps, name .. ': weapons and ammunition, then armour, then accessories (captions in that order; slots 0 1 2 3 | 4 5 6 7 8 15 | 9 10 11 12 13 14)')
     local col2 = xs(W, '##slot1_12', true)[1]
-    check(xs(W, '##slot1_11', true)[1] == 0 and col2 > 0 and xs(W, '##slot1_13', true)[1] == 0 and xs(W, '##slot1_14', true)[1] == col2 and xs(W, '##slot1_1', true)[1] == col2,
+    -- (1.38, UnNamedKiller) each slot row begins with its padlock (the strip beside it is placed with the screen cursor,
+    -- which this stand-in does not follow): the columns are read from the padlocks
+    local function lx(e) return xs(W, '##lock1_' .. e, true)[1] end
+    local c1, c2 = lx(11), lx(12)
+    check(c1 ~= nil and c2 ~= nil and c1 < c2 and lx(13) == c1 and lx(14) == c2 and lx(1) == c2,
           name .. ': two columns; Ear 1 | Ear 2 on one row, Ring 1 | Ring 2 on one row')
+    local locks = 0
+    for _, b in ipairs(W.buttons) do if b:find('^##lock') then locks = locks + 1 end end
+    check(locks == 16, name .. ': a padlock on each of the 16 gear slots (' .. locks .. ')')
     local body, neck = W.cells['##slot1_5'], W.cells['##slot1_9']
     check(body and body[1].text == 'Body' and body[2].text == 'Haste Belt 13002' and same(body[2].color, m.c.text) and same(body[1].color, m.c.text),
           name .. ': a row is one button with the slot\'s name and the item\'s name over it, each in its own colour')

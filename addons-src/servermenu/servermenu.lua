@@ -39,7 +39,7 @@ Settings (button place, last tab): config/addons/servermenu/settings.cfg
 
 addon.name    = 'servermenu';
 addon.author  = 'XI: Forever Offline';
-addon.version = '1.38';   -- (1.38) a Randomized world's random squad: a mate's Job and Sub lists hold only the jobs fate gave it, and the Jobs row names them (server line fj); (1.37) a card's Settings has Rest in fights (below an MP %, the mate may sit out a fight and rest: !squad restfight, cap restfight), the Camp row has Pull range (!squad camp range, the server's value: camprange), the compact Camp bar keeps one width at the menu's Size so its buttons stay put, Healer MP's tip names you as a White Mage healer; (1.36) the Squad tab has a Ventures button: it loads the venture add-on (the XIFO app's Ventures screen as a window; the launcher copies it but does not start it with the game), shows its window and shuts it again; (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
+addon.version = '1.38';   -- (1.38) a Randomized world's random squad: a mate's Job and Sub lists hold only the jobs fate gave it, and the Jobs row names them (server line fj); gear locks and weapon type for auto-equip on the Profile's Gear view (UnNamedKiller; server caps gearlock, weapontype); (1.37) a card's Settings has Rest in fights (below an MP %, the mate may sit out a fight and rest: !squad restfight, cap restfight), the Camp row has Pull range (!squad camp range, the server's value: camprange), the compact Camp bar keeps one width at the menu's Size so its buttons stay put, Healer MP's tip names you as a White Mage healer; (1.36) the Squad tab has a Ventures button: it loads the venture add-on (the XIFO app's Ventures screen as a window; the launcher copies it but does not start it with the game), shows its window and shuts it again; (1.35) a card's Settings has Position (Normal, Behind enemy, TA partner: where the mate stands in a fight, !squad position), when the server offers it (cap matepos); it takes effect at once; (1.34) every window's text drawn at its Size (the font pushed at the scaled size, as the Gambits window does: sharper at 120 %), themed scrollbars, the launcher's Gambits half opens AND closes the editor and is lit while it is shown, Options > Show Gambits shortcut, the Camp row's groups wrap whole and the monster kinds wrap under Anything; (1.33) the Camp row shows what the camp is doing (Ready, Pulling, Fighting, Paused), "Next pull at" an enemy HP % and "Healer MP" (squad.lua campst), Move camp here keeps the puller and Start / Pause (cap campmove), and an optional compact Camp bar (state, Start / Pause, Move here, Camp off) that follows the server's changes; (1.32) the menu's opacity reaches the cards and panels too, and no layer is laid over another; a theme picked here or in Gambits is in both windows at their next frame; (1.31) the launcher is as high as the menu's buttons, with one outline around both halves, and has the character's theme from its first frame; Sub stands in the second column, where Mode and WS at stand; (1.30) a card's Settings in two columns under a thin line, "Save size"; the Profile's Stats in groups (Role / Mode / Race, Actions, Attributes, Combat; numbers end in line; "Live stats" only when they are read from the mate that is out); the launcher is one control with a Squads half and a Gambits half, and is there only while the character is in the world; (1.29) Jobs is a button of its own on the card again (Job and Sub; the unlocked-job help is their tooltip), Settings keeps its name with a mark for open / closed, one call status at a time (Away, Calling..., Out) with Call and Dismiss in one place, the Rules line says what is expected while a mate is called, Engage is a plain button, the Gear rows are really drawn as one strip in the game (Ashita's cursor position is two numbers); (1.28) one look with the Gambits window: ImGui's own title bar and close button, the same tabs (a smaller kind for choices inside a view), row states and spacing; the commands in groups (Squad, Fight, Camp, Setup) and a clearer Engage button; compact mate cards with the same first row on every card and the rarely changed settings behind Settings; "rules skipped"; the Profile begins with the mate row, its Gear view has clickable slot rows in three groups; (1.27) themes (Classic, Squad, Crimson; Crimson for a new installation, an existing one keeps its look) shared with Gambits per character, Options row (Theme, Size, Opacity), a top row and cards that fit their content, Apply for one mate, the Profile's Stats and Gear views, tooltips that never read a % as a format; (1.26n) the Rules line: the rules a called mate really runs (Gambits Rule Set or default job rules), the selected set and Apply needed; (1.26m) each job's level in the Job and Sub lists (Dugahst); (1.26l) Spells and abilities window on the profile (Frost); (1.26k) the Auto-equip tip names "Squad gets all gear"; (1.26j) Attack my target / Stop; (1.26i) the menu opens again (opacity helper stood below the menu); (1.26h) a click right after a refresh is no longer dropped by the game; (1.26g) opacity, one gear button
 addon.desc    = 'The XI: Forever Offline menu: squad mates, and the dualbox character with his gambits.';
 addon.link    = '';
 
@@ -1087,6 +1087,14 @@ local function onSheetLine(text)
             data.ls = data.ls or {};
             data.ls[tonumber(slot)] = { name = name, id = tonumber(id) };
         end
+    elseif key == 'wtype' then
+        -- (1.39) wtype|<Main's weapon skill, 0 any>|<Sub: 0 any, 1 shield, 2 grip, 3 empty, 10 + skill>: the kind of weapon
+        -- Auto-equip uses for the main job
+        local wm, ws = rest:match('^(%d+)|(%d+)$');
+        if wm then data.wtype = { main = tonumber(wm), sub = tonumber(ws) }; end
+    elseif key == 'lock' then
+        -- (1.38) lock|<mask>: the equipment slots Auto-equip must leave alone (bit 2^n = slot n, 0 main ... 15 back)
+        data.lock = tonumber(rest:match('^(%d+)')) or 0;
     elseif key == 'note' then
         data.note = rest;
     elseif key == 'spell' or key == 'ability' then
@@ -2698,8 +2706,9 @@ local function squadTab()
             ask(1.5);
         end
         -- (1.26g, FalconX51; the user: one button, lit while it is on) best gear once = on, then off again
-        tooltip(on and 'Lit: your mates wear the best gear you gave the squad and pick again each time they are called.\nClick to switch it off: they keep what they wear now, and you can change any piece by hand.\nWith the launcher\'s "Squad gets all gear" on, the choice is from everything their jobs can wear.'
-            or 'Click: every mate puts on the best gear you gave the squad for its job and level, and the button lights up.\nFor best gear just once, click it again: the gear stays and the choice is yours again.\nWith the launcher\'s "Squad gets all gear" on, the choice is from everything their jobs can wear.');
+        tooltip((on and 'Lit: your mates wear the best gear you gave the squad and pick again each time they are called.\nClick to switch it off: they keep what they wear now, and you can change any piece by hand.\nWith the launcher\'s "Squad gets all gear" on, the choice is from everything their jobs can wear.'
+            or 'Click: every mate puts on the best gear you gave the squad for its job and level, and the button lights up.\nFor best gear just once, click it again: the gear stays and the choice is yours again.\nWith the launcher\'s "Squad gets all gear" on, the choice is from everything their jobs can wear.')
+            .. ((X.caps and X.caps.gearlock) and '\nA slot locked with its padlock (Gear) is never changed by Auto-equip.' or ''));
     end
     if S.adv then
         setupRow(84);
@@ -3563,6 +3572,84 @@ local function fillRect(draw, x, y, width, height, rgba, rounding)
     return ok;
 end
 
+-- (1.38) a small padlock drawn with the window's draw list (the game font has no lock glyph), `s` pixels square with
+-- its top left corner at x, y. open: the shackle lifted and to one side. Returns whether it was drawn.
+function X.lockIcon(x, y, s, rgba, open)
+    local draw, col = windowDraw(), fillColor(rgba);
+    if draw == nil or col == nil or s <= 0 then return false; end
+    return pcall(function ()
+        local bw, bh = s * 0.80, s * 0.50;
+        local bx, by = x + (s - bw) / 2, y + s - bh;
+        local sw = s * 0.50;
+        local sx = x + (s - sw) / 2 + (open and s * 0.22 or 0);
+        local top = y + (open and 0 or s * 0.08);
+        local bottom = by + (open and -s * 0.06 or s * 0.25);
+        draw:AddRect({ sx, top }, { sx + sw, bottom }, col, sw / 2, 0, math.max(1, s / 8));
+        draw:AddRectFilled({ bx, by }, { bx + bw, y + s }, col, math.max(1, s / 8));
+    end) == true;
+end
+
+-- (1.38) Gear locks: a locked equipment slot is left as it is by Auto-equip (the server keeps the locks:
+-- "!squad gearlock <mate> <slot> on|off", reported as lock|<mask> in the mate's sheet, offered with cap|...,gearlock).
+-- A click shows its result at once; the sheet's own word takes over once it says the same, or after 8 seconds.
+X.lockWant = {};
+function X.slotLocked(d, mateSlot, eq)
+    local w = X.lockWant[mateSlot .. ':' .. eq];
+    local server = hasBit(d and d.lock or 0, 2 ^ eq);
+    if w and now() < w.untilAt and w.on ~= server then return w.on; end
+    X.lockWant[mateSlot .. ':' .. eq] = nil;
+    return server;
+end
+function X.setSlotLock(mateSlot, eq, on, key)
+    enqueue(string.format('/say !squad gearlock %d %s %s', mateSlot, key, on and 'on' or 'off'));
+    X.lockWant[mateSlot .. ':' .. eq] = { on = on, untilAt = now() + 8 };
+    X.muteLockUntil = now() + 10;
+    askSheet(2);
+end
+-- (1.38) the server's chat lines about a gear lock, kept out of the chat log for a few seconds after the menu locked,
+-- unlocked, put on or took off a piece (the padlock shows the result). A lock typed in chat still answers there.
+-- (1.39) also the server's lines about a weapon type, a piece put on or taken off and a look changed from the Gear view:
+-- the view itself shows the result. A line that says something went wrong (refused, nothing of that kind to wear) is
+-- not lost: it is shown in the Gear view instead (X.NOTE_LINES, X.gearNote).
+X.LOCK_LINES = {
+    '%(%a+%): [%w%s]+ locked%. Auto%-equip leaves it as it is%.',
+    '%(%a+%): [%w%s]+ unlocked%. Auto%-equip chooses it again%.',
+    'Auto%-equip stays on; %w+ is now locked, so it',
+    '%(%a+%) Main: .+%. Now: .+%. Apply now %(or dismiss and call%) to see it%.',
+    '%(%a+%) Sub: .+%. Now: .+%. Apply now %(or dismiss and call%) to see it%.',
+    '%(%a+%) [MS][au][ib]n?: .+%. It is used when Auto%-equip is on',
+    ' now wears .+ as %a+%. Dismiss and call them again to apply%.',
+    ' took off the %w+ item%. Dismiss and call them again to apply%.',
+    ' took off everything %(%a+ gear%)%.',
+    ' now looks like it wears .+%. Dismiss and call them again to apply%.',
+    ' shows its own %w+ gear again%. Dismiss and call them again to apply%.',
+    '^Lockstyle off: .+ shows the gear it wears%.',
+    ' keeps this look %(%d+ pieces%) whatever it wears from now on%.',
+    '^Auto%-equip is now off %(you chose gear by hand%)%.',
+};
+X.NOTE_LINES = {
+    '^%(No .+ that .+ can wear has been given to the squad yet: Main stays as it is%.%)$',
+    ' cannot wear that: .+%.$',
+    ' took off the Sub piece %(.+%)%.$',
+    ' needs level %d+, but .+ is level %d+ as %a+%.$',
+    ' cannot be worn by %a+%.$',
+    ' does not fit that slot%.$',
+    ' has not been given to your squad yet%.',
+};
+function X.muteLock(text)
+    if now() > (X.muteLockUntil or 0) then return false; end
+    for _, pattern in ipairs(X.NOTE_LINES) do
+        if text:find(pattern) then
+            X.gearNote = { text = (text:gsub('^%((.*)%)$', '%1')), untilAt = now() + 20 };
+            return true;
+        end
+    end
+    for _, pattern in ipairs(X.LOCK_LINES) do
+        if text:find(pattern) then return true; end
+    end
+    return false;
+end
+
 local function seek(x, y)
     if imgui and imgui.SetCursorScreenPos then pcall(imgui.SetCursorScreenPos, { x, y }); end
 end
@@ -3713,26 +3800,57 @@ end
 -- (a thin line and a light tint), which leaves the names as readable as they were. Returns true when it was clicked.
 -- (Without the calls to place things on the screen the older drawing below is used.)
 X.SLOT_COL = 50;
-function X.slotCell(mateSlot, eq, name, itemId, width, selected, enabled)
+-- (1.38) lock: nil (no lock here, as in the Look view) or { on = locked, usable = the server knows gear locks, tip = text }:
+-- a padlock button at the row's left edge, closed and gold while locked. Returns clicked, lockClicked.
+function X.lockButton(id, w, h, lock)
+    local pos = screenPos();
+    local token = U.push(imgui, { { 'ImGuiCol_Button', { 0, 0, 0, 0 } }, { 'ImGuiCol_ButtonHovered', C.hover }, { 'ImGuiCol_ButtonActive', C.rowFill } },
+                         { { 'ImGuiStyleVar_FrameBorderSize', 0 } });
+    local ok, hit = pcall(imgui.Button, '##lock' .. id, { w, h });
+    U.pop(imgui, token);
+    if not ok then error(hit, 0); end
+    tooltip(lock.tip);
+    local s = math.max(8, math.min(w - 4, px(12)));
+    local drew = pos and X.lockIcon(pos[1] + math.floor((w - s) / 2), pos[2] + math.floor((h - s) / 2), s,
+        lock.on and C.gold or C.faint, not lock.on);
+    if not drew and pos then
+        -- (no draw list: the state as a letter on the button's place)
+        seek(pos[1] + math.floor(w / 2) - 3, pos[2] + math.max(0, math.floor((h - px(13)) / 2)));
+        tint(lock.on and C.gold or C.faint, lock.on and 'L' or '-');
+    end
+    return hit == true and lock.usable;
+end
+
+function X.slotCell(mateSlot, eq, name, itemId, width, selected, enabled, lock)
     local empty = emptySlot(name);
     local display = empty and '' or itemDisplayName(itemId, name);
     local icon = (not empty) and itemIcon(itemId, display) or nil;
     local pos = screenPos();
+    local lockClicked = false;
     if pos and has('SetCursorScreenPos') and has('Dummy') then
         local rowH = math.max(ICON, px(20));
         local slotName = SLOT_LABEL[eq + 1] or tostring(eq);
-        if selected then U.frame(imgui, pos[1], pos[2], width, rowH, C.rowFill, C.rowLine, 4); end
+        -- (1.38) the padlock first, then the strip beside it
+        local lockW = lock and math.max(ICON, px(20)) or 0;
+        local x0 = pos[1] + (lock and (lockW + 2) or 0);
+        local stripW = width - (x0 - pos[1]);
+        if lock then
+            seek(pos[1], pos[2]);
+            lockClicked = X.lockButton(tostring(mateSlot) .. '_' .. eq, lockW, rowH, lock);
+            seek(x0, pos[2]);
+        end
+        if selected then U.frame(imgui, x0, pos[2], stripW, rowH, C.rowFill, C.rowLine, 4); end
         local clicked = false;
         if enabled then
             -- the strip: a button without a face of its own (the frame above is the selection, the tint under the mouse its feedback)
             local token = U.push(imgui, { { 'ImGuiCol_Button', { 0, 0, 0, 0 } }, { 'ImGuiCol_ButtonHovered', C.hover }, { 'ImGuiCol_ButtonActive', C.rowFill } },
                                  { { 'ImGuiStyleVar_FrameBorderSize', 0 } });
-            local ok, hit = pcall(imgui.Button, '##slot' .. tostring(mateSlot) .. '_' .. eq, { width, rowH });
+            local ok, hit = pcall(imgui.Button, '##slot' .. tostring(mateSlot) .. '_' .. eq, { stripW, rowH });
             U.pop(imgui, token);
             if not ok then error(hit, 0); end
             clicked = hit == true;
         else
-            imgui.Dummy({ width, rowH });
+            imgui.Dummy({ stripW, rowH });
         end
         if not empty then
             local stats = itemStatsText(itemId, display);
@@ -3742,21 +3860,30 @@ function X.slotCell(mateSlot, eq, name, itemId, width, selected, enabled)
         end
         -- what the strip shows, drawn over it
         local iconY = pos[2] + math.floor((rowH - ICON) / 2);
-        seek(pos[1], iconY);
+        seek(x0, iconY);
         local drew = false;
         if icon ~= nil and imgui.Image ~= nil then drew = pcall(imgui.Image, icon.ptr, { ICON, ICON }); end
-        if not drew then fillRect(windowDraw(), pos[1] + 2, iconY + 2, ICON - 4, ICON - 4, { 1, 1, 1, 0.05 }, 4); end
+        if not drew then fillRect(windowDraw(), x0 + 2, iconY + 2, ICON - 4, ICON - 4, { 1, 1, 1, 0.05 }, 4); end
         local textY = pos[2] + math.max(0, math.floor((rowH - px(13)) / 2));
-        local x = pos[1] + ICON + 6;
+        local x = x0 + ICON + 6;
         seek(x, textY);
         tint(enabled and C.text or C.faint, slotName);   -- (1.29) the slot's name in the usual text colour
         seek(x + px(X.SLOT_COL), textY);
         -- "Empty" in the theme's colour for secondary text; an item's name in the usual one
-        tint((not enabled) and C.faint or (empty and C.dim or C.text), empty and 'Empty' or fit(display, width - ICON - 6 - px(X.SLOT_COL) - 6));
+        tint((not enabled) and C.faint or (empty and C.dim or C.text), empty and 'Empty' or fit(display, stripW - ICON - 6 - px(X.SLOT_COL) - 6));
         -- the row itself is the last thing drawn, so what follows (the other column, the next row) is placed from it
         seek(pos[1], pos[2]);
         imgui.Dummy({ width, rowH });
-        return clicked;
+        return clicked, lockClicked;
+    end
+    if lock then
+        -- (the older drawing: the lock as a small text button in front of the slot)
+        if button(lock.on and 'L' or '-', 'lock' .. tostring(mateSlot) .. '_' .. eq, 22, 0, lock.on and 'on' or nil) and lock.usable then
+            lockClicked = true;
+        end
+        tooltip(lock.tip);
+        imgui.SameLine(0, 4);
+        width = width - px(26);
     end
     local shown = false;
     if icon ~= nil and imgui.Image ~= nil then
@@ -3789,7 +3916,7 @@ function X.slotCell(mateSlot, eq, name, itemId, width, selected, enabled)
         if stats then tooltip(stats); end
     end
 
-    return clicked;
+    return clicked, lockClicked;
 end
 
 -- (1.19) Blue magic: a Blue Mage mate's set spells, like the Set Spells menu. Automatic until you click a spell;
@@ -3866,6 +3993,8 @@ end
 -- sheet is read again, and the squad list too (putting a piece on by hand switches Auto-equip off on the server)
 function X.gearChanged(slot)
     X.pendMate(slot, true);
+    X.gearNote = nil;   -- (1.39) a new change: an earlier note no longer applies
+    X.muteLockUntil = now() + 10;   -- (1.38: with Auto-equip on, the server locks the slot and says so; the padlock shows it)
     askSheet(2);
     ask(4.5);
 end
@@ -3877,6 +4006,62 @@ X.GEAR_GROUPS = {
     { 'Armor',       { { 4, 5 }, { 6, 7 }, { 8, 15 } } },
     { 'Accessories', { { 9, 10 }, { 11, 12 }, { 13, 14 } } },
 };
+-- (1.39) Weapon type: the kind of weapon Auto-equip puts in Main and what it puts in Sub (!squad weapon <slot> main | sub
+-- <type>). Auto-equip still picks the best piece, but only of that kind: a softer lock than the padlock, which keeps ONE
+-- piece. Choosing a kind unlocks that slot. Offered on the Equipment view when the server says cap|...,weapontype; the
+-- codes are the server's (squad.lua SQUAD_WTYPE_MAIN / SQUAD_WTYPE_SUB).
+X.WMAIN = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12' };
+X.WMAIN_LABEL = { ['0'] = 'Any', ['1'] = 'Hand-to-hand', ['2'] = 'Dagger', ['3'] = 'Sword', ['4'] = 'Great sword', ['5'] = 'Axe',
+    ['6'] = 'Great axe', ['7'] = 'Scythe', ['8'] = 'Polearm', ['9'] = 'Katana', ['10'] = 'Great katana', ['11'] = 'Club', ['12'] = 'Staff' };
+X.WMAIN_WORD = { ['0'] = 'any', ['1'] = 'h2h', ['2'] = 'dagger', ['3'] = 'sword', ['4'] = 'greatsword', ['5'] = 'axe', ['6'] = 'greataxe',
+    ['7'] = 'scythe', ['8'] = 'polearm', ['9'] = 'katana', ['10'] = 'greatkatana', ['11'] = 'club', ['12'] = 'staff' };
+X.WSUB = { '0', '1', '2', '3', '12', '13', '15', '19', '21' };
+X.WSUB_LABEL = { ['0'] = 'Any', ['1'] = 'Shield', ['2'] = 'Grip', ['3'] = 'Empty', ['12'] = 'Dagger', ['13'] = 'Sword', ['15'] = 'Axe',
+    ['19'] = 'Katana', ['21'] = 'Club' };
+X.WSUB_WORD = { ['0'] = 'any', ['1'] = 'shield', ['2'] = 'grip', ['3'] = 'empty', ['12'] = 'dagger', ['13'] = 'sword', ['15'] = 'axe',
+    ['19'] = 'katana', ['21'] = 'club' };
+X.WMAIN_HELP = { ['0'] = 'Auto-equip puts the best weapon of any kind in Main (as before).' };
+X.WSUB_HELP = {
+    ['0'] = 'Auto-equip picks what goes with Main: a shield, a grip for a two-handed weapon, a second weapon for a Ninja.',
+    ['1'] = 'The best shield (not beside a two-handed or hand-to-hand weapon: then the usual choice).',
+    ['2'] = 'The best grip, beside a two-handed weapon (else the usual choice).',
+    ['3'] = 'Sub stays empty.',
+};
+for k, v in pairs(X.WMAIN_LABEL) do
+    if k ~= '0' then X.WMAIN_HELP[k] = 'Auto-equip puts the best ' .. v:lower() .. ' in Main. With none to wear, Main stays as it is.'; end
+end
+for _, k in ipairs({ '12', '13', '15', '19', '21' }) do
+    X.WSUB_HELP[k] = 'A second weapon: the best ' .. X.WSUB_LABEL[k]:lower() .. ' (needs Dual Wield: a Ninja of level 10 or more, as the main or support job; else the usual choice).';
+end
+function X.weaponTypeRow(slot, d)
+    local wt = d.wtype;
+    local function pick(which, code)
+        local words = which == 'main' and X.WMAIN_WORD or X.WSUB_WORD;
+        enqueue(string.format('/say !squad weapon %d %s %s', slot, which, words[code]));
+        wt[which] = tonumber(code);
+        -- the server unlocks that slot: the padlock shows it at once (X.slotLocked), the sheet asked below confirms it
+        X.lockWant[slot .. ':' .. (which == 'main' and 0 or 1)] = { on = false, untilAt = now() + 8 };
+        if S.autoEquip == true then X.pendMate(slot, true); end   -- (put on now: shown at the next call)
+        X.muteLockUntil = now() + 10;                              -- (the server's answer is shown here, not in chat)
+        X.gearNote = nil;
+        askSheet(1.5);
+    end
+    imgui.SameLine(0, 14);
+    dimText('Main'); imgui.SameLine(0, 6);
+    local cur = tostring(wt.main or 0);
+    if X.WMAIN_LABEL[cur] == nil then X.WMAIN_LABEL[cur] = 'Skill ' .. cur; end
+    local m = combo('wtmain' .. slot, cur, X.WMAIN, 118, X.WMAIN_HELP, nil, X.WMAIN_LABEL);
+    if m then pick('main', m); end
+    tooltip('The kind of weapon Auto-equip puts in Main: it still picks the best one, of this kind only. Choosing a kind unlocks Main.'
+        .. (S.autoEquip == true and '' or ' Auto-equip is off now: the choice counts when you turn it on.'));
+    X.fit(150, 12);
+    dimText('Sub'); imgui.SameLine(0, 6);
+    cur = tostring(wt.sub or 0);
+    if X.WSUB_LABEL[cur] == nil then X.WSUB_LABEL[cur] = 'Kind ' .. cur; end
+    local sb = combo('wtsub' .. slot, cur, X.WSUB, 100, X.WSUB_HELP, nil, X.WSUB_LABEL);
+    if sb then pick('sub', sb); end
+    tooltip('What Auto-equip puts in Sub: the best of this kind, when it goes with Main. Choosing a kind unlocks Sub.');
+end
 function X.gearView(slot, d)
     local mate = nil;
     for _, m in ipairs(S.mates or {}) do if m.slot == slot then mate = m; end end
@@ -3892,6 +4077,12 @@ function X.gearView(slot, d)
         else
             colorText(C.dim, 'Gear changed: ' .. who .. ' wears it at the next call.');
         end
+        gap(2);
+    end
+
+    -- (1.39) what the server said went wrong with the last change from this view (its chat line is kept out of the log)
+    if X.gearNote and now() < X.gearNote.untilAt then
+        wrapped(X.gearNote.text, C.warn);
         gap(2);
     end
 
@@ -3938,16 +4129,32 @@ function X.gearView(slot, d)
     for gi, group in ipairs(X.GEAR_GROUPS) do
         if gi > 1 then X.group(); end
         tint(C.faint, group[1]);
+        -- (1.39) beside "Weapons": the kind of weapon for Main and Sub
+        if gi == 1 and not look and X.caps and X.caps.weapontype and d.wtype ~= nil then X.weaponTypeRow(slot, d); end
         for _, pair in ipairs(group[2]) do
             for side, e in ipairs(pair) do
                 if side == 2 then imgui.SameLine(column, 0); end
                 local name, id = eq[e], d.eqId and d.eqId[e];
                 local enabled = (not look) or LOOK_SLOTS[e] == true;
                 if look and ls[e] then name, id = ls[e].name, ls[e].id; end
-                if X.slotCell(slot, e, name, id, column - 8, S.gearEq == e, enabled) then
+                -- (1.38) the gear lock, in the Equipment view (a look is not something Auto-equip changes)
+                local lock = nil;
+                if not look then
+                    local on = X.slotLocked(d, slot, e);
+                    local usable = X.caps ~= nil and X.caps.gearlock == true;
+                    local slotName = SLOT_LABEL[e + 1] or tostring(e);
+                    lock = { on = on, usable = usable,
+                        tip = not usable and ('Gear lock: not offered by this server yet. Press Refresh on the Squad tab; an older squad.lua has no gear locks.')
+                            or (on and (slotName .. ' is locked: Auto-equip leaves this slot as it is (also when it is empty). You can still change it by hand.\nClick to unlock.')
+                            or (slotName .. ' is not locked: Auto-equip may change it.\nClick to lock it, so Auto-equip keeps what is here now.'))
+                            .. '\nLocks are kept per job. With Auto-equip on, a piece you put on (or take off) by hand locks its slot by itself.' };
+                end
+                local clicked, lockClicked = X.slotCell(slot, e, name, id, column - 8, S.gearEq == e, enabled, lock);
+                if clicked then
                     S.gearEq = e;
                     X.askGear(slot, e);
                 end
+                if lockClicked then X.setSlotLock(slot, e, not lock.on, SLOT_KEY[e]); end
             end
         end
     end
@@ -4530,6 +4737,7 @@ ashita.events.register('text_in', 'servermenu_text_in', function (e)
         onSheetLine(text:sub(sheetAt + 11));
         return;
     end
+    if X.muteLock(text) then e.blocked = true; return; end   -- (1.38) gear lock lines after a padlock click
     -- FFXI's own chat parser prints this generic line after an addon sends a /say command, even when the
     -- server ran it. Only while one of our commands is in flight, so a real failed command is still shown.
     if now() < S.hideUntil and text:match('^%.%.%.%s*A command error occurred%.$') then e.blocked = true; return; end
