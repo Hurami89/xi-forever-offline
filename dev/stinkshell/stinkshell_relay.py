@@ -10,7 +10,9 @@ key (X-Stink-Key); the relay keeps only a hash of it.
   GET  /poll?since=N              -> {"seq", "lines": [...], "people": [...]}  waits up to 25 s for something new
   POST /announce {"kind", "name", "mode", "job", "level", "extra", "world"}   (2026-11-23) a hardcore milestone, Steel
                                   delevel, Silver death or new hardcore run from a player's world: the relay writes the line
-                                  itself (no free text) as kind "hardcore", shown in the room and to the hub
+                                  itself (no free text) as kind "hardcore", shown in the room and to the hub.
+                                  (2026-11-27) also kind "wedding" / "wedding_soon" with mode "Wedding": name and extra
+                                  are the couple, job the palace (SAN / BAS / WIN); shown the same way
   GET  /announcements?since=N     -> {"seq", "lines": [...]}  the hardcore lines only, no waiting (the hub's launcher)
 Website visitors (2026-11-23): the chat room page on xiforever.com talks to the relay straight from the browser (CORS,
 only for the site's own address). A visitor picks a nickname and shows as "website: Nick", so nobody on the website can
@@ -42,6 +44,8 @@ POLL_WAIT = 25
 RATE = (5, 10)             # at most 5 lines in 10 seconds
 NAME_RE = re.compile(r"^[A-Za-z]{2,15}$")
 HC_KINDS = ("milestone", "delevel", "death", "start", "grant")
+WEDDING_KINDS = ("wedding", "wedding_soon")   # (2026-11-27) a ceremony in a player's world (modules/wedding)
+WEDDING_PLACES = {"SAN": "Chateau d'Oraguille", "BAS": "the Metalworks", "WIN": "Heavens Tower"}
 WEB_PREFIX = "website: "
 APP_PREFIX = "mobile: "    # (2026-11-24) the XIFO phone app: header X-Stink-App: 1
 WEB_NAME_RE = re.compile(r"^[A-Za-z0-9_]{2,15}$")
@@ -205,6 +209,19 @@ class Room:
             level = 0
         extra = clean(str(body.get("extra", "")), 20)
         world = clean(str(body.get("world", "")), 30)
+        if kind in WEDDING_KINDS:
+            # name = one of the couple, extra = the other, job = the palace (SAN / BAS / WIN)
+            if mode != "Wedding" or not NAME_RE.match(name) or not NAME_RE.match(extra) or job not in WEDDING_PLACES:
+                return {"error": "bad announcement"}
+            place = WEDDING_PLACES[job]
+            on = f" on {world}" if world else ""
+            if kind == "wedding":
+                text = f"{name} and {extra} were married in {place}{on}! Congratulations!"
+            else:
+                text = f"{name} and {extra} will be married in {place}{on} in about 10 minutes. All are welcome!"
+            self.announced[kh] = times + [now]
+            self.add("hardcore", "", text)
+            return {"ok": True}
         if (kind not in HC_KINDS or not NAME_RE.match(name) or mode not in ("Iron", "Steel", "Silver", "Randomized") or
                 not re.fullmatch(r"[A-Z]{3}", job) or not 0 <= level <= 99):
             return {"error": "bad announcement"}
