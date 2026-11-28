@@ -401,7 +401,7 @@ def build_card(conn, charid, world="", rates=None, tm_rates=None):
     if prof:
         card["rank"] = int(prof[int(nation or 0)] or 0)
         card["fame"] = {"sandoria": fame_level(prof[3]), "bastok": fame_level(prof[4]), "windurst": fame_level(prof[5]),
-                        "jeuno": fame_level((int(prof[3] or 0) + int(prof[4] or 0) + int(prof[5] or 0)) // 3),
+                        "jeuno": fame_level((int(prof[3] or 0) + int(prof[4] or 0) + int(prof[5] or 0)) // 2),   # as the server (getFame: Jeuno)
                         "norg": fame_level(prof[6])}
     mode = int(hcv.get("[HC]Mode", 0) or 0)
     rates = rates or {0: 1.0}
