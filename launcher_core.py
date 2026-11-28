@@ -939,6 +939,7 @@ RATE_DEFAULTS.update({key: True for key in EXTRAS_KEYS})
 RATE_DEFAULTS.update({"training_dummies": False, "training_dummies_explicit": False})   # (Jon Tanta) !sandbox training dummies in Rolanberry Fields (squad_sandbox.lua). On by default since 0.3.3a; _explicit = the player chose the switch himself, so only then is a saved False kept
 RATE_DEFAULTS.update({"squad_keep_gear": False})   # gear given to the squad is unlocked and you keep the piece (squad.lua squadKeepGear)
 RATE_DEFAULTS.update({"spell_scrolls": False})  # squad mates need scrolls for spells of level 18+ (blue magic from monsters) (squad.lua)
+RATE_DEFAULTS.update({"weddings": True})   # (2026-11-27) the 2009 wedding service (modules/wedding, from KiplingFFXI); dev-only switch on the Era page
 RATE_DEFAULTS.update({"short_quest_waits": True})   # Chocobo's Wounds 1 minute, Forge Your Destiny 1 hour (late/quest_waits.lua)
 RATE_DEFAULTS.update({"event_harvest": True, "event_starlight": True, "event_egg_hunt": True, "event_horro": True})   # one switch per seasonal event (events_mode.lua)
 RATE_DEFAULTS.update({"events": "date"})   # seasonal events: "date" (their own dates), "on" (all year), "off" (events_mode.lua)
@@ -1277,6 +1278,8 @@ def load_rates(here):
             rates["squad_all_gear"] = bool(saved["squad_all_gear"])
         if "short_quest_waits" in saved:
             rates["short_quest_waits"] = bool(saved["short_quest_waits"])
+        if "weddings" in saved:
+            rates["weddings"] = bool(saved["weddings"])
         if "events" in saved:
             rates["events"] = clean_events(saved["events"])
         for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro"):
@@ -1386,7 +1389,7 @@ def apply_preset(rates, name):
                          ("bots", True), ("bots_roster", 300), ("bots_online", 180), ("bots_growth", "realistic"), ("buff_range", "retail"),
                          ("squad_chat", True), ("bots_head_start", False), ("bots_head_start_done", False),
                          ("squad_call_cooldown", 5), ("full_bags", True), ("modern_stacks", True), ("spell_scrolls", False), ("squad_keep_gear", False), ("training_dummies", False), ("training_dummies_explicit", False), ("bots_pass_loot", True), ("squad_all_gear", False),
-                         ("short_quest_waits", True), ("events", "date"), ("event_harvest", True), ("event_starlight", True), ("event_egg_hunt", True), ("event_horro", True)):
+                         ("short_quest_waits", True), ("weddings", True), ("events", "date"), ("event_harvest", True), ("event_starlight", True), ("event_egg_hunt", True), ("event_horro", True)):
         out[key] = rates.get(key, default)
     out["crowds_per_zone"] = rates.get("crowds_per_zone", 15)
     if out["buff_range"] not in BUFF_RANGES:
@@ -1427,6 +1430,8 @@ def _format_number(value, kind):
 
 
 CLAIM_SHIELD_ENTRY = "custom/lua/claim_shield.lua"
+WEDDING_ENTRY = "wedding"            # modules/wedding: the 2009 wedding NPCs and the Matrimony ring recipes
+WEDDING_COMMENT = "# Weddings (2009 wedding service, out of era on purpose; ported from KiplingFFXI). Dev launcher: Era > Out-of-era content"
 
 
 def set_module(server_dir, entry, enabled):
@@ -1450,6 +1455,28 @@ def set_module(server_dir, entry, enabled):
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(new_text)
     return f"{entry}: switched {'on' if enabled else 'off'}"
+
+
+def ensure_weddings(server_dir, enabled):
+    """Weddings on or off (modules/init.txt). An init.txt without the line (an older server) gets it, above the
+    "Loaded LAST" block, when weddings are on. Returns a message when something changed, else None."""
+    if not os.path.isdir(os.path.join(server_dir, "modules", WEDDING_ENTRY)):
+        return None                                                     # a server without the module: nothing to switch
+    note = set_module(server_dir, WEDDING_ENTRY, enabled)
+    if not (note and "was not found" in note):
+        return note
+    if not enabled:
+        return None
+    path = os.path.join(server_dir, "modules", "init.txt")
+    with open(path, "r", encoding="utf-8-sig", newline="") as f:
+        text = f.read()
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines()
+    at = next((i for i, l in enumerate(lines) if l.strip().startswith("# Loaded LAST")), len(lines))
+    lines[at:at] = [WEDDING_COMMENT, WEDDING_ENTRY, ""]
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(newline.join(lines) + newline)
+    return "weddings: added to modules/init.txt"
 
 
 FAST_TRAVEL_DIR_ENTRY = "custom/late"
@@ -1666,6 +1693,13 @@ def apply_rates(server_dir, rates):
             messages.append(note)
     except OSError as problem:
         messages.append(f"claim shield: modules/init.txt could not be changed ({problem})")
+    # Weddings (2009, out of era on purpose): on for everyone; only the dev launcher shows the switch
+    try:
+        note = ensure_weddings(server_dir, bool(rates.get("weddings", True)))
+        if note:
+            messages.append(note)
+    except OSError as problem:
+        messages.append(f"weddings: modules/init.txt could not be changed ({problem})")
     return messages
 
 

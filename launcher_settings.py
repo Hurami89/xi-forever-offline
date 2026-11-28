@@ -322,6 +322,9 @@ S("main.ENABLE_TVR", "era", "Later expansions", FLAG, "Voracious Resurgence", de
 S("main.ENABLE_VOIDWATCH", "era", "Out-of-era content", FLAG, "Voidwatch NPCs", dev=True)
 S("main.ENABLE_TRUST_QUESTS", "era", "Out-of-era content", FLAG, "Trust quest NPCs", dev=True)
 S("main.ENABLE_DAILY_TALLY", "era", "Out-of-era content", FLAG, "Gobbie Mystery Box", dev=True)
+S("weddings", "era", "Out-of-era content", SWITCH, "Weddings", dev=True,
+  tip="The 2009 wedding service: Wedding Masters in the three palaces, marriage certificates, Matrimony rings and the "
+      "wedding shops. On for players too (they never see this switch). Applied at server start.")
 S("main.ROE_EXP_RATE", "era", "Out-of-era content", RATE, "RoE experience", dev=True,
   tip="Experience from Records of Eminence.")
 S("map.CAPACITY_RATE", "era", "Out-of-era content", RATE, "Capacity points", dev=True)

@@ -1829,7 +1829,7 @@ class RatesTab(tk.Frame):
             ttk.Spinbox(inner, from_=field[5], to=field[6], increment=1 if field[7] == "int" else 0.25,
                         textvariable=var, width=8).grid(row=row, column=1, padx=6, pady=2)
             row += 1
-        for k in (2, 20, 18, 25, 23, 0, 24, 30, 31, 32, 33):    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
+        for k in (2, 41, 20, 18, 25, 23, 0, 24, 30, 31, 32, 33):   # (41: weddings, dev only)    # era exp tables, fast travel, full bags, item stacks, short quest waits, all crafts, seasonal events
             R[k], row = row, row + 1
         row = header("World", row)
         # (34-35: crowd members through the gates / stopping for each other; 36-39: bot players' emotes, death memory,
@@ -1851,6 +1851,14 @@ class RatesTab(tk.Frame):
                                  wraplength=520, justify="left")
         if not player:                                   # players always have the era tables
             era_box.grid(row=R[2], column=0, columnspan=2, sticky="w", padx=6, pady=2)
+        # (2026-11-27) weddings: the 2009 wedding service, out of era on purpose. On for players; only the dev PC can switch it
+        self.weddings = tk.BooleanVar(value=True if player else rates.get("weddings", True))
+        wedding_box = tk.Checkbutton(inner, text="Weddings (2009 wedding service, out of era): Wedding Masters, marriage certificates, "
+                                     "Matrimony rings and the palace wedding shops. Off = those NPCs are gone.",
+                                     variable=self.weddings, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+                                     wraplength=520, justify="left")
+        if not player:
+            wedding_box.grid(row=R[41], column=0, columnspan=2, sticky="w", padx=6, pady=2)
         self.conquest_sim = tk.BooleanVar(value=rates.get("conquest_sim", True))
         tk.Checkbutton(inner, text="Conquest simulator: the other nations and the beastmen act while you are away, so regions can change hands",
                        variable=self.conquest_sim, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
@@ -2131,7 +2139,7 @@ class RatesTab(tk.Frame):
         return next((k for k, v in self.EVENTS_LABELS.items() if v == label), "date")
 
     BOOL_KEYS = ("all_crafts", "ah_sim", "era_exp", "conquest_sim", "crowds", "crowds_chat", "crowds_chat_ai", "crowds_field",
-                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "squad_all_gear", "short_quest_waits",
+                 "bots", "squad_chat", "full_bags", "modern_stacks", "spell_scrolls", "squad_keep_gear", "training_dummies", "bots_pass_loot", "squad_all_gear", "short_quest_waits", "weddings",
                  "event_harvest", "event_starlight", "event_egg_hunt", "event_horro") + tuple(core.EXTRAS_KEYS)
     TEXT_KEYS = (("crowds_per_zone", "crowds_size"), ("crowds_chat_amount", "crowds_chat_amount"),
                  ("crowds_field_parties", "crowds_field_parties"), ("bots_roster", "bots_roster"), ("bots_online", "bots_online"),
@@ -2254,6 +2262,7 @@ class RatesTab(tk.Frame):
             rates[k] = bool(getattr(self, k).get())
         rates["squad_all_gear"] = bool(self.squad_all_gear.get())
         rates["short_quest_waits"] = bool(self.short_quest_waits.get())
+        rates["weddings"] = bool(self.weddings.get())
         rates["events"] = self.events_value()
         for k in ("event_harvest", "event_starlight", "event_egg_hunt", "event_horro"):
             rates[k] = bool(getattr(self, k).get())
