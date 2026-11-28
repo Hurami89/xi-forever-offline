@@ -235,7 +235,9 @@ S("main.NM_TIMER_MODE", "rules", "Comforts", NUMBER, "Timed NMs between sessions
       "0 = the game's own: every start rolls fresh timers, so short sessions can miss them. 1 = paused (default): a "
       "timer stops while the servers are off and goes on where it was. 2 = real time: timers keep running while "
       "they're off, so one that came due while you were away is up soon after you start. Lottery NMs follow the "
-      "lottery settings instead, and the land kings their own switch. (Trinity, Akiraheaven, VRTRA)")
+      "lottery settings instead, and the land kings their own switch. Monsters that grow into an NM when left "
+      "alone (Voluptuous Vilma, Father Frost, Taisaijin, the Leshys) keep their count the same way. "
+      "(Trinity, Akiraheaven, VRTRA, Art-Machine)")
 S("main.EPHEMERAL_MOOGLES", "rules", "Comforts", FLAG, "Ephemeral Moogles",
   tip="The crafting guilds' Ephemeral Moogles (from Seekers of Adoulin) are there and keep your crystals for you. "
       "On by default. (Gilder, stanky kong)")
@@ -269,11 +271,13 @@ S("spell_scrolls", "rules", "Squad", SWITCH, "Spells from scrolls",
       "Below 18 everything stays automatic. Always on for Randomized characters.")
 S("squad_keep_gear", "rules", "Squad", SWITCH, "Keep gear you give",
   tip="Trading a piece to a mate (or !squad give) unlocks it for the whole squad and you keep yours. "
-      "Off = the squad takes the piece (one-of-a-kind gear is always kept).")
+      "Off = the squad takes the piece (one-of-a-kind gear is always kept). Not for hardcore: while an Iron, Steel or "
+      "Silver character is in the world this counts as off, and a piece you give is the squad's for good.")
 S("squad_all_gear", "rules", "Squad", SWITCH, "Squad gets all gear",
   tip="Every piece of gear counts as given to your squad: mates can wear anything their job and level allow, "
       "without trading it to them first. With Auto-equip on (the Squads menu in game) they then put on the best of "
-      "all of it for their job. Off = gear has to be given once (trade it, or !squad give).")
+      "all of it for their job. Off = gear has to be given once (trade it, or !squad give). Not for hardcore: while "
+      "an Iron, Steel or Silver character is in the world this counts as off.")
 S("main.SQUAD_MATES_RAISABLE", "rules", "Squad", FLAG, "Fallen mates can be Raised",
   tip="A squad mate that falls stays where it fell for 5 minutes; Raise, Raise II, Raise III or Arise brings it back. "
       "Off = it is sent home at once. On by default. (Meli)")

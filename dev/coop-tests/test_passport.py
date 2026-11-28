@@ -78,14 +78,33 @@ class PassportTests(unittest.TestCase):
         ct.run(self.home, "INSERT INTO accounts_sessions (accid, charid, session_key, server_addr, server_port, client_addr) "
                           "VALUES (?, ?, 'k', 0, 0, 0)", (HOME_ACC, HOME_CHAR))
         self.home.commit()
-        with self.assertRaises(pp.PassportError):
-            pp.depart(self.home, HOME_CHAR, {})
+        real, pp.map_server_running = pp.map_server_running, lambda: True       # the world is awake: the login row counts
+        try:
+            with self.assertRaises(pp.PassportError):
+                pp.depart(self.home, HOME_CHAR, {})
+        finally:
+            pp.map_server_running = real
+        self.assertEqual(len(self.q(self.home, "SELECT 1 FROM accounts_sessions WHERE charid = ?", (HOME_CHAR,))), 1)
         self.assertEqual(self.q(self.home, "SELECT accid FROM chars WHERE charid = ?", (HOME_CHAR,))[0][0], HOME_ACC)
         self.assertEqual(pp.away_list(self.home), [])
         ct.make_account(self.home, BOT_ACC, "bot5")
         ct.make_character(self.home, BOT_ACC, BOT_CHAR, "Botty")
         with self.assertRaises(pp.PassportError):
             pp.depart(self.home, BOT_CHAR, {})
+
+    def test_depart_clears_a_login_row_left_behind_by_a_crash(self):
+        # (2026-11-27, Quaiton) the world is asleep, so nobody is in the game: the row means nothing and is removed
+        ct.run(self.home, "INSERT INTO accounts_sessions (accid, charid, session_key, server_addr, server_port, client_addr) "
+                          "VALUES (?, ?, 'k', 0, 0, 0)", (HOME_ACC, HOME_CHAR))
+        self.home.commit()
+        real, pp.map_server_running = pp.map_server_running, lambda: False
+        try:
+            data, _nonce = pp.depart(self.home, HOME_CHAR, {"address": "10.0.0.2"})
+        finally:
+            pp.map_server_running = real
+        self.assertTrue(data)
+        self.assertEqual(self.q(self.home, "SELECT 1 FROM accounts_sessions WHERE charid = ?", (HOME_CHAR,)), [])
+        self.assertEqual(len(pp.away_list(self.home)), 1)
 
     # --- arriving ---
     def test_arrival_is_a_faithful_copy_on_a_guest_account(self):

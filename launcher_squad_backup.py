@@ -115,7 +115,7 @@ def restore(conn, kit, charid, data, greeting_user=None):
     cur = conn.cursor()
     try:
         _character(cur, charid)
-        if pp.is_online(cur, charid):
+        if pp.in_game(cur, charid):
             raise SquadBackupError("That character is in the game right now. Log it out first.")
         layout = pp.squad_layout(cur)
         if not layout:

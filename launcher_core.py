@@ -1580,6 +1580,10 @@ def apply_rates(server_dir, rates):
     # do nothing) they are Wings of the Goddess content, so the server parks them at 0,0,0 and hides them; but the zone
     # scripts un-hide them whenever this level is not 0 (xi.server.setExplorerMoogles). 0 = no Explorer Moogles.
     wanted["main.lua"].append(("EXPLORER_MOOGLE_LV", 0, "int"))
+    # (2026-11-27, shamwow_guy: trapped in the Mog Garden) the Mog Garden is Seekers of Adoulin content. Without that
+    # expansion its Moogle vanishes and nothing in it works, but the Mog House's exit menu still offers it. With this
+    # off, the server takes "Mog Garden" as the way out to the area you came in from.
+    wanted["main.lua"].append(("ENABLE_MOG_GARDEN", 1 if int(rates.get("main.ENABLE_SOA", 0) or 0) else 0, "int"))
     wanted["main.lua"].append(("GENERATE_CORE_DUMP", True, "bool"))
     # The watchdog kills the map server when one tick takes 2 s. On slower PCs a log in (the bots logging in with you and
     # catching up on their history) can take longer; that's fine offline, so allow 15 s before it counts as a hang.

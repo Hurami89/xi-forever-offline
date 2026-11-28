@@ -430,6 +430,29 @@ def is_online(cur, charid):
     return _one(cur, "SELECT 1 FROM accounts_sessions WHERE charid = ? LIMIT 1", (charid,)) is not None
 
 
+def map_server_running():
+    """True when xi_map runs on this PC, or when that cannot be checked (then a login row is trusted)."""
+    try:
+        import launcher_core
+        return bool(launcher_core.is_running("xi_map"))
+    except Exception:
+        return True
+
+
+def in_game(cur, charid):
+    """True when one of this world's own characters is logged in. (2026-11-27, Quaiton: "Quaiton is in the game right
+    now. Log out first." with the world asleep) A crash or a killed server leaves the login row behind, and then the
+    character is "in the game" for good: it could not travel, and a backup could not be put back. With the map server
+    not running nobody can be in the game, so the leftover row is removed (char_import.py has done the same since
+    2026-11-24). The removal goes with the caller's own commit."""
+    if not is_online(cur, charid):
+        return False
+    if map_server_running():
+        return True
+    cur.execute("DELETE FROM accounts_sessions WHERE charid = ?", (charid,))
+    return False
+
+
 def find_character(conn, name):
     """(charid, accid, charname) of a character by name, or None."""
     cur = conn.cursor()
@@ -686,7 +709,7 @@ def depart(conn, charid, host, versions=None, travel_rates=None):
             raise PassportError(f"{name} is already visiting another world.")
         if _one(cur, "SELECT 1 FROM coop_guest WHERE charid = ? AND state <> 'gone'", (charid,)):
             raise PassportError(f"{name} is a visitor here. Visitors go home before they travel on.")
-        if is_online(cur, charid):
+        if in_game(cur, charid):
             raise PassportError(f"{name} is in the game right now. Log out first.")
         layout, squad = local_layout(cur), squad_layout(cur)
         tables = _with_hub_rates(_read(cur, layout, charid), charid, travel_rates)   # (the hub plays you at these)
@@ -840,7 +863,7 @@ def restore_backup(conn, data):
         row = _one(cur, "SELECT charname FROM chars WHERE charid = ? FOR UPDATE", (charid,))
         if row is None or row[0] != passport["name"]:
             raise PassportError(f"{passport['name']} is not a character of this world any more.")
-        if is_online(cur, charid):
+        if in_game(cur, charid):
             raise PassportError(f"{row[0]} is in the game right now. Log out first.")
         layout, squad = local_layout(cur), squad_layout(cur)
         _check_tables(passport, layout, squad)

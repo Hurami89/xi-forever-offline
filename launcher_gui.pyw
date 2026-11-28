@@ -4102,7 +4102,7 @@ class App(tk.Tk):
         boot2 = self.cfg.get("ashita_boot2")
         path = os.path.join(self.ashita, "config", "boot", boot2) if (self.ashita and boot2) else ""
         if not path or not os.path.exists(path):
-            return None, "The second window is not set up yet. In PowerShell, in " + HERE + ", run:   python setup_dualbox.py setup"
+            return None, "The second window is not set up yet. Press PLAY, then DUALBOX on the Home page: it offers to set it up."
         try:
             manager = core.ScriptManager(self.ashita, boot2, script_name="dualbox.txt")
             manager.prepare()
@@ -5496,8 +5496,17 @@ class App(tk.Tk):
                 pass
         path = os.path.join(self.ashita, "config", "boot", boot2) if (self.ashita and boot2) else ""
         if not path or not os.path.exists(path):
-            messagebox.showinfo("Second character", "The second character is not set up yet.\n\nOpen PowerShell, go to " + HERE + " and run:\n\n    python setup_dualbox.py setup\n\nThen try again.")
-            return
+            # (2026-11-27, Vinci Alessandro) The button sets the second window up itself. The message used to send the
+            # player to PowerShell with "python setup_dualbox.py setup", and a player's PC has no Python.
+            if not messagebox.askyesno("Second character", "The second game window is not set up yet.\n\nSet it up now?\n\nIt gets an account "
+                                       "of its own, so it needs a character of its own: the first time, the second window shows character "
+                                       "creation. (Two characters of one account cannot be in the game together.) Your first account and "
+                                       "its characters are not touched."):
+                return
+            boot2 = self.setup_second()
+            path = os.path.join(self.ashita, "config", "boot", boot2) if (self.ashita and boot2) else ""
+            if not path or not os.path.exists(path):
+                return
         if core.count_running("xiloader") >= 2:
             messagebox.showinfo("Second character", "A second game window is already open.")
             return
@@ -5506,8 +5515,69 @@ class App(tk.Tk):
             setup_dualbox.ensure_script(os.path.join(self.ashita, "scripts", "dualbox.txt"))
         except Exception:
             pass
+        self.ensure_second_account()
         self.launch_extra(boot2, "ashita2.log")
         self.say("Starting the second character... (the first time it shows character creation)")
+
+    def ensure_second_account(self):
+        """(2026-11-27, Celaria) A setup run outside the launcher (python setup_dualbox.py setup, with a Python that has no
+        database driver) makes everything except the second account, and the second window then cannot log in. So every
+        DUALBOX click makes sure the account is there; one that exists is left alone. True when it is there."""
+        user2, pass2 = self.cfg.get("game_user2"), self.cfg.get("game_pass2")
+        if not user2 or not pass2:
+            return False
+        try:
+            import setup_dualbox
+            conn = setup_dualbox.connect(self.cfg)
+            try:
+                setup_dualbox.ensure_account(conn, self.cfg.get("game_user", "player1"), user2, pass2)
+            finally:
+                conn.close()
+            return True
+        except Exception as e:
+            print(f"The second account could not be checked: {e}")
+            return False
+
+    def setup_second(self):
+        """Runs "setup_dualbox.py setup" (through the exe itself when packaged, so no Python is needed) and returns the
+        second boot file's name, or None when it was not made. What the setup printed is kept in logs\\dualbox-setup.log."""
+        self.say("Setting up the second window...")
+        try:
+            self.update_idletasks()
+        except Exception:
+            pass
+        try:
+            done = subprocess.run(core.py_cmd(os.path.join(HERE, "setup_dualbox.py"), "setup"), cwd=HERE, capture_output=True, text=True,
+                                  errors="replace", timeout=300, creationflags=core.NO_WINDOW)
+            text = ((done.stdout or "") + "\n" + (done.stderr or "")).strip()
+        except Exception as e:
+            text = f"!! The setup could not be started: {e}"
+        try:
+            with open(os.path.join(LOGS, "dualbox-setup.log"), "w", encoding="utf-8", errors="replace") as f:
+                f.write(text + "\n")
+        except OSError:
+            pass
+        boot2 = None
+        try:                                    # the setup wrote its three settings into config.json; take them over
+            fresh = core.load_config(os.path.join(HERE, "config.json"))
+            for key in ("ashita_boot2", "game_user2", "game_pass2"):
+                if fresh.get(key):
+                    self.cfg[key] = fresh[key]
+            boot2 = self.cfg.get("ashita_boot2")
+        except Exception:
+            pass
+        notes = [line.strip() for line in text.splitlines() if line.strip().startswith("!!")]
+        if not (boot2 and self.ashita and os.path.exists(os.path.join(self.ashita, "config", "boot", boot2))):
+            messagebox.showerror("Second character", "The second window could not be set up.\n\n"
+                                 + ("\n".join(notes[:6]) or text[-600:] or "The setup said nothing.")
+                                 + "\n\nThe whole text is in logs\\dualbox-setup.log.")
+            self.say("The second window was not set up (see logs\\dualbox-setup.log).")
+            return None
+        self.second_scripts = None              # OPTIONS > Addons reads the second window's list again
+        if notes:
+            messagebox.showinfo("Second character", "The second window is set up. The setup left a note:\n\n" + "\n".join(notes[:6])
+                                + "\n\nThe whole text is in logs\\dualbox-setup.log.")
+        return boot2
 
     def launch_extra(self, boot, log_name):
         """Opens one more game window with the given boot file, next to the one already running."""

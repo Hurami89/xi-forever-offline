@@ -494,7 +494,7 @@
       "license": "MIT",
       "homepage": "https://github.com/SQLCommit/TrueFPS",
       "into": "ashita",
-      "note": "Higher frame rates with the game still at normal speed, smoother motion, and no cutscene stalls at high FPS. Installed switched off (2026-11-26, Alis): tick it in the Addons list to load it; /truefps opens its settings. Don't load it together with the plain fps addon.",
+      "note": "Higher frame rates with the game still at normal speed, smoother motion, and no cutscene stalls at high FPS. A plugin, so it is on OPTIONS > Plugins, not Addons (2026-11-26, Alis): install it there, then tick it to load it; /truefps opens its settings. Don't load it together with the plain fps addon.",
       "source": {
         "type": "github_release",
         "repo": "SQLCommit/TrueFPS",

@@ -193,7 +193,15 @@ def ensure_account(conn, source_login, new_login, new_password, hasher=hash_pass
 
 
 def connect(cfg):
-    import mariadb
+    try:
+        import mariadb
+    except ImportError:
+        mariadb = None
+    if not hasattr(mariadb, "connect"):
+        # (2026-11-27, Celaria) A Python of your own has no MariaDB driver, and then "import mariadb" finds the kit's
+        # mariadb folder instead ("module 'mariadb' has no attribute 'connect'"). The launcher's own program has it.
+        raise RuntimeError("this Python has no MariaDB driver, so the second account was not made. Press DUALBOX in the "
+                           "launcher instead: it makes the account itself.")
     return mariadb.connect(host=cfg.get("db_host", "127.0.0.1"), port=int(cfg.get("db_port", 3306)),
                            user=cfg["db_user"], password=cfg["db_pass"], database=cfg["db_name"])
 
@@ -205,10 +213,23 @@ def git_clone_or_pull(target):
     return subprocess.run(["git", "clone", "--depth", "1", AUTOBOT_URL, target], capture_output=True, text=True).returncode == 0
 
 
+def autobot_installed(cfg):
+    """A player's install has AutoBot already: the launcher's own setup puts it in the Ashita folder (thirdparty.json)."""
+    return os.path.isfile(os.path.join(cfg["ashita_dir"], "addons", "autobot", "autobot.lua"))
+
+
 def install_autobot(cfg, install_plugin=False, fetch=git_clone_or_pull):
     lines = []
     repo = os.path.join(HERE, "AutoBot-Ashita")
-    if not fetch(repo):
+    # (2026-11-27, Vinci Alessandro) Only a missing AutoBot is downloaded: the download needs git, which a player's PC
+    # does not have. "plugin" still downloads, because it copies the Movement plugin out of the download.
+    if not install_plugin and autobot_installed(cfg):
+        return ["AutoBot is already in your Ashita folder - left as it is."]
+    try:
+        fetched = fetch(repo)
+    except OSError:                                  # git itself is not installed
+        fetched = False
+    if not fetched:
         raise RuntimeError("Could not download AutoBot from " + AUTOBOT_URL + " (is git installed, and are you online?)")
     addon_src = os.path.join(repo, "addons", "autobot")
     if not os.path.isdir(addon_src):
@@ -306,7 +327,7 @@ def setup(cfg, install_plugin=False, connect_fn=connect, fetch=git_clone_or_pull
     if problems:
         say(f"Finished with {problems} problem(s) above. Everything that worked is in place; send Claude the lines starting with '!!'.")
     else:
-        say("DONE. Now: open the launcher, press PLAY, then click 'Start second character' on the Play page.")
+        say("DONE. Now: in the launcher, press PLAY, then DUALBOX.")
         say(f"The first time, the second window shows character creation: make the second character (account '{user2}').")
     return problems
 
