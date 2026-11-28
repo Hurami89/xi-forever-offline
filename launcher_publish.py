@@ -19,6 +19,11 @@ UPLOADS = "https://uploads.github.com/repos/"
 # https://github.com/Hurami89/xi-forever-offline/releases/latest/download/XI-Forever-Offline.zip
 ONE_CLICK_NAME = "XI-Forever-Offline.zip"
 ONE_CLICK_URL = f"https://github.com/{KIT_REPO}/releases/latest/download/{ONE_CLICK_NAME}"
+# (2026-11-27) the one-file installer (build_installer.ps1 -> dist/XI Forever Offline Setup.exe): uploaded with every
+# release under this name when it has been built, so the website can link
+# https://github.com/Hurami89/xi-forever-offline/releases/latest/download/XI-Forever-Offline-Setup.exe
+SETUP_NAME = "XI-Forever-Offline-Setup.exe"
+SETUP_FILE = "XI Forever Offline Setup.exe"
 NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 
 
@@ -174,9 +179,13 @@ def publish(kit, server, version, notes, prerelease, log=print, run=subprocess.r
         dist = os.path.join(kit, "dist")
         make_release(SERVER_REPO, version, f"XI: Forever Offline server {version}", notes, prerelease,
                      [os.path.join(dist, f"xi-forever-offline-server-{version}-win64.zip"), os.path.join(dist, "SHA256SUMS.txt")], token, log)
-        make_release(KIT_REPO, version, f"XI: Forever Offline {version}", notes, prerelease,
-                     [os.path.join(dist, "kit", f"xi-forever-offline-{version}-win64.zip"), os.path.join(dist, "kit", "SHA256SUMS.txt"),
-                      (os.path.join(dist, "kit", f"xi-forever-offline-{version}-win64.zip"), ONE_CLICK_NAME)], token, log)
+        kit_files = [os.path.join(dist, "kit", f"xi-forever-offline-{version}-win64.zip"), os.path.join(dist, "kit", "SHA256SUMS.txt"),
+                     (os.path.join(dist, "kit", f"xi-forever-offline-{version}-win64.zip"), ONE_CLICK_NAME)]
+        if os.path.isfile(os.path.join(dist, SETUP_FILE)):
+            kit_files.append((os.path.join(dist, SETUP_FILE), SETUP_NAME))
+        else:
+            log(f"(No {SETUP_FILE} in dist: run build_installer.ps1 once to upload the one-file installer too.)")
+        make_release(KIT_REPO, version, f"XI: Forever Offline {version}", notes, prerelease, kit_files, token, log)
     if "release" in steps:
         prune_dist(kit, version, log)
     log(f"Done: {version} is published. Players' launchers will offer it" + (" to testers (test build)." if prerelease else "."))
