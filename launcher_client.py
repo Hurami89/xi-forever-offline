@@ -213,6 +213,13 @@ def forever_jeans(kit, game, log=print):
     return fj.apply(game, log=log)
 
 
+# ----- 5d. Forever Gloves (2026-11-27) -----
+def forever_gloves(kit, game, log=print):
+    """The Forever Gloves' look (hands model 517) and item entry (23869 in ROM\\286\\73.DAT); see forever_gloves.py."""
+    fg = _kit_module(kit, "forever_gloves")
+    return fg.apply(game, log=log)
+
+
 # ----- 6. Spells you can aim at a squad mate -----
 # (2026-11-22, Yache: Wild Carrot and Magic Fruit cannot be aimed at a squad mate) The server accepts them; the game
 # itself refuses the target. To the game a squad mate is an NPC in your party, like a Trust, and it only offers one as
@@ -558,6 +565,7 @@ def apply_all(kit, game, server, log=print):
                        ("Forever Beta Shirt", lambda: forever_beta_shirt(kit, game, log)),
                        ("Forever Patch", lambda: forever_patch(kit, game, log)),
                        ("Forever Jeans", lambda: forever_jeans(kit, game, log)),
+                       ("Forever Gloves", lambda: forever_gloves(kit, game, log)),
                        ("Spells on squad mates", lambda: spell_targets(kit, game, log)),
                        ("Mode titles", lambda: mode_titles(kit, game, log)),
                        ("Mode marks", lambda: mode_marks(kit, game, log))):

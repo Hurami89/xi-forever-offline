@@ -76,6 +76,7 @@
 !/forever_patch.py
 # (2026-11-25) Forever Jeans: the same for the beta testers' legs (launcher_client step 5c)
 !/forever_jeans.py
+!/forever_gloves.py
 # (2026-11-25) certificate checks without Windows' stale intermediate store (launcher_core installs it)
 !/launcher_tls.py
 # Linux / Steam Deck: Proton, the game's own prefix, the menu entry; the Linux build and its GitHub workflow
