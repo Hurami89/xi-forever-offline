@@ -35,7 +35,11 @@ AshitaCore = {
     injected[#injected+1] = { id = id, bytes = bytes } end } end,
   GetMemoryManager = function() return { GetParty = function() return {
     GetMemberIsActive = function(_, i) return i < members and 1 or 0 end,
-    GetMemberZone = function() return zone end } end } end }
+    GetMemberName = function() return charname end,
+    GetMemberServerId = function() return 4242 end,
+    GetMemberZone = function() return zone end } end } end,
+  GetInstallPath = function() return install end }
+charname, install = 'Hurami', ''
 function GetPlayerEntity() return { Status = status } end
 print = function(s) printed[#printed+1] = s end
 """
@@ -80,13 +84,62 @@ class AddonTests(unittest.TestCase):
         self.g.status, self.g.members = 1, 4
         self.frame()
         snap = self.last_snapshot()
-        self.assertEqual(snap, {"v": 1, "engaged": True, "cutscene": False, "members": 4, "alliance": False, "zone": 230})
+        self.assertEqual(snap, {"v": 1, "engaged": True, "cutscene": False, "members": 4, "alliance": False, "zone": 230,
+                                "fishing": False, "venture": False, "mog": False, "addon": "0.2.0"})
         self.g.members, self.g.status = 9, 4
         self.frame()
         snap = self.last_snapshot()
         self.assertTrue(snap["alliance"])
         self.assertTrue(snap["cutscene"])
         self.assertEqual(snap["members"], 9)
+
+    # (0.2.0, 2026-11-27, J's VanaSync updates) fishing, the Ventures window and the Mog House
+    def test_fishing_states(self):
+        for status, fishing in ((0, False), (38, True), (43, True), (50, True), (56, True), (62, True), (1, False),
+                                (33, False), (44, False), (63, False)):
+            self.g.status = status
+            self.frame()
+            self.assertEqual(self.last_snapshot()["fishing"], fishing, status)
+
+    def zone_in(self, state, zone=None):
+        if zone is not None:
+            self.g.zone = zone
+        data = bytearray(0x100)
+        data[0x80] = state
+        self.lua.eval("function(d) events['packet_in']({ id = 0x000A, data = d }) end")(bytes(data))
+        self.frame()
+        return self.last_snapshot()["mog"]
+
+    def test_mog_house_from_the_zone_in(self):
+        self.frame()
+        self.assertFalse(self.last_snapshot()["mog"])          # not known before a zone-in: false
+        self.assertTrue(self.zone_in(1, 241))                  # Windurst Woods, my room
+        self.assertTrue(self.zone_in(5, 241))                  # my room, after logging back in
+        self.assertFalse(self.zone_in(2, 241))                 # out in the town
+        self.assertTrue(self.zone_in(1, 50))                   # Aht Urhgan Whitegate
+        self.assertFalse(self.zone_in(1, 285))                 # the Feretory uses the state but is no Mog House
+        self.lua.eval("function() events['packet_in']({ id = 0x000A, data = 'short' }) end")()
+        self.frame()
+        self.assertFalse(self.last_snapshot()["mog"])
+
+    def test_ventures_window_mark(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.g.install = root + "/"
+            # the add-on builds a Windows path; on Linux the backslashes are part of one file name
+            mark = root + "/config\\addons\\xiforever\\Hurami_4242\\venture.open"
+            self.frame(seconds=1.1)
+            self.assertFalse(self.last_snapshot()["venture"])
+            with open(mark, "w") as handle:
+                handle.write("Ventures 1.1\n")
+            self.frame(seconds=1.1)
+            self.assertTrue(self.last_snapshot()["venture"])
+            os.remove(mark)
+            self.frame(seconds=0.3)
+            self.assertTrue(self.last_snapshot()["venture"])   # looked at once a second
+            self.frame(seconds=1.1)
+            self.assertFalse(self.last_snapshot()["venture"])
+            # (a mark another game left, with another process id, is ignored on Windows; this test system has no
+            # Windows process id, the same as for the Squads menu's own check)
 
     def test_nothing_injected_without_player(self):
         for _ in range(10):

@@ -1,6 +1,7 @@
 """Local VanaSync simulator host. Python standard library only."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -10,7 +11,6 @@ import tempfile
 import threading
 import socket
 import time
-import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,6 +18,18 @@ from urllib.parse import unquote
 
 APP = Path(__file__).resolve().parent / "app"
 PACK = APP.parent / "battle-pack"
+SHARED = APP.parent / "catalog.json"   # (2026-11-27) the numbered sets: gameplay soundtrack vs listening albums
+
+
+def _load_tags():
+    """tags.py beside this file (the launcher loads server.py by path, so a plain import would not find it)."""
+    spec = importlib.util.spec_from_file_location("vanasync_tags", APP.parent / "tags.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+tags = _load_tags()
 DEFAULT_DATA = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "VanaSync"
 FORMATS = {".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg",
            ".flac": "audio/flac", ".m4a": "audio/mp4", ".opus": "audio/ogg",
@@ -29,6 +41,57 @@ STATIC = {"/": ("index.html", "text/html; charset=utf-8"),
           "/style.css": ("style.css", "text/css; charset=utf-8")}
 ID = re.compile(r"[a-f0-9]{32}")
 MAX_IMPORT = 128 * 1024 * 1024
+META = "meta.json"          # (2026-11-27) beside an imported track: its tags and the player's corrections
+NOW_PLAYING = "NowPlaying.txt"
+TEXT_LIMIT = 200
+
+
+def clean_text(value):
+    """A tag or a correction: text without control characters, at most TEXT_LIMIT characters ("" for anything else)."""
+    if not isinstance(value, str):
+        return ""
+    return re.sub(r"[\x00-\x1f\x7f]", "", value).strip()[:TEXT_LIMIT]
+
+
+def write_atomic(path, text):
+    """UTF-8 text written to a temporary file in the same folder, then put in place in one step."""
+    handle, temporary = tempfile.mkstemp(prefix=".tmp-", dir=path.parent)
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as out:
+            out.write(text)
+        os.replace(temporary, path)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
+
+
+def load_shared():
+    """catalog.json: {track id: details} and the list of sets (without their tracks). Broken or missing: empty."""
+    try:
+        raw = json.loads(SHARED.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}, []
+    tracks, sets = {}, []
+    for entry in raw.get("sets") or []:
+        if not isinstance(entry, dict) or not re.fullmatch(r"[GA]\d{3}", str(entry.get("id", ""))):
+            continue
+        group = "album" if entry.get("group") == "album" else "gameplay"
+        sets.append({"id": entry["id"], "group": group, "name": clean_text(entry.get("name")) or entry["id"],
+                     "section": clean_text(entry.get("section")), "artist": clean_text(entry.get("artist"))})
+        for track in entry.get("tracks") or []:
+            if not isinstance(track, dict) or not ID.fullmatch(str(track.get("id", ""))):
+                continue
+            if track["id"] in tracks:       # one track, one set: the first one listed wins
+                continue
+            no = track.get("no")
+            tracks[track["id"]] = {"set": entry["id"], "group": group, "no": no if isinstance(no, int) else 0,
+                                   "title": clean_text(track.get("title")), "artist": clean_text(track.get("artist")),
+                                   "album": sets[-1]["name"] if group == "album" else "",
+                                   "role": clean_text(track.get("role")) or ("listening" if group == "album" else "")}
+    return tracks, sets
 
 
 def safe_entry(path, kind):
@@ -65,7 +128,13 @@ class Catalog:
             return {folder.name: path.name for folder in self.tracks.iterdir()
                     if (path := self.find(folder.name)) is not None}
 
-    def add(self, filename, size, reader, track_id=None):
+    def add(self, filename, size, reader, track_id=None, mp3_only=False):
+        """Copy one file into the catalog. track_id given: bundled. Otherwise (a player's import, 2026-11-27) the id
+        comes from the file's content, so importing the same song again finds the copy already there; mp3_only refuses
+        anything that is not really an MP3 (renamed files too), and the file's tags are kept beside it (meta.json).
+        Returns (id, tags or None, already_there)."""
+        if mp3_only and Path(filename).suffix.lower() != ".mp3":
+            raise ValueError("Only MP3 files can be added")
         if (not 0 < size <= MAX_IMPORT or len(filename) > 240
                 or re.search(r'[<>:"/\\|?*\x00-\x1f]', filename)
                 or filename.endswith((" ", "."))
@@ -73,10 +142,11 @@ class Catalog:
                                 filename.split(".")[0].rstrip())
                 or Path(filename).suffix.lower() not in FORMATS):
             raise ValueError("Unsupported filename, format or size")
-        track_id = track_id or uuid.uuid4().hex
+        bundled = track_id is not None
         with tempfile.TemporaryDirectory(prefix=".import-", dir=self.tracks) as temporary:
             stage = Path(temporary) / "ready"
             stage.mkdir()
+            digest = hashlib.sha256()
             with (stage / filename).open("xb") as output:
                 remaining = size
                 while remaining:
@@ -84,10 +154,81 @@ class Catalog:
                     if not chunk:
                         raise ValueError("Incomplete import")
                     output.write(chunk)
+                    digest.update(chunk)
                     remaining -= len(chunk)
+            found = None
+            if not bundled:
+                with (stage / filename).open("rb") as check:
+                    if mp3_only and not tags.is_mp3(check):
+                        raise ValueError("Not an MP3 file")
+                    if Path(filename).suffix.lower() == ".mp3":
+                        found = tags.read_tags(check)
+                track_id = digest.hexdigest()[:32]
+                record = {"origin": "import", "tags": found or {}, "edit": {}, "listening": False}
+                (stage / META).write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
             with self.lock:
+                if not bundled and self.find(track_id) is not None:
+                    return track_id, (self.meta(track_id).get("tags") or found), True
                 stage.rename(self.tracks / track_id)
-        return track_id
+        return track_id, found, False
+
+    def meta(self, track_id):
+        """meta.json of an imported track ({} for bundled tracks and anything unreadable)."""
+        if not ID.fullmatch(track_id):
+            return {}
+        path = self.tracks / track_id / META
+        if not safe_entry(path, stat.S_ISREG):
+            return {}
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return raw if isinstance(raw, dict) else {}
+
+    def set_meta(self, track_id, edit=None, listening=None):
+        """The player's own corrections (title, artist, album, track) and whether an import is listening music
+        (Radio may play it). Only for imports: the bundled tracks' credits come from catalog.json."""
+        with self.lock:
+            record = self.meta(track_id)
+            if record.get("origin") != "import" or self.find(track_id) is None:
+                raise ValueError("Not an imported track")
+            if edit is not None:
+                record["edit"] = {k: clean_text(edit.get(k)) for k in ("title", "artist", "album", "track")
+                                  if clean_text(edit.get(k))}
+            if listening is not None:
+                record["listening"] = listening is True
+            write_atomic(self.tracks / track_id / META, json.dumps(record, ensure_ascii=False))
+        return record
+
+    def remove(self, track_id):
+        """Take an import out of the catalog again (the "Cancel" of an import's credits check). Bundled tracks stay.
+        Only the catalog's own copy goes; the player's original file was never touched."""
+        with self.lock:
+            if self.meta(track_id).get("origin") != "import" or self.find(track_id) is None:
+                raise ValueError("Not an imported track")
+            folder = self.tracks / track_id
+            for entry in folder.iterdir():
+                entry.unlink()
+            folder.rmdir()
+
+    def library(self, shared):
+        """Every playable track with its credits: catalog.json first, then the player's corrections, then the file's
+        own tags, then the file name. Imports that nobody classified have no role (never in Radio)."""
+        out = {}
+        for track_id, filename in self.list().items():
+            known = shared.get(track_id)
+            if known:
+                out[track_id] = {**known, "file": filename, "origin": "bundled"}
+                continue
+            record = self.meta(track_id)
+            edit, found = record.get("edit") or {}, record.get("tags") or {}
+            pick = lambda key: clean_text(edit.get(key)) or clean_text(found.get(key))
+            out[track_id] = {"file": filename, "origin": "import", "set": "", "group": "",
+                             "no": 0, "title": pick("title"), "artist": pick("artist"), "album": pick("album"),
+                             "track": pick("track"), "tagged": {k: clean_text(found.get(k)) for k in
+                                                                ("title", "artist", "album", "track")},
+                             "role": "listening" if record.get("listening") is True else ""}
+        return out
 
     def seed_battle_pack(self):
         manifest_path = PACK.with_suffix(".json")
@@ -108,6 +249,8 @@ class Catalog:
             track_id = digest[:32]
             if filename != Path(filename).name or "/" in filename or "\\" in filename:
                 raise ValueError("Invalid bundled filename")
+            # (2026-11-27) an extra may name its slot too: fishing, venture, moghouse
+            slot = slot or (record.get("slot") if record.get("slot") in ("fishing", "venture", "moghouse") else None)
             if slot is not None:
                 defaults[slot] = track_id
             marker = self.root / (".seeded-" + track_id)
@@ -179,9 +322,13 @@ class GameBridge:
         if (not isinstance(members, int) or isinstance(members, bool)
                 or not isinstance(zone, int) or isinstance(zone, bool)):
             raise ValueError("bad snapshot")
+        # (2026-11-27) fishing: the character is fishing now; venture: the Ventures window is open; mog: inside a Mog
+        # House (the zone-in's Mog House state). Older add-ons do not send them: false.
         return {"engaged": raw.get("engaged") is True, "alliance": raw.get("alliance") is True,
                 "cutscene": raw.get("cutscene") is True,
-                "members": max(1, min(18, members)), "zone": max(0, min(9999, zone))}
+                "members": max(1, min(18, members)), "zone": max(0, min(9999, zone)),
+                "fishing": raw.get("fishing") is True, "venture": raw.get("venture") is True,
+                "mog": raw.get("mog") is True, "addon": clean_text(raw.get("addon"))[:16]}
 
     @staticmethod
     def asks_open(data):
@@ -256,6 +403,7 @@ class Server(ThreadingHTTPServer):
     def __init__(self, port, data, bundled=True, game_port=0):
         self.catalog = Catalog(data)
         self.game = GameBridge(game_port)
+        self.now_playing = Path(data) / NOW_PLAYING
         super().__init__(("127.0.0.1", port), Handler)
         self.origin = f"http://127.0.0.1:{self.server_port}"
         try:
@@ -331,7 +479,11 @@ class Handler(BaseHTTPRequestHandler):
             self.server.game.seen_page()
             return self.reply(200, self.server.game.snapshot())
         if path == "/api/bootstrap":
-            return self.reply(200, {"defaults": self.server.defaults, "tracks": self.server.catalog.list()})
+            return self.reply(200, {"defaults": self.server.defaults, "tracks": self.server.catalog.list(),
+                                    "nowPlayingFile": str(self.server.now_playing)})
+        if path == "/api/library":
+            shared, sets = load_shared()
+            return self.reply(200, {"sets": sets, "tracks": self.server.catalog.library(shared)})
         if path.startswith("/media/"):
             track = self.server.catalog.find(path.removeprefix("/media/"))
             if track:
@@ -383,6 +535,27 @@ class Handler(BaseHTTPRequestHandler):
                 body = json.loads(self.rfile.read(size) or b"{}")
                 self.server.game.set_owner(isinstance(body, dict) and body.get("own") is True)
                 return self.reply(200, {"ok": True})
+            if self.path in ("/api/meta", "/api/nowplaying", "/api/remove"):
+                size = int(self.headers.get("Content-Length", "") or 0)
+                if size > 4096:
+                    return self.reply(413, {"error": "Too large"})
+                body = json.loads(self.rfile.read(size) or b"{}")
+                if not isinstance(body, dict):
+                    raise ValueError("bad body")
+                if self.path == "/api/remove":
+                    self.server.catalog.remove(str(body.get("id", "")))
+                    return self.reply(200, {"ok": True})
+                if self.path == "/api/meta":
+                    track_id = str(body.get("id", ""))
+                    edit = body.get("edit") if isinstance(body.get("edit"), dict) else None
+                    listening = body.get("listening") if isinstance(body.get("listening"), bool) else None
+                    self.server.catalog.set_meta(track_id, edit, listening)
+                    return self.reply(200, {"ok": True})
+                # Now Playing text for streaming software: "Title — Artist", "(Paused) ...", or empty when stopped
+                if body.get("enabled") is True:
+                    text = clean_text(body.get("text"))
+                    write_atomic(self.server.now_playing, text + ("\n" if text else ""))
+                return self.reply(200, {"ok": True, "file": str(self.server.now_playing)})
             if self.path != "/api/tracks":
                 return self.reply(404, {"error": "Not found"})
             if (self.headers.get("Transfer-Encoding")
@@ -390,11 +563,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(415, {"error": "Unsupported upload encoding"})
             filename = unquote(self.headers.get("X-Filename", ""), errors="strict")
             size = int(self.headers.get("Content-Length", "") or 0)
-            track_id = self.server.catalog.add(filename, size, self.rfile)
-            self.reply(201, {"id": track_id, "filename": filename})
+            track_id, found, existed = self.server.catalog.add(filename, size, self.rfile, mp3_only=True)
+            self.reply(201, {"id": track_id, "filename": self.server.catalog.list().get(track_id, filename),
+                             "tags": found or {}, "existed": existed})
         except (TimeoutError, ConnectionError):
             return
-        except ValueError:
+        except ValueError as error:
+            message = str(error)
+            if message in ("Only MP3 files can be added", "Not an MP3 file", "Not an imported track"):
+                return self.reply(400, {"error": message})
             self.reply(400, {"error": "Unsupported filename, format, size or incomplete upload"})
         except OSError:
             self.reply(503, {"error": "Could not write to the local catalog"})

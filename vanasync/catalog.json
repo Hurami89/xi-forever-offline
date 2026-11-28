@@ -1,0 +1,37 @@
+{
+  "_about": "VanaSync's shared catalog (2026-11-27, J's Radio handoff). Every bundled track belongs to one numbered set. group: gameplay (Battle Themes, activities, zone music: never in Radio) or album (artist and community albums: Radio may shuffle them). role says what a gameplay track is for. id: the first 32 hex digits of the file's sha256, as battle-pack.json seeds it. title/artist here are the approved credit and win over the file's own tags. New sets: add them here (and their files to battle-pack.json); the player lists them without any change to its code.",
+  "version": 1,
+  "sets": [
+    {
+      "id": "G001", "group": "gameplay", "section": "battle", "name": "Battle Themes",
+      "tracks": [
+        {"no": 1, "id": "78d5829eb5edc85aaea418f897e9e4bc", "title": "Against the Odds (Solo Battle Theme)", "artist": "jnull", "role": "battle-solo"},
+        {"no": 2, "id": "371d6059e3fd4ac4601d02feede4d9c2", "title": "Beyond the Veil (Party Battle Theme)", "artist": "jnull", "role": "battle-party"},
+        {"no": 3, "id": "2b914a51e1d9fdf0cc804fe65ac950c7", "title": "The March of Many (Alliance Battle Theme)", "artist": "jnull", "role": "battle-alliance"},
+        {"no": 4, "id": "9c66b7937662c2ab3decdd756805756d", "title": "Choose to Fight (Special Battle Theme XIFO Exclusive)", "artist": "jnull", "role": "battle-special"}
+      ]
+    },
+    {
+      "id": "G002", "group": "gameplay", "section": "activity", "name": "Fishing",
+      "tracks": [
+        {"no": 1, "id": "637919e33cab000692ebb548c65e41d2", "title": "Just One More Cast", "artist": "jnull", "role": "fishing"}
+      ]
+    },
+    {
+      "id": "G003", "group": "gameplay", "section": "activity", "name": "Ventures",
+      "tracks": [
+        {"no": 1, "id": "8996907e7d6ce42800f52a109524551c", "title": "Beyond the Next Hill", "artist": "jnull", "role": "venture"}
+      ]
+    },
+    {
+      "id": "G004", "group": "gameplay", "section": "zone", "name": "Mog Houses",
+      "tracks": [
+        {"no": 1, "id": "f98c00e87087de1a538dab2f68df7044", "title": "A Place to Call Home (Mog House Theme)", "artist": "jnull", "role": "zone-moghouse"}
+      ]
+    },
+    {
+      "id": "A001", "group": "album", "name": "Resonance of Vana'diel", "artist": "JØ × NOX",
+      "tracks": []
+    }
+  ]
+}

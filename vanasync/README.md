@@ -1,4 +1,41 @@
-# VanaSync 0.1.0 · Battle Resonance
+# VanaSync 0.2.0
+
+## Quick guide (0.2.0)
+
+In XI: Forever Offline the player opens by itself while the `vanasync` add-on is on (OPTIONS > Addons) and the
+world runs. It starts in **Game Sync**.
+
+- **Listen to** picks what plays:
+  - **Game Sync**: the game decides. Battles play the VanaSync battle themes (or the game's own; Battle music),
+    fishing plays *Just One More Cast*, the Ventures window plays *Beyond the Next Hill*, a Mog House plays *A Place
+    to Call Home*, and everywhere else the game's own music plays.
+  - **Playlist**: an album or one of your playlists, in order.
+  - **Radio**: a shuffle of the albums you tick.
+  - **Fishing** / **Venture**: that tune, until you choose something else.
+  - **Return to Game Sync** (under the title) goes back to the game's choice.
+- **Playlists**: Playlist > New playlist, type a name, add tracks from the list or **Import songs** (MP3 only; they are
+  copied into VanaSync on this PC and never uploaded). Arrows reorder, Remove takes a track out. Playlists save by
+  themselves on this PC ("Saved on this PC"). Delete playlist removes only the list (Undo for a few seconds); the songs
+  stay in the library. **Switch to battle music during combat**: on, a fight plays battle music and the playlist goes
+  on where it stopped; off, the playlist plays through fights.
+- **Radio**: tick albums; Play, Next, Pause. Your own imports can join Radio: Music library > My imports > tick
+  "Listening music" and Save credits; then tick "My listening music".
+- **Mog House music**: Music library > Zone Music. "All Mog Houses" and one choice per house: a track, the game's own
+  music, or the same as All Mog Houses.
+- **Help**: every "?" explains its control (point at it, Tab to it, or tap it).
+- **Streaming**: More settings > Now Playing file. In OBS add a Text source, tick "Read from file" and pick
+  `%LOCALAPPDATA%\VanaSync\NowPlaying.txt`. It shows "Title — Artist" and changes with the music.
+- **Game music only** (More settings, or F8): stops VanaSync's music at once and gives the music back to the game.
+  Start music returns to your choice.
+
+### Sending music for the shared catalog
+
+Please submit MP3 files only. Before submitting, fill in the MP3's Title and Artist tags. Use your name, artist name,
+or group name in Artist so VanaSync can credit you. Add Album and Track number when submitting an album. A free tag
+editor works (for example Mp3tag: open the file, fill Title, Artist, Album and Track, save). The file name alone is
+not a tag. VanaSync shows the credits it read before a song is kept.
+
+# VanaSync 0.1.0 · Battle Resonance (the first prototype)
 
 **Player README** · JØ × NOX · XI Forever Offline prototype  
 *Attune yourself to the world.*

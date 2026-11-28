@@ -8,7 +8,26 @@ from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from server import Catalog, GameBridge, MAX_IMPORT, PACK
+from server import Catalog, GameBridge, MAX_IMPORT, PACK, load_shared, tags
+
+# (2026-11-27) the smallest thing that is really an MP3: one MPEG-1 Layer III frame header (128 kbit/s, 44.1 kHz)
+MP3 = b"\xff\xfb\x90\x64" + bytes(412)
+
+
+def id3(title=None, artist=None, album=None, track=None, version=3):
+    """An ID3v2.3/2.4 tag with UTF-8 / UTF-16 text frames, in front of MP3."""
+    frames = b""
+    for name, value in (("TIT2", title), ("TPE1", artist), ("TALB", album), ("TRCK", track)):
+        if value is None:
+            continue
+        body = (b"\x03" + value.encode("utf-8")) if version == 4 else (b"\x01" + value.encode("utf-16"))
+        size = len(body)
+        size_bytes = (bytes([(size >> 21) & 127, (size >> 14) & 127, (size >> 7) & 127, size & 127])
+                      if version == 4 else size.to_bytes(4, "big"))
+        frames += name.encode() + size_bytes + b"\x00\x00" + body
+    n = len(frames)
+    return (b"ID3" + bytes([version, 0, 0]) + bytes([(n >> 21) & 127, (n >> 14) & 127, (n >> 7) & 127, n & 127])
+            + frames + MP3)
 
 
 class GameBridgeOpenTest(unittest.TestCase):
@@ -43,7 +62,7 @@ class CatalogTest(unittest.TestCase):
         self.catalog = Catalog(Path(self.data.name))
 
     def test_identity_survives_rename_and_ambiguous_entries_fail_closed(self):
-        track_id = self.catalog.add("戦闘・A.Final.MP3", 3, io.BytesIO(b"abc"))
+        track_id, _, _ = self.catalog.add("戦闘・A.Final.MP3", 3, io.BytesIO(b"abc"))
         track = self.catalog.find(track_id)
         track.rename(track.with_name("戦闘・新名.MP3"))
         self.assertEqual(self.catalog.list(), {track_id: "戦闘・新名.MP3"})
@@ -63,7 +82,7 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual(list(self.catalog.tracks.iterdir()), [])
 
     def test_hardlinked_track_is_not_served(self):
-        track_id = self.catalog.add("track.mp3", 1, io.BytesIO(b"x"))
+        track_id, _, _ = self.catalog.add("track.mp3", 1, io.BytesIO(b"x"))
         target = self.catalog.find(track_id)
         link = Path(self.data.name) / "elsewhere.mp3"
         link.hardlink_to(target)
@@ -72,13 +91,16 @@ class CatalogTest(unittest.TestCase):
     @unittest.skipUnless(PACK.is_dir(), "Source-only build")
     def test_bundled_tracks_seed_once_under_stable_ids(self):
         defaults = self.catalog.seed_battle_pack()
-        self.assertEqual(set(defaults), {"solo", "party", "alliance"})
+        self.assertEqual(set(defaults), {"solo", "party", "alliance", "fishing", "venture", "moghouse"})
         # (2026-11-26) the extras (Choose to Fight, J's in-game fishing and Ventures tunes) are in the catalog too, under no slot
         listed = self.catalog.list()
         self.assertTrue(set(defaults.values()) <= set(listed))
         extra = sorted(name for track, name in listed.items() if track not in defaults.values())
-        self.assertEqual(extra, ["Beyond the Next Hill.mp3", "Choose to Fight (Special Battle Theme XIFO Exclusive).mp3",
-                                 "Just One More Cast.mp3"])
+        self.assertEqual(extra, ["Choose to Fight (Special Battle Theme XIFO Exclusive).mp3"])
+        # (2026-11-27) J's activity and Mog House tunes have slots of their own
+        self.assertEqual(listed[defaults["fishing"]], "Just One More Cast.mp3")
+        self.assertEqual(listed[defaults["venture"]], "Beyond the Next Hill.mp3")
+        self.assertEqual(listed[defaults["moghouse"]], "A Place to Call Home (Mog House Theme).mp3")
         original = self.catalog.find(defaults["solo"])
         original.rename(original.with_name("My Solo.mp3"))
         self.assertEqual(self.catalog.seed_battle_pack(), defaults)
@@ -126,21 +148,101 @@ class HTTPTest(unittest.TestCase):
         self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
         self.assertEqual(headers["Cache-Control"], "no-store")
 
-    def test_unicode_upload_and_media_range_requests(self):
+    def upload(self, name, payload):
         import json
-        name = "出陣・Battle.Mix.MP3"
         headers = {"Origin": self.origin, "X-VanaSync": "1", "X-Filename": quote(name),
                    "Content-Type": "application/octet-stream"}
-        status, _, body = self.request("/api/tracks", "POST", headers, b"123456")
+        status, _, body = self.request("/api/tracks", "POST", headers, payload)
+        return status, json.loads(body)
+
+    def post(self, path, record):
+        import json
+        headers = {"Origin": self.origin, "X-VanaSync": "1", "Content-Type": "application/json"}
+        status, _, body = self.request(path, "POST", headers, json.dumps(record).encode())
+        return status, json.loads(body)
+
+    def test_unicode_upload_and_media_range_requests(self):
+        name = "出陣・Battle.Mix.MP3"
+        payload = MP3[:4] + b"123456"
+        status, record = self.upload(name, payload)
         self.assertEqual(status, 201)
-        record = json.loads(body)
         self.assertEqual(record["filename"], name)
         path = "/media/" + record["id"]
         self.assertEqual(self.request(path, "HEAD")[2], b"")
-        status, headers, body = self.request(path, headers={"Range": "bytes=2-3"})
-        self.assertEqual((status, headers["Content-Range"], body), (206, "bytes 2-3/6", b"34"))
+        status, headers, body = self.request(path, headers={"Range": "bytes=6-7"})
+        self.assertEqual((status, headers["Content-Range"], body), (206, "bytes 6-7/10", b"34"))
         self.assertEqual(self.request(path, headers={"Range": "bytes=-2"})[2], b"56")
-        self.assertEqual(self.request(path, headers={"Range": "bytes=8-"})[0], 416)
+        self.assertEqual(self.request(path, headers={"Range": "bytes=12-"})[0], 416)
+
+    def test_only_real_mp3s_are_imported(self):
+        # (2026-11-27, J's Radio handoff) new imports: MP3 only, checked by content, with a clear answer
+        for name, payload, message in (("song.wav", b"RIFF....WAVE", "Only MP3 files can be added"),
+                                       ("renamed.mp3", b"RIFF....WAVEfmt " + bytes(64), "Not an MP3 file"),
+                                       ("text.mp3", b"invalid audio test bytes", "Not an MP3 file")):
+            status, record = self.upload(name, payload)
+            self.assertEqual((status, record["error"]), (400, message), name)
+
+    def test_tags_are_read_kept_and_corrected_and_the_same_song_is_one_track(self):
+        import json
+        song = id3("Sky\u2019s Edge (Live)", "Nox & JØ", "First Light", "3/11")
+        status, record = self.upload("sky (1).mp3", song)
+        self.assertEqual(status, 201)
+        self.assertEqual(record["tags"], {"title": "Sky\u2019s Edge (Live)", "artist": "Nox & JØ",
+                                          "album": "First Light", "track": "3/11"})
+        self.assertFalse(record["existed"])
+        again = self.upload("sky copy.mp3", song)[1]
+        self.assertEqual((again["id"], again["existed"]), (record["id"], True))
+        library = json.loads(self.request("/api/library")[2])
+        entry = library["tracks"][record["id"]]
+        self.assertEqual((entry["origin"], entry["title"], entry["artist"], entry["role"]),
+                         ("import", "Sky\u2019s Edge (Live)", "Nox & JØ", ""))
+        status, _ = self.post("/api/meta", {"id": record["id"], "edit": {"artist": "NOX"}, "listening": True})
+        self.assertEqual(status, 200)
+        entry = json.loads(self.request("/api/library")[2])["tracks"][record["id"]]
+        self.assertEqual((entry["title"], entry["artist"], entry["role"], entry["tagged"]["artist"]),
+                         ("Sky\u2019s Edge (Live)", "NOX", "listening", "Nox & JØ"))
+        # no tags at all: nothing is made up
+        bare = self.upload("bare.mp3", MP3 + b"bare")[1]
+        entry = json.loads(self.request("/api/library")[2])["tracks"][bare["id"]]
+        self.assertEqual((entry["title"], entry["artist"]), ("", ""))
+        self.assertEqual(self.post("/api/meta", {"id": "0" * 32, "listening": True})[0], 400)
+
+    def test_now_playing_file(self):
+        status, record = self.post("/api/nowplaying", {"enabled": True, "text": "A Place \u2014 jnull\n\x07"})
+        self.assertEqual(status, 200)
+        self.assertEqual(Path(record["file"]).read_text(encoding="utf-8"), "A Place \u2014 jnull\n")
+        self.post("/api/nowplaying", {"enabled": True, "text": ""})
+        self.assertEqual(Path(record["file"]).read_text(encoding="utf-8"), "")
+
+
+class TagTest(unittest.TestCase):
+    def test_versions_and_fallbacks(self):
+        self.assertEqual(tags.read_tags(io.BytesIO(id3("T", "A", version=4))),
+                         {"title": "T", "artist": "A", "album": "", "track": ""})
+        v1 = MP3 + b"TAG" + b"Old Song".ljust(30, b"\0") + b"Someone".ljust(30, b"\0") + bytes(30 + 4 + 28) + b"\0\x07\0"
+        self.assertEqual(tags.read_tags(io.BytesIO(v1)),
+                         {"title": "Old Song", "artist": "Someone", "album": "", "track": "7"})
+        self.assertTrue(tags.is_mp3(io.BytesIO(id3("T"))))
+        self.assertFalse(tags.is_mp3(io.BytesIO(b"ID3\x03\0\0\0\0\0\x10" + bytes(16))))   # a tag and nothing after it
+
+    @unittest.skipUnless(PACK.is_dir(), "Source-only build")
+    def test_bundled_files_are_mp3s(self):
+        for path in PACK.glob("*.mp3"):
+            with path.open("rb") as handle:
+                self.assertTrue(tags.is_mp3(handle), path.name)
+
+
+class SharedCatalogTest(unittest.TestCase):
+    def test_every_bundled_track_has_one_numbered_set(self):
+        import json
+        shared, sets = load_shared()
+        manifest = json.loads(PACK.with_suffix(".json").read_text(encoding="utf-8"))
+        bundled = [manifest[s]["sha256"][:32] for s in ("solo", "party", "alliance")] + \
+                  [e["sha256"][:32] for e in manifest["extras"]]
+        self.assertEqual(sorted(bundled), sorted(shared))
+        self.assertEqual([s["id"] for s in sets], ["G001", "G002", "G003", "G004", "A001"])
+        self.assertTrue(all(t["group"] == "gameplay" and t["role"] for t in shared.values()))
+        self.assertTrue(all(t["no"] >= 1 and t["title"] and t["artist"] for t in shared.values()))
 
 
 if __name__ == "__main__":

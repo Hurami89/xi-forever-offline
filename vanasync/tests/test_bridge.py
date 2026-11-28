@@ -26,7 +26,12 @@ def free_udp_port():
 class ParseTest(unittest.TestCase):
     def test_valid_and_clamped(self):
         state = server.GameBridge.parse(json.dumps({**SNAP, "members": 40}).encode())
-        self.assertEqual(state, {"engaged": True, "alliance": False, "cutscene": False, "members": 18, "zone": 230})
+        self.assertEqual(state, {"engaged": True, "alliance": False, "cutscene": False, "members": 18, "zone": 230,
+                                 "fishing": False, "venture": False, "mog": False, "addon": ""})
+        # (2026-11-27) fishing, the Ventures window and the Mog House come from add-on 0.2.0
+        state = server.GameBridge.parse(json.dumps({**SNAP, "fishing": True, "venture": True, "mog": True,
+                                                    "addon": "0.2.0"}).encode())
+        self.assertEqual((state["fishing"], state["venture"], state["mog"], state["addon"]), (True, True, True, "0.2.0"))
 
     def test_rejects_bad_snapshots(self):
         for bad in (b"nope", b"[]", json.dumps({**SNAP, "v": 2}).encode(),

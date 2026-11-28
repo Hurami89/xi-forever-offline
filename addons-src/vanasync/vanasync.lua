@@ -9,6 +9,14 @@
     player stops answering, crashes or closes, the game's music comes straight
     back.
 
+    (0.2.0, 2026-11-27, J's VanaSync updates) Three more things go with each snapshot, for VanaSync's Fishing,
+    Venture and Mog House music:
+      fishing  the character is fishing (its status is one of the game's fishing states; a short gap between casts
+               is the player's business: it keeps the music going for a while)
+      venture  the Ventures window is open (the venture add-on's venture.open mark for this character and this game)
+      mog      inside a Mog House: the zone-in packet (0x00A) says so (its login state is "my room"). It is known from
+               the next zone-in after this add-on loads; loading the add-on inside a Mog House shows false until then.
+
     Off by default: switch it on at OPTIONS > Addons. While it is on and the
     world runs, the launcher starts the VanaSync player window
     (launcher_vanasync.py); the add-on only talks to it over loopback UDP.
@@ -20,7 +28,7 @@
 
 addon.name    = 'vanasync'
 addon.author  = 'XI: Forever Offline (VanaSync by JØ × NOX)'
-addon.version = '0.1.2'
+addon.version = '0.2.0'
 addon.desc    = 'Plays VanaSync battle music and hands the game music back when it stops.'
 addon.link    = 'https://xiforever.com'
 
@@ -86,6 +94,52 @@ local function give_back(time)
     end
 end
 
+-- (0.2.0) the game's fishing states (entity status): casting and waiting, a fish on the line, caught, rod or line
+-- broken, a monster, stopped; the older ones (38-43) and the newer ones (56-62). Checked against the server's
+-- fishing code; to be seen in the real game.
+local FISHING = {}
+for _, s in ipairs({ 38, 39, 40, 41, 42, 43, 50, 56, 57, 58, 59, 60, 61, 62 }) do FISHING[s] = true end
+local FERETORY = 285            -- uses the Mog House state too, but it is not a Mog House
+local mog = false               -- (0.2.0) set from each zone-in packet
+local venture_open, venture_checked = false, -10
+
+-- (0.2.0) the Ventures window: the venture add-on keeps config\addons\xiforever\<Name>_<ServerId>\venture.open while
+-- its window is shown, with this game's process id (as the Squads menu reads it). A file another game left: ignored.
+local pid = nil
+local function process_id()
+    if pid == nil then
+        pid = false
+        local ok, ffi = pcall(require, 'ffi')
+        if ok and type(ffi) == 'table' then
+            pcall(ffi.cdef, 'unsigned long GetCurrentProcessId(void);')
+            local got, value = pcall(function() return tonumber(ffi.C.GetCurrentProcessId()) end)
+            if got and value and value > 0 then pid = value end
+        end
+    end
+    return pid or nil
+end
+
+local function venture_window_open()
+    local ok, path = pcall(function()
+        local party = AshitaCore:GetMemoryManager():GetParty()
+        local name, id = party:GetMemberName(0), tonumber(party:GetMemberServerId(0)) or 0
+        name = tostring(name or ''):gsub('%z', ''):match('^%s*(.-)%s*$') or ''
+        if name == '' or id <= 0 then return nil end
+        local base = AshitaCore:GetInstallPath()
+        if type(base) ~= 'string' or base == '' then return nil end
+        if not base:match('[\\/]$') then base = base .. '\\' end
+        return base .. 'config\\addons\\xiforever\\' .. (name:gsub('[^%w_]', '_')) .. '_' .. string.format('%d', id)
+            .. '\\venture.open'
+    end)
+    if not ok or not path then return false end
+    local f = io.open(path, 'r')
+    if not f then return false end
+    local text = f:read('*a') or ''
+    f:close()
+    local theirs, mine = tonumber(text:match('pid=(%d+)')), process_id()
+    return theirs == nil or mine == nil or theirs == mine
+end
+
 local function snapshot()
     local mm = AshitaCore:GetMemoryManager()
     local party = mm:GetParty()
@@ -98,19 +152,25 @@ local function snapshot()
     end
     local player = GetPlayerEntity()
     local status = player and player.Status or 0
+    local zone = party:GetMemberZone(0) or 0
     return {
         v = 1,
         engaged = status == 1,
         cutscene = status == 4,
         members = math.max(1, members),
         alliance = alliance,
-        zone = party:GetMemberZone(0) or 0,
+        zone = zone,
+        fishing = FISHING[status] == true,
+        venture = venture_open,
+        mog = mog and zone ~= FERETORY,
     }
 end
 
 local function encode(t, open)
-    return ('{"v":1,"engaged":%s,"cutscene":%s,"members":%d,"alliance":%s,"zone":%d%s}'):format(
+    return ('{"v":1,"engaged":%s,"cutscene":%s,"members":%d,"alliance":%s,"zone":%d,"fishing":%s,"venture":%s,'
+        .. '"mog":%s,"addon":"%s"%s}'):format(
         tostring(t.engaged), tostring(t.cutscene), t.members, tostring(t.alliance), t.zone,
+        tostring(t.fishing == true), tostring(t.venture == true), tostring(t.mog == true), addon.version,
         open and ',"open":true' or '')
 end
 
@@ -135,6 +195,12 @@ ashita.events.register('d3d_present', 'vanasync_tick', function()
         if not data then break end
         last_reply = now
         own = data:find('"own":%s*true') ~= nil
+    end
+
+    if now - venture_checked >= 1.0 then
+        venture_checked = now
+        local ok, open = pcall(venture_window_open)
+        venture_open = ok and open == true
     end
 
     if now - last_send >= SEND_EVERY then
@@ -168,8 +234,16 @@ ashita.events.register('d3d_present', 'vanasync_tick', function()
 end)
 
 -- After zoning the client restarts its music; ask again for the level we want.
+-- (0.2.0) and its login state says whether this zone-in is into a Mog House (byte 0x80: 1 "my room", 5 "my room after
+-- leaving the game"; 2 is the open world). Upstairs, visiting and every town's Mog House come the same way.
 ashita.events.register('packet_in', 'vanasync_zone', function(e)
-    if e.id == 0x000A then volume = nil; gave_at = nil end
+    if e.id == 0x000A then
+        volume = nil; gave_at = nil
+        local data = e.data
+        local state = type(data) == 'string' and #data > 0x80 and data:byte(0x80 + 1) or nil
+        mog = state == 1 or state == 5
+        if settings.debug then msg(('zone-in: Mog House %s'):format(mog and 'yes' or 'no')) end
+    end
 end)
 
 ashita.events.register('command', 'vanasync_command', function(e)
@@ -201,7 +275,11 @@ ashita.events.register('command', 'vanasync_command', function(e)
         msg('Debug ' .. (settings.debug and 'on' or 'off') .. '.')
     else
         local connected = socket.gettime() - last_reply < OWNER_TIMEOUT
-        msg(('Player %s; %s.'):format(connected and 'connected' or 'not connected',
-            own and 'VanaSync is playing (game music faded)' or 'game music playing'))
+        local ok, state = pcall(snapshot)
+        local where = ok and ((state.mog and 'in a Mog House') or (state.fishing and 'fishing')
+            or (state.venture and 'Ventures window open') or nil)
+        msg(('Player %s; %s%s.'):format(connected and 'connected' or 'not connected',
+            own and 'VanaSync is playing (game music faded)' or 'game music playing',
+            where and ('; ' .. where) or ''))
     end
 end)
