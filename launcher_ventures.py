@@ -43,6 +43,7 @@ import launcher_armory as A
 HERE = os.path.dirname(os.path.abspath(__file__))
 SENDER = "Venture"
 ROSTER_EVERY = 600                 # the squads to the hub
+CARDS_EVERY = 300                  # (2026-11-27) your characters' cards to the paired app while you play (gear, rods, bait)
 LOCAL_ROSTER_EVERY = 60            # the squads to this launcher's own planner
 LOOK_EVERY = 30                    # who is away, what came home
 WATCH_EVERY = 10                   # the same while the in-game window is showing
@@ -359,8 +360,12 @@ class Relay:
     """While the game runs: who is away, what came home, and what the in-game window asks for. One thread.
     Two planners can be at work: the hub (when an app is paired) and this launcher's own."""
 
-    def __init__(self, cfg, kit=HERE, log=None, caller=None, connector=None, clock=time.time, engine="auto", ui="auto"):
+    def __init__(self, cfg, kit=HERE, log=None, caller=None, connector=None, clock=time.time, engine="auto", ui="auto",
+                 cards=None):
         self.cfg, self.kit = cfg, kit
+        # the cards refresh (launcher_armory.sync for the phone); off in tests that bring their own hub
+        self.cards = cards if cards is not None else (None if caller is not None else (lambda: A.sync(cfg, kit, for_phone=True)))
+        self.cards_at = clock()            # (PLAY has just sent them)
         self.log = log or (lambda text: None)
         self.call = caller or (lambda path, body=None: A.call(A.load(kit), path, body, timeout=10))
         self.connect = connector or (lambda: A.connect(cfg))
@@ -443,6 +448,12 @@ class Relay:
                 self.local_roster_at = now
             except Exception as e:
                 self.trouble(f"Ventures: could not read the squads ({e}).")
+        if self.cards is not None and self.paired() and now - self.cards_at > CARDS_EVERY:
+            self.cards_at = now
+            try:
+                self.cards()
+            except Exception as e:
+                self.trouble(f"Phone cards: not updated ({e}).")
         if self.paired() and (now - self.roster_at > ROSTER_EVERY or (force and hub and now - self.roster_at > 60)):
             try:
                 out = self._hub("/armory/api/ventures/roster", body or self._roster())

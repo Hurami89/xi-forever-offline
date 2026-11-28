@@ -425,8 +425,12 @@ def _quests_done(blob):
 
 
 # ----------------------------------------------------------------------------------------------- sync / pair
-def sync(cfg, kit=HERE, log=print, names=None):
-    """Send the cards. Returns {name: result}."""
+def sync(cfg, kit=HERE, log=print, names=None, for_phone=False):
+    """Send the cards. Returns {name: result}.
+    for_phone (2026-11-27, Hurami: the app's fishing showed the rod and bait of an old session): a refresh for the paired
+    XIFO app while you play, made whether or not the character pages switch is on. It never makes a page public: a
+    character the pages never showed goes up hidden (the phone sees its own cards whatever they show), and the others
+    keep what they show now."""
     data = load(kit)
     conn = connect(cfg)
     try:
@@ -446,7 +450,11 @@ def sync(cfg, kit=HERE, log=print, names=None):
     if not cards:
         log("No characters to sync.")
         return {}
-    vis = {c["name"]: data["visibility"].get(c["name"], "public") for c in cards}
+    if for_phone and not data.get("sync"):
+        vis = {c["name"]: data["visibility"][c["name"]] for c in cards if c["name"] in data["visibility"]}
+        vis.update({c["name"]: "hidden" for c in cards if c["name"] not in vis and c["name"] not in data.get("links", {})})
+    else:
+        vis = {c["name"]: data["visibility"].get(c["name"], "public") for c in cards}
     out = call(data, "/armory/api/sync", {"cards": cards, "visibility": vis})
     if out.get("error"):
         raise RuntimeError(out["error"])
@@ -455,6 +463,8 @@ def sync(cfg, kit=HERE, log=print, names=None):
     data["synced"] = int(time.time())
     save(data, kit)
     results = out.get("results") or {}
+    if for_phone:
+        return results                       # (quietly: the phone's cards, not the pages; deleted characters wait for a full sync)
     for name, res in results.items():
         log(f"{name}: " + ("on your character page" if res == "ok" else res))
     # (2026-11-25, the user: deleted characters stayed on the armory) a full sync takes down the cards of characters
@@ -648,6 +658,10 @@ def _main(argv):
             n = fish(cfg)
             if n:
                 print(f"phone fishing: {n} trip(s) taken in")
+            try:                              # (the app's cards as they are now: gear, rods, bait, skill)
+                sync(cfg, for_phone=True)
+            except (OSError, RuntimeError, urllib.error.URLError, ValueError) as e:
+                print(f"phone cards: not updated ({e})", file=sys.stderr)
         elif what == "pair":
             print(pair())
         elif what == "unpair":
