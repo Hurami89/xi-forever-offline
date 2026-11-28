@@ -73,6 +73,55 @@ def server_paths(server):
     return os.path.join(lua, "bots_chat_in.txt"), os.path.join(lua, "bots_chat_out.txt"), os.path.join(lua, "bots_chat_state.json")
 
 
+# (2026-11-27) romance: the server writes what each bot feels for a player it is being courted by
+# (modules/custom/lua/romance_bots.txt, written by modules/wedding/lua/wedding_romance.lua): one tab-separated row per
+# bot and player: bot, stage (0-5), nature, loves, dates, moments, player.
+ROMANCE_STAGES = {
+    1: "In the game you and {to} have become friends.",
+    2: "In the game you and {to} are close friends, and your character is starting to have a crush on theirs.",
+    3: "In the game your character and {to}'s are dating (an in-game romance, the way real players roleplay in FFXI): you are sweet on them, flirt a little, look forward to your next date.",
+    4: "In the game your character and {to}'s are engaged to be married at a palace wedding; you are excited about it.",
+    5: "In the game your character and {to}'s are married; you are affectionate and call them dear or love sometimes.",
+}
+ROMANCE_NATURES = {
+    "quick": "You fall for people easily and say so.",
+    "slow": "You are shy about feelings and show them in small ways.",
+    "never": "You are not into romance with anyone; {to} is a dear friend, and if they flirt you stay kind and keep it friendly.",
+}
+
+
+def romance_text(server, bot, to):
+    path = os.path.join(server or "", "modules", "custom", "lua", "romance_bots.txt")
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            rows = [line.rstrip("\n").split("\t") for line in f if line.strip() and not line.startswith("#")]
+    except OSError:
+        return ""
+    for row in rows:
+        if len(row) >= 7 and row[0] == bot and row[6] == to:
+            try:
+                stage = int(row[1])
+            except ValueError:
+                stage = 0
+            nature = row[2]
+            if nature == "never":
+                stage = min(stage, 1)
+            if stage <= 0:
+                return ""
+            bits = [ROMANCE_STAGES.get(stage, ROMANCE_STAGES[1]).format(to=to)]
+            if nature in ROMANCE_NATURES:
+                bits.append(ROMANCE_NATURES[nature].format(to=to))
+            if row[3]:
+                bits.append(f"Gifts you love: {row[3]}.")
+            if row[4] and row[4] != "0":
+                bits.append(f"Dates together so far: {row[4]}.")
+            if row[5]:
+                bits.append(f"Recent moments between you: {row[5]}.")
+            bits.append("Keep it sweet and wholesome, the way FFXI is (rated Teen): never sexual, explicit or suggestive, never possessive.")
+            return " ".join(bits) + "\n"
+    return ""
+
+
 # The dialogue packs (C:\FFXISOLO\dialogue\dialogue_lines.json, built by dialogue/build_dialogue.py): each bot's
 # personality (the same one its written lines use in game) and a few lines in its voice, as examples of the feel.
 DIALOGUE_FILE = os.path.join(KIT, "dialogue", "dialogue_lines.json")
@@ -345,6 +394,9 @@ def sum_up(cfg, bot, to, mem):
         log(f"{bot} now thinks of {to}: {text}")
 
 
+SERVER_DIR = None   # (set by serve: where romance_bots.txt is)
+
+
 def answer_lines(cfg, req, stub=False):
     bot, to, text, info = req.get("bot", "?"), req.get("to", "?"), req.get("text", ""), req.get("info") or {}
     mem = load_memory(bot)
@@ -370,6 +422,7 @@ def answer_lines(cfg, req, stub=False):
     about_text = f"What you know about {to}: {about}\n" if about else f"You do not know {to} well yet.\n"
     gossip = as_list(info.get("gossip"))[:3]
     world_text = ("Talk around the server lately (other players): " + "; ".join(gossip) + ".\n") if gossip else ""
+    world_text += romance_text(SERVER_DIR, bot, to)
     examples = examples_for(text, req.get("kind"), persona)
     if examples:
         world_text += ("How you and the people around you type (only the feel, never copy these): "
@@ -435,6 +488,8 @@ def pending(server):
 
 def serve(cfg, server, stub=False):
     """Answers every waiting request; returns how many. Called often (about every second) by crowd_chat_ai.py."""
+    global SERVER_DIR
+    SERVER_DIR = server
     _, out_path, _ = server_paths(server)
     n = 0
     for req in pending(server):

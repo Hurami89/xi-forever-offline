@@ -156,6 +156,7 @@ DEFAULT_CONFIG = {
 CONFIG = {}
 LORE = ""
 PROFILES = {}
+ROMANCE: dict[str, dict] = {}   # (2026-11-27) mate name -> the romance with the leader (LOVE lines, wedding_romance.lua)
 CONTEXT = {"zone": "Vana'diel", "level": 1, "engaged": 0, "party": [], "updated_at": 0,
            "fight": None, "fight_at": 0, "world": None, "world_at": 0}
 LAST_FIGHT_LINE = 0.0
@@ -781,7 +782,8 @@ def system_prompt(
         mood = f"Your mood today: {word} ({how}). Let it color how you talk a little; never announce it.\n"
     fight = fight_block(name) if (CONFIG.get("fight") or {}).get("enabled", True) else ""
     world = world_block() if (CONFIG.get("world") or {}).get("enabled", True) else ""
-    extra = "\n".join(part for part in (fight, world) if part)
+    love = romance_block(name)
+    extra = "\n".join(part for part in (fight, world, love) if part)
     if extra:
         extra += "\n"
     if reacting:
@@ -843,6 +845,70 @@ Party: {party}
 - do not speak for {leader()} or the other mates;
 - if you do not know something, react in character instead of inventing canon.
 """
+
+
+ROMANCE_STAGES = {
+    0: "You have only just met {leader}. Be friendly, a little reserved.",
+    1: "{leader} is your friend. Warm, easy, a little teasing.",
+    2: "{leader} is one of your closest friends, and you are starting to have feelings for them. Let a little of it show now and then.",
+    3: "You and {leader} are dating. You are sweet on them: a little flirting, compliments, looking forward to your next date.",
+    4: "You and {leader} are engaged to be married. You are excited about the wedding and say so sometimes.",
+    5: "You and {leader} are married. You are affectionate and steady; you sometimes call them dear or love.",
+}
+ROMANCE_NATURES = {
+    "quick": "You fall for people easily and are open about how you feel.",
+    "most": "Your feelings grow at an ordinary pace.",
+    "slow": "You are guarded and shy about feelings; you show them in small ways rather than big words.",
+    "never": "You are not interested in romance with anyone. You love {leader} as a dear friend only; if they flirt, you stay kind and keep it friendly.",
+}
+
+
+def romance_block(name: str) -> str:
+    """What the mate feels for the leader (only once there is something to say: a friend or more)."""
+    r = ROMANCE.get(name)
+    if not r:
+        return ""
+    try:
+        stage = int(r.get("stage", 0))
+    except ValueError:
+        stage = 0
+    nature = r.get("nature", "most")
+    who = leader()
+    if nature == "never" and stage > 2:
+        stage = 2
+    lines = [ROMANCE_STAGES.get(stage, ROMANCE_STAGES[1]).format(leader=who)]
+    if nature == "never":
+        lines = [f"{who} is one of your closest friends."]
+    lines.append(ROMANCE_NATURES.get(nature, ROMANCE_NATURES["most"]).format(leader=who))
+    if r.get("loves"):
+        lines.append(f"Gifts you love: {r['loves']}.")
+    if r.get("dates") and str(r["dates"]) not in ("", "0"):
+        lines.append(f"Dates you have been on together: {r['dates']}.")
+    if r.get("moments"):
+        lines.append(f"Recent moments between you: {r['moments']}.")
+    lines.append("Keep it sweet and wholesome, the way FFXI itself is (rated Teen): warmth, teasing, blushing, holding "
+                 "hands, vows. Never anything sexual, explicit or suggestive, and never possessive or jealous.")
+    return f"--- YOU AND {who.upper()} ---\n" + "\n".join(lines) + "\n"
+
+
+def handle_love_event(name: str, moment: str, fallback: str, stage_word: str) -> None:
+    """A romance moment (a gift, a date, a proposal...): the mate answers it with the model; the written line from the
+    server is said instead when there is no model answer (no sheet, paused, the model down)."""
+    name, moment, fallback = clean_line(name), clean_line(moment), clean_line(fallback)
+    if not name:
+        return
+    if moment:
+        memory = load_memory(name)
+        memory["journal"].append(moment + ".")
+        save_memory(name, memory)
+    reply = None
+    if name in PROFILES and not PAUSED and moment:
+        example = f" For the feel only (never copy it): {fallback}" if fallback else ""
+        reply = respond(name, "narrator", "", event=(
+            f"{moment}. You are {stage_word or 'their friend'}. Say one short line to {leader()} about it, warmly and "
+            f"in character.{example}"), allow_crosstalk=False, priority=True)
+    if not reply and fallback:
+        write_out("SAY", name, fallback)
 
 
 def remember_exchange(name: str, speaker: str, player_text: str, reply: str) -> None:
@@ -2026,6 +2092,13 @@ def handle_line(line: str) -> None:
                 respond(random.choice(pool), "narrator", "", event=(
                     f"{name}, the adventurer who was grouped with you, just left the party{together}. "
                     "Say one short line about it."))
+    elif kind == "LOVE" and len(parts) >= 8:
+        # LOVE <mate> <stage> <nature> <loves> <dates> <moments> <leader> (wedding_romance.lua)
+        ROMANCE[clean_line(parts[1])] = {"stage": parts[2], "nature": clean_line(parts[3]), "loves": clean_line(parts[4]),
+                                         "dates": clean_line(parts[5]), "moments": clean_line(parts[6])}
+    elif kind == "LOVEEV" and len(parts) >= 4:
+        # LOVEEV <mate> <moment> <written line> [<what they are to the leader>]
+        handle_love_event(parts[1], parts[2], parts[3], clean_line(parts[4]) if len(parts) > 4 else "")
     elif kind == "BOTSAY" and len(parts) >= 3:
         handle_chat(clean_line(parts[1]), "\t".join(parts[2:]), from_bot=True)
     elif kind == "ZONE" and len(parts) >= 2:
