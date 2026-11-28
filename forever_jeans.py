@@ -19,7 +19,8 @@ KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, KIT)
 import forever_beta_shirt as fbs                     # shared: game files, DXT3 encoder, item record helpers
 
-VERSION = 3                       # bump when the design changes, so installs rebuild (2: black accents, 3: Track Pants)
+VERSION = 4                       # bump when the design changes, so installs rebuild (2: black accents, 3: Track Pants,
+                                  # 4: only the shorts texture is ours; legs, socks and Mithra's skin stay the game's)
 ITEM_ID = 23868
 TEMPLATES = [(27325, "Track Pants"), (25911, "Denim Pants")]   # the first one the item file holds (its icon, and the
                                   # client then knows the feet slot is blocked); the Denim Pants are sure to be there
@@ -176,10 +177,24 @@ def textures(d):
     return out
 
 
+# (2026-11-27, Rysan and other Mithra players: skin showed through the socks in stripes on a Mithra) Only the shorts
+# texture (<race>_l) is ours. The legs and socks texture (<race>_f) and Mithra's own texture (mt_l: skin with see-through
+# levels, the only one that has them) stay exactly the game's: a Mithra's shorts and socks are drawn with the Hume
+# female's textures by name, and re-encoding those (and the crystals put on them) showed up as streaks on her legs.
+KEEP = ("mt_l",)
+
+
+def ours(name):
+    return name.endswith("_l") and name not in KEEP
+
+
 def build_model(src, race):
     d = bytearray(src)
     before, after = [], []
     for off, w, h in textures(src):
+        name = bytes(src[off - 85:off - 81]).decode("latin-1")
+        if not ours(name):
+            continue
         n = w * h
         img = Image.frombytes("RGBA", (w, h), bytes(src[off:off + n]), "bcn", (2,))
         new = design(img, race)
