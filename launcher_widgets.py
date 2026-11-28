@@ -524,7 +524,19 @@ class CrystalLoader(tk.Canvas):
             import os
             from PIL import Image, ImageTk
             here = os.path.dirname(os.path.abspath(__file__))
-            sheet = Image.open(os.path.join(here, "assets", "ui", "loader_crystals.png")).convert("RGB")
+            path = os.path.join(here, "assets", "ui", "loader_crystals.png")
+            # (2026-11-27, the user) each theme's own crystals: assets\\press\\<key>-ui\\loader_crystals.png, drawn on its BG
+            # (art-src\\scripts\\theme_loader_crystals.py); the usual sheet when the worn look has none
+            try:
+                import launcher_theme
+                look = getattr(launcher_theme, "LOOK", None)
+                art = look.get("art") if isinstance(look, dict) else None
+                own = launcher_theme.swapped(path, art) if isinstance(art, dict) else None
+                if own:
+                    path = own
+            except Exception:
+                pass
+            sheet = Image.open(path).convert("RGB")
             cw, ch = cls.CELL
             rows = sheet.height // ch
             frames = []
