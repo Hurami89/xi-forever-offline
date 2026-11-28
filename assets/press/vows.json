@@ -1,0 +1,26 @@
+{
+  "name": "Vows of Vana'diel",
+  "about": "The launcher as a Vana'diel wedding: an invitation in ivory card and burgundy satin with gold foil and a lace edge, wax seals pressed with wedding emblems (PLAY's carries two interlocking gold rings), rose petals when a button is lit. Banners are a wedding album: the invitation, the three palaces (Chateau d'Oraguille, the Metalworks, Heavens Tower), the vows, the fireworks and a marriage certificate, framing the official 2009 wedding-site pictures (Hurami's ffxwedding folder, copied to art-src\\wedding). Drawn in code by art-src\\scripts\\vows_lib.py, vows_buttons.py and vows_banners.py (started from Hurami's 'Vows of Vana'diel' preview). Lettering inside the pictures: Cormorant SC and Great Vibes (SIL OFL). Its song is 'Eternal Vows' by Hurami (vows_eternal_vows.mp3).",
+  "colours": {
+    "BG": "#2a0f17",
+    "PANEL": "#3a1520",
+    "PANEL2": "#4a1d2a",
+    "FG": "#f7ecdf",
+    "DIM": "#cdb4a8",
+    "BORDER": "#9c7740",
+    "LINE": "#5a2a36",
+    "OFF": "#7a6266",
+    "GOLD": "#d4aa54",
+    "GOLD_LIT": "#fce296",
+    "GOLD_DIM": "#8c6424",
+    "PARCH": "#f6e8cf",
+    "ACCENT": "#d65c6e",
+    "GREEN": "#7e9670",
+    "RED": "#c2384e",
+    "GREY": "#9a8a86"
+  },
+  "art": {
+    "folder": "vows-ui"
+  },
+  "sound": "vows_eternal_vows.mp3"
+}
