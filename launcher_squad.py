@@ -357,6 +357,22 @@ def lock_look(conn, charid, mate_id):
     _run(conn, "REPLACE INTO char_vars (charid, varname, value) VALUES (?, ?, 1)", (charid, look_var(mate_id)))
 
 
+def random_look(conn, charid, mate_id):
+    """(2026-11-28, the user: Randomized characters' mates showed the wrong race and picture) a Randomized character
+    with the random squad on ([HC]Mode 4, [HC]RSquad 1) calls each mate with the look Fate rolled for it
+    ([HC]RSLook<id> = race * 1000 + face * 10 + size, hardcore.lua), not the squad_mate row. Returns (race, face), or
+    None when the mate uses its own look (random squad off, or not rolled yet)."""
+    rows = dict(_all(conn, "SELECT varname, value FROM char_vars WHERE charid = ? AND varname IN (?, ?, ?)",
+                     (charid, "[HC]Mode", "[HC]RSquad", f"[HC]RSLook{int(mate_id)}")))
+    if int(rows.get("[HC]Mode", 0) or 0) != 4 or int(rows.get("[HC]RSquad", 0) or 0) != 1:
+        return None
+    look = int(rows.get(f"[HC]RSLook{int(mate_id)}", 0) or 0)
+    race, face = look // 1000, (look // 10) % 100
+    if not 1 <= race <= 8:
+        return None
+    return race, min(face, 15)
+
+
 def set_look(conn, mate_id, race, face):
     _run(conn, "UPDATE squad_mate SET race = ?, face = ? WHERE id = ?", (race, face, mate_id))
 

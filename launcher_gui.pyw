@@ -1403,16 +1403,20 @@ class SquadTab(tk.Frame):
         self.mate = self.mates[sel[0]]
         m = self.mate
         self.name_var.set(m["name"])
-        self.race_box.current((m["race"] or 1) - 1)  # a mate with no race chosen is a Hume male
-        self.face_box.current(min(m["face"], 15))
+        # (2026-11-28) a Randomized character's random squad: show the look Fate rolled, the one the game uses
+        fate = sq.random_look(self.conn, self.charid(), m["id"]) if self.player else None
+        race, face = fate if fate else ((m["race"] or 1), m["face"])
+        self.race_box.current(race - 1)  # a mate with no race chosen is a Hume male
+        self.face_box.current(min(face, 15))
         self.show_face_picture()
         if self.player:
-            fixed = sq.look_locked(self.conn, self.charid(), m["id"])
+            fixed = fate is not None or sq.look_locked(self.conn, self.charid(), m["id"])
             for w in (self.race_box, self.face_box):
                 w.configure(state="disabled" if fixed else "readonly")
             self.faces_button.configure(state="disabled" if fixed else "normal")
             self.look_button.configure(state="disabled" if fixed else "normal")
-            self.look_note.configure(text="This look is set for good." if fixed else
+            self.look_note.configure(text="Randomized: Fate rolled this look." if fate else
+                                     "This look is set for good." if fixed else
                                      "Pick carefully: a look can be set only once.")
         # Only offer jobs this character has unlocked (plus whatever the mate already has set)
         self.choices = sorted((self.unlocked | {m["mjob"], m["sjob"]}) - {0})
