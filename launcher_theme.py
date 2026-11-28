@@ -3,7 +3,7 @@
 A theme is a .json in assets\\press with a "colours" table. Two kinds, told apart by the file's name:
     vaporwave__until-2026-12-02.json    a limited-time theme (named like the limited-time banners, name__until-YEAR-MONTH-DAY): it
                                         turns itself on when it arrives and is gone, by itself, the day after its date
-    windurst.json                       a theme that is always there to pick; it is never on unless the player picks it
+    chronicle.json                      a theme that is always there to pick; it is never on unless the player picks it
 What a theme's .json may hold:
     "name"      what the Theme page calls it (otherwise the file's name)
     "colours"   the launcher's palette: BG, PANEL, GOLD ... (the names at the top of launcher_widgets.py); names left out stay as usual
